@@ -77,7 +77,7 @@ export function BatchResultsModal({ results, canPrintDeliveryNote, onPrintDelive
                         variant="outline"
                         onClick={onPrintDeliveryNote}
                     >
-                        <FileText className="mr-1.5 h-3.5 w-3.5" />
+                        <FileText className="mr-1.5 h-3.5 w-3.5 text-slate-600" />
                         Job Delivery Note
                     </Button>
                     <Button onClick={onClose}>Done</Button>

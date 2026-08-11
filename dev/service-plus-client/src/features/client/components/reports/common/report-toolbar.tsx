@@ -61,31 +61,31 @@ export const ReportToolbar = ({
                             size="sm"
                             variant="ghost"
                         >
-                            <RefreshCcw className="h-3.5 w-3.5" />
+                            <RefreshCcw className="h-3.5 w-3.5 text-blue-600" />
                         </Button>
                     )}
                     {(onExportPdf || onExportExcel || onPrint) && (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button aria-label="Export" className="h-8 gap-1" size="sm" variant="outline">
-                                    <Download className="h-3.5 w-3.5" />
+                                    <Download className="h-3.5 w-3.5 text-slate-600" />
                                     <span className="text-xs font-semibold">Export</span>
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 {onExportPdf && (
                                     <DropdownMenuItem onClick={onExportPdf}>
-                                        <FileText className="mr-2 h-3.5 w-3.5" /> PDF
+                                        <FileText className="mr-2 h-3.5 w-3.5 text-slate-600" /> PDF
                                     </DropdownMenuItem>
                                 )}
                                 {onExportExcel && (
                                     <DropdownMenuItem onClick={onExportExcel}>
-                                        <Download className="mr-2 h-3.5 w-3.5" /> Excel
+                                        <Download className="mr-2 h-3.5 w-3.5 text-slate-600" /> Excel
                                     </DropdownMenuItem>
                                 )}
                                 {onPrint && (
                                     <DropdownMenuItem onClick={onPrint}>
-                                        <Printer className="mr-2 h-3.5 w-3.5" /> Print
+                                        <Printer className="mr-2 h-3.5 w-3.5 text-slate-600" /> Print
                                     </DropdownMenuItem>
                                 )}
                             </DropdownMenuContent>

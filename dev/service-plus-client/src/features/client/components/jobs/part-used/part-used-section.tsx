@@ -273,7 +273,7 @@ export const PartUsedSection = () => {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
                 <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <RotateCcw className="h-4 w-4" />
+                        <RotateCcw className="h-4 w-4 text-blue-600" />
                     </div>
                     <div className="flex items-baseline gap-2">
                         <h1 className="text-lg font-bold text-(--cl-text)">
@@ -309,7 +309,7 @@ export const PartUsedSection = () => {
                             variant="ghost"
                             onClick={handleReset}
                         >
-                            <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
+                            <RefreshCw className={`h-3.5 w-3.5 text-blue-600 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
                             Reset
                         </Button>
                         <Button
@@ -340,7 +340,7 @@ export const PartUsedSection = () => {
                     {/* Toolbar */}
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="relative flex-1 sm:max-w-xs">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                             <Input className="h-8 border-(--cl-border) bg-white pl-8 text-xs" placeholder="Job no, alt job no, part code or part name…" value={search} onChange={e => handleSearchChange(e.target.value)} />
                             {search && (
                                 <button
@@ -348,13 +348,13 @@ export const PartUsedSection = () => {
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                         </div>
                         <div className="flex-1" />
                         <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }}>
-                            <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
+                            <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
                         </Button>
                     </div>
 
@@ -439,7 +439,7 @@ export const PartUsedSection = () => {
                                                                 variant="ghost"
                                                                 onClick={() => setViewJobId(row.job_id)}
                                                             >
-                                                                <Eye className="h-3.5 w-3.5" />
+                                                                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                                             </Button>
                                                             <Button
                                                                 className="h-7 w-7 p-0 text-amber-500 hover:bg-amber-500/10 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -449,7 +449,7 @@ export const PartUsedSection = () => {
                                                                 variant="ghost"
                                                                 onClick={() => setEditRow(row)}
                                                             >
-                                                                <Pencil className="h-3.5 w-3.5" />
+                                                                <Pencil className="h-3.5 w-3.5 text-blue-600" />
                                                             </Button>
                                                             <Button
                                                                 className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -459,7 +459,7 @@ export const PartUsedSection = () => {
                                                                 variant="ghost"
                                                                 onClick={() => setDeleteRow(row)}
                                                             >
-                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                <Trash2 className="h-3.5 w-3.5 text-red-600" />
                                                             </Button>
                                                         </div>
                                                     </td>
@@ -477,10 +477,10 @@ export const PartUsedSection = () => {
                                 {total === 0 ? "No parts used" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} parts used (Page ${page} of ${totalPages})`}
                             </span>
                             <div className="flex items-center gap-1">
-                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First"    onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4" /></Button>
-                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4" /></Button>
-                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Next" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4" /></Button>
-                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Last" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4" /></Button>
+                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First"    onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4 text-muted-foreground" /></Button>
+                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4 text-muted-foreground" /></Button>
+                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Next" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
+                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Last" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
                             </div>
                         </div>
                     </div>

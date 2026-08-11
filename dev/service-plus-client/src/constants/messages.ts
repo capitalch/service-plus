@@ -473,6 +473,14 @@ export const MESSAGES = {
   ERROR_JOB_INVOICE_REGEN_POSTED:      'This invoice cannot be regenerated as it is already posted.',
   ERROR_JOB_INVOICE_REGEN_FAILED:      'Failed to regenerate invoice. Please try again.',
   PDF_RECEIPT_DISCLAIMER:              'Received the amounts stated above on the specified dates against their respective reference numbers. Cheque receipts are subject to realization.',
+  // WhatsApp Messaging (plans/plan-whatsapp.md)
+  ERROR_WHATSAPP_SEND_FAILED:          'Failed to send WhatsApp message. Please try again.',
+  ERROR_WHATSAPP_JOBS_LOAD_FAILED:     'Failed to load jobs for Customer Connect. Please try again.',
+  INFO_WHATSAPP_NOT_CONFIGURED:        'WhatsApp is not configured for this business.',
+  INFO_WHATSAPP_NO_ELIGIBLE_JOBS:      'No jobs are eligible for the completion message.',
+  INFO_WHATSAPP_NO_MOBILE:             'Customer has no valid mobile number.',
+  SUCCESS_WHATSAPP_SENT:               'WhatsApp message sent successfully.',
+  WARN_WHATSAPP_PARTIAL_SEND:          'Some WhatsApp messages could not be sent. Check the results for details.',
   // Opening Stock
   INFO_OPENING_STOCK_EXISTING_ENTRY:      '· Add more parts below',
   ERROR_OPENING_STOCK_LOAD_FAILED:        'Failed to load opening stock. Please try again.',

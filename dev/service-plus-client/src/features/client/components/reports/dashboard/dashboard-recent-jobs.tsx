@@ -77,7 +77,7 @@ const COLUMNS: ReportColumnType<JobRowType>[] = [
     {
         align:   "center",
         cell:    r => r.is_warranty
-            ? <ShieldCheck className="mx-auto h-4 w-4 text-emerald-500" />
+            ? <ShieldCheck className="mx-auto h-4 w-4 text-violet-600" />
             : <span className="text-(--cl-text-muted)">—</span>,
         header:  "Warranty",
         id:      "warranty",

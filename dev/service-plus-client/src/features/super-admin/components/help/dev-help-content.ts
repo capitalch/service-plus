@@ -1,4 +1,5 @@
 import type { CategoryStyleType, HelpArticle } from "@/components/shared/help/help-types";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 
 // ─── Developer Help Center content ─────────────────────────────────────────────
 // Audience: developers/maintainers, surfaced only inside Super Admin (userType 'S',
@@ -220,7 +221,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
                 ["user", "username, email, password_hash, is_active, is_admin"],
                 ["bu", "Business Units this user community belongs to"],
                 ["role", "code, name, is_system — the three seeded system roles: MANAGER, TECHNICIAN, RECEPTIONIST"],
-                ["access_right", "code, name, module, description — 6 seeded granular permission codes"],
+                ["access_right", "code, name, module, description — 17 seeded granular permission codes as of the WhatsApp feature (JOBS_CUSTOMER_CONNECT, id=17, was the latest addition) — re-verify the exact count in seed_security_data.py before citing it, this number moves"],
                 ["role_access_right", "M:N join: which access_right codes each role grants"],
                 ["user_bu_role", "M:N join: which role a user holds on which bu, with an is_active flag"],
             ]},
@@ -365,13 +366,14 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
             { type: "table", headers: ["File", "Handles"], rows: [
                 ["auth_router.py + auth_router_helper.py", "POST /api/auth/login, refresh token, password reset — the one place login actually happens"],
                 ["base_router.py", "Shared/base route setup"],
-                ["image_router.py", "Image upload/serving — the only router today that enforces auth via Depends(get_current_user)"],
+                ["media/image_router.py", "Image upload/serving, auth via Depends(get_current_user)"],
+                ["notifications/whatsapp_router.py", "POST /notifications/whatsapp/send — the PDF-carrying WhatsApp sends (job creation/delivery/receipt), auth via Depends(get_current_user). Binary multipart payload is the reason this is REST instead of GraphQL, same reasoning as image_router.py; see 'WhatsApp Integration — Implementation' in the WhatsApp topic."],
             ]},
-            { type: "note", text: "House rule: 'GraphQL for all secured/authenticated data calls. Otherwise use axios [REST] for api calls' on the client side, mirrored server-side as 'Routing: Use FastAPI Routers to handle REST endpoints. Keep main.py minimal.' Login itself is REST because it's the one call that happens before a JWT exists." },
+            { type: "note", text: "House rule: 'GraphQL for all secured/authenticated data calls. Otherwise use axios [REST] for api calls' on the client side, mirrored server-side as 'Routing: Use FastAPI Routers to handle REST endpoints. Keep main.py minimal.' Login itself is REST because it's the one call that happens before a JWT exists; the image/WhatsApp routers are REST because their payload is binary/multipart, not because they're unauthenticated — both enforce the same Depends(get_current_user) as any GraphQL resolver calling require_access_right." },
         ],
         faqs: [
             { q: "Why is login REST instead of a GraphQL mutation?", a: "There's no JWT yet at that point in the flow — REST keeps the auth handshake outside the GraphQL context/auth-guard machinery entirely." },
-            { q: "Where do I add a new authenticated REST endpoint?", a: "Follow image_router.py's pattern: a FastAPI Router with Depends(get_current_user) from app/core/dependencies.py. But default to GraphQL first — REST is the exception here, not the rule." },
+            { q: "Where do I add a new authenticated REST endpoint?", a: "Follow image_router.py's or whatsapp_router.py's pattern: a FastAPI Router with Depends(get_current_user) from app/core/dependencies.py. But default to GraphQL first — REST is the exception here, reserved for binary/multipart payloads, not the rule." },
         ],
     },
 
@@ -628,7 +630,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
         content: [
             { type: "para", text: "Roles and access rights are seeded, not created through any UI form — matching the 'system-defined, not editable' philosophy in roles-page.tsx." },
             { type: "table", headers: ["Piece", "Detail"], rows: [
-                ["seed_security_data.py", "ROLE_SEED_SQL (the 3 role rows) + ACCESS_RIGHT_SEED_SQL (6 access_right rows + role_access_right mapping), both ON CONFLICT DO NOTHING — fully idempotent, safe to re-run"],
+                ["seed_security_data.py", "ROLE_SEED_SQL (the 3 role rows) + ACCESS_RIGHT_SEED_SQL (17 access_right rows as of the WhatsApp feature + role_access_right mapping), both ON CONFLICT DO NOTHING — fully idempotent, safe to re-run. A new right needs a new row here AND a corresponding role_access_right row per role that should get it — see 'WhatsApp Messaging — Implementation' for a recent worked example (JOBS_CUSTOMER_CONNECT, id=17)."],
                 ["Automatic seeding", "Runs inline whenever a new client schema is created (Super Admin → Initialize Client)"],
                 ["On-demand seeding", "The seedSecurityData GraphQL mutation, wired to Super Admin's seed-roles-dialog.tsx — a two-step wizard (Roles, then Access Rights), each step independently checked and idempotent"],
             ]},
@@ -918,6 +920,56 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
         ],
     },
 
+    {
+        id: "dev-whatsapp-integration",
+        category: "WhatsApp",
+        title: "WhatsApp Integration — Implementation",
+        summary: "Settings/templates/BSP-client split, the mutation-vs-REST send-path divide, and the whatsapp_notifications jsonb column.",
+        tags: ["whatsapp", "whatsapp integration", "whatsapp_notifications", "sendWhatsappCompletion", "whatsapp_router", "customer connect", "bsp", "meta cloud api", "jsonb_set"],
+        content: [
+            { type: "para", text: "Design doc: plans/plan-whatsapp.md (service-plus-client repo) — read it first for the why behind every choice below; this article is the as-built implementation summary, grounded in the actual committed code as of this feature's build. One BSP (Business Solution Provider, WhatsApp Cloud API by Meta) is assumed; there is no provider-registry abstraction because there is only one implementation to abstract over. Sends are synchronous — click a button, the server calls the BSP inline, the result comes back in the same request. No outbox table, no background worker, no retry queue." },
+            { type: "heading", text: "Server: three new modules, one new column" },
+            { type: "table", headers: ["File", "Role"], rows: [
+                ["app/core/settings/whatsapp_settings.py", "WhatsappSettings(BaseSettings) — api_version, base_url, phone_number_id, waba_id, access_token_env (the *name* of the env var holding the token, never the token itself). Fields are individually prefixed (whatsapp_api_version, etc.), NOT via SettingsConfigDict(env_prefix=...) — that would leak onto every other mixin in the multi-inheritance Settings class in config.py and break unrelated env var names like smtp_host."],
+                ["app/notifications/whatsapp_templates.py", "TEMPLATES: dict[str, TemplateSpec] — one entry per event type (JOB_CREATION, JOB_COMPLETION, JOB_DELIVERY, JOB_RECEIPT), each with the BSP-approved template name, language, has_document flag, and ordered param list. Config-as-code, not a database table or Super-Admin editor UI — whoever changes a template here is trusted to keep it in sync with what's actually approved on Meta's side."],
+                ["app/notifications/whatsapp_client.py", "upload_media() and send_template() — the only two calls that touch the BSP's HTTP API. WhatsappSendResult carries ok/provider_message_id/error_code/error_message/permanent (Meta's 131026/132xxx codes mean 'don't retry, the number or template itself is bad')."],
+                ["app/notifications/whatsapp_helpers.py", "is_valid_mobile()/normalize_mobile() (mirrors the client's isValidMobile) and build_notification_update_args() — the jsonb_set argument builder shared by both send paths below, so the increment-exactly-one-counter logic exists in exactly one place."],
+            ]},
+            { type: "note", text: "job.whatsapp_notifications jsonb NOT NULL DEFAULT '{}'::jsonb is the only schema change. One key per event type ({success_count, fail_count, last_sent_at, last_status, last_error}); a missing key means 'never attempted.' No per-attempt audit table — only the latest state per event type per job." },
+            { type: "heading", text: "Two send paths, split by payload shape" },
+            { type: "table", headers: ["Path", "Trigger(s)", "Carries a PDF?"], rows: [
+                ["sendWhatsappCompletion (GraphQL mutation, app/graphql/resolvers/jobs/whatsapp.py)", "Single-job Whatsapp button on the finalize form, AND the Customer Connect bulk screen — same mutation, same grouping logic, two callers", "No — text only, so it fits the standard db_name/schema/value mutation envelope"],
+                ["POST /notifications/whatsapp/send (REST, app/routers/notifications/whatsapp_router.py)", "Job creation, job delivery, job receipt", "Yes — multipart form (pdf, job_ids repeated, event_type, db_name, schema); a binary payload doesn't fit a JSON mutation envelope, so this bypasses GraphQL entirely, same pattern as image_router.py's upload endpoint"],
+            ]},
+            { type: "para", text: "Both paths group by customer_contact_id server-side before sending — 'one message per customer' is enforced there, not trusted from the client's selection. Both call app/notifications/whatsapp_helpers.py's build_notification_update_args() and a shared SqlStore.SET_JOB_WHATSAPP_NOTIFICATION jsonb_set query to write the result back." },
+            { type: "heading", text: "sql_jobs.py additions" },
+            { type: "table", headers: ["Constant", "Used by"], rows: [
+                ["GET_JOBS_FOR_WHATSAPP_COMPLETION", "sendWhatsappCompletion resolver (re-filters to is_final=true) — also reused as-is by the client's Customer Connect send-confirmation modal, via the generic genericQuery dispatcher, rather than adding a fourth near-duplicate query"],
+                ["GET_JOBS_FOR_WHATSAPP_SEND", "The REST document-send router — joins branch (JOB_CREATION's branch_name param) and the latest job_payment row per job via LEFT JOIN LATERAL (JOB_RECEIPT's receipt_no/payment_mode params, which live on job_payment, not job)"],
+                ["SET_JOB_WHATSAPP_NOTIFICATION", "Both send paths — the shared per-job jsonb_set"],
+                ["GET_WHATSAPP_ELIGIBLE_JOBS_COUNT / _PAGED / _JOB_IDS", "Customer Connect's grid, paging, and 'select all N matching' — mirrors GET_COMPLETED_JOBS_COUNT/_PAGED's existing shape, filtered to is_final=true, is_closed=false, status not in (CANCELLED, DISPOSED)"],
+            ]},
+            { type: "heading", text: "Client structure" },
+            { type: "table", headers: ["File", "Role"], rows: [
+                ["src/lib/whatsapp-service.ts", "sendWhatsappDocument() — the REST fetch wrapper, mirrors src/lib/image-service.ts's uploadJobFile() (refreshIfNeeded() for a guaranteed-fresh token, FormData, res.ok check)"],
+                ["src/features/client/components/jobs/send-whatsapp-completion.ts", "sendWhatsappCompletion() — the GraphQL mutation wrapper. Lives at the jobs/ level, not inside customer-connect/ as the plan's file table literally showed, because the finalize-form button (step 6) needed it before that folder existed; both callers import this one copy"],
+                ["src/features/client/components/jobs/use-whatsapp-send.ts", "useWhatsappSend() hook — shared in-flight-key state + isValidMobile guard + toast handling for the four PDF-carrying buttons. Each call site still builds its own PDF Blob (job-sheet vs invoice vs receipt genuinely differ) before calling the hook"],
+                ["src/features/client/components/jobs/customer-connect/", "The bulk screen: customer-connect-section.tsx (shell), -grid.tsx, -helpers.ts (groupRowsByCustomer groups by customer_contact_id, matching the resolver's own key), -schema.ts, send-messages-modal.tsx, send-results-dialog.tsx"],
+                ["src/features/client/components/jobs/job-sheet-pdf.ts", "getJobSheetPdfBlob()/getBatchJobSheetPdfBlob() — new sibling exports added alongside the pre-existing getJobSheetBlobUrl()/getBatchJobSheetBlobUrl(). The existing pair returns doc.output('bloburl') (a blob: URL string) for the Print-button preview; a multipart POST needs an actual Blob, which those functions never exposed — this was a real bug caught during implementation, not a hypothetical one"],
+            ]},
+            { type: "warning", text: "If you're about to POST a client-built PDF anywhere else in this codebase, check whether the builder you're calling returns a blob: URL string (jsPDF's .output('bloburl')) or an actual Blob (.output('blob')) — they are easy to conflate and only one of them uploads." },
+            { type: "heading", text: "Access right" },
+            { type: "para", text: "JOBS_CUSTOMER_CONNECT, id=17 in seed_security_data.py's ACCESS_RIGHT_SEED_SQL, granted to MANAGER and RECEPTIONIST (not TECHNICIAN) — gates only the Customer Connect menu item. The sendWhatsappCompletion resolver itself carries no require_access_right guard: the finalize-form's own host screen has no access right of its own to piggyback on, so gating happens client-side only, via the menu entry. The three REST-router buttons ride whatever right already gates their host screen (JOBS_DELIVER_JOB, etc.) — no new right per button." },
+        ],
+        faqs: [
+            { q: "Why isn't there a provider-registry abstraction for the BSP?", a: "Only one BSP (Meta WhatsApp Cloud API) is in use. A registry is premature until there's a second implementation to abstract over — swapping providers later means editing whatsapp_client.py, not redesigning a dispatch layer." },
+            { q: "Where do I add a fifth notification event type?", a: "Add a TemplateSpec to TEMPLATES in whatsapp_templates.py, get it approved on the BSP side with a matching placeholder count, and add a call site. No migration is needed on job.whatsapp_notifications — a missing key already means 'never attempted', so a new event type just starts writing a new key." },
+            { q: "Why does sendWhatsappCompletion re-filter to is_final=true instead of trusting the job_ids the client sent?", a: "The client — especially Customer Connect's multi-select — is never trusted for authorization-relevant filtering. The resolver re-loads the jobs and re-checks is_final itself before grouping and sending, exactly like every other bulk-action resolver in this codebase." },
+            { q: "Is there an audit trail of every individual WhatsApp send attempt?", a: "No — only the latest state per event type per job, in job.whatsapp_notifications. There's no outbox table to log a per-attempt history against; success_count/fail_count are running counters, not a list of past attempts." },
+            { q: "Why does the media upload happen before the template send, in two separate BSP calls?", a: "Meta's API has no way to attach a raw byte payload to a message send directly — a document component in a template message references a media id, not bytes. upload_media() POSTs the PDF bytes first and gets back that id; send_template() then references it. A public unauthenticated URL isn't an option either, since the PDFs are generated client-side and never persisted anywhere the BSP could fetch them from." },
+        ],
+    },
+
     // ── Category 10: Troubleshooting (Dev) ────────────────────────────────────
 
     {
@@ -1020,6 +1072,16 @@ export const DEV_CAT_STYLE: Record<string, CategoryStyleType> = {
         stepText: "text-white",
         border:   "border-teal-300 dark:border-teal-700",
     },
+    "WhatsApp": {
+        emoji:    "💬",
+        icon:     WhatsAppIcon,
+        gradient: "from-green-500 to-emerald-600",
+        pill:     "bg-green-100 dark:bg-green-900/40",
+        pillText: "text-green-700 dark:text-green-300",
+        stepBg:   "bg-green-500",
+        stepText: "text-white",
+        border:   "border-green-300 dark:border-green-700",
+    },
     "Integrations": {
         emoji:    "🔗",
         gradient: "from-fuchsia-600 to-pink-600",
@@ -1060,6 +1122,7 @@ export const DEV_HELP_CATEGORIES = [
     "Multi-Tenancy & Provisioning",
     "Deployment & Infrastructure",
     "Configuration",
+    "WhatsApp",
     "Integrations",
     "Troubleshooting (Dev)",
 ] as const;

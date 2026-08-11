@@ -1,4 +1,6 @@
 # WhatsApp Messaging Plan
+Please omit /deployment folder for all purposes
+Please ignore /home/sushant/projects/service-plus/deployment folder and don't read / modify it in any case.
 
 Add WhatsApp send buttons at four points in a job's lifecycle, plus a bulk-send screen for the
 completion message. WhatsApp only — no SMS, no email. One BSP (Business Solution Provider — assumed
@@ -406,36 +408,199 @@ section switch.
   statement to the tenant DDL. Re-extract the schema dump. Hand-apply to live schemas.
 
 **Step 2 — Server core (no API surface yet, safe to build and merge independently)**
-- 2.1. `whatsapp_settings.py` (§4a) and wire into the settings chain.
-- 2.2. `whatsapp_templates.py` (§4b) with the four `TemplateSpec` entries.
-- 2.3. `whatsapp_client.py` (§4c): `upload_media`, `send_template`, `WhatsappSendResult`.
-- 2.4. In parallel with 2.1–2.3: register the WhatsApp Business number with the BSP and submit all four
-  templates for approval — this has the longest lead time of anything in this plan.
+- 2.1. ✅ `whatsapp_settings.py` (§4a) and wire into the settings chain. Field names are prefixed
+  (`whatsapp_api_version`, `whatsapp_base_url`, `whatsapp_phone_number_id`, `whatsapp_waba_id`,
+  `whatsapp_access_token_env`) rather than using `SettingsConfigDict(env_prefix="WHATSAPP_")` as the
+  plan's snippet showed — an `env_prefix` on one mixin in the multi-inheritance `Settings` chain would
+  apply to the *whole* merged class, breaking every other setting's env var lookup (e.g. `smtp_host`
+  would start reading `WHATSAPP_SMTP_HOST`). Per-field prefixing matches the existing `EmailSettings`
+  pattern (`smtp_host`, `smtp_password`, ...) and avoids that. `phone_number_id`/`waba_id` default to
+  `""` rather than being required, so the app still starts before BSP registration (2.4) lands.
+- 2.2. ✅ `whatsapp_templates.py` (§4b) with the four `TemplateSpec` entries.
+- 2.3. ✅ `whatsapp_client.py` (§4c): `upload_media`, `send_template`, `WhatsappSendResult`, plus a
+  `WhatsappApiError` exception for outright media-upload failures. Both functions live in
+  `app/notifications/whatsapp_client.py`; imports and settings composition verified with `py_compile`
+  and a manual import smoke test.
+- 2.4. ⬜ Not done here — register the WhatsApp Business number with the BSP and submit all four
+  templates for approval. This is an external, non-code action (BSP dashboard), has the longest lead
+  time of anything in this plan, and should be started in parallel with the remaining steps.
 
-**Step 3 — Server API**
-- 3.1. `sendWhatsappCompletion` resolver (§4d): load + group + fan-out send + `jsonb_set` + return
-  results. Update the GraphQL schema.
-- 3.2. `whatsapp_router.py` REST endpoint (§4e), mounted at startup.
+**Step 3 — Server API ✅ done**
+- 3.1. ✅ `sendWhatsappCompletion` resolver (§4d): load + group + fan-out send + `jsonb_set` + return
+  results. Lives in the new `app/graphql/resolvers/jobs/whatsapp.py` (mirroring the existing
+  `invoicing.py` split alongside `mutations.py`), wired into `mutation.py` and `schema.graphql`. No
+  access-right guard on the resolver itself — the finalize-job form (its other caller) has no right of
+  its own to check, so gating only happens client-side, via the Customer Connect menu entry's new
+  right (§6, step 4.1). Mobile validation/normalization and the `whatsapp_notifications` jsonb_set
+  update-args builder were factored into `app/notifications/whatsapp_helpers.py` since step 3.2 needs
+  the identical logic — "one code path, two callers" extends to this helper too, not just the mutation.
+  Two new SQL constants in `sql_jobs.py`: `GET_JOBS_FOR_WHATSAPP_COMPLETION` (joins `customer_contact`,
+  re-filters to `is_final = true`) and `SET_JOB_WHATSAPP_NOTIFICATION` (per-job `jsonb_set`, shared with
+  3.2).
+- 3.2. ✅ `whatsapp_router.py` REST endpoint (§4e), mounted in `app/main.py` alongside `image_router`.
+  Added a third SQL constant, `GET_JOBS_FOR_WHATSAPP_SEND` — joins `branch` (for `JOB_CREATION`'s
+  `branch_name` param) and the latest `job_payment` row per job via `LEFT JOIN LATERAL` (for
+  `JOB_RECEIPT`'s `receipt_no`/`payment_mode` params) — the plan's flow description in §4e didn't spell
+  out where those two fields come from since they live on `job_payment`, not `job`, so this fills that
+  gap. Verified the full FastAPI app still mounts with `/notifications/whatsapp/send` registered.
 
-**Step 4 — Client infra**
-- 4.1. Add the SQL-map ids, the GraphQL-map entry, the messages constants, and the access right (§6).
+**Step 4 — Client infra ✅ mostly done**
+- 4.1. ✅ GraphQL-map entry (`GRAPHQL_MAP.sendWhatsappCompletion`), the access right
+  (`ACCESS_RIGHTS.JOBS_CUSTOMER_CONNECT` client-side, plus `id=17` added to
+  `seed_security_data.py`'s `ACCESS_RIGHT_SEED_SQL`/`role_access_right` rows — MANAGER and
+  RECEPTIONIST both get it, TECHNICIAN doesn't, matching the existing pattern; existing tenants pick
+  it up by re-running the seed mutation, same as any other seed row, no hand `ALTER` needed this time),
+  and the messages block (`ERROR_WHATSAPP_SEND_FAILED`, `ERROR_WHATSAPP_JOBS_LOAD_FAILED`,
+  `INFO_WHATSAPP_NOT_CONFIGURED`, `INFO_WHATSAPP_NO_ELIGIBLE_JOBS`, `INFO_WHATSAPP_NO_MOBILE`,
+  `SUCCESS_WHATSAPP_SENT`, `WARN_WHATSAPP_PARTIAL_SEND` — `WARN_` prefix, not `WARNING_`, matching this
+  file's actual convention, e.g. `WARN_JOB_INVOICE_NO_LINES`).
+  ⬜ **Deferred to Step 7**: the three Customer-Connect-specific SQL-map ids (eligible-jobs paged/count
+  queries + the ids-only "select all N matching" query). Building their server SQL now would mean
+  guessing the grid's exact column/filter shape before the grid itself exists — safer to design them
+  together with 7.1 than to lock in a shape that likely needs rework.
 
-**Step 5 — The three inline PDF buttons (each independently shippable and testable)**
-- 5.1. Job creation button (§5a) — single-job (`single-job-section.tsx`) and batch
-  (`batch-job-section.tsx`, `batch-job-view-modal.tsx`, `batch-job-quick-info-card.tsx`).
-- 5.2. Job delivery button (§5c).
-- 5.3. Job Receipt button (§5d).
+**Step 5 — The three inline PDF buttons ✅ done (each independently shippable and testable)**
+- **Icon update (post-implementation):** every Whatsapp button/menu-item/tree-icon originally used
+  lucide's generic `MessageCircle` per §5's spec. Replaced with a real WhatsApp glyph — a new
+  `src/components/shared/whatsapp-icon.tsx` (`WhatsAppIcon`), an inline SVG of the official WhatsApp
+  mark (simple-icons' path data) rendered with `fill="currentColor"` so it drops into every existing
+  call site unchanged (same `className` sizing/coloring, same `ComponentType<{ className?: string }>`
+  shape the menu's `TreeItem` expects) — no icon library dependency added. Swapped in all 10 files that
+  had `MessageCircle`: `single-job-section.tsx`, `batch-job-section.tsx`, `batch-job-view-modal.tsx`,
+  `batch-job-quick-info-card.tsx`, `delivery-modal-invoices-section.tsx`, `final-job-form.tsx`,
+  `receipts-section.tsx`, `customer-connect-section.tsx`, `send-messages-modal.tsx`, and
+  `client-explorer-panel.tsx`'s menu tree item.
+  **Follow-up**: `WhatsAppIcon` was then revised from a `currentColor` monochrome silhouette to the
+  actual two-tone mark — a fixed `#25D366` green circle with the white glyph inset, matching the real
+  app icon, since a brand mark shouldn't recolor to match whatever button/menu-item it sits in. This
+  surfaced a second issue in the Help Center's own "WhatsApp" topic (added when that topic was split out
+  of "Jobs"/"Integrations" into its own category — see the help-system entries below): `CategoryStyleType`
+  only ever supported an `emoji` glyph for a topic's icon, rendered as plain text — invisible on systems
+  without a color-emoji font, and, once `icon?: ComponentType<{ className?: string }>` was added so a
+  category could opt into a real icon, still low-contrast because the topic grid/popular-article
+  badges wrap category glyphs in their own colored gradient circle — green-on-green for a green brand
+  icon. Fixed in `help-panel.tsx`: `icon` (when set) now bypasses that gradient wrapper entirely and
+  renders bare and larger (the icon is already a complete colored badge on its own), and the
+  gradient-header context (`CategoryView`) gives it a white circular backdrop instead, so it reads
+  clearly against the green header bar. Verified visually via a static HTML mockup of the actual
+  Tailwind markup in Chrome (not the full app, which needs auth) — screenshots confirmed crisp
+  rendering at 16px/36px/48px and no more green-on-green blending.
+- 5.1. ✅ Job creation button (§5a) — single-job (`single-job-section.tsx`, row dropdown, sibling of
+  "Print PDF") and batch: `batch-job-section.tsx` (`BatchJobQuickInfoCard` and `BatchGroupRow`, both
+  needing a new `onWhatsapp`/`isSendingWhatsapp` prop threaded down since the PDF fetch + build lives in
+  the parent), `batch-job-view-modal.tsx` (footer button, next to "Print All", using the already-loaded
+  `jobs` prop directly — no extra fetch needed there), `batch-job-quick-info-card.tsx` (action row,
+  needs its own `onWhatsapp`/`isSendingWhatsapp` props since it only ever delegates PDF building to its
+  parent). **Gotcha found and fixed**: `getJobSheetBlobUrl`/`getBatchJobSheetBlobUrl` in `job-sheet-pdf.ts`
+  return `doc.output("bloburl")` — a blob: URL *string* — not a `Blob`, so they can't be POSTed as
+  multipart form data directly. Added sibling exports `getJobSheetPdfBlob`/`getBatchJobSheetPdfBlob`
+  that call the same (still-private) `buildSingleJobSheetDoc`/`buildBatchJobSheetDoc` builders and
+  return `doc.output("blob")` instead — the existing Print-button exports are untouched.
+- 5.2. ✅ Job delivery button (§5c) — `delivery-modal-invoices-section.tsx`'s per-job invoice row,
+  sibling of "Print" (covers both the single-job and bulk delivery cases, since that modal's job list is
+  just length 1 for a single delivery — no separate insertion point was needed in
+  `deliver-job-section.tsx` itself, which only ever opens this modal). Reuses `buildInvoicePdf` +
+  `.output("blob")` directly (unlike the job-sheet builders, this one already returned a raw `jsPDF`).
+  Left the already-delivered-jobs grid's separate invoice/receipt reprint path
+  (`use-delivered-job-actions.tsx`) untouched — out of scope per the plan's file list, and reprinting a
+  past delivery's WhatsApp receipt wasn't asked for.
+- 5.3. ✅ Job Receipt button (§5d) — `receipts-section.tsx` row dropdown, sibling of "Print Receipt",
+  plus the success-toast action button after Save (`sonner`'s `action: { label, onClick }` — new to this
+  codebase, no prior toast-with-action precedent existed). The toast action only appears on *create*
+  (not edit), and does its own `GET_JOB_DETAIL` fetch to get the mobile/job_no the save form itself
+  never loaded, before calling the same `handleSendWhatsapp` the dropdown item uses.
+- All four buttons share one new hook, `jobs/use-whatsapp-send.ts` (`useWhatsappSend`), factoring out
+  the in-flight-key state + `isValidMobile` guard + toast success/failure handling that would otherwise
+  repeat at every site — mirrors the server's `whatsapp_helpers.py` split from step 3. Each call site
+  still owns its own PDF-build step (job sheet vs invoice vs receipt genuinely differ) and calls the
+  hook's `sendWhatsapp(key, mobile, { ... })` once the `Blob` is ready. New REST wrapper
+  `src/lib/whatsapp-service.ts` (`sendWhatsappDocument`) mirrors `image-service.ts`'s `uploadJobFile`
+  fetch pattern exactly (`refreshIfNeeded()` for a guaranteed-fresh token, `FormData`, `res.ok` check).
+  Verified with `tsc -b --noEmit` (clean) — `eslint` itself is broken in this environment
+  (`typescript-eslint` doesn't yet support the installed TS 7.0, a pre-existing issue unrelated to this
+  change) so it could not be run as a second check.
 
-**Step 6 — Job completion**
-- 6.1. Single-job "Whatsapp" button on the finalize form (§5b), calling the same mutation built in
-  step 3.1.
+**Step 6 — Job completion ✅ done**
+- 6.1. ✅ Single-job "Whatsapp" button on the finalize form (§5b), calling the same
+  `sendWhatsappCompletion` mutation built in step 3.1. `FinalJobForm` is shared by **two** hosts —
+  `final-a-job-section.tsx` (the normal Final a Job screen) and `job-control/final-job-dialog.tsx` (a
+  second entry point that opens the same form from Job Control) — both needed the new
+  `sendingWhatsapp`/`onSendWhatsapp` props and their own copy of the send handler, since each owns its
+  own local state. Disabled the button (with a tooltip) whenever `!selectedJob.is_final` in addition to
+  the usual invalid-mobile check — the resolver's `is_final = true` re-filter means a pre-save click
+  would silently no-op otherwise, so the client guards against that dead click rather than surfacing a
+  confusing empty-success toast. Factored the mutation call into a new shared
+  `jobs/send-whatsapp-completion.ts` wrapper — deviates from §5e's file table, which places
+  `send-whatsapp-completion.ts` inside `customer-connect/`, because step 6 needed it before that folder
+  existed and the plan's own §4d says "one code path, two callers"; duplicating the wrapper into
+  `customer-connect/` too would've fought that same principle. Customer Connect (step 7) imports this
+  shared file instead of getting its own copy.
 
-**Step 7 — Customer Connect screen**
-- 7.1. Grid + selection + send-results dialog (§5e).
-- 7.2. Menu entry and page routing.
+**Step 7 — Customer Connect screen ✅ done**
+- 7.1. ✅ Grid + selection + send-results dialog (§5e), new `customer-connect/` folder:
+  `customer-connect-schema.ts`, `customer-connect-helpers.ts` (`groupRowsByCustomer` groups by
+  `customer_contact_id`, mirroring the resolver's own grouping key exactly — not by mobile, which
+  could theoretically collide), `customer-connect-grid.tsx`, `send-messages-modal.tsx` (per-customer
+  preview + drop-a-customer), `send-results-dialog.tsx`, `customer-connect-section.tsx` (screen shell).
+  No `send-whatsapp-completion.ts` in this folder — see step 6's note above.
+  **Selection persistence**: `selectedIds: Set<number>` lives in the section, survives paging/search;
+  each page load merges in that page's eligible-and-not-yet-messaged rows as defaults (a full reload of
+  the same page — e.g. clicking Refresh — resets that page back to defaults, which reads as intended
+  behavior for "every eligible row starts checked" rather than a bug). "Select all N matching" fetches
+  a separate ids-only query and replaces the selection outright; any manual uncheck afterward drops out
+  of that mode automatically. The toolbar's "Send Messages" button intentionally shows only a job count,
+  not a customer count — an accurate customer count needs each selected job's `customer_contact_id`,
+  which isn't loaded for off-page selections until the send-confirmation modal fetches full detail; a
+  page-local customer count would have been actively misleading, so it's surfaced in the modal instead
+  (which the plan's "before the click" language is satisfied by, reading "the click" as the modal's own
+  Send button, the one that actually fires the mutation).
+  Server-side, this needed the three SQL queries deferred from Step 4.1: `GET_WHATSAPP_ELIGIBLE_JOBS_COUNT`
+  / `_PAGED` / `_JOB_IDS` in `sql_jobs.py` (mirrors `GET_COMPLETED_JOBS_COUNT`/`_PAGED`'s existing
+  shape closely), plus new client `SQL_MAP` entries. The send-confirmation modal's per-customer preview
+  reuses the existing `GET_JOBS_FOR_WHATSAPP_COMPLETION` SqlStore constant from step 3.1 as-is via the
+  generic `genericQuery` dispatcher (any `SqlStore` attribute is callable that way) rather than adding a
+  redundant fourth query — one less SQL string to keep in sync with the `job`/`customer_contact` schema.
+- 7.2. ✅ Menu entry (`client-explorer-panel.tsx`, `MessageCircle` icon, placed after "Deliver Job",
+  gated by `ACCESS_RIGHTS.JOBS_CUSTOMER_CONNECT`) and the `client-jobs-page.tsx` section-switch case.
 
 **Step 8 — Help and verification**
-- 8.1. Help article + cross-link lines (§6).
+- 8.1. ✅ Help article + cross-link lines (§6), both audiences.
+  Client-facing (`src/features/client/components/help/help-content.ts`): new `customer-connect` article
+  under the existing "Jobs" category (no new category needed), placed between `deliver-job` and
+  `receipts` — what the screen shows, why rows are disabled (invalid/missing mobile), what "Msgs Sent"
+  means, the "one message per customer" grouping, and that it covers only the completion event (not
+  creation/delivery/receipt, each of which link back here). Added a short cross-link
+  paragraph/bullet + FAQ to each of the four existing trigger articles (`create-job`, `finalize-job`,
+  `deliver-job`, `receipts`) describing their own new Whatsapp button, plus a `whatsapp`/`customer
+  connect` tag on each for search. Added a "Jobs → Customer Connect" row to `access-roles`' role/feature
+  table (✅ Manager, ❌ Technician, ✅ Receptionist — matching the `seed_security_data.py` grant).
+  **Follow-up**: added a dedicated top-level `whatsapp-integration` overview article (also "Jobs"
+  category, placed right before `customer-connect`) — a single map of all four send points plus the
+  bulk screen, the shared button behavior (icon/label/disabled-tooltip/spinner/toast), the Msgs Sent
+  tracking concept, and the access-right split — with each of the five other articles' Whatsapp
+  paragraphs now linking back to it, since the per-screen articles cover their own button in depth but
+  none of them gave the cross-screen picture on their own. Added to `CLIENT_POPULAR_IDS`.
+  Super-Admin dev-facing (`src/features/super-admin/components/help/dev-help-content.ts`): new
+  `dev-whatsapp-integration` article (title "WhatsApp Integration — Implementation", matching the
+  client-facing article's name) under the existing "Integrations" category, alongside the Trace Plus
+  article, and added to `DEV_POPULAR_IDS` — settings/templates/BSP-client module split, the
+  mutation-vs-REST send-path divide and why, the `whatsapp_notifications` jsonb shape, every new SQL
+  constant and which caller uses it, the client-side file layout including the job-sheet-PDF
+  `bloburl`-vs-`blob` bug caught during implementation, and the access-right wiring. Also corrected two
+  now-stale facts this feature's own code directly falsified: `dev-server-layout`'s REST-routers table
+  claimed `image_router.py` was "the only router today that enforces auth" (no longer true —
+  `whatsapp_router.py` is a second one), and
+  two "6 seeded access-right codes" mentions (`dev-security-schema-reference`, `dev-rbac-seeding`) were
+  already stale before this feature and are now off by more (17, as of `JOBS_CUSTOMER_CONNECT` id=17) —
+  left the broader pre-existing `app/db/*` flat-path staleness in that same neighborhood (e.g.
+  `sql_store.py`, `seed_bu_data.py` — reorganized into `app/db/sql/`, `app/db/seeds/`, etc. before this
+  session) untouched, since fixing that is a separate cleanup unrelated to the WhatsApp change.
+  **Follow-up**: split "WhatsApp" out into its own top-level topic/category on both sides — added to
+  `HELP_CATEGORIES`/`CLIENT_CAT_STYLE` and `DEV_HELP_CATEGORIES`/`DEV_CAT_STYLE` (green 💬 theme), moved
+  `whatsapp-integration` + `customer-connect` (client) and `dev-whatsapp-integration` (dev) into it
+  instead of leaving them under "Jobs"/"Integrations", and removed both from their respective
+  `*_POPULAR_IDS` lists per explicit request — they're reachable via the new topic instead of the
+  home screen's popular-articles shortcut.
 - 8.2. Lint and build clean. Manual verification, per trigger:
   - A job with a valid mobile number sends successfully; the row's badge/jsonb `success_count`
     updates.

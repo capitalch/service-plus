@@ -717,9 +717,9 @@ export const ImportPartDialog = ({
                                         Show {invalidRows.length} Skipped Rows
                                     </span>
                                     {errorsOpen ? (
-                                        <ChevronUpIcon className="h-4 w-4 text-(--cl-text-muted)" />
+                                        <ChevronUpIcon className="h-4 w-4 text-muted-foreground" />
                                     ) : (
-                                        <ChevronDownIcon className="h-4 w-4 text-(--cl-text-muted)" />
+                                        <ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
                                     )}
                                 </button>
                                 {errorsOpen && (
@@ -768,13 +768,13 @@ export const ImportPartDialog = ({
                                     onClick={() => setValidRowsOpen((o) => !o)}
                                 >
                                     <span className="flex items-center gap-1.5">
-                                        <CheckCircle2Icon className="h-3.5 w-3.5 text-teal-600" />
+                                        <CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-600" />
                                         Show {validRows.length} Valid Rows
                                     </span>
                                     {validRowsOpen ? (
-                                        <ChevronUpIcon className="h-4 w-4 text-(--cl-text-muted)" />
+                                        <ChevronUpIcon className="h-4 w-4 text-muted-foreground" />
                                     ) : (
-                                        <ChevronDownIcon className="h-4 w-4 text-(--cl-text-muted)" />
+                                        <ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
                                     )}
                                 </button>
                                 {validRowsOpen && (
@@ -810,7 +810,7 @@ export const ImportPartDialog = ({
                 return (
                     <div className="flex flex-col gap-4">
                         <div className="flex flex-col items-center justify-center p-6 text-center">
-                             <CheckCircle2Icon className="h-16 w-16 text-teal-500 mb-4" />
+                             <CheckCircle2Icon className="h-16 w-16 mb-4 text-emerald-600" />
                              <h3 className="text-lg font-semibold text-(--cl-text) mb-2">Import Successful</h3>
                              <p className="text-sm text-(--cl-text-muted)">
                                  {importResult.success_count} rows were successfully imported.

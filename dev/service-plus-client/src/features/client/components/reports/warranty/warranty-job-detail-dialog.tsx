@@ -120,7 +120,7 @@ export const WarrantyJobDetailDialog = ({ jobId, jobNo, onClose }: Props) => {
             <DialogContent className="max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                        <ShieldCheck className="h-4 w-4 text-violet-600" />
                         <span>Warranty Job</span>
                         {jobNo && <span className="font-mono text-(--cl-accent-text)">{jobNo}</span>}
                     </DialogTitle>

@@ -257,7 +257,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
                                 onClick={() => onAttach?.(currentJob.job_no, currentJob.id)}
                                 className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-50 dark:bg-teal-950/30 px-2 py-0.5 rounded-full border border-teal-200 dark:border-teal-800/30 hover:bg-teal-100 dark:hover:bg-teal-900/40 hover:border-teal-400 dark:hover:border-teal-700 transition-colors cursor-pointer"
                             >
-                                <FileText className="h-3 w-3" />
+                                <FileText className="h-3 w-3 text-slate-600" />
                                 {currentJob.file_count} {currentJob.file_count === 1 ? "file" : "files"}
                             </button>
                         )}
@@ -331,25 +331,25 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
 
                     <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                         <NavButton
-                            icon={<ChevronsLeftIcon className="h-4 w-4" />}
+                            icon={<ChevronsLeftIcon className="h-4 w-4 text-muted-foreground" />}
                             title="Go to oldest job"
                             disabled={isAtOldest || navLoading}
                             onClick={navigateToOldest}
                         />
                         <NavButton
-                            icon={<ChevronLeftIcon className="h-4 w-4" />}
+                            icon={<ChevronLeftIcon className="h-4 w-4 text-muted-foreground" />}
                             title="Older job"
                             disabled={isAtOldest || navLoading}
                             onClick={navigateOlder}
                         />
                         <NavButton
-                            icon={<ChevronRightIcon className="h-4 w-4" />}
+                            icon={<ChevronRightIcon className="h-4 w-4 text-muted-foreground" />}
                             title="Later job"
                             disabled={isAtLatest || navLoading}
                             onClick={navigateLater}
                         />
                         <NavButton
-                            icon={<ChevronsRightIcon className="h-4 w-4" />}
+                            icon={<ChevronsRightIcon className="h-4 w-4 text-muted-foreground" />}
                             title="Go to latest job"
                             disabled={isAtLatest || navLoading}
                             onClick={navigateToLatest}

@@ -516,12 +516,12 @@ export const JobControlSection = () => {
                             variant="outline"
                             onClick={() => { setFilter({ group: "closed", value: null }); setPage(1); }}
                         >
-                            <ArrowLeft className="h-4 w-4" />
+                            <ArrowLeft className="h-4 w-4 text-muted-foreground" />
                             Back
                         </Button>
                         <div className="h-4 w-px shrink-0 bg-(--cl-border)" />
                         <div className="relative w-56 shrink-0">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                             <Input
                                 className="h-8 border-(--cl-border) bg-(--cl-surface) pl-7 pr-7 text-[11px]"
                                 placeholder="Search…"
@@ -534,7 +534,7 @@ export const JobControlSection = () => {
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                         </div>
@@ -575,7 +575,7 @@ export const JobControlSection = () => {
                         <span className="text-xs text-(--cl-text-muted)">{loading ? "…" : `(${total})`}</span>
                     </div>
                     <div className="relative w-48 shrink-0 md:w-64">
-                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                         <Input
                             className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-[11px]"
                             placeholder="Job no, alt job no, customer, mobile, product, brand, model or serial…"
@@ -588,7 +588,7 @@ export const JobControlSection = () => {
                                 type="button"
                                 onClick={() => handleSearchChange("")}
                             >
-                                <X className="h-2.5 w-2.5" />
+                                <X className="h-2.5 w-2.5 text-muted-foreground" />
                             </button>
                         )}
                     </div>
@@ -614,7 +614,7 @@ export const JobControlSection = () => {
                             onClick={() => { setFilter({ group: "status", id: null }); setPage(1); }}
                         >
                             Status
-                            <ChevronRightIcon className="h-3 w-3" />
+                            <ChevronRightIcon className="h-3 w-3 text-muted-foreground" />
                         </button>
                     </div>
                     <Button
@@ -623,7 +623,7 @@ export const JobControlSection = () => {
                         variant="outline"
                         onClick={() => setSubView("undoFinal")}
                     >
-                        <Undo2 className="h-3.5 w-3.5" />
+                        <Undo2 className="h-3.5 w-3.5 text-blue-600" />
                         Undo Final
                     </Button>
                     <Button
@@ -632,7 +632,7 @@ export const JobControlSection = () => {
                         variant="outline"
                         onClick={() => setSubView("undoDelivery")}
                     >
-                        <Truck className="h-3.5 w-3.5" />
+                        <Truck className="h-3.5 w-3.5 text-orange-600" />
                         Undo Delivery
                     </Button>
                     <Button
@@ -642,7 +642,7 @@ export const JobControlSection = () => {
                         variant="outline"
                         onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page, filter); }}
                     >
-                        <RefreshCw className="mr-1.5 h-3 w-3" />
+                        <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" />
                         Refresh
                     </Button>
                 </div>
@@ -755,7 +755,7 @@ export const JobControlSection = () => {
                                                         className="flex items-center gap-1 text-[9px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
                                                         onClick={e => { e.stopPropagation(); setSelectedRowId(job.id); setAttachJobId(job.id); setAttachJobNo(job.job_no); }}
                                                     >
-                                                        <Paperclip className="h-2.5 w-2.5" />
+                                                        <Paperclip className="h-2.5 w-2.5 text-slate-600" />
                                                         <span>{job.file_count} File{job.file_count !== 1 ? "s" : ""}</span>
                                                     </button>
                                                 )}
@@ -830,27 +830,27 @@ export const JobControlSection = () => {
                                                                         className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                                                         onClick={() => setViewJobId(job.id)}
                                                                     >
-                                                                        <Eye className="h-3.5 w-3.5 shrink-0" /> View
+                                                                        <Eye className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> View
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuItem
                                                                         className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40"
                                                                         onClick={() => void deliveredActions.handleDeliveryNote(job)}
                                                                     >
-                                                                        <Truck className="h-3.5 w-3.5 shrink-0" /> Delivery Note
+                                                                        <Truck className="h-3.5 w-3.5 shrink-0 text-orange-600" /> Delivery Note
                                                                     </DropdownMenuItem>
                                                                     {job.invoice_is_posted !== null && (
                                                                         <DropdownMenuItem
                                                                             className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
                                                                             onClick={() => void deliveredActions.handleInvoiceReceipts(job)}
                                                                         >
-                                                                            <Printer className="h-3.5 w-3.5 shrink-0" /> Invoice + Receipts
+                                                                            <Printer className="h-3.5 w-3.5 shrink-0 text-slate-600" /> Invoice + Receipts
                                                                         </DropdownMenuItem>
                                                                     )}
                                                                     <DropdownMenuItem
                                                                         className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                                                                         onClick={() => setPdfJobId(job.id)}
                                                                     >
-                                                                        <FileDown className="h-3.5 w-3.5 shrink-0" /> Job Details PDF
+                                                                        <FileDown className="h-3.5 w-3.5 shrink-0 text-slate-600" /> Job Details PDF
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                     <DropdownMenuItem
@@ -859,7 +859,7 @@ export const JobControlSection = () => {
                                                                         title={job.invoice_is_posted === true ? "Cannot undo: invoice is already posted" : undefined}
                                                                         onClick={() => deliveredActions.handleUndoDelivery(job)}
                                                                     >
-                                                                        <Undo2 className="h-3.5 w-3.5 shrink-0" /> Undo Delivery
+                                                                        <Undo2 className="h-3.5 w-3.5 shrink-0 text-blue-600" /> Undo Delivery
                                                                     </DropdownMenuItem>
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
@@ -876,7 +876,7 @@ export const JobControlSection = () => {
                                                     variant="ghost"
                                                     onClick={() => setViewJobId(job.id)}
                                                 >
-                                                    <Eye className="h-4 w-4" />
+                                                    <Eye className="h-4 w-4 text-muted-foreground" />
                                                 </Button>
 
                                                 {/* Transaction dropdown */}
@@ -906,7 +906,7 @@ export const JobControlSection = () => {
                                                                     title="Status actions"
                                                                     variant="ghost"
                                                                 >
-                                                                    <ArrowRightLeft className="h-4 w-4" />
+                                                                    <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end" className="min-w-[220px] bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-xl rounded-xl p-1 z-50">
@@ -943,7 +943,7 @@ export const JobControlSection = () => {
                                                                             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
                                                                             onClick={() => setUndoPendingJob(job)}
                                                                         >
-                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                                                                             Undo Last Transaction
                                                                         </DropdownMenuItem>
                                                                     </>
@@ -962,7 +962,7 @@ export const JobControlSection = () => {
                                                                                 job_type_code:   job.job_type_code,
                                                                             })}
                                                                         >
-                                                                            <Package className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Package className="h-3.5 w-3.5 shrink-0 text-slate-600" />
                                                                             Parts &amp; Charges
                                                                         </DropdownMenuItem>
                                                                     </>
@@ -994,7 +994,7 @@ export const JobControlSection = () => {
                                                                                 setFinalJobId(job.id);
                                                                             }}
                                                                         >
-                                                                            <Pencil className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Pencil className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                                                                             Revise Final
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuItem
@@ -1003,7 +1003,7 @@ export const JobControlSection = () => {
                                                                             title={job.invoice_is_posted === true ? "Cannot undo a posted job" : undefined}
                                                                             onClick={() => setUndoFinalPendingJob(job)}
                                                                         >
-                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                                                                             Undo Final
                                                                         </DropdownMenuItem>
                                                                     </>
@@ -1015,7 +1015,7 @@ export const JobControlSection = () => {
                                                                             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
                                                                             onClick={() => void handleOpenDelivery(job.id)}
                                                                         >
-                                                                            <Truck className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Truck className="h-3.5 w-3.5 shrink-0 text-orange-600" />
                                                                             Deliver Job
                                                                         </DropdownMenuItem>
                                                                         {Number(job.amount) > 0 && (
@@ -1023,7 +1023,7 @@ export const JobControlSection = () => {
                                                                             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-purple-700 focus:text-purple-700 focus:bg-purple-50 dark:focus:bg-purple-950/30"
                                                                             onClick={() => setProformaJobId(job.id)}
                                                                         >
-                                                                            <Receipt className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Receipt className="h-3.5 w-3.5 shrink-0 text-green-600" />
                                                                             Proforma Invoice
                                                                         </DropdownMenuItem>
                                                                         )}
@@ -1034,7 +1034,7 @@ export const JobControlSection = () => {
                                                                         >
                                                                             {chargesReadonlyLoading === job.id
                                                                                 ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-                                                                                : <ReceiptText className="h-3.5 w-3.5 shrink-0" />
+                                                                                : <ReceiptText className="h-3.5 w-3.5 shrink-0 text-green-600" />
                                                                             }
                                                                             Charges
                                                                         </DropdownMenuItem>
@@ -1053,7 +1053,7 @@ export const JobControlSection = () => {
                                                     variant="ghost"
                                                     onClick={() => setPdfJobId(job.id)}
                                                 >
-                                                    <FileDown className="h-4 w-4" />
+                                                    <FileDown className="h-4 w-4 text-slate-600" />
                                                 </Button>
                                             </div>
                                                 );
@@ -1083,10 +1083,10 @@ export const JobControlSection = () => {
                         )}
                     </span>
                     <div className="flex items-center gap-1">
-                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First page"    onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4" /></Button>
-                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous page" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4" /></Button>
-                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Next page"     onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4" /></Button>
-                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Last page"     onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4" /></Button>
+                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First page"    onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4 text-muted-foreground" /></Button>
+                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous page" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4 text-muted-foreground" /></Button>
+                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Next page"     onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
+                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Last page"     onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
                     </div>
                 </div>
             </div>

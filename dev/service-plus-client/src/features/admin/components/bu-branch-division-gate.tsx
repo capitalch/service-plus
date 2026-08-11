@@ -79,7 +79,7 @@ export const BuBranchDivisionGate = () => {
 
                 {hasNoBu ? (
                     <Button className="w-full gap-2" onClick={handleLogout} variant="outline">
-                        <LogOutIcon className="h-4 w-4" />
+                        <LogOutIcon className="h-4 w-4 text-muted-foreground" />
                         Logout
                     </Button>
                 ) : (

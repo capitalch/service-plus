@@ -84,9 +84,9 @@ export const WarrantyPeriodComparison = ({ current, previous }: Props) => {
                                             down && "text-amber-600",
                                             !up && !down && "text-(--cl-text-muted)",
                                         )}>
-                                            {up && <ArrowUpRight className="h-3 w-3" />}
-                                            {down && <ArrowDownRight className="h-3 w-3" />}
-                                            {!up && !down && <Minus className="h-3 w-3" />}
+                                            {up && <ArrowUpRight className="h-3 w-3 text-muted-foreground" />}
+                                            {down && <ArrowDownRight className="h-3 w-3 text-muted-foreground" />}
+                                            {!up && !down && <Minus className="h-3 w-3 text-muted-foreground" />}
                                             {delta > 0 ? "+" : ""}{delta}%
                                         </span>
                                     )}

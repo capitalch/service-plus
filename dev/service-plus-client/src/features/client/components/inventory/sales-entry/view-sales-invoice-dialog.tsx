@@ -93,7 +93,7 @@ export const ViewSalesInvoiceDialog = ({ invoice, open, onOpenChange, onShowPdf 
                             className="h-8 gap-2 border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 font-bold uppercase tracking-widest text-[10px]"
                             onClick={() => { if (detail && onShowPdf) onShowPdf(detail); }}
                         >
-                            <FileDown className="h-3.5 w-3.5" />
+                            <FileDown className="h-3.5 w-3.5 text-slate-600" />
                             Invoice PDF
                         </Button>
                     </div>

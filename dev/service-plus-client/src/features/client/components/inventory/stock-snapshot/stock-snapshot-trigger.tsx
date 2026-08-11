@@ -118,7 +118,7 @@ export const StockSnapshotTrigger = () => {
 
                     {/* Info banner */}
                     <div className="mt-2 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 dark:border-blue-800 dark:bg-blue-950/30">
-                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />
+                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600" />
                         <p className="text-xs text-blue-700 dark:text-blue-300">
                             Use this after entering back-dated transactions to keep your stock snapshot accurate.
                         </p>
@@ -144,7 +144,7 @@ export const StockSnapshotTrigger = () => {
                                 type="button"
                                 onClick={handleDecrYear}
                             >
-                                <ChevronLeft className="h-4 w-4" />
+                                <ChevronLeft className="h-4 w-4 text-muted-foreground" />
                             </button>
                             <span className="text-xl font-bold tabular-nums text-(--cl-text)">{year}</span>
                             <button
@@ -153,7 +153,7 @@ export const StockSnapshotTrigger = () => {
                                 type="button"
                                 onClick={handleIncrYear}
                             >
-                                <ChevronRight className="h-4 w-4" />
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             </button>
                         </div>
                     </div>

@@ -49,8 +49,8 @@ export const KpiCard = ({
             </div>
             {!loading && delta != null && (
                 <div className="mt-2 flex items-center gap-1 text-[11px]">
-                    {trendUp && <TrendingUp className="h-3 w-3 text-emerald-500" />}
-                    {trendDn && <TrendingDown className="h-3 w-3 text-amber-500" />}
+                    {trendUp && <TrendingUp className="h-3 w-3 text-green-600" />}
+                    {trendDn && <TrendingDown className="h-3 w-3 text-amber-600" />}
                     <span className={cn(
                         "font-semibold",
                         trendUp && "text-emerald-600",

@@ -161,7 +161,7 @@ export const ClientCombobox = ({ autoFocus, disabled, error, initialLabel, onSel
                   >
                     <Check
                       className={cn(
-                        'h-4 w-4 shrink-0 text-indigo-600',
+                        'h-4 w-4 shrink-0 text-emerald-600',
                         value === client.id ? 'opacity-100' : 'opacity-0'
                       )}
                     />

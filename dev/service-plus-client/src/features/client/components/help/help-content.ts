@@ -5,6 +5,7 @@
 
 export type { HelpArticle, CategoryStyleType } from "@/components/shared/help/help-types";
 import type { CategoryStyleType, HelpArticle } from "@/components/shared/help/help-types";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 
 // ─── Articles ─────────────────────────────────────────────────────────────────
 
@@ -119,7 +120,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
         category: "Jobs",
         title: "Creating a New Job",
         summary: "All fields, validation rules, and how to save a new job.",
-        tags: ["new job", "create job", "customer", "model", "division", "job type", "technician", "serial number"],
+        tags: ["new job", "create job", "customer", "model", "division", "job type", "technician", "serial number", "whatsapp"],
         content: [
             { type: "para", text: "Go to Jobs → New Job → Single Job. Fill the form and click Save. A job number is auto-assigned from the configured JOB_SHEET document sequence." },
             { type: "heading", text: "Required Fields" },
@@ -146,6 +147,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { type: "heading", text: "Available Actions after saving" },
             { type: "bullets", items: [
                 "Print — generates a job sheet PDF (copies controlled by App Settings)",
+                "Whatsapp — sends the same job sheet PDF straight to the customer's WhatsApp, with a short message (customer name, job no, branch). Disabled with a tooltip if the customer has no valid mobile number. Batch job creation (New Job → Batch Jobs, and its view/quick-info cards) has the same button, sending one combined PDF for the whole batch as a single message. See 'WhatsApp Integration' for the full picture across all four send points.",
                 "Attach Files — upload images, documents, or receipts",
                 "Edit — modify job details (blocked if job is finalized)",
                 "Delete — remove the job (blocked if it has more than one transaction)",
@@ -157,6 +159,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { q: "Can one job cover multiple different devices?", a: "No. Create one job per device type. Use the Quantity field only for identical units of the same model." },
             { q: "Can I edit a finalized job?", a: "No. Jobs marked as Final are locked. Go to Final a Job → Finalized Jobs → click Undo to revert it (you must delete any existing invoice first)." },
             { q: "What is the difference between Receive Condition and Job Status?", a: "Receive Condition records the physical state of the device when it arrived (e.g., 'Damaged screen'). Job Status tracks where the job is in the repair workflow (e.g., In Progress, Completed)." },
+            { q: "Why is the Whatsapp button disabled?", a: "The customer's mobile number is missing or not a valid 10-digit Indian number. Fix it on the customer record (Masters → Customer) and reopen the job." },
         ],
     },
 
@@ -349,7 +352,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
         category: "Jobs",
         title: "Finalizing a Job (Parts & Charges)",
         summary: "Add parts used and service charges, set prices, and lock the job for invoicing.",
-        tags: ["finalize", "final", "parts", "charges", "cost price", "selling price", "HSN", "GST", "apply", "target amount", "reset", "warranty"],
+        tags: ["finalize", "final", "parts", "charges", "cost price", "selling price", "HSN", "GST", "apply", "target amount", "reset", "warranty", "whatsapp", "customer connect"],
         content: [
             { type: "para", text: "Finalization records which parts were used and what to charge the customer. Go to Jobs → Final a Job → find the job → click Finalize." },
             { type: "heading", text: "Adding Parts" },
@@ -396,6 +399,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { type: "heading", text: "Row Validation" },
             { type: "para", text: "Every part or charge row you've filled in must have Qty greater than 0, and Cost Price and Selling Price cannot be negative. 'Save & Mark Final' is blocked with a toast — 'Qty must be greater than 0 and Cost/Sale prices cannot be negative. Please fix the highlighted rows before finalizing.' — until every such row passes." },
             { type: "warning", text: "Once you click 'Save & Mark Final', the job is locked. No further edits are possible without using the Undo function in the Finalized Jobs tab." },
+            { type: "heading", text: "Whatsapp button" },
+            { type: "para", text: "Once the job is final, a Whatsapp button appears beside 'Save & Mark Final' — it sends the charge details (job no, amount due) as a text-only WhatsApp message, no PDF. It's disabled until the job is actually final and until the customer has a valid mobile number. To message many finalized jobs at once instead of one at a time, use Jobs → Customer Connect — see that article, and 'WhatsApp Integration' for the full picture across all four send points." },
         ],
         faqs: [
             { q: "What does Reset do?", a: "Recalculates all prices from the part master data using the current division's GST mode. No rows are deleted. Use it if master prices were changed after opening the job." },
@@ -408,6 +413,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { q: "I changed the division — why did prices change?", a: "Switching division recalculates prices for the new GST mode using master data. Switching back produces the same values as the original — no data is corrupted by toggling." },
             { q: "Can I add a part that isn't in the master?", a: "You can type a part name directly without selecting from the master. However, cost price and HSN will not auto-fill; you must enter them manually." },
             { q: "Why is 'Save & Mark Final' blocked with a GSTIN error?", a: "The customer GSTIN field has an invalid value. Fix it to a valid 15-character GSTIN or clear the field (blank is allowed). GSTIN is saved to the customer record. See 'Customer GSTIN on Jobs'." },
+            { q: "Why is the Whatsapp button greyed out on a job I just finalized?", a: "Either the customer has no valid mobile number, or you're looking at the button before the Save & Mark Final click actually completed — it only lights up once the job's is_final flag is true." },
         ],
     },
 
@@ -473,7 +479,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
         category: "Jobs",
         title: "Delivering a Job",
         summary: "4-step process: invoice creation, payment collection, delivery details, and closure.",
-        tags: ["deliver", "delivery", "invoice", "receipt", "payment", "close", "IGST", "CGST", "SGST"],
+        tags: ["deliver", "delivery", "invoice", "receipt", "payment", "close", "IGST", "CGST", "SGST", "whatsapp"],
         content: [
             { type: "para", text: "Go to Jobs → Deliver Job. Select one or more finalized, not-yet-closed jobs and proceed through 4 steps." },
             { type: "heading", text: "Step 1 — Selected Jobs" },
@@ -485,6 +491,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { type: "para", text: "Invoices are not created manually here — they are generated automatically as part of the single delivery action in Step 4. A job becomes invoiceable once it reaches DELIVERED_OK or DELIVERED_NOT_OK; UNDER_WARRANTY, RETURN, and CANCELLED jobs are excluded. Invoice numbers come from the SERVICE_INVOICE document sequence." },
             { type: "bullets", items: [
                 "Print individual invoices using the print icon on each row, once created.",
+                "Whatsapp — sends that same invoice PDF to the customer's WhatsApp with a short message, once the invoice exists. Disabled with a tooltip if the customer has no valid mobile number. See 'WhatsApp Integration' for the full picture across all four send points.",
                 "Delete an invoice using the trash icon (only if not posted to accounts).",
                 "Regenerate an invoice (only if not posted) using the refresh icon.",
             ]},
@@ -514,11 +521,93 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
 
     {
+        id: "whatsapp-integration",
+        category: "WhatsApp",
+        title: "WhatsApp Integration",
+        summary: "One WhatsApp channel, four send points across the job lifecycle, plus a bulk screen for completion messages — how the pieces fit together.",
+        tags: ["whatsapp", "whatsapp integration", "job creation", "job completion", "job delivery", "job receipt", "customer connect", "msgs sent", "mobile number", "bsp"],
+        content: [
+            { type: "para", text: "Service+ can message a customer on WhatsApp at four points in a job's life — creation, completion, delivery, and receipt — plus a dedicated bulk screen (Customer Connect) for sending the completion message to many customers in one pass. Every send goes out through the same WhatsApp channel; there is no SMS or email option. This article is the map — each screen's own help article has the full step-by-step detail for its button." },
+            { type: "heading", text: "The four send points" },
+            { type: "table", headers: ["Trigger", "Where", "What's sent"], rows: [
+                ["Job creation",        "Single Job, and Batch Jobs (row / view / quick-info card)", "Job sheet PDF + a short message (customer name, job no(s), branch). A batch send is one combined PDF and one message for the whole batch, not one per job."],
+                ["Job completion / finalization", "Final a Job (one job at a time) and Customer Connect (many at once)", "Text only — job no(s) and amount due. No PDF."],
+                ["Job delivery",        "Deliver Job → invoice row",                        "Invoice PDF + a short message"],
+                ["Job Receipt + payment", "Receipts — row action, and a 'Send WhatsApp' shortcut on the save success toast", "Receipt PDF + payment details (amount, mode, date)"],
+            ]},
+            { type: "heading", text: "Every Whatsapp button works the same way" },
+            { type: "bullets", items: [
+                "Same WhatsApp icon and 'Whatsapp' label everywhere it appears.",
+                "Disabled with a tooltip whenever the customer's mobile number is missing or invalid (not a 10-digit Indian number) — nothing is sent until that's fixed on the customer record.",
+                "Shows a spinner while the send is in progress. It's a synchronous, one-shot send — click, wait a moment, done. There's no background queue or delayed retry.",
+                "Ends in a toast: success, or the actual failure reason if the message could not be delivered.",
+            ]},
+            { type: "heading", text: "Msgs Sent — how sends are tracked" },
+            { type: "para", text: "Every job remembers, per trigger type, how many times a message was sent successfully, how many attempts failed, and the last outcome. Customer Connect's grid surfaces this as a 'Msgs Sent' badge, with an amber warning icon (hover for the error) when the most recent attempt failed. Resending is always a separate, deliberate click — nothing here happens silently or automatically." },
+            { type: "heading", text: "Sending to many customers at once" },
+            { type: "para", text: "The completion message is the one trigger with a bulk option: Jobs → Customer Connect lists every finalized, not-yet-delivered job and lets you select many at once. Jobs from the same customer are always grouped into a single message, never one message per job — see 'Customer Connect (Bulk Completion Messages)' for the full grid, selection, and sending walkthrough." },
+            { type: "heading", text: "Access" },
+            { type: "para", text: "The Customer Connect menu item has its own access right, separate from the rest of Jobs — a role can finalize/deliver/receipt jobs without being allowed to bulk-message customers, or the reverse. The four inline Whatsapp buttons don't have a right of their own: each rides whatever access right already gates its host screen (being able to create/finalize/deliver/receipt a job already implies being allowed to message about it). See 'Roles' in Access Management for exactly who has what." },
+        ],
+        faqs: [
+            { q: "Can I send an SMS or email instead of WhatsApp?", a: "No — WhatsApp is the only messaging channel in this version." },
+            { q: "I sent a job-creation message — can I also message that same job for completion later?", a: "Yes. Each of the four triggers is tracked and sent independently; sending one doesn't use up or block another." },
+            { q: "Does resending overwrite the previous send record?", a: "No — success and failure counts accumulate. A resend adds to the count rather than replacing history, so you can always see how many attempts a job has had." },
+            { q: "Why is a Whatsapp button disabled even though I can see the customer's mobile number in the job?", a: "The number itself is present but fails validation — it's not a plain 10-digit Indian mobile number (a +91/91 prefix is fine and is stripped automatically, but anything else, or a wrong digit count, will disable the button). Correct it on the customer record in Masters → Customer." },
+            { q: "Where do I message several finalized jobs at once instead of one at a time?", a: "Jobs → Customer Connect — it's the only bulk-send screen, and it only covers the completion message. Creation, delivery, and receipt messages are still sent one job at a time from their own screens." },
+            { q: "A message failed to send — will it retry automatically?", a: "No. There's no retry queue in this version — a failed send just increments the fail count and shows the error; try again with the same button (or row, in Customer Connect) when ready." },
+        ],
+    },
+
+    {
+        id: "customer-connect",
+        category: "WhatsApp",
+        title: "Customer Connect (Bulk Completion Messages)",
+        summary: "Send the 'job ready for pickup' WhatsApp message to many finalized customers at once, grouped one message per customer.",
+        tags: ["customer connect", "whatsapp", "bulk", "completion message", "msgs sent", "select all"],
+        content: [
+            { type: "para", text: "Jobs → Customer Connect lists every finalized job that hasn't been delivered yet and isn't cancelled or disposed — in other words, every job someone could reasonably be told 'your device is ready.' Select the ones you want to notify and click Send Messages. It only ever sends the completion message (job no(s) and amount due, text only, no PDF) — it does not cover job creation, delivery, or receipt messages, which each have their own Whatsapp button on their own screen. See 'WhatsApp Integration' for how this screen fits alongside those three." },
+            { type: "heading", text: "Why a separate screen instead of a button on Final a Job" },
+            { type: "para", text: "A customer can have several jobs finalized on the same day. Customer Connect groups every selected job by customer and sends exactly one WhatsApp message per customer — never one per job — even when you select jobs across multiple customers at once. The single-job Whatsapp button on the finalize form (see 'Finalizing a Job') sends the same message for one job at a time; use this screen when you want to message many customers in one pass instead of opening each job." },
+            { type: "heading", text: "The grid" },
+            { type: "table", headers: ["Column", "Meaning"], rows: [
+                ["☑",            "Selection checkbox — see Selection rules below"],
+                ["Job No / Date", "The finalized job and its intake date"],
+                ["Customer / Mobile", "Who the message goes to"],
+                ["Device Details / Job Type / Status", "Same job info shown elsewhere in Jobs"],
+                ["Amount",        "This job's final amount — summed per customer in the message preview when a customer has more than one selected job"],
+                ["Msgs Sent",     "How many times the completion message has already been sent successfully for this job, and when. An amber warning badge with a count appears if the most recent attempt failed — hover it for the error"],
+            ]},
+            { type: "heading", text: "Why some rows are disabled" },
+            { type: "para", text: "A row's checkbox is disabled, unchecked, and shown muted when the customer has no mobile number or an invalid one (not a 10-digit Indian number) — there is no channel to send to. Fix the customer's mobile in Masters → Customer, then Refresh." },
+            { type: "heading", text: "Selection rules" },
+            { type: "bullets", items: [
+                "Every eligible row is checked by default when its page loads.",
+                "A row already messaged at least once starts unchecked instead — resending is always a deliberate click, never automatic.",
+                "The header checkbox checks/unchecks every eligible row on the current page only.",
+                "Selecting every eligible row on a page reveals a 'Select all N matching' link that extends the selection to every job matching the current search across all pages, not just the visible ones.",
+                "Selection survives paging and changing the search box — it only resets if you clear it yourself or click Refresh.",
+            ]},
+            { type: "heading", text: "Sending" },
+            { type: "para", text: "Click Send Messages to open a confirmation screen showing exactly what will be sent, one preview block per customer, with a job count and customer count so the 'one message per customer' grouping is visible before anything actually sends. You can drop a single customer out of the batch here without cancelling the whole send. Confirming sends everything in one request and shows a results list — who succeeded, who failed and why — then the grid reloads with updated Msgs Sent badges." },
+            { type: "note", text: "Requires the Customer Connect access right, separate from the rights on Final a Job / Deliver Job / Receipts — a role can be allowed to finalize jobs without being allowed to bulk-message customers, or vice versa. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
+        ],
+        faqs: [
+            { q: "I selected 3 jobs from 2 different customers — how many messages go out?", a: "Two. Jobs are grouped by customer before sending, so one customer with 2 selected jobs still gets a single combined message listing both job numbers and the total amount due." },
+            { q: "A row I already messaged is unchecked — is that a bug?", a: "No. Rows with at least one prior successful send start unchecked on purpose, so a resend is always something you choose, not something that happens by re-selecting everything." },
+            { q: "Why does 'Select all' only grab the current page?", a: "The header checkbox is a page-local convenience. Use the 'Select all N matching' link that appears once the whole page is checked to extend selection to every job matching your current search, across every page." },
+            { q: "Can I remove one customer after opening the send confirmation?", a: "Yes — each customer in the confirmation list has a drop action. Dropping one doesn't cancel the rest; only the remaining customers are sent when you confirm." },
+            { q: "The amber badge on Msgs Sent — what does it mean?", a: "The most recent send attempt for that job failed. The number is the total failed attempts; hover the badge for the underlying error. It doesn't block you from selecting the row and trying again." },
+            { q: "Does this screen cover the job-creation or delivery WhatsApp messages too?", a: "No — only the completion ('ready for pickup') message. Job creation, delivery, and receipt messages are each sent individually from their own screen — see 'Creating a New Job', 'Delivering a Job', and 'Receipts (Job Payments)'." },
+        ],
+    },
+
+    {
         id: "receipts",
         category: "Jobs",
         title: "Receipts (Job Payments)",
         summary: "Record, edit, print, and delete customer payments against jobs independently of delivery.",
-        tags: ["receipts", "payment", "money receipt", "cash", "card", "upi", "cheque", "advance", "refund"],
+        tags: ["receipts", "payment", "money receipt", "cash", "card", "upi", "cheque", "advance", "refund", "whatsapp"],
         content: [
             { type: "para", text: "Jobs → Receipts is a standalone ledger of customer payments against jobs. Use it to take an advance before delivery, record part-payments over time, or manage receipts without going through the Deliver Job flow. Receipt numbers come from the MONEY_RECEIPT document sequence." },
             { type: "heading", text: "Recording a receipt" },
@@ -534,16 +623,19 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 "Search by job no, receipt no, customer, mode, or reference number.",
                 "The footer shows the total of the receipts on the current page.",
                 "When accounts integration is on, each row shows a Posted / Not Posted indicator.",
-                "Row actions: View Job, Print Receipt (PDF), Edit, Delete.",
+                "Row actions: View Job, Print Receipt (PDF), Whatsapp, Edit, Delete.",
             ]},
             { type: "warning", text: "Editing and deleting are restricted. A receipt cannot be edited or deleted when its job is in a restricted status (Closed, Final, or On Hold), and a receipt that has been posted to accounts cannot be deleted. New receipts also cannot be recorded against an UNDER_WARRANTY job or one in ESTIMATE_REJECTED status." },
             { type: "note", text: "Requires the Receipts access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
+            { type: "heading", text: "Whatsapp" },
+            { type: "para", text: "The row menu's Whatsapp action sends the receipt PDF plus payment details (amount, mode, date) to the customer's WhatsApp — disabled with a tooltip if the customer has no valid mobile number. Right after saving a brand-new receipt, the success toast also carries its own 'Send WhatsApp' action button, so you can send immediately without hunting for the row afterward. It's a deliberate follow-up click either way — nothing is sent automatically on save. See 'WhatsApp Integration' for the full picture across all four send points." },
         ],
         faqs: [
             { q: "What is the difference between adding a receipt here and in Deliver Job?", a: "They create the same job payment records. Deliver Job collects payment as part of closing the job; the Receipts screen lets you record or manage payments any time — including advances taken before the job is completed." },
             { q: "Can I take an advance payment before a job is finished?", a: "Yes. Create a receipt against the job at any point. It is stored as a payment and reduces the balance due at delivery." },
             { q: "Why can't I delete a receipt?", a: "Either the job is in a restricted status (Closed, Final, or On Hold) or the receipt has already been posted to accounts. The screen shows a dialog explaining which condition applies." },
             { q: "A cheque bounced — how do I handle it?", a: "Delete the original cheque receipt if it is not yet posted, note the dishonour in remarks, and record a fresh receipt when the replacement payment clears." },
+            { q: "I saved a receipt and missed the 'Send WhatsApp' toast action — is it gone?", a: "No — open the row menu (⋮) on that receipt and choose Whatsapp. The toast action is a shortcut, not the only way to send." },
         ],
     },
 
@@ -1346,7 +1438,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
         category: "Access Management",
         title: "Roles",
         summary: "System-defined permission sets you assign to business users — view-only, cannot be customized.",
-        tags: ["roles", "permissions", "system role", "custom role", "access management", "manager", "technician", "receptionist", "masters", "configurations", "admin", "receipts", "opening jobs", "accounts posting", "deliver job", "purchase entry", "sales entry", "stock adjustment", "branch transfer", "opening stock", "set part location"],
+        tags: ["roles", "permissions", "system role", "custom role", "access management", "manager", "technician", "receptionist", "masters", "configurations", "admin", "receipts", "opening jobs", "accounts posting", "deliver job", "purchase entry", "sales entry", "stock adjustment", "branch transfer", "opening stock", "set part location", "customer connect", "whatsapp"],
         content: [
             { type: "para", text: "Admin → Roles lists every role available for assignment to a business user. Each row shows a Code, Name, Description, and a badge: System (seeded by the platform) or Custom." },
             { type: "warning", text: "Roles are entirely view-only from this screen — there is no Add, Edit, or Delete action anywhere on the Roles page. You cannot define a new permission set or change what an existing role allows; you can only pick from what already exists when associating a role to a user." },
@@ -1358,6 +1450,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 ["Jobs → Opening Jobs",       "✅", "❌", "✅"],
                 ["Jobs → Accounts Posting",   "✅", "❌", "✅"],
                 ["Jobs → Deliver Job",        "✅", "❌", "✅"],
+                ["Jobs → Customer Connect",   "✅", "❌", "✅"],
                 ["Masters tab (whole tab)",   "✅", "❌", "✅"],
                 ["Configurations tab (whole tab)", "✅", "❌", "❌"],
                 ["Admin tab / Post-Unpost",   "✅", "❌", "❌"],
@@ -1484,6 +1577,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 export const HELP_CATEGORIES = [
     "Getting Started",
     "Jobs",
+    "WhatsApp",
     "Inventory",
     "Masters",
     "Configurations",
@@ -1514,6 +1608,16 @@ export const CLIENT_CAT_STYLE: Record<string, CategoryStyleType> = {
         stepBg:   "bg-blue-500",
         stepText: "text-white",
         border:   "border-blue-300 dark:border-blue-700",
+    },
+    "WhatsApp": {
+        emoji:    "💬",
+        icon:     WhatsAppIcon,
+        gradient: "from-green-500 to-emerald-600",
+        pill:     "bg-green-100 dark:bg-green-900/40",
+        pillText: "text-green-700 dark:text-green-300",
+        stepBg:   "bg-green-500",
+        stepText: "text-white",
+        border:   "border-green-300 dark:border-green-700",
     },
     "Inventory": {
         emoji:    "📦",

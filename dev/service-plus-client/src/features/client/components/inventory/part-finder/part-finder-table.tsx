@@ -75,18 +75,18 @@ function CopyCode({ code }: { code: string }) {
                 onClick={handleCopy}
             >
                 {copied
-                    ? <CheckIcon className="h-3 w-3 text-emerald-500" />
-                    : <CopyIcon  className="h-3 w-3" />}
+                    ? <CheckIcon className="h-3 w-3 text-emerald-600" />
+                    : <CopyIcon  className="h-3 w-3 text-muted-foreground" />}
             </button>
         </span>
     );
 }
 
 function SortIcon({ dir, field, sortField }: { dir: SortDir; field: SortField; sortField: SortField }) {
-    if (sortField !== field) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-30" />;
+    if (sortField !== field) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-30 text-muted-foreground" />;
     return dir === "asc"
-        ? <ArrowUp   className="ml-1 inline h-3 w-3 text-(--cl-accent)" />
-        : <ArrowDown className="ml-1 inline h-3 w-3 text-(--cl-accent)" />;
+        ? <ArrowUp   className="ml-1 inline h-3 w-3 text-muted-foreground" />
+        : <ArrowDown className="ml-1 inline h-3 w-3 text-muted-foreground" />;
 }
 
 function sortParts(parts: PartFinderResultType[], field: SortField, dir: SortDir): PartFinderResultType[] {
@@ -130,7 +130,7 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
     if (parts.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center rounded-xl border border-(--cl-border) bg-(--cl-surface-2) py-16">
-                <Package className="mb-3 h-10 w-10 text-(--cl-text-muted) opacity-40" />
+                <Package className="mb-3 h-10 w-10 opacity-40 text-slate-600" />
                 <p className="text-sm font-medium text-(--cl-text-muted)">No parts found</p>
                 <p className="mt-1 text-xs text-(--cl-text-muted) opacity-70">Try adjusting your filters or search term</p>
             </div>
@@ -188,7 +188,7 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                                                 ? "border-(--cl-accent) bg-(--cl-accent)"
                                                 : "border-(--cl-border) bg-transparent"
                                         }`}>
-                                            {isActive && <CheckIcon className="h-2.5 w-2.5 text-white" />}
+                                            {isActive && <CheckIcon className="h-2.5 w-2.5 text-emerald-600" />}
                                         </div>
                                     </TableCell>
                                     <TableCell onClick={e => e.stopPropagation()}>
@@ -213,7 +213,7 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                                     <TableCell>
                                         {part.primary_location ? (
                                             <span className="flex items-center gap-1 text-sm text-(--cl-text-muted)">
-                                                <MapPin className="h-3 w-3 shrink-0" />
+                                                <MapPin className="h-3 w-3 shrink-0 text-indigo-600" />
                                                 {part.primary_location}
                                                 {part.location_count > 1 && (
                                                     <Badge className="ml-1 border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-400" variant="outline">

@@ -491,7 +491,7 @@ export const AdminAuditLogsPage = () => {
                     </div>
 
                     <div className="relative">
-                        <SearchIcon className="absolute left-2 top-1.5 h-3.5 w-3.5 text-slate-400" />
+                        <SearchIcon className="absolute left-2 top-1.5 h-3.5 w-3.5 text-slate-500" />
                         <Input
                             className="h-8 w-48 pl-7 text-xs"
                             onChange={(e) => setSearchInput(e.target.value)}
@@ -533,7 +533,7 @@ export const AdminAuditLogsPage = () => {
                             size="sm"
                             variant="outline"
                         >
-                            <RefreshCwIcon className={`mr-1.5 h-3.5 w-3.5 ${logsLoading ? "animate-spin" : ""}`} />
+                            <RefreshCwIcon className={`mr-1.5 h-3.5 w-3.5 text-blue-600 ${logsLoading ? "animate-spin" : ""}`} />
                             Refresh
                         </Button>
                         <Button

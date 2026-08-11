@@ -72,7 +72,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                 className="mr-2 shrink-0 rounded p-1.5 text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text) md:hidden focus:outline-none cursor-pointer"
                 title="Open menu"
             >
-                <Menu className="h-4 w-4" />
+                <Menu className="h-4 w-4 text-muted-foreground" />
             </button>
 
             {/* Left Section - grows to fill available space */}
@@ -83,7 +83,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                     className="hidden shrink-0 rounded p-1.5 text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text) md:block focus:outline-none cursor-pointer"
                     title="Toggle explorer"
                 >
-                    <PanelLeft className="h-4 w-4" />
+                    <PanelLeft className="h-4 w-4 text-muted-foreground" />
                 </button>
 
                 <span className="shrink-0 text-lg font-black tracking-tighter text-(--cl-accent-text) hidden xs:block">Service+</span>
@@ -132,12 +132,11 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                     title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                     className="rounded p-1.5 text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text) cursor-pointer hidden sm:flex"
                 >
-                    {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                    {isDark ? <Sun className="h-4 w-4 text-muted-foreground" /> : <Moon className="h-4 w-4 text-muted-foreground" />}
                 </button>
 
                 <NotificationBell
                     className="hidden hover:bg-(--cl-hover) sm:flex"
-                    iconClassName="text-(--cl-text-muted)"
                     items={notificationItems}
                 />
 
@@ -151,11 +150,11 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                         </p>
                     </div>
                     <button
-                        className="rounded p-1.5 text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-red-500 cursor-pointer"
+                        className="rounded p-1.5 text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text) cursor-pointer"
                         title="Logout"
                         onClick={handleLogout}
                     >
-                        <LogOut className="h-4 w-4" />
+                        <LogOut className="h-4 w-4 text-muted-foreground" />
                     </button>
                 </div>
             </div>

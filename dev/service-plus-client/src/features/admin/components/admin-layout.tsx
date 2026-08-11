@@ -85,7 +85,7 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
                         size="sm"
                         variant="outline"
                     >
-                        <BriefcaseIcon className="h-3.5 w-3.5" />
+                        <BriefcaseIcon className="h-3.5 w-3.5 text-purple-600" />
                         Switch to Client Mode
                     </Button>
                 </div>
@@ -118,15 +118,15 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
                             size="sm"
                             variant="outline"
                         >
-                            <BriefcaseIcon className="h-3 w-3" />
+                            <BriefcaseIcon className="h-3 w-3 text-purple-600" />
                             Client Mode
                         </Button>
                         <button
-                            className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-red-500 cursor-pointer"
+                            className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
                             title="Logout"
                             onClick={handleLogout}
                         >
-                            <LogOutIcon className="h-4 w-4" />
+                            <LogOutIcon className="h-4 w-4 text-muted-foreground" />
                         </button>
                     </div>
                 </header>

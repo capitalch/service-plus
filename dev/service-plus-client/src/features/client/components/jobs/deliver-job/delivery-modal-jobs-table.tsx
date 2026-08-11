@@ -60,7 +60,7 @@ export function DeliveryModalJobsTable({ jobs, gstinByJob, onGstinChange, onView
                                     variant="outline"
                                     onClick={() => onViewJob(job.id)}
                                 >
-                                    <Eye className="h-3.5 w-3.5" />
+                                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                     View
                                 </Button>
                             )}

@@ -170,7 +170,7 @@ export function NewOpeningStock({
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 rounded-xl border-2 border-dashed border-(--cl-border) bg-(--cl-surface-2)/30 text-center">
                     <div className="mb-4 rounded-full bg-(--cl-accent)/5 p-5">
-                        <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
+                        <Plus className="h-12 w-12 opacity-40 text-emerald-600" />
                     </div>
                     <h3 className="mb-2 text-lg font-semibold text-(--cl-text)">No Branch Selected</h3>
                     <p className="max-w-md px-6 text-(--cl-text-muted)">

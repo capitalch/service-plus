@@ -122,7 +122,7 @@ export const CreateBuSchemaDialog = ({
                 {/* Done */}
                 {done && (
                     <div className="flex flex-col items-center gap-4 py-6 text-center">
-                        <CheckCircle className="h-12 w-12 text-emerald-500" />
+                        <CheckCircle className="h-12 w-12 text-emerald-600" />
                         <p className="text-lg font-semibold text-slate-800">Schema Created</p>
                         <p className="text-sm text-slate-500">
                             Schema and seed data for{" "}

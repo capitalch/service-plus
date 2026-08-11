@@ -180,7 +180,7 @@ function LocationRow({ allPartIds, branchId, canRemove, dbName, index, line, loc
                         variant="ghost"
                         onClick={() => onRemove(line._key)}
                     >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3.5 w-3.5 text-red-600" />
                     </Button>
                 )}
             </td>
@@ -371,7 +371,7 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
                         variant="outline"
                         onClick={handleAddRow}
                     >
-                        <Plus className="mr-1.5 h-3.5 w-3.5" />
+                        <Plus className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
                         Add Row
                     </Button>
                 </div>

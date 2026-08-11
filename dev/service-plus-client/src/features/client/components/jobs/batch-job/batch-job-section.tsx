@@ -4,6 +4,7 @@ import {
     Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Loader2, MoreHorizontal, Paperclip, Pencil, Printer, RefreshCw, Save, Search, Trash2, X, Eye,
 } from "lucide-react";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -35,7 +36,9 @@ import { BatchJobViewModal } from "./batch-job-view-modal";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { batchJobFormSchema, type BatchJobFormValues, getBatchJobDefaultValues } from "./batch-job-schema";
-import { getBatchJobSheetBlobUrl } from "../job-sheet-pdf";
+import { getBatchJobSheetBlobUrl, getBatchJobSheetPdfBlob } from "../job-sheet-pdf";
+import { useWhatsappSend } from "../use-whatsapp-send";
+import { isValidMobile } from "@/lib/mobile";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { deleteJobFiles } from "@/lib/image-service";
 
@@ -131,6 +134,8 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
     const [showPdfModal,  setShowPdfModal]  = useState(false);
     const [printCopies,   setPrintCopies]   = useState(noOfJobSheetsPerPrint);
     const pendingPrintRef = useRef<{ jobs: JobDetailType[]; division: ReturnType<typeof availableDivisions.find>; branchCode?: string } | null>(null);
+
+    const { isSendingWhatsapp, sendWhatsapp } = useWhatsappSend();
 
     // Post-save file attachment
     const [postSaveJobs,    setPostSaveJobs]    = useState<PostSaveJob[] | null>(null);
@@ -477,6 +482,19 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
         setShowPdfModal(true);
     };
 
+    const handleSendWhatsappBatch = async (batchJobs: JobDetailType[], batchNo: number) => {
+        const firstJob = batchJobs[0];
+        if (!dbName || !schema || !firstJob) return;
+        const batchDivision = firstJob.division_id
+            ? (availableDivisions.find(d => d.id === firstJob.division_id) ?? currentDivision)
+            : currentDivision;
+        const pdf = getBatchJobSheetPdfBlob(batchJobs, batchDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint, { clientName, buName: currentBu?.name ?? null, trackJobUrl });
+        await sendWhatsapp(batchNo, firstJob.mobile, {
+            dbName, schema, jobIds: batchJobs.map(j => j.id), eventType: "JOB_CREATION",
+            pdf, filename: `Batch-Job-Sheet_${firstJob.job_no}.pdf`,
+        });
+    };
+
 
     const groupedBatches = jobs.reduce<BatchGroup[]>((acc, job) => {
         let group = acc.find(g => g.batch_no === job.batch_no);
@@ -510,7 +528,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <Briefcase className="h-4 w-4" />
+                        <Briefcase className="h-4 w-4 text-purple-600" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
                         <h1 className="text-lg font-bold text-(--cl-text) truncate">
@@ -545,7 +563,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                         disabled={submitting} variant="ghost"
                         onClick={() => { setEditBatchNo(null); setEditSourceMode("new"); setEditRows([]); handleReset(); }}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 text-blue-600 ${submitting ? "animate-spin" : ""}`} />
                         Reset
                     </Button>
                     <Button
@@ -588,6 +606,21 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                                 toast.error("Failed to load batch for printing");
                             });
                         }}
+                        onWhatsapp={(batchNo) => {
+                            if (!dbName || !schema) return;
+                            void apolloClient.query<GenericQueryData<JobDetailType>>({
+                                fetchPolicy: "network-only",
+                                query: GRAPHQL_MAP.genericQuery,
+                                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCH_DETAIL, sqlArgs: { batch_no: batchNo } }) },
+                            }).then(res => {
+                                const detailJobs = res.data?.genericQuery ?? [];
+                                if (detailJobs.length > 0) void handleSendWhatsappBatch(detailJobs, batchNo);
+                                else toast.error("No jobs found in batch");
+                            }).catch(() => {
+                                toast.error("Failed to load batch for sending");
+                            });
+                        }}
+                        isSendingWhatsapp={isSendingWhatsapp}
                     />
 
                     <FormProvider {...form}>
@@ -615,7 +648,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     {/* Toolbar */}
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="relative flex-1 sm:max-w-xs">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                             <Input className="h-8 border-(--cl-border) bg-white pl-8 text-xs" placeholder="Batch no, alt job no, customer or mobile…" value={search} onChange={e => handleSearchChange(e.target.value)} />
                             {search && (
                                 <button
@@ -623,13 +656,13 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                         </div>
                         <div className="ml-auto">
                             <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }}>
-                                <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
+                                <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
                             </Button>
                         </div>
                     </div>
@@ -682,6 +715,18 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                                                         handlePrintBatch(detailJobs);
                                                     });
                                                 }}
+                                                onWhatsapp={() => {
+                                                    if (!dbName || !schema) return;
+                                                    void apolloClient.query<GenericQueryData<JobDetailType>>({
+                                                        fetchPolicy: "network-only",
+                                                        query: GRAPHQL_MAP.genericQuery,
+                                                        variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCH_DETAIL, sqlArgs: { batch_no: batch.batch_no } }) },
+                                                    }).then(res => {
+                                                        const detailJobs = res.data?.genericQuery ?? [];
+                                                        if (detailJobs.length > 0) void handleSendWhatsappBatch(detailJobs, batch.batch_no);
+                                                    });
+                                                }}
+                                                sendingWhatsapp={isSendingWhatsapp(batch.batch_no)}
                                                 onDelete={() => { setDeleteBatchNo(batch.batch_no); setDeleteJobCount(batch.job_count); }}
                                                 onAttachJob={(jobId, jobNo) => { setAttachJobId(jobId); setAttachJobNo(jobNo); }}
                                                 onDeleteJob={(jobId, jobNo, _batchNo, jobCount) => { setDeleteJobId(jobId); setDeleteJobNo(jobNo); setDeleteJobCount(jobCount); }}
@@ -698,10 +743,10 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                                 {total === 0 ? "No batches" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} batch${total !== 1 ? "es" : ""} (Page ${page} of ${totalPages})`}
                             </span>
                             <div className="flex items-center gap-1">
-                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First"    onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4" /></Button>
-                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4" /></Button>
-                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Next" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4" /></Button>
-                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Last" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4" /></Button>
+                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First"    onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4 text-muted-foreground" /></Button>
+                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4 text-muted-foreground" /></Button>
+                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Next" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
+                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Last" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
                             </div>
                         </div>
                     </div>
@@ -757,7 +802,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 >
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <Paperclip className="h-4 w-4 text-violet-500" />
+                            <Paperclip className="h-4 w-4 text-slate-600" />
                             Attach Files
                             {postSaveBatchNo && <span className="text-sm font-normal text-(--cl-text-muted)">— Batch #{postSaveBatchNo}</span>}
                         </DialogTitle>
@@ -797,7 +842,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
             >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <Paperclip className="h-4 w-4 text-violet-500" />
+                        <Paperclip className="h-4 w-4 text-slate-600" />
                         Attach Files — Job #{attachJobNo}
                     </DialogTitle>
                 </DialogHeader>
@@ -838,6 +883,10 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
             onPrintBatch={(detailJobs) => {
                 handlePrintBatch(detailJobs);
             }}
+            onSendWhatsapp={(detailJobs) => {
+                if (viewBatchNo !== null) void handleSendWhatsappBatch(detailJobs, viewBatchNo);
+            }}
+            sendingWhatsapp={viewBatchNo !== null && isSendingWhatsapp(viewBatchNo)}
             onFileCountChange={(jobId, count) => {
                 setViewJobs(prev => prev.map(j => j.id === jobId ? { ...j, file_count: count } : j));
                 setRefreshTrigger(k => k + 1);
@@ -878,12 +927,14 @@ type BatchGroupRowProps = {
     onEdit: () => void;
     onView: () => void;
     onPrint: () => void;
+    onWhatsapp: () => void;
+    sendingWhatsapp: boolean;
     onDelete: () => void;
     onAttachJob: (jobId: number, jobNo: string) => void;
     onDeleteJob: (jobId: number, jobNo: string, batchNo: number, jobCount: number) => void;
 };
 
-function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onDelete, onAttachJob, onDeleteJob }: BatchGroupRowProps) {
+function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onWhatsapp, sendingWhatsapp, onDelete, onAttachJob, onDeleteJob }: BatchGroupRowProps) {
     const batchDivision    = batch.division_id ? availableDivisions.find(d => d.id === batch.division_id) : null;
     const isBatchDeletable = batch.jobs.every(j => j.transaction_count <= 1);
     return (
@@ -911,21 +962,32 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button className="h-8 w-8 p-0 hover:bg-(--cl-accent)/15" variant="ghost">
-                                    <MoreHorizontal className="h-4 w-4" />
+                                    <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                                     <span className="sr-only">Open menu</span>
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                 <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-blue-500 focus:bg-blue-500/10 focus:text-blue-600" onClick={onView}>
-                                    <Eye className="h-4 w-4" />
+                                    <Eye className="h-4 w-4 text-muted-foreground" />
                                     <span>View Batch</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-indigo-500 focus:bg-indigo-500/10 focus:text-indigo-600" onClick={onPrint}>
-                                    <Printer className="h-4 w-4" />
+                                    <Printer className="h-4 w-4 text-slate-600" />
                                     <span>Print PDF</span>
                                 </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    className="flex items-center gap-2 cursor-pointer text-emerald-600 focus:bg-emerald-500/10 focus:text-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    disabled={!isValidMobile(batch.mobile) || sendingWhatsapp}
+                                    title={!isValidMobile(batch.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                                    onClick={onWhatsapp}
+                                >
+                                    {sendingWhatsapp
+                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                        : <WhatsAppIcon className="h-4 w-4" />}
+                                    <span>Whatsapp</span>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600" onClick={onEdit}>
-                                    <Pencil className="h-4 w-4" />
+                                    <Pencil className="h-4 w-4 text-blue-600" />
                                     <span>Edit Batch</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
@@ -934,7 +996,7 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                                     title={!isBatchDeletable ? "Cannot delete: one or more jobs have activity" : undefined}
                                     onClick={() => { if (isBatchDeletable) onDelete(); }}
                                 >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Trash2 className="h-4 w-4 text-red-600" />
                                     <span>Delete Batch</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -970,7 +1032,7 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                                     className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 w-fit bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 transition-colors cursor-pointer"
                                     onClick={() => onAttachJob(job.id, job.job_no)}
                                 >
-                                    <Paperclip className="h-2.5 w-2.5" />
+                                    <Paperclip className="h-2.5 w-2.5 text-slate-600" />
                                     <span>{job.file_count} File{job.file_count !== 1 ? "s" : ""}</span>
                                 </button>
                             ) : null}
@@ -992,7 +1054,7 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                     <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
                         <div className="flex items-center gap-1 justify-center">
                             <Button className="h-7 w-7 p-0 text-violet-500 hover:bg-violet-500/10" variant="ghost" title="Attach Files" onClick={() => onAttachJob(job.id, job.job_no)}>
-                                <Paperclip className="h-3.5 w-3.5" />
+                                <Paperclip className="h-3.5 w-3.5 text-slate-600" />
                             </Button>
                             {batch.job_count > 2 && (
                                 <Button
@@ -1002,7 +1064,7 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                                     title={job.transaction_count > 1 ? "Cannot delete: job has activity" : "Delete Job"}
                                     onClick={() => { if (job.transaction_count <= 1) onDeleteJob(job.id, job.job_no, batch.batch_no, batch.job_count); }}
                                 >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-3.5 w-3.5 text-red-600" />
                                 </Button>
                             )}
                         </div>

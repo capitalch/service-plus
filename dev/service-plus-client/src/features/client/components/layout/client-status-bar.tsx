@@ -13,7 +13,7 @@ export const ClientStatusBar = () => {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white">Connected</span>
                 </div>
                 <div className="hidden items-center gap-1 sm:flex">
-                    <Network className="h-3 w-3 text-white" />
+                    <Network className="h-3 w-3 text-slate-600" />
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/80">Service+</span>
                 </div>
             </div>

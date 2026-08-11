@@ -241,6 +241,14 @@ export const SQL_MAP = {
     GET_DELIVERED_JOBS_PAGED:           "GET_DELIVERED_JOBS_PAGED",
     GET_JOB_DELIVERY_DETAIL:            "GET_JOB_DELIVERY_DETAIL",
     GET_DELIVERABLE_JOBS_DETAIL_MULTI:  "GET_DELIVERABLE_JOBS_DETAIL_MULTI",
+    // Customer Connect
+    GET_WHATSAPP_ELIGIBLE_JOBS_COUNT:   "GET_WHATSAPP_ELIGIBLE_JOBS_COUNT",
+    GET_WHATSAPP_ELIGIBLE_JOBS_PAGED:   "GET_WHATSAPP_ELIGIBLE_JOBS_PAGED",
+    GET_WHATSAPP_ELIGIBLE_JOB_IDS:      "GET_WHATSAPP_ELIGIBLE_JOB_IDS",
+    // Reused as-is from the server's whatsapp resolver (app/graphql/resolvers/jobs/whatsapp.py)
+    // for the send-confirmation modal's per-customer preview — same SqlStore constant,
+    // exposed here via the generic genericQuery dispatcher.
+    GET_JOBS_FOR_WHATSAPP_COMPLETION:   "GET_JOBS_FOR_WHATSAPP_COMPLETION",
     // Job Pipeline
     GET_JOB_PIPELINE_STATUS_COUNTS:     "GET_JOB_PIPELINE_STATUS_COUNTS",
     GET_JOB_PIPELINE_COUNT:             "GET_JOB_PIPELINE_COUNT",

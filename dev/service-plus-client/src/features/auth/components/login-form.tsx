@@ -168,7 +168,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
             tabIndex={-1}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
           >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
           </button>
         </div>
         {errors.password && (

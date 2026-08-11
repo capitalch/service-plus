@@ -116,9 +116,9 @@ export function LocalCombobox<T extends { id: number }>({
                                 tabIndex={-1}
                                 onMouseDown={e => e.preventDefault()}
                                 onClick={() => { onSelect(null); setInputText(""); }}
-                                className="rounded p-1 text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                className="rounded p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                             >
-                                <X className="h-3.5 w-3.5" />
+                                <X className="h-3.5 w-3.5 text-muted-foreground" />
                             </button>
                         )}
                         <button
@@ -129,7 +129,7 @@ export function LocalCombobox<T extends { id: number }>({
                             className="rounded p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
                         >
                             <ChevronDown
-                                className={`h-4 w-4 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+                                className={`h-4 w-4 transition-transform duration-150 text-muted-foreground ${open ? "rotate-180" : ""}`}
                             />
                         </button>
                     </div>
@@ -195,7 +195,7 @@ export function LocalCombobox<T extends { id: number }>({
                                         <span className={`truncate text-sm ${isSelected ? "font-semibold text-blue-700" : "font-medium text-(--cl-text)"}`}>
                                             {label}
                                         </span>
-                                        {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-blue-600" />}
+                                        {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />}
                                     </div>
                                     {subLabel && (
                                         <span className="font-mono text-xs text-(--cl-text-muted)">{subLabel}</span>

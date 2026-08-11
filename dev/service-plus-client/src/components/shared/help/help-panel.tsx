@@ -45,13 +45,57 @@ function catStyle(cat: string, styles: Record<string, CategoryStyleType>): Categ
     return styles[cat] ?? DEFAULT_STYLE;
 }
 
+// ─── Category glyph (real icon when available, emoji otherwise) ──────────────
+// A category's `icon` (if set) always wins over its `emoji` — see the note on
+// CategoryStyleType.icon in help-types.ts for why.
+
+const GLYPH_SIZES = {
+    xs: { text: "", icon: "h-3 w-3" },
+    sm: { text: "text-base leading-none", icon: "h-5 w-5" },
+    md: { text: "text-xl leading-none", icon: "h-6 w-6" },
+    lg: { text: "text-3xl leading-none", icon: "h-8 w-8" },
+} as const;
+
+function CategoryGlyph({ s, size, className }: { s: CategoryStyleType; size: keyof typeof GLYPH_SIZES; className?: string }) {
+    const cfg = GLYPH_SIZES[size];
+    if (s.icon) {
+        const Icon = s.icon;
+        return <Icon className={cn(cfg.icon, className)} />;
+    }
+    return <span className={cn(cfg.text, className)}>{s.emoji}</span>;
+}
+
+// A "badge" glyph — the emoji case sits inside a colored gradient circle/tile
+// (there's nothing else to give it color or shape). An `icon`, though, is
+// already a complete colored badge on its own (WhatsAppIcon draws its own
+// green circle) — wrapping it in a second gradient circle just smears two
+// similar greens together with no contrast. So when `icon` is set, render it
+// bare, larger, directly on the card's neutral surface instead.
+const BADGE_SIZES = {
+    md: { bare: "h-12 w-12", box: "h-10 w-10 text-xl", boxShape: "rounded-full" },
+    sm: { bare: "h-9 w-9",   box: "h-8 w-8 text-base",  boxShape: "rounded-lg" },
+} as const;
+
+function CategoryBadge({ s, size }: { s: CategoryStyleType; size: keyof typeof BADGE_SIZES }) {
+    const cfg = BADGE_SIZES[size];
+    if (s.icon) {
+        const Icon = s.icon;
+        return <Icon className={cn(cfg.bare, "shrink-0 drop-shadow-sm")} />;
+    }
+    return (
+        <span className={cn("flex shrink-0 items-center justify-center bg-gradient-to-br shadow-sm", cfg.box, cfg.boxShape, s.gradient)}>
+            {s.emoji}
+        </span>
+    );
+}
+
 // ─── Category pill badge ──────────────────────────────────────────────────────
 
 function CategoryPill({ category, styles }: { category: string; styles: Record<string, CategoryStyleType> }) {
     const s = catStyle(category, styles);
     return (
         <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide", s.pill, s.pillText)}>
-            <span>{s.emoji}</span>
+            <CategoryGlyph s={s} size="xs" />
             {category}
         </span>
     );
@@ -77,7 +121,7 @@ function RenderBlock({ block, category, styles }: { block: ContentBlock; categor
         case "note":
             return (
                 <div className="mb-3 flex gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-3 dark:border-blue-800/60 dark:bg-blue-950/30">
-                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" />
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
                     <p className="text-[12px] leading-relaxed text-blue-800 dark:text-blue-300">{block.text}</p>
                 </div>
             );
@@ -85,7 +129,7 @@ function RenderBlock({ block, category, styles }: { block: ContentBlock; categor
         case "warning":
             return (
                 <div className="mb-3 flex gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 dark:border-amber-800/60 dark:bg-amber-950/30">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" />
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 dark:text-amber-400 text-amber-600" />
                     <p className="text-[12px] leading-relaxed text-amber-800 dark:text-amber-300">{block.text}</p>
                 </div>
             );
@@ -247,7 +291,7 @@ function ArticleView({ article, onBack, styles, allArticles, onSelectArticle }: 
                 {related.length > 0 && (
                     <div className="mt-6">
                         <div className="mb-3 flex items-center gap-2">
-                            <BookOpen className="h-3.5 w-3.5 text-(--cl-text-muted)" />
+                            <BookOpen className="h-3.5 w-3.5 text-sky-600" />
                             <h3 className="text-[13px] font-bold text-(--cl-text)">Related Articles</h3>
                         </div>
                         <div className="space-y-1.5">
@@ -259,12 +303,12 @@ function ArticleView({ article, onBack, styles, allArticles, onSelectArticle }: 
                                         onClick={() => onSelectArticle(r)}
                                         className="cursor-pointer flex w-full items-center gap-2.5 rounded-lg border border-(--cl-border) bg-(--cl-surface) px-3 py-2.5 text-left transition-all hover:border-(--cl-accent)/30 hover:bg-(--cl-hover) group"
                                     >
-                                        <span className="text-base leading-none">{rs.emoji}</span>
+                                        <CategoryGlyph s={rs} size="sm" />
                                         <div className="min-w-0">
                                             <p className="text-[12px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors truncate">{r.title}</p>
                                             <p className="text-[10px] text-(--cl-text-muted)">{r.category}</p>
                                         </div>
-                                        <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-(--cl-text-muted) opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <ChevronRight className="ml-auto h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
                                     </button>
                                 );
                             })}
@@ -277,7 +321,7 @@ function ArticleView({ article, onBack, styles, allArticles, onSelectArticle }: 
                         onClick={onBack}
                         className={cn("cursor-pointer inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[12px] font-semibold transition-colors", s.pill, s.pillText, "hover:opacity-80")}
                     >
-                        <ArrowLeft className="h-3 w-3" />
+                        <ArrowLeft className="h-3 w-3 text-muted-foreground" />
                         Back to {article.category}
                     </button>
                 </div>
@@ -301,7 +345,13 @@ function CategoryView({ category, articles, styles, onSelectArticle }: {
             {/* Category header */}
             <div className={cn("shrink-0 bg-gradient-to-br px-5 py-4", s.gradient)}>
                 <div className="flex items-center gap-3">
-                    <span className="text-3xl leading-none">{s.emoji}</span>
+                    {s.icon ? (
+                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white shadow-md">
+                            <s.icon className="h-10 w-10" />
+                        </span>
+                    ) : (
+                        <CategoryGlyph s={s} size="lg" />
+                    )}
                     <div>
                         <h2 className="text-[16px] font-bold text-white">{category}</h2>
                         <p className="text-[12px] text-white/70">{categoryArticles.length} article{categoryArticles.length !== 1 ? "s" : ""}</p>
@@ -324,7 +374,7 @@ function CategoryView({ category, articles, styles, onSelectArticle }: {
                             <p className="text-[13px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors">{article.title}</p>
                             <p className="mt-0.5 text-[11px] text-(--cl-text-muted) line-clamp-2 leading-relaxed">{article.summary}</p>
                         </div>
-                        <ChevronRight className="mt-1 h-3.5 w-3.5 shrink-0 text-(--cl-text-muted) opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <ChevronRight className="mt-1 h-3.5 w-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
                     </button>
                 ))}
             </div>
@@ -378,7 +428,7 @@ function SearchResults({ query, results, styles, popularIds, allArticles, onSele
             <div className="h-full overflow-y-auto px-5 py-5">
                 <div className="flex flex-col items-center py-8 text-center">
                     <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-(--cl-surface)">
-                        <Search className="h-7 w-7 text-(--cl-text-muted)/40" />
+                        <Search className="h-7 w-7 text-slate-500" />
                     </div>
                     <p className="text-[14px] font-semibold text-(--cl-text)">No results for "{query}"</p>
                     <p className="mt-1.5 text-[12px] text-(--cl-text-muted) leading-relaxed">
@@ -397,12 +447,12 @@ function SearchResults({ query, results, styles, popularIds, allArticles, onSele
                                         onClick={() => onSelect(article)}
                                         className="cursor-pointer flex w-full items-center gap-2.5 rounded-lg border border-(--cl-border) bg-(--cl-surface) px-3 py-2.5 text-left transition-all hover:border-(--cl-accent)/30 hover:bg-(--cl-hover) group"
                                     >
-                                        <span className="text-base leading-none">{ps.emoji}</span>
+                                        <CategoryGlyph s={ps} size="sm" />
                                         <div className="min-w-0">
                                             <p className="text-[12px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors truncate">{article.title}</p>
                                             <p className="text-[10px] text-(--cl-text-muted)">{article.category}</p>
                                         </div>
-                                        <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-(--cl-text-muted) opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <ChevronRight className="ml-auto h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
                                     </button>
                                 );
                             })}
@@ -429,13 +479,13 @@ function SearchResults({ query, results, styles, popularIds, allArticles, onSele
                             activeIdx === idx ? "bg-(--cl-accent)/10" : "hover:bg-(--cl-hover)",
                         )}
                     >
-                        <span className="mt-1 text-xl leading-none">{s.emoji}</span>
+                        <CategoryGlyph s={s} size="md" className="mt-1" />
                         <div className="min-w-0">
                             <CategoryPill category={a.category} styles={styles} />
                             <p className="mt-1 text-[13px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors">{highlightMatch(a.title, query)}</p>
                             <p className="mt-0.5 text-[11px] text-(--cl-text-muted) line-clamp-2 leading-relaxed">{highlightMatch(a.summary, query)}</p>
                         </div>
-                        <ChevronRight className="mt-3 h-3.5 w-3.5 shrink-0 text-(--cl-text-muted) opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <ChevronRight className="mt-3 h-3.5 w-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
                     </button>
                 );
             })}
@@ -473,9 +523,7 @@ function HomeView({ articles, categories, styles, popularIds, recentIds, onSelec
                                 className="cursor-pointer group flex flex-col items-center gap-1.5 rounded-xl border border-(--cl-border) bg-(--cl-surface) p-3 text-center transition-all hover:scale-[1.03] hover:shadow-md hover:border-transparent hover:bg-gradient-to-br active:scale-100"
                                 style={{ ["--tw-gradient-from" as string]: "transparent" }}
                             >
-                                <span className={cn("flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br text-xl shadow-sm", s.gradient)}>
-                                    {s.emoji}
-                                </span>
+                                <CategoryBadge s={s} size="md" />
                                 <span className="text-[11px] font-semibold leading-tight text-(--cl-text)">{cat}</span>
                                 <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold", s.pill, s.pillText)}>
                                     {count}
@@ -490,7 +538,7 @@ function HomeView({ articles, categories, styles, popularIds, recentIds, onSelec
             {popular.length > 0 && (
                 <div className="px-4 pb-4">
                     <div className="mb-3 flex items-center gap-2">
-                        <BookOpen className="h-3.5 w-3.5 text-(--cl-text-muted)" />
+                        <BookOpen className="h-3.5 w-3.5 text-sky-600" />
                         <p className="text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted)/70">Popular articles</p>
                     </div>
                     <div className="space-y-1.5">
@@ -502,14 +550,12 @@ function HomeView({ articles, categories, styles, popularIds, recentIds, onSelec
                                     onClick={() => onSelectArticle(article)}
                                     className="cursor-pointer flex w-full items-center gap-3 rounded-lg border border-(--cl-border) bg-(--cl-surface) px-3.5 py-3 text-left transition-all hover:border-(--cl-accent)/30 hover:bg-(--cl-hover) hover:shadow-sm group"
                                 >
-                                    <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-base shadow-sm", s.gradient)}>
-                                        {s.emoji}
-                                    </span>
+                                    <CategoryBadge s={s} size="sm" />
                                     <div className="min-w-0">
                                         <p className="text-[12px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors truncate">{article.title}</p>
                                         <p className="text-[11px] text-(--cl-text-muted) truncate">{article.category}</p>
                                     </div>
-                                    <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 text-(--cl-text-muted) opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
                                 </button>
                             );
                         })}
@@ -521,7 +567,7 @@ function HomeView({ articles, categories, styles, popularIds, recentIds, onSelec
             {recent.length > 0 && (
                 <div className="px-4 pb-4">
                     <div className="mb-3 flex items-center gap-2">
-                        <Clock className="h-3.5 w-3.5 text-(--cl-text-muted)" />
+                        <Clock className="h-3.5 w-3.5 text-orange-600" />
                         <p className="text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted)/70">Recently viewed</p>
                     </div>
                     <div className="space-y-1.5">
@@ -533,7 +579,7 @@ function HomeView({ articles, categories, styles, popularIds, recentIds, onSelec
                                     onClick={() => onSelectArticle(article)}
                                     className="cursor-pointer flex w-full items-center gap-3 rounded-lg border border-(--cl-border) bg-(--cl-surface) px-3.5 py-2.5 text-left transition-all hover:border-(--cl-accent)/30 hover:bg-(--cl-hover) group"
                                 >
-                                    <span className="text-base leading-none">{s.emoji}</span>
+                                    <CategoryGlyph s={s} size="sm" />
                                     <div className="min-w-0">
                                         <p className="text-[12px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors truncate">{article.title}</p>
                                         <p className="text-[10px] text-(--cl-text-muted)">{article.category}</p>
@@ -682,7 +728,7 @@ export function HelpPanel({ open, onClose, articles, categories, categoryStyles,
                                 headerGradient ? "text-white/80 hover:bg-white/20 hover:text-white" : "text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)"
                             )}
                         >
-                            <ArrowLeft className="h-4 w-4" />
+                            <ArrowLeft className="h-4 w-4 text-muted-foreground" />
                         </button>
                     )}
 
@@ -707,7 +753,7 @@ export function HelpPanel({ open, onClose, articles, categories, categoryStyles,
                         )}
                         title="Close"
                     >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4 text-muted-foreground" />
                     </button>
                 </div>
 
@@ -733,7 +779,7 @@ export function HelpPanel({ open, onClose, articles, categories, categoryStyles,
                 {(view.kind === "home" || view.kind === "search") && (
                     <div className="shrink-0 border-b border-(--cl-border) bg-(--cl-bg) px-4 py-3">
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                             <input
                                 ref={searchRef}
                                 type="text"
@@ -747,7 +793,7 @@ export function HelpPanel({ open, onClose, articles, categories, categoryStyles,
                                     onClick={() => setQuery("")}
                                     className="cursor-pointer absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-(--cl-text-muted) hover:text-(--cl-text) hover:bg-(--cl-hover) transition-colors"
                                 >
-                                    <X className="h-3 w-3" />
+                                    <X className="h-3 w-3 text-muted-foreground" />
                                 </button>
                             )}
                         </div>

@@ -390,16 +390,16 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                     </div>
                     {job && (
                         <div className="relative z-10 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
-                            <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{job.job_date}</span>
-                            <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{currentBranch?.code ?? job.branch_code ?? "—"}</span>
+                            <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5 text-orange-600" />{job.job_date}</span>
+                            <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-indigo-600" />{currentBranch?.code ?? job.branch_code ?? "—"}</span>
                             {division && (
                                 <span className="inline-flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{division.name}</span>
                             )}
                             {job.technician_name && (
-                                <span className="inline-flex items-center gap-1.5"><Wrench className="h-3.5 w-3.5" />{job.technician_name}</span>
+                                <span className="inline-flex items-center gap-1.5"><Wrench className="h-3.5 w-3.5 text-blue-600" />{job.technician_name}</span>
                             )}
                             {job.customer_name && (
-                                <span className="inline-flex items-center gap-1.5"><User className="h-3.5 w-3.5" />{job.customer_name}</span>
+                                <span className="inline-flex items-center gap-1.5"><User className="h-3.5 w-3.5 text-purple-600" />{job.customer_name}</span>
                             )}
                         </div>
                     )}
@@ -426,7 +426,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                     onClick={handlePrintSheet}
                                     title="Print Job Sheet"
                                 >
-                                    <Printer className="h-3 w-3" />
+                                    <Printer className="h-3 w-3 text-slate-600" />
                                     Job Sheet
                                 </Button>
                                 <Button
@@ -436,7 +436,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                     onClick={handlePrintReceipt}
                                     title="Print Money Receipt"
                                 >
-                                    <Printer className="h-3 w-3" />
+                                    <Printer className="h-3 w-3 text-slate-600" />
                                     Receipt
                                 </Button>
                                 <Button
@@ -446,7 +446,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                     onClick={handlePrintInvoice}
                                     title="Print Invoice + Receipts"
                                 >
-                                    <Printer className="h-3 w-3" />
+                                    <Printer className="h-3 w-3 text-slate-600" />
                                     Invoice + Receipts
                                 </Button>
                                 <Button
@@ -456,7 +456,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                     onClick={handlePrintDeliveryNote}
                                     title="Print Delivery Note"
                                 >
-                                    <Truck className="h-3 w-3" />
+                                    <Truck className="h-3 w-3 text-orange-600" />
                                     Del. Note
                                 </Button>
                                 <Button
@@ -466,7 +466,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                     onClick={handlePrintInfo}
                                     title="Print complete job information report"
                                 >
-                                    <FileText className="h-3 w-3" />
+                                    <FileText className="h-3 w-3 text-slate-600" />
                                     Job Info
                                 </Button>
                                 <Button
@@ -476,7 +476,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                     onClick={() => setShowFinalInfo(true)}
                                     title="View read-only job final info: parts, charges, cost & sale"
                                 >
-                                    <ClipboardCheck className="h-3 w-3" />
+                                    <ClipboardCheck className="h-3 w-3 text-emerald-600" />
                                     Job Final Info
                                 </Button>
                             </div>
@@ -490,7 +490,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                         <div>
                                             <p className="text-base font-bold text-slate-900">{job.customer_name ?? "—"}</p>
                                             <span className="inline-flex items-center gap-1 mt-1.5 rounded-md bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 border border-sky-200">
-                                                <User className="h-3 w-3" />{job.mobile}
+                                                <User className="h-3 w-3 text-purple-600" />{job.mobile}
                                             </span>
                                         </div>
                                         {job.address_snapshot && (
@@ -556,7 +556,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                             <div className="rounded-lg bg-white shadow-sm overflow-hidden">
                                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-emerald-200/60 bg-gradient-to-r from-emerald-50/80 to-white">
                                     <div className="flex items-center gap-2">
-                                        <IndianRupee className="h-4 w-4 text-emerald-600" />
+                                        <IndianRupee className="h-4 w-4 text-green-600" />
                                         <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700">Payment Summary</h3>
                                     </div>
                                     {payments.length > 0 && (
@@ -588,7 +588,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                 </div>
                                 {showExcess && (
                                     <div className="flex items-start gap-2 border-t border-rose-100 bg-rose-50/70 px-4 py-2.5 text-xs text-rose-700">
-                                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600" />
                                         <span>
                                             Receipts exceed the job total by <span className="font-semibold">{fmtAmount(excessAmount)}</span>. This job is finalised — the excess is to be adjusted or refunded through the accounting system.
                                         </span>
@@ -651,7 +651,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                             <div className="rounded-lg bg-white shadow-sm overflow-hidden">
                                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-blue-200/60 bg-gradient-to-r from-blue-50/80 to-white">
                                     <div className="flex items-center gap-2">
-                                        <Paperclip className="h-4 w-4 text-blue-600" />
+                                        <Paperclip className="h-4 w-4 text-slate-600" />
                                         <h3 className="text-xs font-bold uppercase tracking-wider text-blue-700">Attachments</h3>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -666,7 +666,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                             variant="outline"
                                             onClick={() => setAttachOpen(true)}
                                         >
-                                            <Paperclip className="h-3 w-3 mr-1" />
+                                            <Paperclip className="h-3 w-3 mr-1 text-slate-600" />
                                             {files.length === 0 ? "Attach Files" : "View / Attach"}
                                         </Button>
                                     </div>
@@ -680,7 +680,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                             variant="outline"
                                             onClick={() => setAttachOpen(true)}
                                         >
-                                            <Paperclip className="h-3 w-3 mr-1" />
+                                            <Paperclip className="h-3 w-3 mr-1 text-slate-600" />
                                             Attach Files
                                         </Button>
                                     </div>
@@ -692,7 +692,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                                 className="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-blue-50/40"
                                                 onClick={() => setAttachOpen(true)}
                                             >
-                                                <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                                <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-600" />
                                                 <span className="flex-1 truncate text-sm text-slate-700">{f.about || "Attachment"}</span>
                                                 <span className="whitespace-nowrap text-[11px] text-slate-400">{f.created_at}</span>
                                             </div>
@@ -706,7 +706,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                 <div className="rounded-lg bg-white shadow-sm overflow-hidden">
                                     <div className="flex items-center justify-between px-4 py-2.5 border-b border-violet-200/60 bg-gradient-to-r from-violet-50/80 to-white">
                                         <div className="flex items-center gap-2">
-                                            <Package className="h-4 w-4 text-violet-600" />
+                                            <Package className="h-4 w-4 text-slate-600" />
                                             <h3 className="text-xs font-bold uppercase tracking-wider text-violet-700">Parts Used</h3>
                                         </div>
                                         <span className="inline-flex items-center justify-center rounded-sm bg-violet-100 px-2.5 py-0.5 text-[11px] font-bold text-violet-700 border border-violet-200">
@@ -751,7 +751,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                 <div className="rounded-lg bg-white shadow-sm overflow-hidden">
                                     <div className="flex items-center justify-between px-4 py-2.5 border-b border-amber-200/60 bg-gradient-to-r from-amber-50/80 to-white">
                                         <div className="flex items-center gap-2">
-                                            <ReceiptText className="h-4 w-4 text-amber-600" />
+                                            <ReceiptText className="h-4 w-4 text-green-600" />
                                             <h3 className="text-xs font-bold uppercase tracking-wider text-amber-700">Additional Charges</h3>
                                         </div>
                                         <span className="inline-flex items-center justify-center rounded-sm bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
@@ -790,7 +790,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                             <div className="rounded-lg bg-white shadow-sm overflow-hidden">
                                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-teal-200/60 bg-gradient-to-r from-teal-50/80 to-white">
                                     <div className="flex items-center gap-2">
-                                        <FileText className="h-4 w-4 text-teal-600" />
+                                        <FileText className="h-4 w-4 text-slate-600" />
                                         <h3 className="text-xs font-bold uppercase tracking-wider text-teal-700">Transaction History</h3>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -806,7 +806,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                         >
                                             {undoing
                                                 ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                                : <RotateCcw className="h-3 w-3 mr-1" />}
+                                                : <RotateCcw className="h-3 w-3 mr-1 text-blue-600" />}
                                             Undo Last
                                         </Button>
                                     </div>

@@ -166,7 +166,7 @@ export function CustomerInput({
                             >
                                 {loading
                                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    : <Search className="h-3.5 w-3.5" />}
+                                    : <Search className="h-3.5 w-3.5 text-slate-500" />}
                             </button>
 
                             <Input
@@ -204,15 +204,15 @@ export function CustomerInput({
                                         tabIndex={-1}
                                         onMouseDown={e => e.preventDefault()}
                                         onClick={onClear}
-                                        className="rounded-md p-1 hover:bg-red-500/10 text-red-500 transition-all cursor-pointer"
+                                        className="rounded-md p-1 hover:bg-slate-500/10 text-slate-500 transition-all cursor-pointer"
                                         title="Clear"
                                     >
-                                        <X className="h-3.5 w-3.5" />
+                                        <X className="h-3.5 w-3.5 text-muted-foreground" />
                                     </button>
                                 )}
                                 {customerId ? (
                                     <span title="Customer selected">
-                                        <UserCheck className="h-4 w-4 text-emerald-600" />
+                                        <UserCheck className="h-4 w-4 text-purple-600" />
                                     </span>
                                 ) : (
                                     <button
@@ -296,7 +296,7 @@ export function CustomerInput({
                     <div className="flex items-center gap-2 px-1 py-0.5 text-xs text-(--cl-text-muted)">
                         {customerMobile && (
                             <>
-                                <Phone className="h-3 w-3 shrink-0" />
+                                <Phone className="h-3 w-3 shrink-0 text-indigo-600" />
                                 <span className="font-mono shrink-0">{customerMobile}</span>
                             </>
                         )}

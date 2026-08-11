@@ -121,7 +121,7 @@ function DbSizeRow({ row }: { row: DbSizeType }) {
     return (
         <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-2">
-                <DatabaseIcon className="h-3.5 w-3.5 text-slate-300" />
+                <DatabaseIcon className="h-3.5 w-3.5 text-slate-600" />
                 <span className="font-mono text-xs text-slate-700">{row.db_name}</span>
             </div>
             <div className="flex items-center gap-3">
@@ -196,7 +196,7 @@ export const UsageHealthPage = () => {
                             size="sm"
                             variant="outline"
                         >
-                            <RefreshCwIcon className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                            <RefreshCwIcon className={`h-3.5 w-3.5 text-blue-600 ${loading ? "animate-spin" : ""}`} />
                             Refresh
                         </Button>
                     </div>

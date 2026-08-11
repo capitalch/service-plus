@@ -212,6 +212,13 @@ export function getJobSheetBlobUrl(job: JobDetailType, division: DivisionContext
     return String(doc.output("bloburl"));
 }
 
+// Same document as getJobSheetBlobUrl, as a Blob rather than a blob: URL — for
+// the WhatsApp "send PDF" flow, which POSTs the bytes as multipart form data.
+export function getJobSheetPdfBlob(job: JobDetailType, division: DivisionContextType | null, branchCode?: string, copies = 1, printMeta?: SingleJobSheetPrintMeta): Blob {
+    const doc = buildSingleJobSheetDoc(job, division, branchCode, copies, printMeta);
+    return doc.output("blob");
+}
+
 // ── Batch Job Sheet ───────────────────────────────────────────────────────────
 
 function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextType | null, branchCode?: string, copies = 1, printMeta?: SingleJobSheetPrintMeta): jsPDF {
@@ -407,6 +414,14 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
 export function getBatchJobSheetBlobUrl(jobs: JobDetailType[], division: DivisionContextType | null, branchCode?: string, copies = 1, printMeta?: SingleJobSheetPrintMeta): string {
     const doc = buildBatchJobSheetDoc(jobs, division, branchCode, copies, printMeta);
     return String(doc.output("bloburl"));
+}
+
+// Same document as getBatchJobSheetBlobUrl, as a Blob — for the WhatsApp "send
+// PDF" flow, which POSTs the bytes as multipart form data (one combined PDF,
+// one message, for the whole batch).
+export function getBatchJobSheetPdfBlob(jobs: JobDetailType[], division: DivisionContextType | null, branchCode?: string, copies = 1, printMeta?: SingleJobSheetPrintMeta): Blob {
+    const doc = buildBatchJobSheetDoc(jobs, division, branchCode, copies, printMeta);
+    return doc.output("blob");
 }
 
 // ── Full Job Info PDF ─────────────────────────────────────────────────────────

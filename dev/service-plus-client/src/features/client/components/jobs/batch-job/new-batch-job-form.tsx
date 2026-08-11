@@ -116,7 +116,7 @@ export function NewBatchJobForm({
         return (
             <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
                 <div className="bg-(--cl-accent)/5 p-5 rounded-full mb-4">
-                    <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
+                    <Plus className="h-12 w-12 opacity-40 text-emerald-600" />
                 </div>
                 <h3 className="text-lg font-semibold text-(--cl-text) mb-2">No Branch Selected</h3>
                 <p className="text-(--cl-text-muted) max-w-md px-6">
@@ -352,7 +352,7 @@ export function NewBatchJobForm({
                                                     if (jobId && editBatchNo) onAttachFiles?.(jobId, `Batch #${editBatchNo}`, idx);
                                                 }}
                                             >
-                                                <Paperclip className="h-3 w-3" />
+                                                <Paperclip className="h-3 w-3 text-slate-600" />
                                                 <span>{(watch(`rows.${idx}.file_count`) ?? 0) > 0 ? `${watch(`rows.${idx}.file_count`)} File${watch(`rows.${idx}.file_count`) !== 1 ? "s" : ""}` : "Attach"}</span>
                                             </button>
                                         )}
@@ -364,7 +364,7 @@ export function NewBatchJobForm({
                                             className="flex items-center justify-center h-7 w-7 rounded text-(--cl-text-muted) hover:bg-(--cl-accent)/10 hover:text-(--cl-accent) transition-colors"
                                             title={isExpanded ? "Collapse" : "Expand"}
                                         >
-                                            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                            {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
                                         </button>
 
                                         {/* Delete */}
@@ -374,7 +374,7 @@ export function NewBatchJobForm({
                                                 className="h-7 w-7 text-red-400 hover:bg-red-50 hover:text-red-600"
                                                 onClick={() => handleRemoveRow(idx)}
                                             >
-                                                <Trash2 className="h-3.5 w-3.5" />
+                                                <Trash2 className="h-3.5 w-3.5 text-red-600" />
                                             </Button>
                                         ) : (
                                             <div className="h-7 w-7" />
@@ -483,7 +483,7 @@ export function NewBatchJobForm({
                     className="gap-2 text-sm font-semibold border-2 border-dashed border-(--cl-accent)/30 text-(--cl-accent) hover:bg-(--cl-accent)/5 hover:border-(--cl-accent)"
                     onClick={handleAddRow}
                 >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-4 w-4 text-emerald-600" />
                     Add Job
                 </Button>
                 <span className="text-xs text-(--cl-text-muted)">

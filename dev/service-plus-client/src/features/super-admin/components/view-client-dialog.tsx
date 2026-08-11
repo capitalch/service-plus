@@ -129,10 +129,10 @@ export const ViewClientDialog = ({ client, onOpenChange, open }: ViewClientDialo
 						<span className="flex items-center gap-1.5 font-mono text-sm text-slate-600">
 							{client.db_name ?? <span className="text-slate-400">—</span>}
 							{client.db_name && client.db_name_valid && (
-								<span title="Database exists"><CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-500" /></span>
+								<span title="Database exists"><CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-600" /></span>
 							)}
 							{client.db_name && !client.db_name_valid && (
-								<span title="Database does not exist"><XCircleIcon className="h-3.5 w-3.5 text-red-500" /></span>
+								<span title="Database does not exist"><XCircleIcon className="h-3.5 w-3.5 text-red-600" /></span>
 							)}
 						</span>
 					</div>

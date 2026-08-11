@@ -148,7 +148,7 @@ export const BusinessUsersPage = () => {
                             variant="outline"
                             onClick={loadBusinessUsers}
                         >
-                            <RefreshCwIcon className="h-3.5 w-3.5" />
+                            <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
                             Refresh
                         </Button>
                         <Button
@@ -164,7 +164,7 @@ export const BusinessUsersPage = () => {
 
                 {/* Search */}
                 <div className="relative w-full sm:max-w-xs">
-                    <SearchIcon className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <SearchIcon className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                     <Input
                         className="pl-8 text-sm"
                         placeholder="Search users…"
@@ -177,7 +177,7 @@ export const BusinessUsersPage = () => {
                                     type="button"
                                     onClick={() => setSearch("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                 </div>
@@ -277,7 +277,7 @@ export const BusinessUsersPage = () => {
                                                             disabled={!user.is_active}
                                                             onClick={() => handleMailCredentials(user)}
                                                         >
-                                                            <MailIcon className="mr-1.5 h-3.5 w-3.5" />
+                                                            <MailIcon className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
                                                             Reset password and mail
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
@@ -311,7 +311,7 @@ export const BusinessUsersPage = () => {
                                                                     className="cursor-pointer text-red-600 focus:text-red-600"
                                                                     onClick={() => handleDelete(user)}
                                                                 >
-                                                                    <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
+                                                                    <Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />
                                                                     Delete
                                                                 </DropdownMenuItem>
                                                             </>
@@ -357,7 +357,7 @@ export const BusinessUsersPage = () => {
                                                     className={
                                                         user.is_active
                                                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
-                                                            : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"
+                                                            : "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-100"
                                                     }
                                                     variant="outline"
                                                 >

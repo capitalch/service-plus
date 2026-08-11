@@ -119,16 +119,16 @@ export function JobInvoicesPostUnpostGrid({ pendingChanges, onChangeToggle, onSt
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 py-2">
                 <div className="relative flex-1 sm:max-w-md">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                     <Input className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs" placeholder="Invoice no, job no, alt job no, customer" value={search} onChange={e => handleSearchChange(e.target.value)} />
                     {search && (
                         <button className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface)" type="button" onClick={() => handleSearchChange("")}>
-                            <X className="h-2.5 w-2.5" />
+                            <X className="h-2.5 w-2.5 text-muted-foreground" />
                         </button>
                     )}
                 </div>
                 <Button variant="outline" size="sm" className="ml-auto" onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }}>
-                    <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
+                    <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
                 </Button>
             </div>
 

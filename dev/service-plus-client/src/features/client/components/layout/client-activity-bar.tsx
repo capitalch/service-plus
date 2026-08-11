@@ -16,14 +16,14 @@ import { logout, selectCurrentUser, setSessionMode } from "@/features/auth/store
 import { ROUTES } from "@/router/routes";
 import type { Section } from "./client-layout";
 
-type ActivityItem = { icon: ComponentType<{ className?: string; strokeWidth?: number }>; section: Section; to: string; title: string };
+type ActivityItem = { color: string; icon: ComponentType<{ className?: string; strokeWidth?: number }>; section: Section; to: string; title: string };
 
 const ACTIVITY_ITEMS: ActivityItem[] = [
-    { icon: Wrench,            section: 'jobs',           to: ROUTES.client.jobs,           title: 'Jobs' },
-    { icon: Package,           section: 'inventory',      to: ROUTES.client.inventory,      title: 'Inventory' },
-    { icon: BarChart3,         section: 'reports',        to: ROUTES.client.reports,        title: 'Reports' },
-    { icon: BookOpen,          section: 'masters',        to: ROUTES.client.masters,        title: 'Masters' },
-    { icon: SlidersHorizontal, section: 'configurations', to: ROUTES.client.configurations, title: 'Configurations' },
+    { color: 'text-blue-600',  icon: Wrench,            section: 'jobs',           to: ROUTES.client.jobs,           title: 'Jobs' },
+    { color: 'text-slate-600', icon: Package,           section: 'inventory',      to: ROUTES.client.inventory,      title: 'Inventory' },
+    { color: 'text-green-600', icon: BarChart3,         section: 'reports',        to: ROUTES.client.reports,        title: 'Reports' },
+    { color: 'text-sky-600',   icon: BookOpen,          section: 'masters',        to: ROUTES.client.masters,        title: 'Masters' },
+    { color: 'text-slate-500', icon: SlidersHorizontal, section: 'configurations', to: ROUTES.client.configurations, title: 'Configurations' },
 ];
 
 type Props = { activeSection: Section };
@@ -48,7 +48,7 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
     return (
         <aside className="fixed left-0 top-12 z-40 hidden h-[calc(100%-4.5rem)] w-16 flex-col items-center bg-(--cl-deep) py-4 md:flex">
             <div className="flex w-full flex-col items-center gap-6">
-                {ACTIVITY_ITEMS.map(({ icon: Icon, section, to, title }) => {
+                {ACTIVITY_ITEMS.map(({ color, icon: Icon, section, to, title }) => {
                     const isActive = activeSection === section;
                     return (
                         <NavLink
@@ -59,10 +59,10 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
                             className={`flex w-full items-center justify-center py-3 transition-all duration-150 active:scale-90 ${
                                 isActive
                                     ? 'border-l-2 border-(--cl-accent) bg-(--cl-bg) text-(--cl-accent-text)'
-                                    : 'text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)'
+                                    : 'hover:bg-(--cl-hover)'
                             }`}
                         >
-                            <Icon className="h-5 w-5" strokeWidth={isActive ? 2 : 1.5} />
+                            <Icon className={isActive ? "h-5 w-5" : `h-5 w-5 ${color}`} strokeWidth={isActive ? 2 : 1.5} />
                         </NavLink>
                     );
                 })}
@@ -75,13 +75,13 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
                         title="Switch to Admin Mode"
                         className="cursor-pointer text-(--cl-text-muted) transition-all hover:text-(--cl-accent-text)"
                     >
-                        <ShieldCheck className="h-5 w-5" />
+                        <ShieldCheck className="h-5 w-5 text-violet-600" />
                     </button>
                 )}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <button className="cursor-pointer text-(--cl-text-muted) transition-all hover:text-(--cl-text)" title="Account">
-                            <UserCircle className="h-5 w-5" />
+                            <UserCircle className="h-5 w-5 text-purple-600" />
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" side="right" className="w-60">
@@ -111,10 +111,10 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
                         </div>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                            className="cursor-pointer text-red-600 focus:text-red-600"
+                            className="cursor-pointer"
                             onClick={handleLogout}
                         >
-                            <LogOut className="mr-2 h-4 w-4" />
+                            <LogOut className="mr-2 h-4 w-4 text-muted-foreground" />
                             Logout
                         </DropdownMenuItem>
                     </DropdownMenuContent>

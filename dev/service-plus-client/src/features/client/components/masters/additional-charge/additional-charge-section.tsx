@@ -273,7 +273,7 @@ export const AdditionalChargeSection = () => {
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <Receipt className="h-4 w-4" />
+                        <Receipt className="h-4 w-4 text-green-600" />
                     </div>
                     <div>
                         <h2 className="text-base font-bold text-(--cl-text)">Job Additional Charges</h2>
@@ -291,14 +291,14 @@ export const AdditionalChargeSection = () => {
                         setAddOpen(true);
                     }}
                 >
-                    <Plus className="h-3.5 w-3.5" /> Add Charge
+                    <Plus className="h-3.5 w-3.5 text-emerald-600" /> Add Charge
                 </Button>
             </div>
 
             {/* Toolbar */}
             <div className="flex items-center gap-2">
                 <div className="relative flex-1 max-w-xs">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                     <Input
                         className="h-8 border-(--cl-border) bg-white pl-8 pr-8 text-xs"
                         placeholder="Search charges…"
@@ -311,7 +311,7 @@ export const AdditionalChargeSection = () => {
                             type="button"
                             onClick={() => setSearch("")}
                         >
-                            <X className="h-3 w-3" />
+                            <X className="h-3 w-3 text-muted-foreground" />
                         </button>
                     )}
                 </div>
@@ -322,7 +322,7 @@ export const AdditionalChargeSection = () => {
                     variant="outline"
                     onClick={() => void loadData()}
                 >
-                    <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
+                    <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
                 </Button>
                 <span className="text-xs text-(--cl-text-muted)">
                     {loading ? "Loading…" : `${filtered.length} item${filtered.length !== 1 ? "s" : ""}`}
@@ -378,7 +378,7 @@ export const AdditionalChargeSection = () => {
                                                 variant="ghost"
                                                 onClick={() => { setEditRow(row); setEditName(row.name); setEditHsn(row.hsn_code ?? ""); }}
                                             >
-                                                <Pencil className="h-3.5 w-3.5" />
+                                                <Pencil className="h-3.5 w-3.5 text-blue-600" />
                                             </Button>
                                             <Button
                                                 className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-red-500 hover:bg-red-500/10"
@@ -387,7 +387,7 @@ export const AdditionalChargeSection = () => {
                                                 variant="ghost"
                                                 onClick={() => setDeleteRow(row)}
                                             >
-                                                <Trash2 className="h-3.5 w-3.5" />
+                                                <Trash2 className="h-3.5 w-3.5 text-red-600" />
                                             </Button>
                                         </div>
                                     </td>

@@ -164,10 +164,10 @@ export const StockOverviewSection = () => {
     };
 
     const SortIcon = ({ col }: { col: string }) => {
-        if (sortCol !== col) return <ArrowUpDownIcon className="ml-1 inline h-3 w-3 opacity-40" />;
+        if (sortCol !== col) return <ArrowUpDownIcon className="ml-1 inline h-3 w-3 opacity-40 text-muted-foreground" />;
         return sortDir === "asc"
-            ? <ArrowUpIcon   className="ml-1 inline h-3 w-3" />
-            : <ArrowDownIcon className="ml-1 inline h-3 w-3" />;
+            ? <ArrowUpIcon   className="ml-1 inline h-3 w-3 text-muted-foreground" />
+            : <ArrowDownIcon className="ml-1 inline h-3 w-3 text-muted-foreground" />;
     };
 
     const displayData = useMemo(() => {
@@ -202,7 +202,7 @@ export const StockOverviewSection = () => {
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-(--cl-accent)/10">
-                        <Package className="h-5 w-5 text-(--cl-accent)" />
+                        <Package className="h-5 w-5 text-slate-600" />
                     </div>
                     <div>
                         <h1 className="text-xl font-bold text-(--cl-text)">Stock Overview</h1>
@@ -213,7 +213,7 @@ export const StockOverviewSection = () => {
             {/* Toolbar (Search & Brand) */}
             <div className="flex flex-wrap items-center gap-3">
                 <div className="relative flex-1 sm:w-80 sm:flex-none">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-(--cl-text-muted)" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                     <Input
                         className="h-10 border-(--cl-border) bg-(--cl-surface) pl-9 shadow-sm"
                         placeholder="Search parts by name, description, code, or category..."
@@ -226,7 +226,7 @@ export const StockOverviewSection = () => {
                                     type="button"
                                     onClick={() => setSearch("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                 </div>
@@ -258,7 +258,7 @@ export const StockOverviewSection = () => {
                     variant="outline"
                     onClick={() => { if (selectedBranch) void loadStock(Number(selectedBranch), Number(selectedBrand), searchQ, page); }}
                 >
-                    <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                    <RefreshCw className={`h-3.5 w-3.5 text-blue-600 ${loading ? "animate-spin" : ""}`} />
                     Refresh
                 </Button>
             </div>
@@ -391,7 +391,7 @@ export const StockOverviewSection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(1)}
                                 >
-                                    <ChevronsLeftIcon className="h-4 w-4" />
+                                    <ChevronsLeftIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button
                                     className="h-8 w-8"
@@ -400,7 +400,7 @@ export const StockOverviewSection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(p => p - 1)}
                                 >
-                                    <ChevronLeftIcon className="h-4 w-4" />
+                                    <ChevronLeftIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button
                                     className="h-8 w-8"
@@ -409,7 +409,7 @@ export const StockOverviewSection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(p => p + 1)}
                                 >
-                                    <ChevronRightIcon className="h-4 w-4" />
+                                    <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button
                                     className="h-8 w-8"
@@ -418,7 +418,7 @@ export const StockOverviewSection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(Math.ceil(total / PAGE_SIZE))}
                                 >
-                                    <ChevronsRightIcon className="h-4 w-4" />
+                                    <ChevronsRightIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                             </div>
                         </div>

@@ -260,7 +260,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                                 }`}>
                                     {isGstMode
                                         ? <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                                        : <XCircle      className="h-3 w-3 text-amber-600" />
+                                        : <XCircle      className="h-3 w-3 text-red-600" />
                                     }
                                     <span className={`text-[10px] font-bold uppercase tracking-tighter ${isGstMode ? "text-emerald-700" : "text-amber-700"}`}>
                                         {isGstMode ? "GST" : "Non-GST"}

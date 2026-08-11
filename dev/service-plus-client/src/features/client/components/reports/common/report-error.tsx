@@ -18,7 +18,7 @@ export const ReportError = ({ className, message, onRetry }: Props) => {
                 className,
             )}
         >
-            <AlertCircle className="h-7 w-7 text-amber-500" />
+            <AlertCircle className="h-7 w-7 text-amber-600" />
             <p className="text-sm font-medium text-(--cl-text)">
                 {message ?? MESSAGES.ERROR_REPORTS_FETCH_FAILED}
             </p>

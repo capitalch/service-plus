@@ -43,6 +43,7 @@ import { DeliveryModalJobsTable } from "./delivery-modal-jobs-table";
 import { DeliveryModalInvoicesSection } from "./delivery-modal-invoices-section";
 import { DeliveryModalReceiptsSection } from "./delivery-modal-receipts-section";
 import { AddReceiptModal } from "./add-receipt-modal";
+import { useWhatsappSend } from "../use-whatsapp-send";
 import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -252,6 +253,7 @@ export function DeliveryModal({
     const [deletingInvoiceJobId,        setDeletingInvoiceJobId]        = useState<number | null>(null);
     const [confirmDeleteJob,            setConfirmDeleteJob]            = useState<JobDeliveryFullDetail | null>(null);
     const [regeneratingInvoiceJobId,    setRegeneratingInvoiceJobId]    = useState<number | null>(null);
+    const { isSendingWhatsapp, sendWhatsapp } = useWhatsappSend();
     const [confirmRegenerateJob,        setConfirmRegenerateJob]        = useState<JobDeliveryFullDetail | null>(null);
     const [receiptJob,                  setReceiptJob]                  = useState<JobDeliveryFullDetail | null>(null);
     const [showReceiptModal,            setShowReceiptModal]            = useState(false);
@@ -760,6 +762,52 @@ export function DeliveryModal({
         }
     }
 
+    // ── Per-job Invoice → WhatsApp ────────────────────────────────────────────
+
+    async function handleSendWhatsappInvoice(job: JobDeliveryFullDetail) {
+        if (!dbName || !schema || !job.invoice_id) return;
+        try {
+            const res = await apolloClient.query<GenericQueryData<JobInvoiceFullRow>>({
+                fetchPolicy: "network-only",
+                query:       GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId:   SQL_MAP.GET_JOB_INVOICE_BY_JOB,
+                        sqlArgs: { job_id: job.id },
+                    }),
+                },
+            });
+            const invoice = res.data?.genericQuery?.[0];
+            if (!invoice) { toast.error("Invoice data not found."); return; }
+            const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
+
+            const partHsnByCode = new Map((job.parts   ?? []).map(p => [p.part_code,    p.hsn_code ?? null]));
+            const partHsnByName = new Map((job.parts   ?? []).map(p => [p.part_name,    p.hsn_code ?? null]));
+            const chrgHsnByName = new Map((job.charges ?? []).map(c => [c.charge_name,  c.hsn_code ?? null]));
+            const patchedInvoice = {
+                ...invoice,
+                lines: invoice.lines.map(l => ({
+                    ...l,
+                    hsn_code: l.hsn_code !== null
+                        ? l.hsn_code
+                        : (l.part_code != null ? partHsnByCode.get(l.part_code) : undefined)
+                            ?? partHsnByName.get(l.description)
+                            ?? chrgHsnByName.get(l.description)
+                            ?? null,
+                })),
+            };
+
+            const doc = buildInvoicePdf(job, patchedInvoice, division, branchName, undefined, noOfJobInvoicesPerPrint);
+            await sendWhatsapp(job.id, job.mobile, {
+                dbName, schema, jobIds: [job.id], eventType: "JOB_DELIVERY",
+                pdf: doc.output("blob"), filename: `invoice-${job.job_no}.pdf`,
+            });
+        } catch {
+            toast.error("Failed to generate invoice PDF.");
+        }
+    }
+
     // ── Per-job Receipt PDF ───────────────────────────────────────────────────
 
     function handlePrintReceiptPdf(job: JobDeliveryFullDetail) {
@@ -869,7 +917,7 @@ export function DeliveryModal({
                         variant="ghost"
                         onClick={() => { if (didDeliver.current) onDelivered(); onClose(); }}
                     >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4 text-muted-foreground" />
                     </Button>
 
                     {/* ── Header ───────────────────────────────────────────── */}
@@ -880,7 +928,7 @@ export function DeliveryModal({
                             {/* Left: icon + identity */}
                             <div className="flex items-start gap-3 flex-1 min-w-0">
                                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-md mt-0.5">
-                                    <Truck className="h-5 w-5" />
+                                    <Truck className="h-5 w-5 text-orange-600" />
                                 </div>
 
                                 <div className="flex-1 min-w-0">
@@ -906,7 +954,7 @@ export function DeliveryModal({
                                                     variant="outline"
                                                     onClick={() => setViewJobId(firstJob.id)}
                                                 >
-                                                    <Eye className="h-3.5 w-3.5" />
+                                                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                                     View Job
                                                 </Button>
                                             </>
@@ -1015,9 +1063,11 @@ export function DeliveryModal({
                                     loadingPdfJobId={loadingPdfJobId}
                                     deletingInvoiceJobId={deletingInvoiceJobId}
                                     regeneratingInvoiceJobId={regeneratingInvoiceJobId}
+                                    isSendingWhatsapp={isSendingWhatsapp}
                                     onPrintInvoice={job => void handlePrintInvoicePdf(job)}
                                     onDeleteInvoice={job => void handleDeleteInvoice(job)}
                                     onRegenerateInvoice={job => void handleRegenerateInvoice(job)}
+                                    onSendWhatsapp={job => void handleSendWhatsappInvoice(job)}
                                 />
                             </StepSection>
 
@@ -1114,7 +1164,7 @@ export function DeliveryModal({
                                             variant="outline"
                                             onClick={() => void handleInvoiceReceipt()}
                                         >
-                                            <FileText className="h-3.5 w-3.5 shrink-0" />
+                                            <FileText className="h-3.5 w-3.5 shrink-0 text-slate-600" />
                                             Invoice + Receipt
                                         </Button>
                                         {!canShowInvoice && (
@@ -1136,7 +1186,7 @@ export function DeliveryModal({
                                             variant="outline"
                                             onClick={handleDeliveryNote}
                                         >
-                                            <FileText className="h-3.5 w-3.5 shrink-0" />
+                                            <FileText className="h-3.5 w-3.5 shrink-0 text-slate-600" />
                                             Delivery Note
                                         </Button>
                                         {!isDelivered && (
@@ -1209,7 +1259,7 @@ export function DeliveryModal({
                 >
                     <AlertDialogHeader>
                         <AlertDialogMedia className="bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600">
-                            <Truck />
+                            <Truck className="text-orange-600" />
                         </AlertDialogMedia>
                         <AlertDialogTitle>
                             {jobDetails.length > 1 ? "Jobs Delivered Successfully!" : "Job Delivered Successfully!"}
@@ -1240,7 +1290,7 @@ export function DeliveryModal({
                         <>
                             <AlertDialogHeader>
                                 <AlertDialogMedia className="bg-amber-100 dark:bg-amber-950/40 text-amber-600">
-                                    <RefreshCw />
+                                    <RefreshCw className="text-blue-600" />
                                 </AlertDialogMedia>
                                 <AlertDialogTitle>Cannot Regenerate Invoice</AlertDialogTitle>
                                 <AlertDialogDescription>
@@ -1256,7 +1306,7 @@ export function DeliveryModal({
                         <>
                             <AlertDialogHeader>
                                 <AlertDialogMedia className="bg-sky-100 dark:bg-sky-950/40 text-sky-600">
-                                    <RefreshCw />
+                                    <RefreshCw className="text-blue-600" />
                                 </AlertDialogMedia>
                                 <AlertDialogTitle>Regenerate Invoice?</AlertDialogTitle>
                                 <AlertDialogDescription>
@@ -1289,7 +1339,7 @@ export function DeliveryModal({
                         <>
                             <AlertDialogHeader>
                                 <AlertDialogMedia className="bg-amber-100 dark:bg-amber-950/40 text-amber-600">
-                                    <Trash2 />
+                                    <Trash2 className="text-red-600" />
                                 </AlertDialogMedia>
                                 <AlertDialogTitle>Cannot Delete Invoice</AlertDialogTitle>
                                 <AlertDialogDescription>
@@ -1305,7 +1355,7 @@ export function DeliveryModal({
                         <>
                             <AlertDialogHeader>
                                 <AlertDialogMedia className="bg-red-100 dark:bg-red-950/40 text-red-600">
-                                    <Trash2 />
+                                    <Trash2 className="text-red-600" />
                                 </AlertDialogMedia>
                                 <AlertDialogTitle>Delete Invoice?</AlertDialogTitle>
                                 <AlertDialogDescription>

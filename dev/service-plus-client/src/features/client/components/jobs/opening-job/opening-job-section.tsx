@@ -396,7 +396,7 @@ export const OpeningJobSection = () => {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <RotateCcw className="h-4 w-4" />
+                        <RotateCcw className="h-4 w-4 text-blue-600" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
                         <h1 className="text-lg font-bold text-(--cl-text) truncate">
@@ -434,7 +434,7 @@ export const OpeningJobSection = () => {
                         variant="ghost"
                         onClick={() => { setEditJob(null); form.reset(getOpeningJobDefaultValues(defaultDivisionId)); }}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 text-blue-600 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
                         Reset
                     </Button>
                     <Button
@@ -474,7 +474,7 @@ export const OpeningJobSection = () => {
                     {/* Toolbar */}
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="relative flex-1 sm:max-w-xs">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                             <Input
                                 className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
                                 placeholder="Job no, alt job no, customer or mobile…"
@@ -487,7 +487,7 @@ export const OpeningJobSection = () => {
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                         </div>
@@ -499,7 +499,7 @@ export const OpeningJobSection = () => {
                                 variant="outline"
                                 onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }}
                             >
-                                <RefreshCw className="mr-1.5 h-3 w-3" />
+                                <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" />
                                 Refresh
                             </Button>
                         </div>
@@ -587,7 +587,7 @@ export const OpeningJobSection = () => {
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button className="h-8 w-8 p-0 hover:bg-(--cl-accent)/15" variant="ghost">
-                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                    <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                                                                     <span className="sr-only">Open menu</span>
                                                                 </Button>
                                                             </DropdownMenuTrigger>
@@ -596,7 +596,7 @@ export const OpeningJobSection = () => {
                                                                     className="flex items-center gap-2 cursor-pointer text-sky-600 focus:bg-sky-500/10 focus:text-sky-700"
                                                                     onClick={() => setViewJobId(job.id)}
                                                                 >
-                                                                    <Eye className="h-4 w-4" />
+                                                                    <Eye className="h-4 w-4 text-muted-foreground" />
                                                                     <span>View Job</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
@@ -605,14 +605,14 @@ export const OpeningJobSection = () => {
                                                                     title={job.is_final ? "Job is finalized — edit not allowed" : undefined}
                                                                     onClick={() => { if (!job.is_final) { setEditJob(job as unknown as JobDetailType); setMode("new"); } }}
                                                                 >
-                                                                    <Pencil className="h-4 w-4" />
+                                                                    <Pencil className="h-4 w-4 text-blue-600" />
                                                                     <span>Edit Job</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
                                                                     onClick={() => setDeleteId(job.id)}
                                                                 >
-                                                                    <Trash2 className="h-4 w-4" />
+                                                                    <Trash2 className="h-4 w-4 text-red-600" />
                                                                     <span>Delete Job</span>
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
@@ -633,16 +633,16 @@ export const OpeningJobSection = () => {
                             </span>
                             <div className="flex items-center gap-1">
                                 <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First page" variant="ghost" onClick={() => setPage(1)}>
-                                    <ChevronsLeftIcon className="h-4 w-4" />
+                                    <ChevronsLeftIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="Previous page" variant="ghost" onClick={() => setPage(p => p - 1)}>
-                                    <ChevronLeftIcon className="h-4 w-4" />
+                                    <ChevronLeftIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Next page" variant="ghost" onClick={() => setPage(p => p + 1)}>
-                                    <ChevronRightIcon className="h-4 w-4" />
+                                    <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Last page" variant="ghost" onClick={() => setPage(totalPages)}>
-                                    <ChevronsRightIcon className="h-4 w-4" />
+                                    <ChevronsRightIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                             </div>
                         </div>

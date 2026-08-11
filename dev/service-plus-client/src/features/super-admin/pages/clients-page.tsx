@@ -311,7 +311,7 @@ export const ClientsPage = () => {
 							variant="outline"
 							onClick={() => refetch()}
 						>
-							<RefreshCwIcon className="h-3.5 w-3.5" />
+							<RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
 							Refresh
 						</Button>
 						<Button
@@ -322,7 +322,7 @@ export const ClientsPage = () => {
 							variant="outline"
 							onClick={handleSendTestEmail}
 						>
-							<MailIcon className="h-3.5 w-3.5" />
+							<MailIcon className="h-3.5 w-3.5 text-indigo-600" />
 							{isSendingTestEmail ? "Sending…" : "Test Email"}
 						</Button>
 						<Button
@@ -431,7 +431,7 @@ export const ClientsPage = () => {
 				{/* Search + sort */}
 				<div className="flex items-center gap-2">
 					<div className="relative">
-						<SearchIcon className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+						<SearchIcon className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
 						<Input
 							className="w-64 pl-8 text-sm"
 							onChange={(e) => setSearch(e.target.value)}
@@ -444,7 +444,7 @@ export const ClientsPage = () => {
                                     type="button"
                                     onClick={() => setSearch("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
 					</div>
@@ -523,8 +523,8 @@ export const ClientsPage = () => {
 													</Badge>
 													{client.db_name && (
 														client.db_name_valid
-															? <span title="Database ready"><DatabaseIcon className="h-3.5 w-3.5 text-emerald-500" /></span>
-															: <span title="Database not found"><XCircleIcon className="h-3.5 w-3.5 text-red-400" /></span>
+															? <span title="Database ready"><DatabaseIcon className="h-3.5 w-3.5 text-slate-600" /></span>
+															: <span title="Database not found"><XCircleIcon className="h-3.5 w-3.5 text-red-600" /></span>
 													)}
 												</div>
 												{/* Row 2: meta chips */}
@@ -556,7 +556,7 @@ export const ClientsPage = () => {
 													{/* DB name chip */}
 													{client.db_name && (
 														<span className="hidden items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 lg:inline-flex">
-															<DatabaseIcon className="h-3.5 w-3.5 text-slate-500" />
+															<DatabaseIcon className="h-3.5 w-3.5 text-slate-600" />
 															<span className="font-mono text-xs font-medium text-slate-600">{client.db_name}</span>
 														</span>
 													)}
@@ -565,7 +565,7 @@ export const ClientsPage = () => {
 													<span className="hidden text-xs font-medium text-slate-400 lg:inline">· Upd. {formatDate(client.updated_at)}</span>
 													{/* Show/hide admins toggle */}
 													<span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300 bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-700">
-														<UsersIcon className="h-3.5 w-3.5" />
+														<UsersIcon className="h-3.5 w-3.5 text-purple-600" />
 														{isOpen ? "Hide admins" : "Show admins"}
 													</span>
 												</div>
@@ -578,7 +578,7 @@ export const ClientsPage = () => {
 												onClick={() => toggleExpanded(client.id)}
 											>
 												<motion.div animate={{ rotate: isOpen ? 90 : 0 }} transition={{ duration: 0.2 }}>
-													<ChevronRightIcon className="h-4 w-4" />
+													<ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
 												</motion.div>
 											</button>
 
@@ -618,7 +618,7 @@ export const ClientsPage = () => {
 															View
 														</DropdownMenuItem>
 														<DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(client)}>
-															<PencilIcon className="mr-2 h-4 w-4" />
+															<PencilIcon className="mr-2 h-4 w-4 text-blue-600" />
 															Edit
 														</DropdownMenuItem>
 														<DropdownMenuItem
@@ -626,7 +626,7 @@ export const ClientsPage = () => {
 															disabled={!!client.db_name}
 															onClick={() => handleAttachDb(client)}
 														>
-															<DatabaseIcon className="mr-2 h-4 w-4" />
+															<DatabaseIcon className="mr-2 h-4 w-4 text-slate-600" />
 															Attach DB
 														</DropdownMenuItem>
 														<DropdownMenuItem
@@ -660,7 +660,7 @@ export const ClientsPage = () => {
 																	className="cursor-pointer text-emerald-600 focus:text-emerald-600"
 																	onClick={() => handleActivate(client)}
 																>
-																	<CheckCircle2Icon className="mr-2 h-4 w-4" />
+																	<CheckCircle2Icon className="mr-2 h-4 w-4 text-emerald-600" />
 																	Activate
 																</DropdownMenuItem>
 																<DropdownMenuSeparator />
@@ -668,7 +668,7 @@ export const ClientsPage = () => {
 																	className="cursor-pointer text-red-600 focus:text-red-600"
 																	onClick={() => handleDelete(client)}
 																>
-																	<Trash2Icon className="mr-2 h-4 w-4" />
+																	<Trash2Icon className="mr-2 h-4 w-4 text-red-600" />
 																	Delete
 																</DropdownMenuItem>
 															</>
@@ -729,7 +729,7 @@ export const ClientsPage = () => {
 																				className={
 																					admin.is_active
 																						? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
-																						: "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"
+																						: "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-100"
 																				}
 																				variant="outline"
 																			>
@@ -750,7 +750,7 @@ export const ClientsPage = () => {
 																						disabled={!admin.is_active}
 																						onClick={() => handleEditAdmin(admin, client)}
 																					>
-																						<PencilIcon className="mr-2 h-4 w-4" />
+																						<PencilIcon className="mr-2 h-4 w-4 text-blue-600" />
 																						Edit
 																					</DropdownMenuItem>
 																					<DropdownMenuItem
@@ -758,7 +758,7 @@ export const ClientsPage = () => {
 																						disabled={!admin.is_active}
 																						onClick={() => handleMailAdminCredentials(admin, client)}
 																					>
-																						<KeyRoundIcon className="mr-2 h-4 w-4" />
+																						<KeyRoundIcon className="mr-2 h-4 w-4 text-violet-600" />
 																						Mail the Reset Password Link
 																					</DropdownMenuItem>
 																					<DropdownMenuSeparator />
@@ -775,7 +775,7 @@ export const ClientsPage = () => {
 																							className="cursor-pointer text-emerald-600 focus:text-emerald-600"
 																							onClick={() => handleActivateAdmin(admin, client)}
 																						>
-																							<CheckCircle2Icon className="mr-2 h-4 w-4" />
+																							<CheckCircle2Icon className="mr-2 h-4 w-4 text-emerald-600" />
 																							Activate
 																						</DropdownMenuItem>
 																					)}

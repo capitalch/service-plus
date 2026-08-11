@@ -99,7 +99,7 @@ export const DeleteClientDialog = ({ client, onOpenChange, onSuccess, open }: De
 
 					<div className="flex flex-col gap-2">
 						<div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
-							<DatabaseIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+							<DatabaseIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-600" />
 							<p className="text-sm text-amber-800">
 								{MESSAGES.ERROR_CLIENT_DELETE_HAS_DB}
 							</p>

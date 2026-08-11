@@ -28,6 +28,7 @@ import {
 } from "../final-a-job/final-a-job-schema";
 import { FinalJobForm } from "../final-a-job/final-job-form";
 import { finalizeJobSave } from "../final-a-job/finalize-job-save";
+import { sendWhatsappCompletion } from "../send-whatsapp-completion";
 import { TargetNotAppliedDialog } from "../final-a-job/target-not-applied-dialog";
 
 // ─── Local types ──────────────────────────────────────────────────────────────
@@ -128,6 +129,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
     const [selectedDivisionId,  setSelectedDivisionId]  = useState<number | null>(null);
     const [loading,             setLoading]             = useState(true);
     const [submitting,          setSubmitting]          = useState(false);
+    const [sendingWhatsapp,     setSendingWhatsapp]     = useState(false);
 
     const [partLines,           setPartLines]           = useState<EditablePartLine[]>([]);
     const [deletedPartIds,      setDeletedPartIds]      = useState<number[]>([]);
@@ -483,6 +485,27 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
         onFinalized();
     }
 
+    // ── Send WhatsApp completion message ────────────────────────────────────
+    async function handleSendWhatsapp() {
+        if (!selectedJob || !dbName || !schema || !branchId) return;
+        setSendingWhatsapp(true);
+        try {
+            const results = await sendWhatsappCompletion(dbName, schema, branchId, [selectedJob.id]);
+            const result = results[0];
+            if (!result) {
+                toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
+            } else if (result.status === "SENT") {
+                toast.success(MESSAGES.SUCCESS_WHATSAPP_SENT);
+            } else {
+                toast.error(result.error || MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
+            }
+        } catch {
+            toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
+        } finally {
+            setSendingWhatsapp(false);
+        }
+    }
+
     // ── Render ────────────────────────────────────────────────────────────────
 
     if (loading || !selectedJob || !selectedRow) {
@@ -504,6 +527,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
                 selectedRow={selectedRow}
                 receivedTotal={receivedTotal}
                 submitting={submitting}
+                sendingWhatsapp={sendingWhatsapp}
                 loadingDetail={false}
                 selectedDivisionId={selectedDivisionId}
                 division={division}
@@ -530,6 +554,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
                 setViewJobId={setViewJobId}
                 onBack={onClose}
                 onSave={handleSaveFinal}
+                onSendWhatsapp={handleSendWhatsapp}
                 onRefresh={loadJobData}
                 onReset={handleReset}
                 onAddPart={addPartLine}

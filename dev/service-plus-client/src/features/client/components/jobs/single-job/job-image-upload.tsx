@@ -385,7 +385,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                     
                                     <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-(--cl-surface-2) flex items-center justify-center border border-(--cl-border) shadow-inner">
                                         {pf.file.type.includes("pdf") ? (
-                                            <FileText className="w-6 h-6 text-orange-500/80" />
+                                            <FileText className="w-6 h-6 text-slate-600" />
                                         ) : (
                                             <img src={pf.preview} alt="preview" className="w-full h-full object-cover" />
                                         )}
@@ -402,7 +402,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                                 disabled={pf.isUploading}
                                                 className="shrink-0 p-1 rounded-full text-(--cl-text-muted)/70 hover:bg-red-500/10 hover:text-red-500 transition-colors disabled:opacity-50 -mt-0.5 -mr-0.5 cursor-pointer"
                                             >
-                                                <X className="w-3.5 h-3.5" />
+                                                <X className="w-3.5 h-3.5 text-muted-foreground" />
                                             </button>
                                         </div>
                                         <div className="relative mt-auto">
@@ -415,7 +415,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                                 disabled={pf.isUploading}
                                             />
                                             {pf.about.trim() && (
-                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 absolute right-2 top-1/2 -translate-y-1/2 opacity-80" />
+                                                <CheckCircle2 className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 opacity-80 text-emerald-600" />
                                             )}
                                         </div>
                                     </div>
@@ -467,7 +467,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                         >
                                             {isPdf ? (
                                                 <div className="flex flex-col items-center gap-2 group-hover:scale-110 transition-transform duration-500 ease-out">
-                                                    <FileText className="w-10 h-10 text-orange-500 drop-shadow-sm" />
+                                                    <FileText className="w-10 h-10 drop-shadow-sm text-slate-600" />
                                                     <span className="text-[9px] font-bold uppercase tracking-widest text-(--cl-text-muted)">PDF</span>
                                                 </div>
                                             ) : (
@@ -498,7 +498,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                                 className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 -translate-y-2 group-hover:translate-y-0 transition-all duration-300 hover:bg-red-500 hover:scale-110 shadow-sm cursor-pointer"
                                                 title="Delete file"
                                             >
-                                                <Trash2 className="w-3.5 h-3.5" />
+                                                <Trash2 className="w-3.5 h-3.5 text-red-600" />
                                             </button>
                                         )}
                                     </motion.div>
@@ -514,7 +514,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
             <AlertDialogContent className="max-w-sm">
                 <AlertDialogHeader>
                     <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-                        <Trash2 className="h-5 w-5" />
+                        <Trash2 className="h-5 w-5 text-red-600" />
                         Delete File
                     </AlertDialogTitle>
                     <AlertDialogDescription>

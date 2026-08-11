@@ -134,7 +134,7 @@ export const PurchaseInvoicePdfPreviewDialog = ({ branch, division, invoice: pro
                             onClick={handleDownload}
                             disabled={!pdfUrl}
                         >
-                            <Download className="h-3.5 w-3.5" />
+                            <Download className="h-3.5 w-3.5 text-slate-600" />
                             Download
                         </Button>
                         <Button

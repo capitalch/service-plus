@@ -99,7 +99,7 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange, onShowP
                                 if (invoice && onShowPdf) onShowPdf(invoice);
                             }}
                         >
-                            <FileDown className="h-3.5 w-3.5" />
+                            <FileDown className="h-3.5 w-3.5 text-slate-600" />
                             Invoice PDF
                         </Button>
 

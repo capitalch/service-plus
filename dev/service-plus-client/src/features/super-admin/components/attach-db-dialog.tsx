@@ -186,7 +186,7 @@ export const AttachDbDialog = ({ client, onOpenChange, onSuccess, open }: Attach
 				</DialogHeader>
 
 				<div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
-					<InfoIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-500" />
+					<InfoIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-sky-600" />
 					<p className="text-sm text-blue-700">
 						Link an existing database to this client. The database must not be assigned to another client.
 					</p>
@@ -209,7 +209,7 @@ export const AttachDbDialog = ({ client, onOpenChange, onSuccess, open }: Attach
 								<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
 							)}
 							{!checkingDb && dbNameAvailable === true && (
-								<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+								<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
 							)}
 						</div>
 						<FieldError message={errors.db_name?.message} />

@@ -371,7 +371,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                             >
                                 {inlineLoading
                                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    : <Search className="h-3.5 w-3.5" />}
+                                    : <Search className="h-3.5 w-3.5 text-slate-500" />}
                             </button>
                             <Input
                                 ref={el => {
@@ -416,10 +416,10 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                                         tabIndex={-1}
                                         onMouseDown={e => e.preventDefault()}
                                         onClick={onClear}
-                                        className="rounded-md p-1 hover:bg-red-500/10 text-red-500 transition-all cursor-pointer"
+                                        className="rounded-md p-1 hover:bg-slate-500/10 text-slate-500 transition-all cursor-pointer"
                                         title="Clear search"
                                     >
-                                        <X className="h-3.5 w-3.5" />
+                                        <X className="h-3.5 w-3.5 text-muted-foreground" />
                                     </button>
                                 )}
                                 {partId ? (
@@ -557,7 +557,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                             Option 1 · Part code starts with
                         </label>
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 pointer-events-none text-slate-500" />
                             <Input
                                 autoFocus
                                 className="h-9 border-slate-200 bg-white text-slate-800 pl-9 pr-9 font-mono"
@@ -568,8 +568,8 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                             />
                             {partCodeQuery && (
                                 <button type="button" onClick={() => { setPartCodeQuery(""); setPartResults([]); }}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors cursor-pointer">
-                                    <X className="h-4 w-4" />
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+                                    <X className="h-4 w-4 text-muted-foreground" />
                                 </button>
                             )}
                         </div>
@@ -581,7 +581,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                             Option 2 · Name / Description / Model / Category
                         </label>
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 pointer-events-none text-slate-500" />
                             <Input
                                 className="h-9 border-slate-200 bg-white text-slate-800 pl-9 pr-9"
                                 placeholder="Type a keyword…"
@@ -591,8 +591,8 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                             />
                             {partKeywordQuery && (
                                 <button type="button" onClick={() => { setPartKeywordQuery(""); setPartResults([]); }}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors cursor-pointer">
-                                    <X className="h-4 w-4" />
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+                                    <X className="h-4 w-4 text-muted-foreground" />
                                 </button>
                             )}
                         </div>
@@ -662,19 +662,19 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                                 <div className="flex items-center gap-1">
                                     <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
                                         disabled={partPage <= 1 || partLoading} onClick={() => setPartPage(1)}>
-                                        <ChevronsLeft className="h-4 w-4" />
+                                        <ChevronsLeft className="h-4 w-4 text-muted-foreground" />
                                     </Button>
                                     <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
                                         disabled={partPage <= 1 || partLoading} onClick={() => setPartPage(p => p - 1)}>
-                                        <ChevronLeft className="h-4 w-4" />
+                                        <ChevronLeft className="h-4 w-4 text-muted-foreground" />
                                     </Button>
                                     <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
                                         disabled={partPage >= totalPages || partLoading} onClick={() => setPartPage(p => p + 1)}>
-                                        <ChevronRight className="h-4 w-4" />
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                     </Button>
                                     <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
                                         disabled={partPage >= totalPages || partLoading} onClick={() => setPartPage(totalPages)}>
-                                        <ChevronsRight className="h-4 w-4" />
+                                        <ChevronsRight className="h-4 w-4 text-muted-foreground" />
                                     </Button>
                                 </div>
                             </div>

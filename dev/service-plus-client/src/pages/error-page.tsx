@@ -34,7 +34,7 @@ const ErrorPage = () => {
         transition={{ duration: 0.3 }}
       >
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-          <AlertCircle className="h-8 w-8 text-slate-500" />
+          <AlertCircle className="h-8 w-8 text-amber-600" />
         </div>
 
         <div className="space-y-2">

@@ -144,7 +144,7 @@ export const BusinessUnitsPage = () => {
                             variant="outline"
                             onClick={loadBusinessUnits}
                         >
-                            <RefreshCwIcon className="h-3.5 w-3.5" />
+                            <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
                             Refresh
                         </Button>
                         <Button
@@ -153,7 +153,7 @@ export const BusinessUnitsPage = () => {
                             variant="outline"
                             onClick={() => setOrphanOpen(true)}
                         >
-                            <DatabaseIcon className="h-3.5 w-3.5" />
+                            <DatabaseIcon className="h-3.5 w-3.5 text-slate-600" />
                             Orphaned Schemas
                         </Button>
                         <Button
@@ -236,7 +236,7 @@ export const BusinessUnitsPage = () => {
                                                     className={
                                                         bu.is_active
                                                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
-                                                            : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"
+                                                            : "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-100"
                                                     }
                                                     variant="outline"
                                                 >
@@ -284,7 +284,7 @@ export const BusinessUnitsPage = () => {
                                                                     className="cursor-pointer text-violet-600 focus:text-violet-600"
                                                                     onClick={() => handleCreateSchema(bu)}
                                                                 >
-                                                                    <DatabaseIcon className="mr-1.5 h-3.5 w-3.5" />
+                                                                    <DatabaseIcon className="mr-1.5 h-3.5 w-3.5 text-slate-600" />
                                                                     Create Schema & Seed Data
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
@@ -296,7 +296,7 @@ export const BusinessUnitsPage = () => {
                                                                     className="cursor-pointer text-indigo-600 focus:text-indigo-600"
                                                                     onClick={() => handleSeedData(bu)}
                                                                 >
-                                                                    <DatabaseIcon className="mr-1.5 h-3.5 w-3.5" />
+                                                                    <DatabaseIcon className="mr-1.5 h-3.5 w-3.5 text-slate-600" />
                                                                     Add Seed Data
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
@@ -307,7 +307,7 @@ export const BusinessUnitsPage = () => {
                                                             disabled={!bu.is_active}
                                                             onClick={() => handleEdit(bu)}
                                                         >
-                                                            <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
+                                                            <PencilIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
                                                             Edit
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
@@ -333,7 +333,7 @@ export const BusinessUnitsPage = () => {
                                                                     className="cursor-pointer text-red-600 focus:text-red-600"
                                                                     onClick={() => handleDelete(bu)}
                                                                 >
-                                                                    <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
+                                                                    <Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />
                                                                     Delete
                                                                 </DropdownMenuItem>
                                                             </>

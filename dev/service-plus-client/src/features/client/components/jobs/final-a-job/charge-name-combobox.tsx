@@ -33,7 +33,7 @@ export function ChargeNameCombobox({ value, options, disabled, invalid, onChange
                     />
                     {value && !disabled && (
                         <X
-                            className="absolute right-1.5 h-3.5 w-3.5 cursor-pointer text-gray-400 hover:text-red-500"
+                            className="absolute right-1.5 h-3.5 w-3.5 cursor-pointer hover:text-foreground text-muted-foreground"
                             onMouseDown={e => { e.preventDefault(); onChange(""); setOpen(false); }}
                         />
                     )}

@@ -156,7 +156,7 @@ export const StatusTransitionModal = ({ divisions, job, transition, technicians,
                         <span className="inline-flex items-center rounded-sm border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground shrink-0">
                             {job.job_status_name}
                         </span>
-                        <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
                         <span className={`inline-flex items-center rounded-sm px-2 py-0.5 text-[11px] font-medium shrink-0 ${STATUS_COLORS[transition.targetCode] ?? "bg-gray-500 text-white"}`}>
                             {transition.targetName}
                         </span>
@@ -202,7 +202,7 @@ export const StatusTransitionModal = ({ divisions, job, transition, technicians,
                             </Select>
                             {hasReceipts && (
                                 <p className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">
-                                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600" />
                                     <span>{MESSAGES.ERROR_DIVISION_CHANGE_HAS_RECEIPTS}</span>
                                 </p>
                             )}

@@ -130,7 +130,7 @@ export function LocaleDateInput({ value, onChange, disabled, className }: Locale
                 type="button"
                 onClick={() => pickerRef.current?.showPicker()}
             >
-                <Calendar className="h-3.5 w-3.5" />
+                <Calendar className="h-3.5 w-3.5 text-orange-600" />
             </button>
 
             {/* Hidden native date input for the calendar picker */}

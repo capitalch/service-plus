@@ -85,7 +85,7 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
                         {label}
                     </div>
                     {idx < STEPS.length - 1 && (
-                        <ChevronRight className="h-3 w-3 text-slate-300" />
+                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
                     )}
                 </React.Fragment>
             ))}
@@ -299,7 +299,7 @@ export const CreateBusinessUnitDialog = ({
                                     <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
                                 )}
                                 {!checkingCode && codeTaken === false && !errors.code && (
-                                    <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                    <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
                                 )}
                             </div>
                             <FieldError message={errors.code?.message} />
@@ -323,7 +323,7 @@ export const CreateBusinessUnitDialog = ({
                                     <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
                                 )}
                                 {!checkingName && nameTaken === false && !errors.name && (
-                                    <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                    <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
                                 )}
                             </div>
                             <FieldError message={errors.name?.message} />
@@ -383,7 +383,7 @@ export const CreateBusinessUnitDialog = ({
                 {/* ── Step 3: Done ── */}
                 {step === 3 && (
                     <div className="flex flex-col items-center gap-4 py-6 text-center">
-                        <CheckCircle className="h-12 w-12 text-emerald-500" />
+                        <CheckCircle className="h-12 w-12 text-emerald-600" />
                         <p className="text-lg font-semibold text-slate-800">Business Unit Created</p>
                         <p className="text-sm text-slate-500">
                             <span className="font-medium">{createdBu?.name}</span>

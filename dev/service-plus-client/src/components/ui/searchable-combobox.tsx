@@ -124,16 +124,16 @@ export function SearchableCombobox<T>({
                   onClick={enterSearchMode}
                   className="shrink-0 text-(--cl-text-muted) hover:text-(--cl-accent) transition-colors cursor-pointer"
                 >
-                  <Pencil className="h-3.5 w-3.5" />
+                  <Pencil className="h-3.5 w-3.5 text-blue-600" />
                 </button>
                 <button
                   type="button"
                   tabIndex={-1}
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => { onSelect(null); setSearch(""); }}
-                  className="shrink-0 text-(--cl-text-muted) hover:text-red-500 transition-colors cursor-pointer"
+                  className="shrink-0 text-(--cl-text-muted) hover:text-(--cl-accent) transition-colors cursor-pointer"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
               </div>
             ) : (
@@ -185,9 +185,9 @@ export function SearchableCombobox<T>({
                       tabIndex={-1}
                       onMouseDown={e => e.preventDefault()}
                       onClick={() => { setSearch(""); onSelect(null); }}
-                      className="cursor-pointer hover:text-red-500"
+                      className="cursor-pointer hover:text-(--cl-accent)"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-4 w-4 text-muted-foreground" />
                     </button>
                   ) : (
                     <button
@@ -197,7 +197,7 @@ export function SearchableCombobox<T>({
                       onClick={() => setOpen(prev => !prev)}
                       className="cursor-pointer"
                     >
-                      <ChevronDown className={`h-4 w-4 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+                      <ChevronDown className={`h-4 w-4 transition-transform duration-150 text-muted-foreground ${open ? "rotate-180" : ""}`} />
                     </button>
                   )}
                 </div>
@@ -272,7 +272,7 @@ export function SearchableCombobox<T>({
                     }}
                   >
                     <div className="min-w-0 flex-1">{renderItem(item)}</div>
-                    {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-(--cl-accent)" />}
+                    {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />}
                   </button>
                 );
               })}

@@ -122,7 +122,7 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
             <div className="flex items-center justify-between border-b border-(--cl-border) bg-(--cl-surface) py-2 px-4">
                 <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <BarChart3 className="h-4 w-4" />
+                        <BarChart3 className="h-4 w-4 text-green-600" />
                     </div>
                     <div className="flex items-baseline gap-2">
                         <h1 className="text-lg font-bold text-(--cl-text)">Job Pipeline</h1>
@@ -139,7 +139,7 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
                     variant="ghost"
                     onClick={() => void loadCounts()}
                 >
-                    <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                    <RefreshCcw className={`h-4 w-4 text-blue-600 ${loading ? "animate-spin" : ""}`} />
                 </Button>
             </div>
 

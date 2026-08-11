@@ -83,7 +83,7 @@ export function ProcessJobsModal({ jobs, technicians, executing, onCancel, onRem
                                         type="button"
                                         onClick={() => onRemoveJob(job.id)}
                                     >
-                                        <X className="h-3 w-3" />
+                                        <X className="h-3 w-3 text-muted-foreground" />
                                     </button>
                                 </span>
                             ))}

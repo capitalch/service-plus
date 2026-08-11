@@ -4,11 +4,14 @@ import {
     Loader2, Paperclip, Eye, Printer, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import type { BatchJobQuickInfoRow } from "@/features/client/types/job";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { isValidMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema, selectCurrentBranch, selectAvailableDivisions } from "@/store/context-slice";
@@ -19,12 +22,14 @@ type Props = {
     onEdit?: (batchNo: number) => void;
     onView?: (batchNo: number) => void;
     onPrint?: (batchNo: number) => void;
+    onWhatsapp?: (batchNo: number) => void;
+    isSendingWhatsapp?: (batchNo: number) => boolean;
     refreshTrigger?: number;
 };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, refreshTrigger }: Props) {
+export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, onWhatsapp, isSendingWhatsapp, refreshTrigger }: Props) {
     const dbName    = useAppSelector(selectDbName);
     const schema    = useAppSelector(selectSchema);
     const branch    = useAppSelector(selectCurrentBranch);
@@ -177,7 +182,7 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
                                         className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30 px-2 py-1 rounded-full border border-violet-200 dark:border-violet-800/30 hover:bg-violet-100 dark:hover:bg-violet-900/40 hover:border-violet-400 dark:hover:border-violet-700 transition-colors cursor-pointer shrink-0"
                                         onClick={() => onAttachJob?.(row.job_id, row.job_no)}
                                     >
-                                        <Paperclip className="h-3 w-3" />
+                                        <Paperclip className="h-3 w-3 text-slate-600" />
                                         <span>{row.file_count} File{row.file_count !== 1 ? "s" : ""}</span>
                                     </button>
                                 ) : (
@@ -226,6 +231,19 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
                             <Printer className="h-3.5 w-3.5 mr-1.5" />
                             Print
                         </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 px-3 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                            disabled={!isValidMobile(rows[0].mobile) || (isSendingWhatsapp?.(batchNo) ?? false)}
+                            title={!isValidMobile(rows[0].mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                            onClick={() => onWhatsapp?.(batchNo)}
+                        >
+                            {isSendingWhatsapp?.(batchNo)
+                                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                : <WhatsAppIcon className="h-3.5 w-3.5 mr-1.5" />}
+                            Whatsapp
+                        </Button>
                         {/* <Button
                             type="button" size="sm"
                             className="h-7 px-3 text-[11px] font-semibold bg-violet-500 hover:bg-violet-600 text-white"
@@ -240,25 +258,25 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
 
                     <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                         <NavButton
-                            icon={<ChevronsLeftIcon className="h-4 w-4" />}
+                            icon={<ChevronsLeftIcon className="h-4 w-4 text-muted-foreground" />}
                             title="Oldest batch"
                             disabled={isAtOldest || navLoading}
                             onClick={() => void fetchBatch(total - 1, true)}
                         />
                         <NavButton
-                            icon={<ChevronLeftIcon className="h-4 w-4" />}
+                            icon={<ChevronLeftIcon className="h-4 w-4 text-muted-foreground" />}
                             title="Older batch"
                             disabled={isAtOldest || navLoading}
                             onClick={() => void fetchBatch(offset + 1, true)}
                         />
                         <NavButton
-                            icon={<ChevronRightIcon className="h-4 w-4" />}
+                            icon={<ChevronRightIcon className="h-4 w-4 text-muted-foreground" />}
                             title="Newer batch"
                             disabled={isAtLatest || navLoading}
                             onClick={() => void fetchBatch(offset - 1, true)}
                         />
                         <NavButton
-                            icon={<ChevronsRightIcon className="h-4 w-4" />}
+                            icon={<ChevronsRightIcon className="h-4 w-4 text-muted-foreground" />}
                             title="Latest batch"
                             disabled={isAtLatest || navLoading}
                             onClick={() => void fetchBatch(0, true)}

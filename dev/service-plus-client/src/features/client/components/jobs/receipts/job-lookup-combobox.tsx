@@ -157,13 +157,13 @@ export const JobLookupCombobox = ({ disabled = false, getRestrictionReason = rec
                     </div>
                     {!disabled && (
                         <Button
-                            className="h-5 w-5 shrink-0 p-0 text-muted-foreground hover:text-red-500"
+                            className="h-5 w-5 shrink-0 p-0 text-muted-foreground hover:text-foreground"
                             size="icon"
                             type="button"
                             variant="ghost"
                             onClick={handleClear}
                         >
-                            <X className="h-3 w-3" />
+                            <X className="h-3 w-3 text-muted-foreground" />
                         </Button>
                     )}
                 </div>
@@ -177,7 +177,7 @@ export const JobLookupCombobox = ({ disabled = false, getRestrictionReason = rec
                         onChange={handleInputChange}
                     />
                     <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronsUpDown className="h-4 w-4" />}
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />}
                     </span>
                 </div>
             )}

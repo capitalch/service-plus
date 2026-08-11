@@ -80,7 +80,7 @@ const COLUMNS: ReportColumnType<RowType>[] = [
     },
     {
         align:    "center",
-        cell:     r => r.is_warranty ? <ShieldCheck className="mx-auto h-4 w-4 text-emerald-500" /> : "—",
+        cell:     r => r.is_warranty ? <ShieldCheck className="mx-auto h-4 w-4 text-violet-600" /> : "—",
         header:   "W?",
         id:       "warranty",
         sortable: false,

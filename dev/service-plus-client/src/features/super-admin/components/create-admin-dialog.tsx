@@ -300,7 +300,7 @@ export const CreateAdminDialog = ({
 								<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
 							)}
 							{!checkingUsername && usernameTaken === false && !errors.username && (
-								<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+								<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
 							)}
 						</div>
 						<FieldError message={errors.username?.message} />
@@ -324,7 +324,7 @@ export const CreateAdminDialog = ({
 								<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
 							)}
 							{!checkingEmail && emailTaken === false && !errors.email && (
-								<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+								<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
 							)}
 						</div>
 						<FieldError message={errors.email?.message} />

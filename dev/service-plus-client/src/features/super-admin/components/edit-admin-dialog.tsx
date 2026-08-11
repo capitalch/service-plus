@@ -214,7 +214,7 @@ export const EditAdminDialog = ({
                                         exit={{ opacity: 0, scale: 0.8 }}
                                         initial={{ opacity: 0, scale: 0.8 }}
                                     >
-                                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                        <Check className="h-3.5 w-3.5 text-emerald-600" />
                                     </motion.span>
                                 )}
                             </AnimatePresence>

@@ -114,9 +114,9 @@ export function ModelCombobox({ disabled, isError, models, value, onSelect }: Mo
                             tabIndex={-1}
                             onMouseDown={e => e.preventDefault()}
                             onClick={() => { onSelect(null); setInputText(""); setOpen(false); }}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-(--cl-text-muted) hover:text-red-500 transition-colors cursor-pointer"
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-(--cl-text-muted) hover:text-(--cl-accent) transition-colors cursor-pointer"
                         >
-                            <X className="h-4 w-4" />
+                            <X className="h-4 w-4 text-muted-foreground" />
                         </button>
                     )}
                 </div>
@@ -125,7 +125,7 @@ export function ModelCombobox({ disabled, isError, models, value, onSelect }: Mo
             {/* Brand + product sub-label (mirrors CustomerSelect phone display) */}
             {selectedModel && (
                 <div className="flex items-center gap-1.5 px-1 py-0.5 text-xs text-(--cl-text-muted)">
-                    <Layers className="h-3 w-3 shrink-0" />
+                    <Layers className="h-3 w-3 shrink-0 text-slate-600" />
                     <span className="font-medium text-(--cl-accent)">{selectedModel.brand_name}</span>
                     <span className="opacity-40">·</span>
                     <span className="truncate">{selectedModel.product_name}</span>

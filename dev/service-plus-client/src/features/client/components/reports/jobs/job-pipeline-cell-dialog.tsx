@@ -132,7 +132,7 @@ export const JobPipelineCellDialog = ({ cell, onClose }: Props) => {
             <DialogContent className="max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <Timer className="h-4 w-4 text-(--cl-accent-text)" />
+                        <Timer className="h-4 w-4 text-orange-600" />
                         <span>{cell?.statusName ?? "Jobs"}</span>
                         {cell && <span className="font-mono text-(--cl-accent-text)">{cell.bucketLabel}</span>}
                     </DialogTitle>

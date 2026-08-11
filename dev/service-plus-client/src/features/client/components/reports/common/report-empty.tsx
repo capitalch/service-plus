@@ -16,7 +16,7 @@ export const ReportEmpty = ({ className, message }: Props) => {
                 className,
             )}
         >
-            <Inbox className="h-8 w-8 text-(--cl-text-muted)" />
+            <Inbox className="h-8 w-8 text-slate-600" />
             <p className="text-xs text-(--cl-text-muted)">
                 {message ?? MESSAGES.INFO_REPORTS_NO_DATA}
             </p>

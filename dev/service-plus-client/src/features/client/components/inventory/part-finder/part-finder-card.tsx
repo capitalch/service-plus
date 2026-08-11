@@ -111,7 +111,7 @@ function PartCard({ isSelected, onSelect, part }: CardItemProps) {
                 {/* Location */}
                 {part.primary_location && (
                     <div className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 shrink-0 text-(--cl-text-muted)" />
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-indigo-600" />
                         <span className="text-xs text-(--cl-text-muted)">{part.primary_location}</span>
                         {part.location_count > 1 && (
                             <Badge className="border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-400" variant="outline">
@@ -142,7 +142,7 @@ export const PartFinderCard = ({ loading, onSelectPart, parts, selectedId }: Pro
     if (parts.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center rounded-xl border border-(--cl-border) bg-(--cl-surface-2) py-16">
-                <Package className="mb-3 h-10 w-10 text-(--cl-text-muted) opacity-40" />
+                <Package className="mb-3 h-10 w-10 opacity-40 text-slate-600" />
                 <p className="text-sm font-medium text-(--cl-text-muted)">No parts found</p>
                 <p className="mt-1 text-xs text-(--cl-text-muted) opacity-70">Try adjusting your filters or search term</p>
             </div>

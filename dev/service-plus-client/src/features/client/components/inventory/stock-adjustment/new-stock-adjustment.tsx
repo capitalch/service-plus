@@ -157,7 +157,7 @@ export function NewStockAdjustment({
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
                     <div className="bg-(--cl-accent)/5 p-5 rounded-full mb-4">
-                        <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
+                        <Plus className="h-12 w-12 opacity-40 text-emerald-600" />
                     </div>
                     <h3 className="text-lg font-semibold text-(--cl-text) mb-2">No Branch Selected</h3>
                     <p className="text-(--cl-text-muted) max-w-md px-6">

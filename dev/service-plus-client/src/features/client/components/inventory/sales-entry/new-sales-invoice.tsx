@@ -375,7 +375,7 @@ export function NewSalesInvoice({
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
                     <div className="bg-(--cl-accent)/5 p-5 rounded-full mb-4">
-                        <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
+                        <Plus className="h-12 w-12 opacity-40 text-emerald-600" />
                     </div>
                     <h3 className="text-lg font-semibold text-(--cl-text) mb-2">No Branch Selected</h3>
                     <p className="text-(--cl-text-muted) max-w-md px-6">
@@ -532,7 +532,7 @@ export function NewSalesInvoice({
                                                 <option key={d.id} value={d.id}>{d.name}</option>
                                             ))}
                                         </select>
-                                        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-(--cl-text-muted)" />
+                                        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                     </div>
                                 </div>
                             )}
@@ -824,7 +824,7 @@ export function NewSalesInvoice({
                             <div className="flex flex-wrap items-center justify-between gap-4">
                                 {!hasDiff ? (
                                     <div className="flex items-center gap-1 text-emerald-600">
-                                        <CheckCircle2 className="h-4 w-4" />
+                                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                                         <span className="text-xs font-semibold">Tallied</span>
                                     </div>
                                 ) : <div />}
@@ -877,7 +877,7 @@ export function NewSalesInvoice({
                                                 applyBackCalcTarget(rounded);
                                             }}
                                         >
-                                            <Radius className="h-3 w-3" />
+                                            <Radius className="h-3 w-3 text-muted-foreground" />
                                         </button>
                                     </div>
                                 </div>

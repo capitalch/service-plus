@@ -102,14 +102,14 @@ export const RolesPage = () => {
                         variant="outline"
                         onClick={loadRoles}
                     >
-                        <RefreshCwIcon className="h-3.5 w-3.5" />
+                        <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
                         Refresh
                     </Button>
                 </div>
 
                 {/* Info banner */}
                 <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 shadow-sm">
-                    <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                    <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
                     <span>
                         Roles are system-defined and cannot be added, edited, or deleted. Assign roles to
                         business users via the <strong>Business Users</strong> page.
@@ -174,7 +174,7 @@ export const RolesPage = () => {
                                             </TableCell>
                                             <TableCell className="font-medium text-slate-900">
                                                 <div className="flex items-center gap-2">
-                                                    <ShieldCheckIcon className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                                    <ShieldCheckIcon className="h-3.5 w-3.5 shrink-0 text-violet-600" />
                                                     {role.name}
                                                 </div>
                                             </TableCell>

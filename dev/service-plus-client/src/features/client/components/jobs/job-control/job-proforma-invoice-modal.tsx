@@ -120,7 +120,7 @@ export const JobProformaInvoiceModal = ({ jobId, onClose }: Props) => {
                             variant="outline"
                             onClick={handleDownload}
                         >
-                            <Download className="h-3.5 w-3.5" />
+                            <Download className="h-3.5 w-3.5 text-slate-600" />
                             Download
                         </Button>
                         <Button
@@ -129,7 +129,7 @@ export const JobProformaInvoiceModal = ({ jobId, onClose }: Props) => {
                             size="sm"
                             onClick={handlePrint}
                         >
-                            <Printer className="h-3.5 w-3.5" />
+                            <Printer className="h-3.5 w-3.5 text-slate-600" />
                             Print / Save PDF
                         </Button>
                     </div>

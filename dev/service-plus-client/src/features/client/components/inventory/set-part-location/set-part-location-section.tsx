@@ -176,7 +176,7 @@ const displayParts = useMemo(() => {
                             variant="outline"
                             onClick={loadData}
                         >
-                            <RefreshCwIcon className="h-3.5 w-3.5" />
+                            <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
                             Refresh
                         </Button>
                         {selectedCount > 0 && (
@@ -213,7 +213,7 @@ const displayParts = useMemo(() => {
                 {/* Search + count */}
                 <div className="flex items-center gap-3">
                     <div className="relative flex-1">
-                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                         <Input
                             className="h-8 pl-8 pr-8 text-sm"
                             disabled={loading}
@@ -228,7 +228,7 @@ const displayParts = useMemo(() => {
                                 type="button"
                                 onClick={() => setSearch("")}
                             >
-                                <XIcon className="h-3.5 w-3.5" />
+                                <XIcon className="h-3.5 w-3.5 text-muted-foreground" />
                             </button>
                         )}
                     </div>
@@ -320,7 +320,7 @@ const displayParts = useMemo(() => {
                                                                 className="border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-50"
                                                                 variant="outline"
                                                             >
-                                                                <MapPin className="mr-1 h-2.5 w-2.5" />
+                                                                <MapPin className="mr-1 h-2.5 w-2.5 text-indigo-600" />
                                                                 {part.location_name}
                                                             </Badge>
                                                         ) : (

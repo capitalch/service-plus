@@ -1,5 +1,6 @@
 # instructions
 - limit yourself to current folder
+- Please omit deployment folder for all purposes
 - Always make responsive design
 - When there is code change, update help system if so required.
 - When you are in plan mode or doing the planning then always write your planning in plans/plan.md in root folder.Overwrite plan.md if it exists. 

@@ -261,7 +261,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                             variant="outline"
                             onClick={loadData}
                         >
-                            <RefreshCwIcon className="h-3.5 w-3.5" />
+                            <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
                             Refresh
                         </Button>
                         {canManage && (
@@ -280,7 +280,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                 {/* Search + record count */}
                 <div className="flex items-center gap-3">
                     <div className="relative flex-1">
-                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                         <Input
                             className="h-8 pl-8 text-sm"
                             disabled={loading}
@@ -294,7 +294,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                     type="button"
                                     onClick={() => setSearch("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                     </div>
@@ -404,7 +404,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                                                             type="button"
                                                                             onClick={() => void handleMoveOrder(record, "up")}
                                                                         >
-                                                                            <ChevronUpIcon className="h-3.5 w-3.5" />
+                                                                            <ChevronUpIcon className="h-3.5 w-3.5 text-muted-foreground" />
                                                                         </button>
                                                                         <button
                                                                             className="flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) shadow-sm hover:border-(--cl-accent) hover:bg-(--cl-accent)/10 hover:text-(--cl-accent) disabled:cursor-not-allowed disabled:opacity-30 transition-colors"
@@ -413,7 +413,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                                                             type="button"
                                                                             onClick={() => void handleMoveOrder(record, "down")}
                                                                         >
-                                                                            <ChevronDownIcon className="h-3.5 w-3.5" />
+                                                                            <ChevronDownIcon className="h-3.5 w-3.5 text-muted-foreground" />
                                                                         </button>
                                                                     </div>
                                                                 )
@@ -426,7 +426,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                                         <Badge
                                                             className={record.is_active
                                                                 ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
-                                                                : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"}
+                                                                : "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-100"}
                                                             variant="outline"
                                                         >
                                                             <span className={`mr-1 h-1.5 w-1.5 rounded-full ${record.is_active ? "bg-emerald-500" : "bg-slate-400"}`} />
@@ -468,7 +468,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                                                             className="cursor-pointer text-sky-600 focus:text-sky-600"
                                                                             onClick={() => setEditRecord(record)}
                                                                         >
-                                                                            <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
+                                                                            <PencilIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
                                                                             Edit
                                                                         </DropdownMenuItem>
                                                                     )}
@@ -501,7 +501,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                                                                 className="cursor-pointer text-red-600 focus:text-red-600"
                                                                                 onClick={() => setDeleteRecord(record)}
                                                                             >
-                                                                                <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
+                                                                                <Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />
                                                                                 Delete
                                                                             </DropdownMenuItem>
                                                                         </>

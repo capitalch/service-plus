@@ -418,7 +418,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                     variant="outline"
                     onClick={onBack}
                 >
-                    <ArrowLeft className="h-4 w-4" />
+                    <ArrowLeft className="h-4 w-4 text-muted-foreground" />
                     Back
                 </Button>
                 <span className={`inline-flex items-center rounded-sm px-3 py-1 text-sm font-semibold text-white ${badgeColorClass}`}>
@@ -430,7 +430,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                 <div className="ml-auto flex items-center gap-2">
                     {/* Search */}
                     <div className="relative flex items-center">
-                        <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-(--cl-text-muted)" />
+                        <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-slate-500" />
                         <input
                             className="h-8 rounded border border-(--cl-border) bg-(--cl-surface) pl-8 pr-8 text-sm text-(--cl-text) placeholder:text-(--cl-text-muted) focus:outline-none focus:ring-1 focus:ring-(--cl-accent) w-[32rem]"
                             placeholder="Job no, alt job no, customer, mobile, email, city, technician, serial no, device…"
@@ -442,7 +442,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                 className="absolute right-2 cursor-pointer text-(--cl-text-muted) hover:text-(--cl-text)"
                                 onClick={() => setSearchInput("")}
                             >
-                                <X className="h-3.5 w-3.5" />
+                                <X className="h-3.5 w-3.5 text-muted-foreground" />
                             </button>
                         )}
                     </div>
@@ -455,7 +455,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                         variant="ghost"
                         onClick={() => void loadData()}
                     >
-                        <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                        <RefreshCcw className={`h-4 w-4 text-blue-600 ${loading ? "animate-spin" : ""}`} />
                     </Button>
                 </div>
             </div>
@@ -557,7 +557,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                             className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
                                                             onClick={e => { e.stopPropagation(); setSelectedRowId(row.id); setAttachJobId(row.id); setAttachJobNo(row.job_no); }}
                                                         >
-                                                            <Paperclip className="h-2.5 w-2.5" />
+                                                            <Paperclip className="h-2.5 w-2.5 text-slate-600" />
                                                             <span>{row.file_count} File{row.file_count !== 1 ? "s" : ""}</span>
                                                         </button>
                                                     )}
@@ -623,7 +623,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                         variant="ghost"
                                                         onClick={e => { e.stopPropagation(); setViewJobId(row.id); }}
                                                     >
-                                                        <Eye className="h-4 w-4" />
+                                                        <Eye className="h-4 w-4 text-muted-foreground" />
                                                     </Button>
                                                     {/* No remaining actions → lock icon */}
                                                     {!hasAnyAction ? (
@@ -640,7 +640,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                     title="Actions"
                                                                     variant="ghost"
                                                                 >
-                                                                    <ArrowRightLeft className="h-4 w-4" />
+                                                                    <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end" className="min-w-[220px] bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-xl rounded-xl p-1 z-50">
@@ -679,7 +679,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
                                                                             onClick={() => setUndoPendingJob(row)}
                                                                         >
-                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                                                                             Undo Last Transaction
                                                                         </DropdownMenuItem>
                                                                     </>
@@ -698,7 +698,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                                 job_type_code: row.job_type_code,
                                                                             })}
                                                                         >
-                                                                            <Package className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Package className="h-3.5 w-3.5 shrink-0 text-slate-600" />
                                                                             Parts &amp; Charges
                                                                         </DropdownMenuItem>
                                                                     </>
@@ -724,7 +724,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                             title={row.invoice_is_posted === true ? "Cannot revise a posted job" : undefined}
                                                                             onClick={() => setFinalJobId(row.id)}
                                                                         >
-                                                                            <Pencil className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Pencil className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                                                                             Revise Final
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuItem
@@ -733,7 +733,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                             title={row.invoice_is_posted === true ? "Cannot undo a posted job" : undefined}
                                                                             onClick={() => setUndoFinalPendingJob(row)}
                                                                         >
-                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                                                                             Undo Final
                                                                         </DropdownMenuItem>
                                                                     </>
@@ -745,7 +745,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
                                                                             onClick={() => void handleOpenDelivery(row.id)}
                                                                         >
-                                                                            <Truck className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Truck className="h-3.5 w-3.5 shrink-0 text-orange-600" />
                                                                             Deliver Job
                                                                         </DropdownMenuItem>
                                                                         {Number(row.amount) > 0 && (
@@ -753,7 +753,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-purple-700 focus:text-purple-700 focus:bg-purple-50 dark:focus:bg-purple-950/30"
                                                                             onClick={() => setProformaJobId(row.id)}
                                                                         >
-                                                                            <Receipt className="h-3.5 w-3.5 shrink-0" />
+                                                                            <Receipt className="h-3.5 w-3.5 shrink-0 text-green-600" />
                                                                             Proforma Invoice
                                                                         </DropdownMenuItem>
                                                                         )}
@@ -764,7 +764,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                         >
                                                                             {chargesReadonlyLoading === row.id
                                                                                 ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-                                                                                : <ReceiptText className="h-3.5 w-3.5 shrink-0" />
+                                                                                : <ReceiptText className="h-3.5 w-3.5 shrink-0 text-green-600" />
                                                                             }
                                                                             Charges
                                                                         </DropdownMenuItem>
@@ -781,7 +781,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                         variant="ghost"
                                                         onClick={() => setPdfJobId(row.id)}
                                                     >
-                                                        <FileDown className="h-4 w-4" />
+                                                        <FileDown className="h-4 w-4 text-slate-600" />
                                                     </Button>
                                                 </div>
                                             </td>
@@ -801,10 +801,10 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                             : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} jobs (Page ${page} of ${totalPages})`}
                     </span>
                     <div className="flex items-center gap-1">
-                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First" variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon className="h-4 w-4" /></Button>
-                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="Previous" variant="ghost" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon className="h-4 w-4" /></Button>
-                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Next" variant="ghost" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4" /></Button>
-                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Last" variant="ghost" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4" /></Button>
+                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First" variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon className="h-4 w-4 text-muted-foreground" /></Button>
+                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="Previous" variant="ghost" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon className="h-4 w-4 text-muted-foreground" /></Button>
+                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Next" variant="ghost" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
+                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Last" variant="ghost" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
                     </div>
                 </div>
             </div>

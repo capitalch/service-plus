@@ -224,7 +224,7 @@ export function BatchWarrantySection() {
             {/* Header */}
             <div className="flex items-center gap-3 border-b border-(--cl-border) pb-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                    <Layers className="h-4 w-4" />
+                    <Layers className="h-4 w-4 text-slate-600" />
                 </div>
                 <h1 className="text-lg font-bold text-(--cl-text)">Batch Warranty Jobs</h1>
                 <span className="text-xs text-(--cl-text-muted)">
@@ -256,7 +256,7 @@ export function BatchWarrantySection() {
                         <div className="min-w-[220px] max-w-xs flex-1 space-y-2">
                             <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">Search</Label>
                             <div className="relative">
-                                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                                 <Input
                                     className="h-9 border-(--cl-border) bg-white pl-8 pr-7 text-sm"
                                     placeholder="Search job no, device, status, technician…"
@@ -269,7 +269,7 @@ export function BatchWarrantySection() {
                                         type="button"
                                         onClick={() => setGridSearch("")}
                                     >
-                                        <X className="h-2.5 w-2.5" />
+                                        <X className="h-2.5 w-2.5 text-muted-foreground" />
                                     </button>
                                 )}
                             </div>

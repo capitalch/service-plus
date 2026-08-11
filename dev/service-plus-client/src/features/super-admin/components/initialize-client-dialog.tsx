@@ -388,7 +388,7 @@ export const InitializeClientDialog = ({
 												<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
 											)}
 											{!checkingDb && dbNameAvailable === true && (
-												<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+												<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
 											)}
 										</div>
 										<FieldError message={step1Errors.db_name?.message} />
@@ -472,7 +472,7 @@ export const InitializeClientDialog = ({
 												<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
 											)}
 											{!checkingUsername && usernameTaken === false && !step2Errors.username && (
-												<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+												<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
 											)}
 										</div>
 										<FieldError message={step2Errors.username?.message} />
@@ -541,7 +541,7 @@ export const InitializeClientDialog = ({
 								transition={{ duration: 0.25 }}
 							>
 								<div className="mb-4 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600">
-									<PartyPopper className="h-8 w-8 text-white" />
+									<PartyPopper className="h-8 w-8 text-emerald-600" />
 								</div>
 								<h3 className="mb-2 text-lg font-bold text-slate-800">
 									Client Initialized!

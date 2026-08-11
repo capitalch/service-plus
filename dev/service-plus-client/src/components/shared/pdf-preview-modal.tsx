@@ -58,17 +58,17 @@ export const PdfPreviewModal = ({ isOpen, onClose, pdfUrl, title = "PDF Preview"
                             className="h-8 gap-2 text-[10px] font-black uppercase tracking-widest bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border border-indigo-100 dark:border-indigo-800 transition-all"
                             onClick={handleDownload}
                         >
-                            <Download className="h-3.5 w-3.5 text-indigo-600" />
+                            <Download className="h-3.5 w-3.5" />
                             Download Document
                         </Button>
                     </div>
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-full hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-500 transition-colors"
+                        className="h-8 w-8 rounded-full hover:bg-muted transition-colors"
                         onClick={onClose}
                     >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4 text-muted-foreground" />
                     </Button>
                 </div>
                 <div className="flex-1 bg-slate-100 dark:bg-zinc-900 relative overflow-hidden">

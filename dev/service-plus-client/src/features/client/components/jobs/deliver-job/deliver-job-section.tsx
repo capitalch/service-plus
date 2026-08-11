@@ -314,13 +314,13 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
                         variant="outline"
                         onClick={onBack}
                     >
-                        <ArrowLeft className="h-4 w-4" />
+                        <ArrowLeft className="h-4 w-4 text-muted-foreground" />
                         Back
                     </Button>
                 )}
                 <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <Truck className="h-4 w-4" />
+                        <Truck className="h-4 w-4 text-orange-600" />
                     </div>
                     <div className="flex items-baseline gap-2">
                         <h1 className="text-lg font-bold text-(--cl-text)">Deliver Job</h1>

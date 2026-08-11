@@ -117,7 +117,6 @@ export const TopHeader = ({ onMenuToggle, onOpenHelp }: TopHeaderPropsType) => {
                 {/* Notifications */}
                 <NotificationBell
                     className="hover:bg-slate-50"
-                    iconClassName="text-slate-600"
                     items={notificationItems}
                 />
 
@@ -151,10 +150,10 @@ export const TopHeader = ({ onMenuToggle, onOpenHelp }: TopHeaderPropsType) => {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                            className="text-red-600 focus:text-red-600 cursor-pointer"
+                            className="cursor-pointer"
                             onClick={handleLogout}
                         >
-                            <LogOutIcon className="mr-2 h-4 w-4" />
+                            <LogOutIcon className="mr-2 h-4 w-4 text-muted-foreground" />
                             Logout
                         </DropdownMenuItem>
                     </DropdownMenuContent>

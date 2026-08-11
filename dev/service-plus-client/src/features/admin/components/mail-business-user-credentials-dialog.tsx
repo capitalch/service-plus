@@ -119,7 +119,7 @@ export const MailBusinessUserCredentialsDialog = ({
                             className="absolute right-2 top-2 opacity-70 hover:opacity-100"
                             onClick={() => setAlert(null)}
                         >
-                            <XIcon className="h-4 w-4" />
+                            <XIcon className="h-4 w-4 text-muted-foreground" />
                         </button>
                     </Alert>
                 )}

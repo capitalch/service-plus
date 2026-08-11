@@ -97,7 +97,7 @@ export const OrphanDatabasesDialog = ({ databases, onOpenChange, onSuccess, open
 				</DialogHeader>
 
 				<div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
-					<InfoIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-500" />
+					<InfoIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-sky-600" />
 					<p className="text-sm text-blue-700">
 						An orphan database is a PostgreSQL database that exists physically on the server but has no corresponding client entry. This typically happens when a client was deleted or its database was detached without being physically dropped.
 					</p>
@@ -114,7 +114,7 @@ export const OrphanDatabasesDialog = ({ databases, onOpenChange, onSuccess, open
 								{/* DB name row */}
 								<div className="flex items-center justify-between gap-2.5 px-3 py-2.5">
 									<div className="flex items-center gap-2.5">
-										<DatabaseIcon className="h-3.5 w-3.5 flex-shrink-0 text-orange-400" />
+										<DatabaseIcon className="h-3.5 w-3.5 flex-shrink-0 text-slate-600" />
 										<span className="font-mono text-sm text-slate-700">{db}</span>
 									</div>
 									{deletingDb !== db && (
@@ -141,7 +141,7 @@ export const OrphanDatabasesDialog = ({ databases, onOpenChange, onSuccess, open
 											transition={{ duration: 0.2, ease: "easeInOut" }}
 										>
 											<div className="mb-2 flex items-start gap-2">
-												<TriangleAlertIcon className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-red-500" />
+												<TriangleAlertIcon className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-600" />
 												<p className="text-xs text-red-600">
 													This will permanently drop the database from the server. This action cannot be undone.
 												</p>

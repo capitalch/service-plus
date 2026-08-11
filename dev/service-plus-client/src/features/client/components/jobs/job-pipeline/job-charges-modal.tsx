@@ -407,7 +407,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                         <div className="rounded-lg border border-border overflow-hidden">
                             <div className="flex items-center justify-between px-4 py-2.5 bg-violet-50/60 border-b border-violet-200/60">
                                 <div className="flex items-center gap-2">
-                                    <Package className="h-4 w-4 text-violet-600" />
+                                    <Package className="h-4 w-4 text-slate-600" />
                                     <h4 className="text-xs font-bold uppercase tracking-wide text-violet-700">Parts Used</h4>
                                     <Select
                                         value={selectedBrandId ? String(selectedBrandId) : ""}
@@ -424,7 +424,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                     </Select>
                                 </div>
                                 <Button className="h-7 px-2 text-sm" size="sm" type="button" variant="outline" onClick={resetParts}>
-                                    <Undo2 className="h-3.5 w-3.5 mr-1" />Reset
+                                    <Undo2 className="h-3.5 w-3.5 mr-1 text-blue-600" />Reset
                                 </Button>
                             </div>
 
@@ -437,7 +437,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                         variant="outline"
                                         onClick={() => insertPart(0, newPartRow())}
                                     >
-                                        <Plus className="h-3.5 w-3.5" /> Add Part
+                                        <Plus className="h-3.5 w-3.5 text-emerald-600" /> Add Part
                                     </Button>
                                 </div>
                             ) : (
@@ -514,11 +514,11 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                         <div className="flex items-center gap-0.5">
                                                             <Button className="text-emerald-600 hover:text-emerald-700" size="icon-sm" type="button" variant="ghost"
                                                                 onClick={() => insertPart(index + 1, newPartRow())}>
-                                                                <Plus className="h-4 w-4" />
+                                                                <Plus className="h-4 w-4 text-emerald-600" />
                                                             </Button>
                                                             <Button className="text-red-500 hover:text-red-600" size="icon-sm" type="button" variant="ghost"
                                                                 onClick={() => handleDeletePart(index, row?.id ?? null)}>
-                                                                <Trash2 className="h-4 w-4" />
+                                                                <Trash2 className="h-4 w-4 text-red-600" />
                                                             </Button>
                                                         </div>
                                                     </td>
@@ -535,11 +535,11 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                         <div className="rounded-lg border border-border overflow-hidden">
                             <div className="flex items-center justify-between px-4 py-2.5 bg-amber-50/60 border-b border-amber-200/60">
                                 <div className="flex items-center gap-2">
-                                    <ReceiptText className="h-4 w-4 text-amber-600" />
+                                    <ReceiptText className="h-4 w-4 text-green-600" />
                                     <h4 className="text-xs font-bold uppercase tracking-wide text-amber-700">Additional Charges</h4>
                                 </div>
                                 <Button className="h-7 px-2 text-sm" size="sm" type="button" variant="outline" onClick={resetCharges}>
-                                    <Undo2 className="h-3.5 w-3.5 mr-1" />Reset
+                                    <Undo2 className="h-3.5 w-3.5 mr-1 text-blue-600" />Reset
                                 </Button>
                             </div>
 
@@ -552,7 +552,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                         variant="outline"
                                         onClick={() => insertCharge(0, newChargeRow())}
                                     >
-                                        <Plus className="h-3.5 w-3.5" /> Add Charge
+                                        <Plus className="h-3.5 w-3.5 text-emerald-600" /> Add Charge
                                     </Button>
                                 </div>
                             ) : (
@@ -619,11 +619,11 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                         <div className="flex items-center gap-0.5">
                                                             <Button className="text-emerald-600 hover:text-emerald-700" size="icon-sm" type="button" variant="ghost"
                                                                 onClick={() => insertCharge(index + 1, newChargeRow())}>
-                                                                <Plus className="h-4 w-4" />
+                                                                <Plus className="h-4 w-4 text-emerald-600" />
                                                             </Button>
                                                             <Button className="text-red-500 hover:text-red-600" size="icon-sm" type="button" variant="ghost"
                                                                 onClick={() => handleDeleteCharge(index, row?.id ?? null)}>
-                                                                <Trash2 className="h-4 w-4" />
+                                                                <Trash2 className="h-4 w-4 text-red-600" />
                                                             </Button>
                                                         </div>
                                                     </td>

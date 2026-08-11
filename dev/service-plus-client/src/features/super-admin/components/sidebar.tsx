@@ -16,6 +16,7 @@ import { ROUTES } from "@/router/routes";
 import { cn } from "@/lib/utils";
 
 type NavItemType = {
+    color: string; // icon color when not active — dark-sidebar-safe (400-weight) shade of its semantic hue
     href: string;
     icon: React.ElementType;
     label: string;
@@ -27,11 +28,11 @@ type SidebarPropsType = {
 };
 
 const navItems: NavItemType[] = [
-    { href: ROUTES.superAdmin.root, icon: LayoutDashboardIcon, label: "Dashboard" },
-    { href: ROUTES.superAdmin.audit, icon: ClipboardListIcon, label: "Audit Logs" },
-    { href: ROUTES.superAdmin.clients, icon: UsersIcon, label: "Clients" },
-    { href: ROUTES.superAdmin.settings, icon: SettingsIcon, label: "System Settings" },
-    { href: ROUTES.superAdmin.usage, icon: ActivityIcon, label: "Usage & Health" },
+    { color: "text-sky-400", href: ROUTES.superAdmin.root, icon: LayoutDashboardIcon, label: "Dashboard" },
+    { color: "text-slate-400", href: ROUTES.superAdmin.audit, icon: ClipboardListIcon, label: "Audit Logs" },
+    { color: "text-purple-400", href: ROUTES.superAdmin.clients, icon: UsersIcon, label: "Clients" },
+    { color: "text-blue-400", href: ROUTES.superAdmin.settings, icon: SettingsIcon, label: "System Settings" },
+    { color: "text-sky-400", href: ROUTES.superAdmin.usage, icon: ActivityIcon, label: "Usage & Health" },
 ];
 
 const SidebarContent = ({
@@ -94,7 +95,7 @@ const SidebarContent = ({
                             title={collapsed && !isMobile ? item.label : undefined}
                             type="button"
                         >
-                            <Icon className="h-4 w-4 flex-shrink-0" />
+                            <Icon className={cn("h-4 w-4 flex-shrink-0", isActive ? "text-white" : item.color)} />
                             {(!collapsed || isMobile) && (
                                 <motion.span
                                     animate={{ opacity: 1 }}
@@ -123,7 +124,7 @@ const SidebarContent = ({
                         type="button"
                     >
                         <motion.div animate={{ rotate: collapsed ? 180 : 0 }} transition={{ duration: 0.25 }}>
-                            <ChevronLeftIcon className="h-4 w-4" />
+                            <ChevronLeftIcon className="h-4 w-4 text-slate-400" />
                         </motion.div>
                     </button>
                 )}
@@ -186,7 +187,7 @@ export const SuperAdminSidebar = ({ isMobileOpen, onMobileClose }: SidebarPropsT
                                 onClick={onMobileClose}
                                 type="button"
                             >
-                                <XIcon className="h-4 w-4" />
+                                <XIcon className="h-4 w-4 text-slate-400" />
                             </button>
                             <SidebarContent
                                 collapsed={false}

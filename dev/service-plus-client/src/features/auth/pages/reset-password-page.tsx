@@ -103,7 +103,7 @@ export const ResetPasswordPage = () => {
                     {/* Header */}
                     <div className="mb-6 flex flex-col items-center gap-2 text-center">
                         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
-                            <KeyRoundIcon className="h-6 w-6 text-blue-600" />
+                            <KeyRoundIcon className="h-6 w-6 text-violet-600" />
                         </div>
                         <h1 className="text-xl font-semibold text-slate-800">Set New Password</h1>
                         {tokenInfo && (

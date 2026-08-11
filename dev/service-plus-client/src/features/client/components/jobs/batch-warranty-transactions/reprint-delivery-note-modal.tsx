@@ -194,7 +194,7 @@ export function ReprintDeliveryNoteModal({ branchId, branchName, availableDivisi
                 </DialogHeader>
 
                 <div className="relative shrink-0">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                     <Input
                         className="h-9 border-(--cl-surface-3) bg-white pl-8 pr-7 text-sm"
                         placeholder="Search customer, mobile, job no, device…"
@@ -207,7 +207,7 @@ export function ReprintDeliveryNoteModal({ branchId, branchName, availableDivisi
                             type="button"
                             onClick={() => handleSearchChange("")}
                         >
-                            <X className="h-2.5 w-2.5" />
+                            <X className="h-2.5 w-2.5 text-muted-foreground" />
                         </button>
                     )}
                 </div>
@@ -302,10 +302,10 @@ export function ReprintDeliveryNoteModal({ branchId, branchName, availableDivisi
                                 {total === 0 ? "No groups" : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} (Page ${page}/${totalPages})`}
                             </span>
                             <div className="flex items-center gap-1">
-                                <Button className="h-6 w-6" disabled={page <= 1 || loading} size="icon" title="First"    variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-3.5 w-3.5" /></Button>
-                                <Button className="h-6 w-6" disabled={page <= 1 || loading} size="icon" title="Previous" variant="ghost" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-3.5 w-3.5" /></Button>
-                                <Button className="h-6 w-6" disabled={page >= totalPages || loading} size="icon" title="Next" variant="ghost" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-3.5 w-3.5" /></Button>
-                                <Button className="h-6 w-6" disabled={page >= totalPages || loading} size="icon" title="Last" variant="ghost" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-3.5 w-3.5" /></Button>
+                                <Button className="h-6 w-6" disabled={page <= 1 || loading} size="icon" title="First"    variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-3.5 w-3.5 text-muted-foreground" /></Button>
+                                <Button className="h-6 w-6" disabled={page <= 1 || loading} size="icon" title="Previous" variant="ghost" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-3.5 w-3.5 text-muted-foreground" /></Button>
+                                <Button className="h-6 w-6" disabled={page >= totalPages || loading} size="icon" title="Next" variant="ghost" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-3.5 w-3.5 text-muted-foreground" /></Button>
+                                <Button className="h-6 w-6" disabled={page >= totalPages || loading} size="icon" title="Last" variant="ghost" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-3.5 w-3.5 text-muted-foreground" /></Button>
                             </div>
                         </div>
                     </div>

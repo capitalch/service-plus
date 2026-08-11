@@ -248,7 +248,7 @@ export const PartFinderPage = () => {
 
                 {/* Search input with stock filter toggle inside */}
                 <div className="flex h-8 min-w-[260px] flex-1 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 shadow-sm transition-colors focus-within:ring-1 focus-within:ring-ring">
-                    <SearchIcon className="h-3.5 w-3.5 shrink-0 text-(--cl-text-muted)" />
+                    <SearchIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
                     <input
                         ref={searchInputRef}
                         className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-(--cl-text-muted) disabled:cursor-not-allowed disabled:opacity-50"
@@ -287,7 +287,7 @@ export const PartFinderPage = () => {
                             type="button"
                             onClick={handleClearSearch}
                         >
-                            <XIcon className="h-3.5 w-3.5" />
+                            <XIcon className="h-3.5 w-3.5 text-muted-foreground" />
                         </button>
                     )}
                 </div>
@@ -336,7 +336,7 @@ export const PartFinderPage = () => {
                         variant="outline"
                         onClick={handleRefresh}
                     >
-                        <RefreshCwIcon className="h-3.5 w-3.5" />
+                        <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
                         Refresh
                     </Button>
                 )}
@@ -346,7 +346,7 @@ export const PartFinderPage = () => {
             {!searchQ ? (
                 <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-(--cl-border) bg-(--cl-surface-2)">
                     <div className="text-center">
-                        <SearchIcon className="mx-auto mb-3 h-10 w-10 text-(--cl-text-muted) opacity-30" />
+                        <SearchIcon className="mx-auto mb-3 h-10 w-10 opacity-30 text-slate-500" />
                         <p className="text-sm font-semibold text-(--cl-text)">Start typing to search</p>
                         <p className="mt-1 text-xs text-(--cl-text-muted)">
                             Search by part code, name, description, category, or model
@@ -406,7 +406,7 @@ export const PartFinderPage = () => {
                                         variant="ghost"
                                         onClick={() => setPage(1)}
                                     >
-                                        <ChevronsLeft className="h-4 w-4" />
+                                        <ChevronsLeft className="h-4 w-4 text-muted-foreground" />
                                     </Button>
                                     <Button
                                         className="h-7 w-7"
@@ -416,7 +416,7 @@ export const PartFinderPage = () => {
                                         variant="ghost"
                                         onClick={() => setPage(p => p - 1)}
                                     >
-                                        <ChevronLeft className="h-4 w-4" />
+                                        <ChevronLeft className="h-4 w-4 text-muted-foreground" />
                                     </Button>
                                     <Button
                                         className="h-7 w-7"
@@ -426,7 +426,7 @@ export const PartFinderPage = () => {
                                         variant="ghost"
                                         onClick={() => setPage(p => p + 1)}
                                     >
-                                        <ChevronRight className="h-4 w-4" />
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                     </Button>
                                     <Button
                                         className="h-7 w-7"
@@ -436,7 +436,7 @@ export const PartFinderPage = () => {
                                         variant="ghost"
                                         onClick={() => setPage(totalPages)}
                                     >
-                                        <ChevronsRight className="h-4 w-4" />
+                                        <ChevronsRight className="h-4 w-4 text-muted-foreground" />
                                     </Button>
                                 </div>
                             </div>

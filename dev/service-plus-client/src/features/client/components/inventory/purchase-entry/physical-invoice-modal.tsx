@@ -69,8 +69,8 @@ export function PhysicalInvoiceModal({
     const statusIcon = (field: keyof PhysicalValues) => {
         if (!isSubmitted) return <span className="text-(--cl-text-muted) text-xs">—</span>;
         return errors[field]
-            ? <XCircle className="h-4 w-4 text-red-500 mx-auto" />
-            : <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />;
+            ? <XCircle className="h-4 w-4 mx-auto text-red-600" />
+            : <CheckCircle2 className="h-4 w-4 mx-auto text-emerald-600" />;
     };
 
     const rowCls   = (field: keyof PhysicalValues) =>
@@ -83,13 +83,13 @@ export function PhysicalInvoiceModal({
             <DialogContent aria-describedby={undefined} className="max-w-lg !bg-white !text-zinc-900 border-zinc-200">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-base">
-                        <ShieldAlert className="h-5 w-5 text-amber-500 shrink-0" />
+                        <ShieldAlert className="h-5 w-5 shrink-0 text-amber-600" />
                         Physical Invoice Verification
                     </DialogTitle>
                 </DialogHeader>
 
                 <div className="flex items-start gap-2 rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-xs text-amber-700">
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-500" />
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
                     <span>
                         <strong>Read values directly from your physical invoice.</strong>{" "}
                         Do not copy the figures shown on screen — values must be entered independently to ensure accuracy.
@@ -192,9 +192,9 @@ export function PhysicalInvoiceModal({
                             : "bg-red-50 text-red-700 border border-red-200"
                     }`}>
                         {allValid ? (
-                            <><CheckCircle2 className="h-4 w-4 text-green-500" /> All checks passed — saving...</>
+                            <><CheckCircle2 className="h-4 w-4 text-emerald-600" /> All checks passed — saving...</>
                         ) : (
-                            <><AlertTriangle className="h-4 w-4 text-red-500" /> Validation failed. Please correct the highlighted errors.</>
+                            <><AlertTriangle className="h-4 w-4 text-amber-600" /> Validation failed. Please correct the highlighted errors.</>
                         )}
                     </div>
                 )}

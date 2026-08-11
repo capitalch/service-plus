@@ -173,7 +173,7 @@ export function JobChargesReadonlyPanel({
                     variant="ghost"
                     onClick={onClose}
                 >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4 text-muted-foreground" />
                 </Button>
             </div>
 

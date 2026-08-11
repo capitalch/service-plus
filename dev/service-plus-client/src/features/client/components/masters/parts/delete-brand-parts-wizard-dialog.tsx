@@ -238,7 +238,7 @@ export const DeleteBrandPartsWizardDialog = ({
         return (
             <>
                 <div className="flex flex-col items-center gap-3 py-4 text-center">
-                    <CheckCircle2Icon className="h-10 w-10 text-emerald-500" />
+                    <CheckCircle2Icon className="h-10 w-10 text-emerald-600" />
                     <div>
                         <p className="font-semibold text-foreground">Cleanup Complete</p>
                         <p className="mt-1 text-sm text-muted-foreground">

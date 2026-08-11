@@ -548,7 +548,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                 {!branchId ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
                         <div className="bg-(--cl-accent)/5 p-5 rounded-full mb-4">
-                            <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
+                            <Plus className="h-12 w-12 opacity-40 text-emerald-600" />
                         </div>
                         <h3 className="text-lg font-semibold text-(--cl-text) mb-2">No Branch Selected</h3>
                         <p className="text-(--cl-text-muted) max-w-md px-6">
@@ -664,7 +664,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                         <tr className="bg-(--cl-surface-2)/50">
                                             <th className={thClass} style={{ width: "2%" }}>#</th>
                                             <th className={thClass} style={{ width: "20%" }}>Part <span className="text-red-500 ml-0.5">*</span></th>
-                                            <th className={`${thClass} text-center`} style={{ width: "4%" }} title="Warranty"><ShieldOff className="h-3.5 w-3.5 mx-auto" /></th>
+                                            <th className={`${thClass} text-center`} style={{ width: "4%" }} title="Warranty"><ShieldOff className="h-3.5 w-3.5 mx-auto text-red-600" /></th>
                                             <th className={thClass} style={{ width: "8%" }}>HSN</th>
                                             <th className={`${thClass} text-right`} style={{ width: "6%" }}>Qty <span className="text-red-500 ml-0.5">*</span></th>
                                             <th className={`${thClass} text-right`} style={{ width: "8%" }}>Price</th>
@@ -825,7 +825,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                                             className="mt-0.5 flex items-center justify-end gap-1 pr-1 leading-none animate-in fade-in slide-in-from-top-1 duration-200"
                                                                             title={`Price changed from ₹${formatNumber(origCost!)} (part's master cost). Saving will update the part master.`}
                                                                         >
-                                                                            <AlertTriangle className="h-2.5 w-2.5 shrink-0 text-red-500" />
+                                                                            <AlertTriangle className="h-2.5 w-2.5 shrink-0 text-amber-600" />
                                                                             <span className="text-[10px] font-normal uppercase tracking-tight text-red-500 tabular-nums">
                                                                                 was ₹{formatNumber(origCost!)}
                                                                             </span>

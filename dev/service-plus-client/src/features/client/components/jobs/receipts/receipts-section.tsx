@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     DollarSign, Eye, Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -37,6 +38,8 @@ import { receiptFormSchema, type ReceiptFormValues, getReceiptDefaultValues } fr
 import { buildReceiptPdf } from "@/features/client/components/jobs/deliver-job/deliver-job-pdf";
 import type { JobDetailType } from "@/features/client/types/job";
 import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
+import { useWhatsappSend } from "../use-whatsapp-send";
+import { isValidMobile } from "@/lib/mobile";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,6 +119,7 @@ export const ReceiptsSection = () => {
     // Inputs of the currently previewed receipt, kept so the copy count can be changed in-place.
     const lastReceiptRef = useRef<{ job: Parameters<typeof buildReceiptPdf>[0]; division: Parameters<typeof buildReceiptPdf>[1] } | null>(null);
     const [pdfLoading, setPdfLoading] = useState<number | null>(null); // row.id being loaded
+    const { isSendingWhatsapp, sendWhatsapp } = useWhatsappSend();
     const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollRef    = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
@@ -254,6 +258,42 @@ export const ReceiptsSection = () => {
         }
     }
 
+    async function handleSendWhatsapp(row: { id: number; job_id: number; job_no: string | number; mobile: string }) {
+        if (!dbName || !schema || !isValidMobile(row.mobile)) return;
+        try {
+            const [jobRes, paymentsRes] = await Promise.all([
+                apolloClient.query<GenericQueryDataType<JobDetailType>>({
+                    fetchPolicy: "network-only",
+                    query:       GRAPHQL_MAP.genericQuery,
+                    variables: {
+                        db_name: dbName, schema,
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DETAIL, sqlArgs: { id: row.job_id } }),
+                    },
+                }),
+                apolloClient.query<GenericQueryDataType<{ id: number; receipt_no: string | null; payment_date: string; payment_mode: string; amount: number; reference_no: string | null; remarks: string | null }>>({
+                    fetchPolicy: "network-only",
+                    query:       GRAPHQL_MAP.genericQuery,
+                    variables: {
+                        db_name: dbName, schema,
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_PAYMENTS_BY_JOB, sqlArgs: { job_id: row.job_id } }),
+                    },
+                }),
+            ]);
+            const job = jobRes.data?.genericQuery?.[0];
+            const payments = (paymentsRes.data?.genericQuery ?? []).filter(p => p.id === row.id);
+            if (!job) { toast.error("Failed to load job details."); return; }
+            const division = availableDivisions.find(d => d.id === (job as unknown as { division_id: number | null }).division_id) ?? null;
+            const receiptJob = { ...job, customer_name: job.customer_name ?? "", payments };
+            const doc = buildReceiptPdf(receiptJob, division, noOfReceipts);
+            await sendWhatsapp(row.id, row.mobile, {
+                dbName, schema, jobIds: [row.job_id], eventType: "JOB_RECEIPT",
+                pdf: doc.output("blob"), filename: `receipt-${row.job_no}.pdf`,
+            });
+        } catch {
+            toast.error("Failed to generate receipt PDF.");
+        }
+    }
+
     function handleReceiptCopiesChange(n: number) {
         setPrintCopies(n);
         const ctx = lastReceiptRef.current;
@@ -267,6 +307,7 @@ export const ReceiptsSection = () => {
         if (!dbName || !schema) return;
         const isEdit = !!selectedReceipt?.id;
         try {
+            let paymentId: number | null = null;
             if (isEdit) {
                 await apolloClient.mutate({
                     mutation:  GRAPHQL_MAP.genericUpdate,
@@ -287,8 +328,9 @@ export const ReceiptsSection = () => {
                         }),
                     },
                 });
+                paymentId = selectedReceipt!.id;
             } else {
-                await apolloClient.mutate({
+                const res = await apolloClient.mutate<{ createJobPayment: number }>({
                     mutation:  GRAPHQL_MAP.createJobPayment,
                     variables: {
                         db_name: dbName,
@@ -306,8 +348,35 @@ export const ReceiptsSection = () => {
                         }),
                     },
                 });
+                paymentId = res.data?.createJobPayment ?? null;
             }
-            toast.success(isEdit ? MESSAGES.SUCCESS_RECEIPT_UPDATED : MESSAGES.SUCCESS_RECEIPT_CREATED);
+            // A deliberate follow-up click, not an automatic silent send — sending
+            // is always a staff decision (plan-whatsapp.md §5d).
+            const jobId = values.job_id;
+            toast.success(
+                isEdit ? MESSAGES.SUCCESS_RECEIPT_UPDATED : MESSAGES.SUCCESS_RECEIPT_CREATED,
+                !isEdit && paymentId
+                    ? {
+                        action: {
+                            label: "Send WhatsApp",
+                            onClick: () => {
+                                void apolloClient.query<GenericQueryDataType<JobDetailType>>({
+                                    fetchPolicy: "network-only",
+                                    query:       GRAPHQL_MAP.genericQuery,
+                                    variables: {
+                                        db_name: dbName, schema,
+                                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DETAIL, sqlArgs: { id: jobId } }),
+                                    },
+                                }).then(res => {
+                                    const job = res.data?.genericQuery?.[0];
+                                    if (!job) { toast.error("Failed to load job details."); return; }
+                                    void handleSendWhatsapp({ id: paymentId!, job_id: jobId, job_no: job.job_no, mobile: job.mobile });
+                                });
+                            },
+                        },
+                    }
+                    : undefined,
+            );
             form.reset(getReceiptDefaultValues());
             setIsDialogOpen(false);
             if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
@@ -361,7 +430,7 @@ export const ReceiptsSection = () => {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-2">
                 <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <DollarSign className="h-4 w-4" />
+                        <DollarSign className="h-4 w-4 text-green-600" />
                     </div>
                     <div className="flex items-baseline gap-2">
                         <h1 className="text-lg font-bold text-(--cl-text)">
@@ -384,7 +453,7 @@ export const ReceiptsSection = () => {
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-2 py-1 bg-(--cl-surface-2)/30">
                 <div className="relative flex-1 sm:max-w-xs">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                     <Input
                         className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
                         placeholder="Job no, alt job no, receipt no, customer, mode, ref no…"
@@ -397,7 +466,7 @@ export const ReceiptsSection = () => {
                             type="button"
                             onClick={() => handleSearchChange("")}
                         >
-                            <X className="h-2.5 w-2.5" />
+                            <X className="h-2.5 w-2.5 text-muted-foreground" />
                         </button>
                     )}
                 </div>
@@ -409,7 +478,7 @@ export const ReceiptsSection = () => {
                     variant="outline"
                     onClick={() => { if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page); }}
                 >
-                    <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
+                    <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
                 </Button>
             </div>
 
@@ -567,29 +636,40 @@ export const ReceiptsSection = () => {
                                                     <Button className="h-7 w-7 p-0 text-(--cl-text-muted)" size="icon" variant="ghost">
                                                         {pdfLoading === row.id
                                                             ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                            : <MoreHorizontal className="h-4 w-4" />
+                                                            : <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                                                         }
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="w-44">
                                                     <DropdownMenuItem onClick={() => setViewJobId(row.job_id)}>
-                                                        <Eye className="mr-2 h-3.5 w-3.5" /> View Job
+                                                        <Eye className="mr-2 h-3.5 w-3.5 text-muted-foreground" /> View Job
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => void handleShowPdf(row)}>
-                                                        <Printer className="mr-2 h-3.5 w-3.5" /> Print Receipt
+                                                        <Printer className="mr-2 h-3.5 w-3.5 text-slate-600" /> Print Receipt
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        className="text-emerald-600 focus:text-emerald-700"
+                                                        disabled={!isValidMobile(row.mobile) || isSendingWhatsapp(row.id)}
+                                                        title={!isValidMobile(row.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                                                        onClick={() => void handleSendWhatsapp(row)}
+                                                    >
+                                                        {isSendingWhatsapp(row.id)
+                                                            ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                                            : <WhatsAppIcon className="mr-2 h-3.5 w-3.5" />}
+                                                        Whatsapp
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem
                                                         disabled={isReceiptJobRestricted(row)}
                                                         onClick={() => { if (!isReceiptJobRestricted(row)) handleEditReceipt(row); }}
                                                     >
-                                                        <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+                                                        <Pencil className="mr-2 h-3.5 w-3.5 text-blue-600" /> Edit
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         className="text-red-600 focus:text-red-600"
                                                         onClick={() => setDeleteRow(row)}
                                                     >
-                                                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                                                        <Trash2 className="mr-2 h-3.5 w-3.5 text-red-600" /> Delete
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -614,10 +694,10 @@ export const ReceiptsSection = () => {
                         )}
                     </div>
                     <div className="flex items-center gap-1">
-                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First"    variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4" /></Button>
-                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="Previous" variant="ghost" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4" /></Button>
-                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Next" variant="ghost" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4" /></Button>
-                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Last" variant="ghost" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4" /></Button>
+                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First"    variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4 text-muted-foreground" /></Button>
+                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="Previous" variant="ghost" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4 text-muted-foreground" /></Button>
+                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Next" variant="ghost" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
+                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Last" variant="ghost" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
                     </div>
                 </div>
             </div>

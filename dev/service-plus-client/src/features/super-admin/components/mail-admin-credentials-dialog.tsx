@@ -141,12 +141,12 @@ export const MailAdminCredentialsDialog = ({
                     <>
                         {resetResult.emailSent ? (
                             <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                                <MailCheckIcon className="h-4 w-4 flex-shrink-0" />
+                                <MailCheckIcon className="h-4 w-4 flex-shrink-0 text-indigo-600" />
                                 <span>{MESSAGES.SUCCESS_ADMIN_CREDENTIALS_MAILED}</span>
                             </div>
                         ) : (
                             <Alert variant="warning">
-                                <TriangleAlertIcon className="h-4 w-4" />
+                                <TriangleAlertIcon className="h-4 w-4 text-amber-600" />
                                 <AlertDescription>
                                     {MESSAGES.WARN_ADMIN_CREDENTIALS_MAIL_NOT_SENT}
                                     {resetResult.emailError && (

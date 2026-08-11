@@ -65,7 +65,7 @@ export const SuperAdminDashboard = () => {
 									loading ? { duration: 0.8, ease: "linear", repeat: Infinity } : { duration: 0 }
 								}
 							>
-								<RefreshCwIcon className="h-3.5 w-3.5" />
+								<RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
 							</motion.span>
 							{loading ? "Refreshing..." : "Refresh"}
 						</Button>

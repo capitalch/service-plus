@@ -3,6 +3,7 @@ import {
     AlertTriangle, ArrowLeft, CheckCheck, CheckCircle2,
     Eye, Loader2, Plus, Radius, RefreshCw, RotateCcw, Trash2, XCircle,
 } from "lucide-react";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -25,6 +26,7 @@ import { fmtCurrency, thClass, tdClass, calculateLinePricing } from "./final-a-j
 import { ChargeNameCombobox } from "./charge-name-combobox";
 import { isValidGstin, normalizeGstin } from "@/lib/gstin";
 import { allocateFloored, pickResidualKey, type FloorAllocItem } from "@/lib/back-calc";
+import { isValidMobile } from "@/lib/mobile";
 
 // ─── Apply-target helpers (only used in this view) ───────────────────────────
 
@@ -216,6 +218,7 @@ export type FinalJobFormProps = {
     selectedRow: FinalJobRow;
     receivedTotal: number;
     submitting: boolean;
+    sendingWhatsapp: boolean;
     loadingDetail: boolean;
     selectedDivisionId: number | null;
     division: DivisionContextType | null;
@@ -244,6 +247,7 @@ export type FinalJobFormProps = {
 
     onBack: () => void;
     onSave: () => Promise<void>;
+    onSendWhatsapp: () => Promise<void>;
     onRefresh: () => Promise<void>;
     onReset: () => void;
     onAddPart: () => void;
@@ -261,12 +265,12 @@ export type FinalJobFormProps = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FinalJobForm({
-    selectedJob, selectedRow, receivedTotal, submitting, loadingDetail,
+    selectedJob, selectedRow, receivedTotal, submitting, sendingWhatsapp, loadingDetail,
     selectedDivisionId, isGst, availableDivisions, brands, additionalChargeOptions,
     partLines, chargeLines, deletedPartIds, forceIgst, backCalcTarget, showPartsInInvoice, gstin,
     defaultHsnForServiceCharge, viewJobId,
     setForceIgst, setGstin, setBackCalcTarget, setShowPartsInInvoice, setChargeLines, setPartLines, setViewJobId,
-    onBack, onSave, onRefresh, onReset, onAddPart, onRemovePart, onUpdatePart, onCostChange, onPartSelect,
+    onBack, onSave, onSendWhatsapp, onRefresh, onReset, onAddPart, onRemovePart, onUpdatePart, onCostChange, onPartSelect,
     onAddCharge, onRemoveCharge, onUpdateCharge, onPatchCharge, onDivisionChange,
 }: FinalJobFormProps) {
     const isWarranty = selectedRow.job_type_code === "UNDER_WARRANTY";
@@ -358,7 +362,7 @@ export function FinalJobForm({
                         variant="outline"
                         onClick={onBack}
                     >
-                        <ArrowLeft className="h-4 w-4" />
+                        <ArrowLeft className="h-4 w-4 text-muted-foreground" />
                         Back
                     </Button>
                     <div className="flex items-baseline gap-2">
@@ -392,7 +396,7 @@ export function FinalJobForm({
                             variant="ghost"
                             onClick={() => void onRefresh()}
                         >
-                            {loadingDetail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                            {loadingDetail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 text-blue-600" />}
                         </Button>
                         <Button
                             className="h-7 gap-1 px-2 text-xs text-amber-700 border border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950/30"
@@ -402,14 +406,14 @@ export function FinalJobForm({
                             variant="outline"
                             onClick={() => { onReset(); setBelowCostWarning(null); }}
                         >
-                            <RotateCcw className="h-3 w-3" />
+                            <RotateCcw className="h-3 w-3 text-blue-600" />
                             Reset
                         </Button>
                     </div>
                     <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm ${isGst ? "bg-emerald-500/10 border-emerald-500/20" : "bg-amber-500/10 border-amber-500/20"}`}>
                         {isGst
                             ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                            : <XCircle className="h-3.5 w-3.5 text-amber-600" />
+                            : <XCircle className="h-3.5 w-3.5 text-red-600" />
                         }
                         <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGst ? "text-emerald-700" : "text-amber-700"}`}>
                             {isGst ? "GST" : "Non-GST"}
@@ -426,6 +430,24 @@ export function FinalJobForm({
                         }
                         Save &amp; Mark Final
                     </Button>
+                    <Button
+                        className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+                        disabled={sendingWhatsapp || !selectedJob.is_final || !isValidMobile(selectedJob.mobile)}
+                        title={
+                            !selectedJob.is_final
+                                ? "Finalize the job first"
+                                : !isValidMobile(selectedJob.mobile)
+                                    ? MESSAGES.INFO_WHATSAPP_NO_MOBILE
+                                    : undefined
+                        }
+                        onClick={() => void onSendWhatsapp()}
+                    >
+                        {sendingWhatsapp
+                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            : <WhatsAppIcon className="h-3.5 w-3.5" />
+                        }
+                        Whatsapp
+                    </Button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-5 py-4">
@@ -433,7 +455,7 @@ export function FinalJobForm({
                     {/* Warranty banner */}
                     {isWarranty && (
                         <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
                             Warranty job — only cost prices are recorded; selling prices and final amount are ₹0.
                         </div>
                     )}
@@ -441,7 +463,7 @@ export function FinalJobForm({
                     {/* Excess payment banner — receipts already exceed the final amount */}
                     {showExcessReceived && (
                         <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                             <span>
                                 Payments already received (<strong>₹{fmtCurrency(receivedTotal)}</strong>) exceed this job&apos;s final amount (<strong>₹{fmtCurrency(finalAmount)}</strong>) by <strong>₹{fmtCurrency(excessReceived)}</strong>. {MESSAGES.WARN_EXCESS_PAYMENT_ACCOUNTING}
                             </span>
@@ -457,7 +479,7 @@ export function FinalJobForm({
                                 className="flex items-center gap-1 text-[10px] font-medium text-(--cl-accent) hover:underline cursor-pointer"
                                 onClick={() => setViewJobId(selectedJob.id)}
                             >
-                                <Eye className="h-3 w-3" />
+                                <Eye className="h-3 w-3 text-muted-foreground" />
                                 View Details
                             </button>
                         </div>
@@ -529,7 +551,7 @@ export function FinalJobForm({
                                     variant="outline"
                                     onClick={onAddPart}
                                 >
-                                    <Plus className="h-3.5 w-3.5" /> Add Part
+                                    <Plus className="h-3.5 w-3.5 text-emerald-600" /> Add Part
                                 </Button>
                             </div>
                         )}
@@ -621,7 +643,7 @@ export function FinalJobForm({
                                                         variant="ghost"
                                                         onClick={() => onRemovePart(line._key, line.id)}
                                                     >
-                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                        <Trash2 className="h-3.5 w-3.5 text-red-600" />
                                                     </Button>
                                                 </div>
                                             </div>
@@ -769,7 +791,7 @@ export function FinalJobForm({
                                     variant="outline"
                                     onClick={onAddCharge}
                                 >
-                                    <Plus className="h-3.5 w-3.5" /> Add Charge
+                                    <Plus className="h-3.5 w-3.5 text-emerald-600" /> Add Charge
                                 </Button>
                             </div>
                         )}
@@ -922,7 +944,7 @@ export function FinalJobForm({
                                                             variant="ghost"
                                                             onClick={() => onRemoveCharge(c._key, c.id)}
                                                         >
-                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                            <Trash2 className="h-3.5 w-3.5 text-red-600" />
                                                         </Button>
                                                     </div>
                                                 </td>
@@ -983,7 +1005,7 @@ export function FinalJobForm({
                     {/* Below-cost banner — back-calc target required selling parts at a loss */}
                     {belowCostWarning && (
                         <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                             <span>{belowCostWarning}</span>
                         </div>
                     )}
@@ -1060,7 +1082,7 @@ export function FinalJobForm({
                                         <div className="flex items-center justify-between gap-4">
                                             {isTallied ? (
                                                 <div className="flex items-center gap-1 text-emerald-600">
-                                                    <CheckCircle2 className="h-4 w-4" />
+                                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                                                     <span className="text-xs font-semibold">Tallied</span>
                                                 </div>
                                             ) : <div />}
@@ -1088,7 +1110,7 @@ export function FinalJobForm({
                                                             applyBackCalc(rounded);
                                                         }}
                                                     >
-                                                        <Radius className="h-3 w-3" />
+                                                        <Radius className="h-3 w-3 text-muted-foreground" />
                                                     </button>
                                                 </div>
                                             </div>

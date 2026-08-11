@@ -158,7 +158,7 @@ export function WarrantyJobsGrid({ rows, loading, search, selectedIds, onSelecti
                                             variant="ghost"
                                             onClick={() => onViewJob(row.id)}
                                         >
-                                            <Eye className="h-3.5 w-3.5" />
+                                            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                         </Button>
                                     </td>
                                 </motion.tr>

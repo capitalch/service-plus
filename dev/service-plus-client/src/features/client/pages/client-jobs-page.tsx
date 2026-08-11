@@ -11,6 +11,7 @@ import { SingleJobSection } from "../components/jobs/single-job/single-job-secti
 import { JobPipelineSection } from "../components/jobs/job-pipeline/job-pipeline-section";
 import { AccountsPostingSection } from "../components/jobs/accounts-posting/accounts-posting-section";
 import { BatchWarrantySection } from "../components/jobs/batch-warranty-transactions/batch-warranty-section";
+import { CustomerConnectSection } from "../components/jobs/customer-connect/customer-connect-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -61,6 +62,8 @@ function JobsContent() {
             return <FinalAJobSection />;
         case "Deliver Job":
             return <DeliverJobSection />;
+        case "Customer Connect":
+            return <CustomerConnectSection />;
         case "Accounts Posting":
             return <AccountsPostingSection />;
         case "Job Control":

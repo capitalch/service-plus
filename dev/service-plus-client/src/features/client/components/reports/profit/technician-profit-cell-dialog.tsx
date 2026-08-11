@@ -151,7 +151,7 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
             <DialogContent className="max-w-5xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-(--cl-accent-text)" />
+                        <DollarSign className="h-4 w-4 text-green-600" />
                         <span>{cell?.technicianName ?? "Jobs"}</span>
                         {cell && <span className="font-mono text-(--cl-accent-text)">{cell.monthLabel}</span>}
                     </DialogTitle>
@@ -174,6 +174,7 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
                                 rowKey={r => r.id}
                                 rows={rows}
                                 showFooter
+                                showRowIndex
                                 stickyHeader={false}
                                 onRowClick={r => setFinalInfoJobId(r.id)}
                             />

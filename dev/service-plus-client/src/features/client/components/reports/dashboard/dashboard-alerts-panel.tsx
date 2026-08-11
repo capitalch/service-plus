@@ -27,7 +27,7 @@ export const DashboardAlertsPanel = ({ overdue }: Props) => {
                     className="flex items-start gap-2 rounded-md border border-(--cl-border) bg-(--cl-surface) p-2 text-xs"
                 >
                     <span className="mt-0.5 rounded-md bg-amber-500/10 p-1.5 text-amber-500">
-                        <Timer className="h-3.5 w-3.5" />
+                        <Timer className="h-3.5 w-3.5 text-orange-600" />
                     </span>
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">

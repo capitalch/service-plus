@@ -140,7 +140,7 @@ export function NewSingleJobForm({
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
                     <div className="bg-(--cl-accent)/5 p-5 rounded-full mb-4">
-                        <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
+                        <Plus className="h-12 w-12 opacity-40 text-emerald-600" />
                     </div>
                     <h3 className="text-lg font-semibold text-(--cl-text) mb-2">No Branch Selected</h3>
                     <p className="text-(--cl-text-muted) max-w-md px-6">
@@ -168,7 +168,7 @@ export function NewSingleJobForm({
                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30 px-2.5 py-1 rounded-full border border-violet-200 dark:border-violet-800/30 hover:bg-violet-100 dark:hover:bg-violet-900/40 hover:border-violet-400 dark:hover:border-violet-700 transition-colors cursor-pointer"
                                 onClick={() => onAttachFiles?.(editJob.job_no, editJob.id)}
                             >
-                                <Paperclip className="h-3.5 w-3.5" />
+                                <Paperclip className="h-3.5 w-3.5 text-slate-600" />
                                 <span>{(editJob.file_count ?? 0) > 0 ? `${editJob.file_count} File${editJob.file_count !== 1 ? "s" : ""}` : "Attach"}</span>
                             </button>
                         )}

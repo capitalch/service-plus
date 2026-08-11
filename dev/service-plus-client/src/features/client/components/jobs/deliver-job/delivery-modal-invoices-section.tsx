@@ -1,8 +1,11 @@
 import { Loader2, Printer, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
+import { MESSAGES } from "@/constants/messages";
+import { isValidMobile } from "@/lib/mobile";
 
 type Props = {
     jobs:                     JobDeliveryFullDetail[];
@@ -10,9 +13,11 @@ type Props = {
     loadingPdfJobId?:         number | null;
     deletingInvoiceJobId?:    number | null;
     regeneratingInvoiceJobId?: number | null;
+    isSendingWhatsapp?:       (jobId: number) => boolean;
     onPrintInvoice?:          (job: JobDeliveryFullDetail) => void;
     onDeleteInvoice?:         (job: JobDeliveryFullDetail) => void;
     onRegenerateInvoice?:     (job: JobDeliveryFullDetail) => void;
+    onSendWhatsapp?:          (job: JobDeliveryFullDetail) => void;
 };
 
 function computeTaxSummary(job: JobDeliveryFullDetail) {
@@ -60,7 +65,7 @@ function TaxSummaryRow({ tax, jobAmount }: { tax: ReturnType<typeof computeTaxSu
     );
 }
 
-export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loadingPdfJobId, deletingInvoiceJobId, regeneratingInvoiceJobId, onPrintInvoice, onDeleteInvoice, onRegenerateInvoice }: Props) {
+export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loadingPdfJobId, deletingInvoiceJobId, regeneratingInvoiceJobId, isSendingWhatsapp, onPrintInvoice, onDeleteInvoice, onRegenerateInvoice, onSendWhatsapp }: Props) {
     return (
         <div className="space-y-3">
             {jobs.map(job => {
@@ -103,8 +108,24 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loading
                                         variant="ghost"
                                         onClick={() => onPrintInvoice(job)}
                                     >
-                                        <Printer className="h-3.5 w-3.5" />
+                                        <Printer className="h-3.5 w-3.5 text-slate-600" />
                                         Print
+                                    </Button>
+                                )}
+                                {invoiceable && job.invoice_id && onSendWhatsapp && (
+                                    <Button
+                                        className="h-8 gap-1 px-2 text-sm text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        disabled={!!isSendingWhatsapp?.(job.id) || !isValidMobile(job.mobile)}
+                                        size="sm"
+                                        title={!isValidMobile(job.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                                        variant="ghost"
+                                        onClick={() => onSendWhatsapp(job)}
+                                    >
+                                        {isSendingWhatsapp?.(job.id)
+                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            : <WhatsAppIcon className="h-3.5 w-3.5" />
+                                        }
+                                        Whatsapp
                                     </Button>
                                 )}
                                 {invoiceable && job.invoice_id && onDeleteInvoice && (
@@ -117,7 +138,7 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loading
                                     >
                                         {deletingInvoiceJobId === job.id
                                             ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                            : <Trash2 className="h-3.5 w-3.5" />
+                                            : <Trash2 className="h-3.5 w-3.5 text-red-600" />
                                         }
                                         Delete
                                     </Button>
@@ -132,7 +153,7 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loading
                                     >
                                         {regeneratingInvoiceJobId === job.id
                                             ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                            : <RefreshCw className="h-3.5 w-3.5" />
+                                            : <RefreshCw className="h-3.5 w-3.5 text-blue-600" />
                                         }
                                         Regen
                                     </Button>

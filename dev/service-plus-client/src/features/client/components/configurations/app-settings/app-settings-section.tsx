@@ -138,7 +138,7 @@ export const AppSettingsSection = () => {
                             variant="outline"
                             onClick={loadData}
                         >
-                            <RefreshCwIcon className="h-3.5 w-3.5" />
+                            <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
                             Refresh
                         </Button>
                     </div>
@@ -147,7 +147,7 @@ export const AppSettingsSection = () => {
                 {/* Search + count */}
                 <div className="flex items-center gap-3">
                     <div className="relative flex-1">
-                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                         <Input
                             className="h-8 pl-8 text-sm"
                             disabled={loading}
@@ -161,7 +161,7 @@ export const AppSettingsSection = () => {
                                     type="button"
                                     onClick={() => setSearch("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                     </div>
@@ -175,7 +175,7 @@ export const AppSettingsSection = () => {
                 {/* Warning: default_division_id points to inactive/missing division */}
                 {isDefaultDivisionInactive && (
                     <Alert variant="warning" className="flex items-start gap-2 py-2.5">
-                        <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+                        <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                         <AlertDescription className="text-xs text-yellow-800">
                             <span className="font-semibold">default_division_id</span> is set to{" "}
                             <span className="font-mono">{defaultDivisionId}</span>, which does not match any active
@@ -265,7 +265,7 @@ export const AppSettingsSection = () => {
                                                         variant="ghost"
                                                         onClick={() => setEditRecord(record)}
                                                     >
-                                                        <PencilIcon className="h-3.5 w-3.5" />
+                                                        <PencilIcon className="h-3.5 w-3.5 text-blue-600" />
                                                     </Button>
                                                 </TableCell>
                                             </motion.tr>

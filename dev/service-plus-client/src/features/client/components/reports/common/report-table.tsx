@@ -27,6 +27,7 @@ type Props<T> = {
     rowKey: (row: T) => string | number;
     rows: T[];
     showFooter?: boolean;
+    showRowIndex?: boolean;
     stickyHeader?: boolean;
 };
 
@@ -44,6 +45,7 @@ export function ReportTable<T>({
     rowKey,
     rows,
     showFooter = false,
+    showRowIndex = false,
     stickyHeader = true,
 }: Props<T>) {
     const [sortId, setSortId]     = useState<string | null>(null);
@@ -80,6 +82,14 @@ export function ReportTable<T>({
                 <Table className="text-xs">
                     <TableHeader className={cn(stickyHeader && "sticky top-0 z-10 bg-(--cl-surface-3)")}>
                         <TableRow className="border-b border-(--cl-border)">
+                            {showRowIndex && (
+                                <TableHead
+                                    className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-(--cl-text-muted)"
+                                    style={{ width: "40px" }}
+                                >
+                                    #
+                                </TableHead>
+                            )}
                             {columns.map(col => {
                                 const sortable = col.sortable !== false && (col.sortValue || col.value);
                                 return (
@@ -97,8 +107,8 @@ export function ReportTable<T>({
                                             {col.header}
                                             {sortable && sortId === col.id && (
                                                 sortAsc
-                                                    ? <ChevronUp className="h-3 w-3" />
-                                                    : <ChevronDown className="h-3 w-3" />
+                                                    ? <ChevronUp className="h-3 w-3 text-muted-foreground" />
+                                                    : <ChevronDown className="h-3 w-3 text-muted-foreground" />
                                             )}
                                         </span>
                                     </TableHead>
@@ -111,13 +121,13 @@ export function ReportTable<T>({
                             <TableRow>
                                 <TableCell
                                     className="px-3 py-8 text-center text-xs text-(--cl-text-muted)"
-                                    colSpan={columns.length}
+                                    colSpan={showRowIndex ? columns.length + 1 : columns.length}
                                 >
                                     {emptyMessage}
                                 </TableCell>
                             </TableRow>
                         )}
-                        {sortedRows.map(row => (
+                        {sortedRows.map((row, index) => (
                             <TableRow
                                 key={rowKey(row)}
                                 className={cn(
@@ -126,6 +136,11 @@ export function ReportTable<T>({
                                 )}
                                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                             >
+                                {showRowIndex && (
+                                    <TableCell className="px-3 py-2 text-(--cl-text-muted)">
+                                        {index + 1}
+                                    </TableCell>
+                                )}
                                 {columns.map(col => (
                                     <TableCell
                                         key={col.id}
@@ -140,6 +155,9 @@ export function ReportTable<T>({
                     {showFooter && sortedRows.length > 0 && (
                         <TableFooter className="bg-(--cl-surface-3)">
                             <TableRow>
+                                {showRowIndex && (
+                                    <TableCell className="border-t border-(--cl-border) px-3 py-2" />
+                                )}
                                 {columns.map(col => (
                                     <TableCell
                                         key={col.id}

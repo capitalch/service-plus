@@ -79,7 +79,7 @@ export const RangePicker = ({ className, onChange, range }: Props) => {
                 <Select onValueChange={handleSelect} value={range.key}>
                     <SelectTrigger className="h-9 w-44">
                         <SelectValue placeholder="Select range" />
-                        <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-60" />
+                        <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-60 text-muted-foreground" />
                     </SelectTrigger>
                     <SelectContent>
                         {STANDARD_OPTIONS.map(opt => (
@@ -122,7 +122,7 @@ export const RangePicker = ({ className, onChange, range }: Props) => {
             )}
 
             <div className="flex items-center gap-1.5 rounded-md border border-(--cl-border) bg-(--cl-surface-2) px-2.5 py-1.5 text-xs text-(--cl-text-muted)">
-                <CalendarRange className="h-3.5 w-3.5 text-(--cl-accent-text)" />
+                <CalendarRange className="h-3.5 w-3.5 text-orange-600" />
                 <span>{formatRangeLabel(range.from, range.to)}</span>
             </div>
 

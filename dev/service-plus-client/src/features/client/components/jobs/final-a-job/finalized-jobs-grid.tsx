@@ -69,7 +69,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 py-1 bg-(--cl-surface-2)/30">
             <div className="relative flex-1 sm:max-w-lg">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                 <Input
                     className="h-8 border-(--cl-border) bg-white pl-8 pr-8 text-xs"
                     placeholder="Job no, alt job no, customer, mobile, technician, serial no, device…"
@@ -82,7 +82,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                         type="button"
                         onClick={() => onSearchChange("")}
                     >
-                        <X className="h-2.5 w-2.5" />
+                        <X className="h-2.5 w-2.5 text-muted-foreground" />
                     </button>
                 )}
             </div>
@@ -93,7 +93,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                 variant="outline"
                 onClick={onRefresh}
             >
-                <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
+                <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
             </Button>
         </div>
 
@@ -188,7 +188,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                             </div>
                                             {row.is_posted && (
                                                 <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded px-1 py-0.5 w-fit">
-                                                    <CheckCircle2 className="h-2.5 w-2.5" />
+                                                    <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
                                                     Posted
                                                 </span>
                                             )}
@@ -207,7 +207,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                     className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
                                                     onClick={e => { e.stopPropagation(); onOpenAttach(row.id, row.job_no); }}
                                                 >
-                                                    <Paperclip className="h-2.5 w-2.5" />
+                                                    <Paperclip className="h-2.5 w-2.5 text-slate-600" />
                                                     <span>{row.file_count} File{row.file_count !== 1 ? "s" : ""}</span>
                                                 </button>
                                             )}
@@ -263,14 +263,14 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                         className="gap-2 text-xs text-sky-700 dark:text-sky-400 focus:text-sky-700 dark:focus:text-sky-400"
                                                         onSelect={() => onViewJob(row.id)}
                                                     >
-                                                        <Eye className="h-3.5 w-3.5" />
+                                                        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                                         View
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         className="gap-2 text-xs text-violet-700 dark:text-violet-400 focus:text-violet-700 dark:focus:text-violet-400"
                                                         onSelect={() => onOpenAttach(row.id, row.job_no)}
                                                     >
-                                                        <Paperclip className="h-3.5 w-3.5" />
+                                                        <Paperclip className="h-3.5 w-3.5 text-slate-600" />
                                                         Attach Files
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
@@ -280,7 +280,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                     >
                                                         {deliveryLoadingJobId === row.id
                                                             ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                            : <Truck className="h-3.5 w-3.5" />
+                                                            : <Truck className="h-3.5 w-3.5 text-orange-600" />
                                                         }
                                                         Deliver Job
                                                     </DropdownMenuItem>
@@ -289,7 +289,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                             className="gap-2 text-xs text-purple-700 dark:text-purple-400 focus:text-purple-700 dark:focus:text-purple-400"
                                                             onSelect={() => onProforma(row.id)}
                                                         >
-                                                            <Receipt className="h-3.5 w-3.5" />
+                                                            <Receipt className="h-3.5 w-3.5 text-green-600" />
                                                             Proforma Invoice
                                                         </DropdownMenuItem>
                                                     )}
@@ -300,7 +300,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                     >
                                                         {chargesLoadingJobId === row.id
                                                             ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                            : <ReceiptText className="h-3.5 w-3.5" />
+                                                            : <ReceiptText className="h-3.5 w-3.5 text-green-600" />
                                                         }
                                                         Charges
                                                     </DropdownMenuItem>
@@ -308,7 +308,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                         className="gap-2 text-xs text-emerald-700 dark:text-emerald-400 focus:text-emerald-700 dark:focus:text-emerald-400"
                                                         onSelect={() => onPdf(row.id)}
                                                     >
-                                                        <FileDown className="h-3.5 w-3.5" />
+                                                        <FileDown className="h-3.5 w-3.5 text-slate-600" />
                                                         Print / Save as PDF
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
@@ -318,7 +318,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                         title={row.is_posted ? "Cannot revise a posted job" : undefined}
                                                         onSelect={() => onReviseFinal(row)}
                                                     >
-                                                        <Pencil className="h-3.5 w-3.5" />
+                                                        <Pencil className="h-3.5 w-3.5 text-blue-600" />
                                                         Revise Final
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
@@ -329,7 +329,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                     >
                                                         {undoingJobId === row.id
                                                             ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                            : <Undo2 className="h-3.5 w-3.5" />
+                                                            : <Undo2 className="h-3.5 w-3.5 text-blue-600" />
                                                         }
                                                         Undo Final
                                                     </DropdownMenuItem>
@@ -350,10 +350,10 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                     {total === 0 ? "No jobs" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} (Page ${page} of ${totalPages})`}
                 </span>
                 <div className="flex items-center gap-1">
-                    <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First" variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon className="h-4 w-4" /></Button>
-                    <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="Previous" variant="ghost" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon className="h-4 w-4" /></Button>
-                    <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Next" variant="ghost" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4" /></Button>
-                    <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Last" variant="ghost" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4" /></Button>
+                    <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First" variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon className="h-4 w-4 text-muted-foreground" /></Button>
+                    <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="Previous" variant="ghost" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon className="h-4 w-4 text-muted-foreground" /></Button>
+                    <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Next" variant="ghost" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
+                    <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Last" variant="ghost" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4 text-muted-foreground" /></Button>
                 </div>
             </div>
         </div>

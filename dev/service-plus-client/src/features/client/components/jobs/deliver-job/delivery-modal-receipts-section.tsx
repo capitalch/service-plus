@@ -46,7 +46,7 @@ export function DeliveryModalReceiptsSection({ jobs, onAddReceipt, loadingPdfJob
                                         variant="ghost"
                                         onClick={() => onPrintReceipt(job)}
                                     >
-                                        <Printer className="h-3.5 w-3.5" />
+                                        <Printer className="h-3.5 w-3.5 text-slate-600" />
                                         Print
                                     </Button>
                                 )}
@@ -82,7 +82,7 @@ export function DeliveryModalReceiptsSection({ jobs, onAddReceipt, loadingPdfJob
                         {/* Excess payment warning — receipts exceed the job total */}
                         {excess > 0.005 && (
                             <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
                                 <span>
                                     Receipts (<strong>{fmtCurrency(paid)}</strong>) exceed this job&apos;s total (<strong>{fmtCurrency(Number(job.amount ?? 0))}</strong>) by <strong>{fmtCurrency(excess)}</strong>. {MESSAGES.WARN_EXCESS_PAYMENT_ACCOUNTING}
                                 </span>

@@ -298,7 +298,7 @@ export const OpeningStockSection = () => {
                 {/* Title */}
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <FileText className="h-4 w-4" />
+                        <FileText className="h-4 w-4 text-slate-600" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
                         <h1 className="text-lg font-bold text-(--cl-text) truncate">
@@ -335,7 +335,7 @@ export const OpeningStockSection = () => {
                         variant="ghost"
                         onClick={() => setDeleteConfirmOpen(true)}
                     >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3.5 w-3.5 text-red-600" />
                         Delete
                     </Button>
                 )}
@@ -348,7 +348,7 @@ export const OpeningStockSection = () => {
                         variant="ghost"
                         onClick={handleReset}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 text-blue-600 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
                         Reset
                     </Button>
                     <Button

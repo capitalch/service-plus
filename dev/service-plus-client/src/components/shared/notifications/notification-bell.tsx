@@ -22,12 +22,11 @@ export type NotificationItem = {
 };
 
 type NotificationBellProps = {
-    align?:         "center" | "end" | "start";
-    className?:     string;   // applied to the trigger button (theme-specific hover/layout)
-    emptyLabel?:    string;
-    iconClassName?: string;   // applied to the bell icon (theme-specific color)
-    items:          NotificationItem[];
-    title?:         string;
+    align?:      "center" | "end" | "start";
+    className?:  string;   // applied to the trigger button (theme-specific hover/layout)
+    emptyLabel?: string;
+    items:       NotificationItem[];
+    title?:      string;
 };
 
 // Presentational only — it renders already-fetched counts. No data fetching here.
@@ -35,7 +34,6 @@ export function NotificationBell({
     align         = "end",
     className,
     emptyLabel    = "Nothing needs your attention",
-    iconClassName,
     items,
     title         = "Notifications",
 }: NotificationBellProps) {
@@ -53,7 +51,7 @@ export function NotificationBell({
                         className,
                     )}
                 >
-                    <Bell className={cn("h-5 w-5", iconClassName)} />
+                    <Bell className="h-5 w-5 text-indigo-600" />
                     {total > 0 && (
                         <span className="absolute -top-0.5 right-0 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold leading-none text-white">
                             {total > 99 ? "99+" : total}

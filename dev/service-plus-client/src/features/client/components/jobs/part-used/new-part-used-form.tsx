@@ -282,7 +282,7 @@ export function NewPartUsedForm({
                                                             variant="ghost"
                                                             onClick={() => markExistingDeleted(line.id)}
                                                         >
-                                                            <X className="h-3.5 w-3.5" />
+                                                            <X className="h-3.5 w-3.5 text-muted-foreground" />
                                                         </Button>
                                                     </td>
                                                 </tr>

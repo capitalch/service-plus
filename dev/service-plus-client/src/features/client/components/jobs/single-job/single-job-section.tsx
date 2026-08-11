@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, Eye,
     Loader2, MoreHorizontal, Paperclip, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -41,7 +42,9 @@ import type { DocumentSequenceRow } from "@/features/client/types/sales";
 import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { NewSingleJobForm } from "./new-single-job-form";
 import { JobAttachDialog } from "./job-attach-dialog";
-import { getJobSheetBlobUrl } from "../job-sheet-pdf";
+import { getJobSheetBlobUrl, getJobSheetPdfBlob } from "../job-sheet-pdf";
+import { useWhatsappSend } from "../use-whatsapp-send";
+import { isValidMobile } from "@/lib/mobile";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -110,6 +113,8 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const [showPdfModal, setShowPdfModal] = useState(false);
     const [printCopies, setPrintCopies] = useState(noOfJobSheetsPerPrint);
     const pendingPrintRef = useRef<{ job: JobDetailType; division: DivisionContextType | null; branchCode?: string } | null>(null);
+
+    const { isSendingWhatsapp, sendWhatsapp } = useWhatsappSend();
 
     // Attach Files dialog
     const [attachJobId,  setAttachJobId]  = useState<number | null>(null);
@@ -492,6 +497,37 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         }
     };
 
+    const handleSendWhatsapp = async (job: JobControlRow) => {
+        if (!dbName || !schema || !isValidMobile(job.mobile)) return;
+        try {
+            const res = await apolloClient.query<GenericQueryData<JobDetailType>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId: SQL_MAP.GET_JOB_DETAIL,
+                        sqlArgs: { id: job.id },
+                    }),
+                },
+            });
+            const details = res.data?.genericQuery?.[0];
+            if (!details) {
+                toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED);
+                return;
+            }
+            const jobDivision = availableDivisions.find(d => d.id === details.division_id) ?? currentDivision;
+            const pdf = getJobSheetPdfBlob(details, jobDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint, { clientName, buName: currentBu?.name ?? null, trackJobUrl });
+            await sendWhatsapp(job.id, job.mobile, {
+                dbName, schema, jobIds: [job.id], eventType: "JOB_CREATION",
+                pdf, filename: `Job-Sheet_${details.job_no}.pdf`,
+            });
+        } catch {
+            toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED);
+        }
+    };
+
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     return (
@@ -505,7 +541,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <Briefcase className="h-4 w-4" />
+                        <Briefcase className="h-4 w-4 text-purple-600" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
                         <h1 className="text-lg font-bold text-(--cl-text) truncate">
@@ -542,7 +578,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                         variant="ghost"
                         onClick={() => { setEditJob(null); form.reset(getSingleJobDefaultValues()); }}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 text-blue-600 ${submitting ? "animate-spin" : ""}`} />
                         Reset
                     </Button>
                     <Button
@@ -587,7 +623,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                     {/* Toolbar */}
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="relative flex-1 sm:max-w-md">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                             <Input
                                 className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
                                 placeholder="Job no, alt job no, customer, mobile, model, brand, sl no"
@@ -600,7 +636,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                         </div>
@@ -612,7 +648,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                 variant="outline"
                                 onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }}
                             >
-                                <RefreshCw className="mr-1.5 h-3 w-3" />
+                                <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" />
                                 Refresh
                             </Button>
                         </div>
@@ -707,7 +743,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                                 className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
                                                                 onClick={() => { setAttachJobId(job.id); setAttachJobNo(job.job_no); setAttachMode("view"); }}
                                                             >
-                                                                <Paperclip className="h-2.5 w-2.5" />
+                                                                <Paperclip className="h-2.5 w-2.5 text-slate-600" />
                                                                 <span>{job.file_count} File{job.file_count !== 1 ? "s" : ""}</span>
                                                             </button>
                                                         )}
@@ -743,7 +779,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button className="h-8 w-8 p-0 hover:bg-(--cl-accent)/15" variant="ghost">
-                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                    <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                                                                     <span className="sr-only">Open menu</span>
                                                                 </Button>
                                                             </DropdownMenuTrigger>
@@ -757,28 +793,39 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                                         handleEditJob(job);
                                                                     }}
                                                                 >
-                                                                    <Pencil className="h-4 w-4" />
+                                                                    <Pencil className="h-4 w-4 text-blue-600" />
                                                                     <span>Edit Job</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-blue-500 focus:bg-blue-500/10 focus:text-blue-600 font-semibold"
                                                                     onClick={() => setViewJobId(job.id)}
                                                                 >
-                                                                    <Eye className="h-4 w-4" />
+                                                                    <Eye className="h-4 w-4 text-muted-foreground" />
                                                                     <span>View Job</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-indigo-500 focus:bg-indigo-500/10 focus:text-indigo-600 font-semibold"
                                                                     onClick={() => void handlePrintPdf(job)}
                                                                 >
-                                                                    <Printer className="h-4 w-4" />
+                                                                    <Printer className="h-4 w-4 text-slate-600" />
                                                                     <span>Print PDF</span>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    className="flex items-center gap-2 cursor-pointer text-emerald-600 focus:bg-emerald-500/10 focus:text-emerald-700 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    disabled={!isValidMobile(job.mobile) || isSendingWhatsapp(job.id)}
+                                                                    title={!isValidMobile(job.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                                                                    onClick={() => void handleSendWhatsapp(job)}
+                                                                >
+                                                                    {isSendingWhatsapp(job.id)
+                                                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                                        : <WhatsAppIcon className="h-4 w-4" />}
+                                                                    <span>Whatsapp</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-violet-500 focus:bg-violet-500/10 focus:text-violet-600 font-semibold"
                                                                     onClick={() => { setAttachJobId(job.id); setAttachJobNo(job.job_no); setAttachMode("attach"); }}
                                                                 >
-                                                                    <Paperclip className="h-4 w-4" />
+                                                                    <Paperclip className="h-4 w-4 text-slate-600" />
                                                                     <span>Attach Files</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
@@ -787,7 +834,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                                     title={job.transaction_count > 1 ? "Cannot delete: job has activity" : undefined}
                                                                     onClick={() => { if (job.transaction_count <= 1) setDeleteId(job.id); }}
                                                                 >
-                                                                    <Trash2 className="h-4 w-4" />
+                                                                    <Trash2 className="h-4 w-4 text-red-600" />
                                                                     <span>Delete Job</span>
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
@@ -808,16 +855,16 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                             </span>
                             <div className="flex items-center gap-1">
                                 <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First page" onClick={() => setPage(1)}>
-                                    <ChevronsLeftIcon className="h-4 w-4" />
+                                    <ChevronsLeftIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous page" onClick={() => setPage(p => p - 1)}>
-                                    <ChevronLeftIcon className="h-4 w-4" />
+                                    <ChevronLeftIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Next page" onClick={() => setPage(p => p + 1)}>
-                                    <ChevronRightIcon className="h-4 w-4" />
+                                    <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Last page" onClick={() => setPage(totalPages)}>
-                                    <ChevronsRightIcon className="h-4 w-4" />
+                                    <ChevronsRightIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                             </div>
                         </div>

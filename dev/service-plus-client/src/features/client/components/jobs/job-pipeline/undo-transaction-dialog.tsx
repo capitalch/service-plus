@@ -23,7 +23,7 @@ export const UndoTransactionDialog = ({ job, submitting, onConfirm, onClose }: P
         <DialogContent className="max-w-sm overflow-hidden bg-white dark:bg-zinc-950 border-(--cl-border)">
             <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-red-600">
-                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
                     Undo Last Transaction
                 </DialogTitle>
             </DialogHeader>

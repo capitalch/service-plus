@@ -69,14 +69,14 @@ export const DetachDbDialog = ({ client, onOpenChange, onSuccess, open }: Detach
 				</DialogHeader>
 
 				<div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
-					<InfoIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-500" />
+					<InfoIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-sky-600" />
 					<p className="text-sm text-blue-700">
 						The database will not be physically deleted. It can be re-attached to the client again.
 					</p>
 				</div>
 
 				<div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
-					<TriangleAlertIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
+					<TriangleAlertIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
 					<div className="text-sm text-amber-700">
 						<p>
 							Database:{" "}
@@ -89,7 +89,7 @@ export const DetachDbDialog = ({ client, onOpenChange, onSuccess, open }: Detach
 				</div>
 
 				<div className="flex items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-				<InfoIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
+				<InfoIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-sky-600" />
 				<p className="text-sm text-slate-600">
 					{MESSAGES.INFO_CLIENT_DB_MANUAL_DELETE_ONLY}
 				</p>

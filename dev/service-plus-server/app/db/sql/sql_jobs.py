@@ -1866,3 +1866,143 @@ class JobsSql:
                  ji.id, ji.invoice_no, ji.invoice_date, ji.amount,
                  j.delivery_date, j.remarks
     """
+
+    # ── WhatsApp Notifications (plans/plan-whatsapp.md §4d/§4e) ────────────────
+
+    GET_JOBS_FOR_WHATSAPP_COMPLETION = """
+        SELECT
+            j.id AS job_id,
+            j.job_no,
+            j.amount,
+            j.customer_contact_id,
+            j.whatsapp_notifications,
+            c.full_name AS customer_name,
+            c.mobile
+        FROM job j
+        JOIN customer_contact c ON c.id = j.customer_contact_id
+        WHERE j.id = ANY(%(job_ids)s)
+          AND j.branch_id = %(branch_id)s
+          AND j.is_final = true
+    """
+
+    GET_JOBS_FOR_WHATSAPP_SEND = """
+        SELECT
+            j.id AS job_id,
+            j.job_no,
+            j.amount,
+            j.branch_id,
+            j.customer_contact_id,
+            j.whatsapp_notifications,
+            c.full_name AS customer_name,
+            c.mobile,
+            b.name AS branch_name,
+            jp.receipt_no,
+            jp.payment_mode
+        FROM job j
+        JOIN customer_contact c ON c.id = j.customer_contact_id
+        JOIN branch b ON b.id = j.branch_id
+        LEFT JOIN LATERAL (
+            SELECT receipt_no, payment_mode
+            FROM job_payment
+            WHERE job_payment.job_id = j.id
+            ORDER BY created_at DESC
+            LIMIT 1
+        ) jp ON true
+        WHERE j.id = ANY(%(job_ids)s)
+    """
+
+    SET_JOB_WHATSAPP_NOTIFICATION = """
+        UPDATE job
+        SET whatsapp_notifications = jsonb_set(
+            COALESCE(whatsapp_notifications, '{}'::jsonb),
+            %(event_path)s::text[],
+            %(event_json)s::jsonb,
+            true
+        )
+        WHERE id = %(job_id)s
+    """
+
+    # ── Customer Connect — eligible jobs for the completion message (§5e) ──────
+    # Eligibility mirrors sendWhatsappCompletion's own re-filter: is_final=true,
+    # is_closed=false, status not cancelled/disposed (plan §1/§2b).
+
+    GET_WHATSAPP_ELIGIBLE_JOBS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_status       js ON js.id = j.job_status_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.is_final  = true
+          AND j.is_closed = false
+          AND js.code NOT IN ('CANCELLED', 'DISPOSED')
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_WHATSAPP_ELIGIBLE_JOBS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            j.id,
+            j.job_no,
+            j.alternate_job_no,
+            j.job_date,
+            j.amount,
+            j.whatsapp_notifications,
+            cc.id        AS customer_contact_id,
+            cc.full_name AS customer_name,
+            cc.mobile,
+            jt.name      AS job_type_name,
+            jt.code      AS job_type_code,
+            js.name      AS job_status_name,
+            js.code      AS job_status_code,
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(b.name, ''), NULLIF(pbm.model_name, ''))) AS device_details
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type         jt ON jt.id = j.job_type_id
+        JOIN job_status       js ON js.id = j.job_status_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand       b  ON b.id = pbm.brand_id
+        LEFT JOIN product     p  ON p.id = pbm.product_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.is_final  = true
+          AND j.is_closed = false
+          AND js.code NOT IN ('CANCELLED', 'DISPOSED')
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_WHATSAPP_ELIGIBLE_JOB_IDS = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT j.id
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_status       js ON js.id = j.job_status_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.is_final  = true
+          AND j.is_closed = false
+          AND js.code NOT IN ('CANCELLED', 'DISPOSED')
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.id DESC
+    """

@@ -157,7 +157,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                 {/* ── Empty state ── */}
                 {!part && (
                     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-                        <Package className="h-10 w-10 text-(--cl-text-muted) opacity-20" />
+                        <Package className="h-10 w-10 opacity-20 text-slate-600" />
                         <p className="text-sm font-semibold text-(--cl-text)">No part selected</p>
                         <p className="text-xs text-(--cl-text-muted)">Click a row to view part details</p>
                     </div>
@@ -177,7 +177,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                 type="button"
                                 onClick={onClose}
                             >
-                                <X className="h-4 w-4" />
+                                <X className="h-4 w-4 text-muted-foreground" />
                             </button>
                         </div>
 
@@ -214,7 +214,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
 
                                     <section>
                                         <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-(--cl-accent-text)">
-                                            <Package className="h-3.5 w-3.5" />
+                                            <Package className="h-3.5 w-3.5 text-slate-600" />
                                             Part Identity
                                         </p>
                                         <div className="divide-y divide-(--cl-border) rounded-lg border border-(--cl-border) bg-(--cl-surface-3) px-3">
@@ -230,7 +230,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
 
                                     <section>
                                         <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-(--cl-accent-text)">
-                                            <Tag className="h-3.5 w-3.5" />
+                                            <Tag className="h-3.5 w-3.5 text-slate-600" />
                                             Pricing &amp; Tax
                                         </p>
                                         <div className="divide-y divide-(--cl-border) rounded-lg border border-(--cl-border) bg-(--cl-surface-3) px-3">
@@ -243,7 +243,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
 
                                     <section>
                                         <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-(--cl-accent-text)">
-                                            <MapPin className="h-3.5 w-3.5" />
+                                            <MapPin className="h-3.5 w-3.5 text-indigo-600" />
                                             Storage
                                         </p>
                                         <div className="divide-y divide-(--cl-border) rounded-lg border border-(--cl-border) bg-(--cl-surface-3) px-3">
@@ -373,7 +373,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                                                 <tr key={loc.location_id} className="hover:bg-(--cl-surface-3)">
                                                                     <td className="px-3 py-2 text-(--cl-text)">
                                                                         <span className="flex items-center gap-1.5">
-                                                                            <MapPin className="h-3 w-3 text-(--cl-text-muted)" />
+                                                                            <MapPin className="h-3 w-3 text-indigo-600" />
                                                                             {loc.location_name}
                                                                         </span>
                                                                     </td>
@@ -404,7 +404,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                         </div>
                                     ) : history.length === 0 ? (
                                         <div className="flex flex-col items-center justify-center rounded-lg border border-(--cl-border) bg-(--cl-surface-3) px-4 py-10 text-center">
-                                            <Clock className="mb-2 h-8 w-8 text-(--cl-text-muted) opacity-40" />
+                                            <Clock className="mb-2 h-8 w-8 opacity-40 text-orange-600" />
                                             <p className="text-sm text-(--cl-text-muted)">No location history yet</p>
                                         </div>
                                     ) : (
@@ -415,17 +415,17 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                                     <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface-3) p-3">
                                                         <div className="flex items-center justify-between gap-2">
                                                             <span className="flex items-center gap-1 text-xs font-semibold text-(--cl-text)">
-                                                                <MapPin className="h-3 w-3" />
+                                                                <MapPin className="h-3 w-3 text-indigo-600" />
                                                                 {h.location_name}
                                                             </span>
                                                             <span className="flex items-center gap-1 text-xs text-(--cl-text-muted)">
-                                                                <Calendar className="h-3 w-3" />
+                                                                <Calendar className="h-3 w-3 text-orange-600" />
                                                                 {h.transaction_date}
                                                             </span>
                                                         </div>
                                                         {h.ref_no && (
                                                             <p className="mt-1 flex items-center gap-1 text-xs text-(--cl-text-muted)">
-                                                                <Hash className="h-3 w-3" />
+                                                                <Hash className="h-3 w-3 text-slate-600" />
                                                                 {h.ref_no}
                                                             </p>
                                                         )}

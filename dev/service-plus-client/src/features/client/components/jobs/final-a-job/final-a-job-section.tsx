@@ -32,6 +32,7 @@ import {
 } from "./final-a-job-schema";
 import { PAGE_SIZE } from "./final-a-job-helpers";
 import { finalizeJobSave } from "./finalize-job-save";
+import { sendWhatsappCompletion } from "../send-whatsapp-completion";
 import { TargetNotAppliedDialog } from "./target-not-applied-dialog";
 import { FinalJobForm } from "./final-job-form";
 import { PendingJobsGrid } from "./pending-jobs-grid";
@@ -169,6 +170,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
     const [selectedDivisionId, setSelectedDivisionId] = useState<number | null>(null);
     const [loadingDetail, setLoadingDetail] = useState<number | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
 
     // Unified editable parts
     const [partLines, setPartLines] = useState<EditablePartLine[]>([]);
@@ -821,6 +823,27 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
         void loadFinalizedData();
     }
 
+    // ── Send WhatsApp completion message ────────────────────────────────────
+    async function handleSendWhatsapp() {
+        if (!selectedJob || !dbName || !schema || !branchId) return;
+        setSendingWhatsapp(true);
+        try {
+            const results = await sendWhatsappCompletion(dbName, schema, branchId, [selectedJob.id]);
+            const result = results[0];
+            if (!result) {
+                toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
+            } else if (result.status === "SENT") {
+                toast.success(MESSAGES.SUCCESS_WHATSAPP_SENT);
+            } else {
+                toast.error(result.error || MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
+            }
+        } catch {
+            toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
+        } finally {
+            setSendingWhatsapp(false);
+        }
+    }
+
     // const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     // ─── Final sub-view ───────────────────────────────────────────────────────
@@ -833,6 +856,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                 selectedRow={selectedRow}
                 receivedTotal={receivedTotal}
                 submitting={submitting}
+                sendingWhatsapp={sendingWhatsapp}
                 loadingDetail={loadingDetail !== null}
                 selectedDivisionId={selectedDivisionId}
                 division={division}
@@ -859,6 +883,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                 setViewJobId={setViewJobId}
                 onBack={handleBack}
                 onSave={handleSaveFinal}
+                onSendWhatsapp={handleSendWhatsapp}
                 onRefresh={() => handleOpenFinal(selectedRow)}
                 onReset={handleReset}
                 onAddPart={addPartLine}
@@ -895,13 +920,13 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                             variant="outline"
                             onClick={onBack}
                         >
-                            <ArrowLeft className="h-4 w-4" />
+                            <ArrowLeft className="h-4 w-4 text-muted-foreground" />
                             Back
                         </Button>
                     )}
                     <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                            <CheckCircle2 className="h-4 w-4" />
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                         </div>
                         <div className="flex items-baseline gap-2">
                             <h1 className="text-lg font-bold text-(--cl-text)">Final a Job</h1>

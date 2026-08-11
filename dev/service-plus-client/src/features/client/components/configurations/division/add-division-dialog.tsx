@@ -387,7 +387,7 @@ export const AddDivisionDialog = ({
                                                         <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
                                                     )}
                                                     {!checkingCode && codeTaken === false && !errors.code && (
-                                                        <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                                        <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
                                                     )}
                                                 </div>
                                                 <FieldError message={errors.code?.message} />
@@ -411,7 +411,7 @@ export const AddDivisionDialog = ({
                                                     <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
                                                 )}
                                                 {!checkingName && nameTaken === false && !errors.name && (
-                                                    <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                                    <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
                                                 )}
                                             </div>
                                             <FieldError message={errors.name?.message} />
@@ -625,7 +625,7 @@ export const AddDivisionDialog = ({
 
                                     {/* ── Money Receipt ── */}
                                     <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
-                                        <SectionLabel icon={<Receipt className="h-3.5 w-3.5" />} iconClass="bg-emerald-100 text-emerald-600">Money Receipt</SectionLabel>
+                                        <SectionLabel icon={<Receipt className="h-3.5 w-3.5 text-green-600" />} iconClass="bg-emerald-100 text-emerald-600">Money Receipt</SectionLabel>
                                         <div className="mt-3 grid grid-cols-2 gap-3">
                                             <div className="flex flex-col gap-1.5">
                                                 <Label htmlFor="dv_r_debit" className="text-xs">Debit A/c ID</Label>
@@ -656,7 +656,7 @@ export const AddDivisionDialog = ({
 
                                     {/* ── Purchase Invoice ── */}
                                     <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 shadow-sm">
-                                        <SectionLabel icon={<ShoppingCart className="h-3.5 w-3.5" />} iconClass="bg-violet-100 text-violet-600">Purchase Invoice</SectionLabel>
+                                        <SectionLabel icon={<ShoppingCart className="h-3.5 w-3.5 text-green-600" />} iconClass="bg-violet-100 text-violet-600">Purchase Invoice</SectionLabel>
                                         <div className="mt-3 grid grid-cols-2 gap-3">
                                             <div className="flex flex-col gap-1.5">
                                                 <Label htmlFor="dv_pi_debit" className="text-xs">Debit A/c ID</Label>
@@ -725,7 +725,7 @@ export const AddDivisionDialog = ({
 
                                     {/* ── Sales Invoice ── */}
                                     <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
-                                        <SectionLabel icon={<Tag className="h-3.5 w-3.5" />} iconClass="bg-amber-100 text-amber-600">Sales Invoice</SectionLabel>
+                                        <SectionLabel icon={<Tag className="h-3.5 w-3.5 text-slate-600" />} iconClass="bg-amber-100 text-amber-600">Sales Invoice</SectionLabel>
                                         <div className="mt-3 grid grid-cols-2 gap-3">
                                             <div className="flex flex-col gap-1.5">
                                                 <Label htmlFor="dv_si_debit" className="text-xs">Debit A/c ID</Label>
@@ -808,7 +808,7 @@ export const AddDivisionDialog = ({
 
                                     {/* ── Job Invoice ── */}
                                     <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 shadow-sm">
-                                        <SectionLabel icon={<Wrench className="h-3.5 w-3.5" />} iconClass="bg-teal-100 text-teal-600">Job Invoice</SectionLabel>
+                                        <SectionLabel icon={<Wrench className="h-3.5 w-3.5 text-blue-600" />} iconClass="bg-teal-100 text-teal-600">Job Invoice</SectionLabel>
                                         <div className="mt-3 grid grid-cols-2 gap-3">
                                             <div className="flex flex-col gap-1.5">
                                                 <Label htmlFor="dv_ji_debit" className="text-xs">Debit A/c ID</Label>

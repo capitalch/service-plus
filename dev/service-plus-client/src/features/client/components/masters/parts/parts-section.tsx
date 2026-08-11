@@ -293,7 +293,7 @@ export const PartsSection = () => {
                             variant="outline"
                             onClick={() => selectedBrand && loadParts(selectedBrand, page, searchQ)}
                         >
-                            <RefreshCwIcon className="h-3.5 w-3.5" />
+                            <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
                             Refresh
                         </Button>
                         <Button
@@ -314,7 +314,7 @@ export const PartsSection = () => {
                             variant="outline"
                             onClick={() => setCleanUpOpen(true)}
                         >
-                            <Trash2Icon className="h-3.5 w-3.5" />
+                            <Trash2Icon className="h-3.5 w-3.5 text-red-600" />
                             Clean Up
                         </Button>
                         <Button
@@ -339,7 +339,7 @@ export const PartsSection = () => {
                         {/* Search + range */}
                         <div className="flex items-center gap-3">
                             <div className="relative flex-1">
-                                <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                                <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                                 <Input
                                     className="h-8 pl-8 text-sm"
                                     disabled={partsLoading}
@@ -353,7 +353,7 @@ export const PartsSection = () => {
                                     type="button"
                                     onClick={() => setSearch("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                             </div>
@@ -460,7 +460,7 @@ export const PartsSection = () => {
                                                                         className="cursor-pointer text-sky-600 focus:text-sky-600"
                                                                         onClick={() => setEditPart(part)}
                                                                     >
-                                                                        <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
+                                                                        <PencilIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
                                                                         Edit
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator />
@@ -486,7 +486,7 @@ export const PartsSection = () => {
                                                                         className="cursor-pointer text-red-600 focus:text-red-600"
                                                                         onClick={() => setDeletePart(part)}
                                                                     >
-                                                                        <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
+                                                                        <Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />
                                                                         Delete
                                                                     </DropdownMenuItem>
                                                                 </DropdownMenuContent>
@@ -514,7 +514,7 @@ export const PartsSection = () => {
                                                 variant="ghost"
                                                 onClick={() => setPage(1)}
                                             >
-                                                <ChevronsLeftIcon className="h-4 w-4" />
+                                                <ChevronsLeftIcon className="h-4 w-4 text-muted-foreground" />
                                             </Button>
                                             <Button
                                                 className="h-7 w-7"
@@ -524,7 +524,7 @@ export const PartsSection = () => {
                                                 variant="ghost"
                                                 onClick={() => setPage(p => p - 1)}
                                             >
-                                                <ChevronLeftIcon className="h-4 w-4" />
+                                                <ChevronLeftIcon className="h-4 w-4 text-muted-foreground" />
                                             </Button>
                                             <Button
                                                 className="h-7 w-7"
@@ -534,7 +534,7 @@ export const PartsSection = () => {
                                                 variant="ghost"
                                                 onClick={() => setPage(p => p + 1)}
                                             >
-                                                <ChevronRightIcon className="h-4 w-4" />
+                                                <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
                                             </Button>
                                             <Button
                                                 className="h-7 w-7"
@@ -544,7 +544,7 @@ export const PartsSection = () => {
                                                 variant="ghost"
                                                 onClick={() => setPage(totalPages)}
                                             >
-                                                <ChevronsRightIcon className="h-4 w-4" />
+                                                <ChevronsRightIcon className="h-4 w-4 text-muted-foreground" />
                                             </Button>
                                         </div>
                                     </div>

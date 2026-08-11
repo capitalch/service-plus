@@ -15,7 +15,7 @@ export function LineAddDeleteActions({ onAdd, onDelete, disableDelete }: LineAdd
                 onClick={onAdd}
                 title="Add row below"
             >
-                <PlusCircle className="h-7 w-7" strokeWidth={2.5} />
+                <PlusCircle className="h-7 w-7 text-emerald-600" strokeWidth={2.5} />
             </button>
             <button
                 type="button"
@@ -24,7 +24,7 @@ export function LineAddDeleteActions({ onAdd, onDelete, disableDelete }: LineAdd
                 onClick={onDelete}
                 title="Remove line"
             >
-                <XCircle className="h-7 w-7" strokeWidth={2.5} />
+                <XCircle className="h-7 w-7 text-red-600" strokeWidth={2.5} />
             </button>
         </>
     );

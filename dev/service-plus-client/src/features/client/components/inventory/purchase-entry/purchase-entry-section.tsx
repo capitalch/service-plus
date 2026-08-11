@@ -521,7 +521,7 @@ export const PurchaseEntrySection = () => {
                 {/* Title */}
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <FileText className="h-4 w-4" />
+                        <FileText className="h-4 w-4 text-slate-600" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
                         <h1 className="text-lg font-bold text-(--cl-text) truncate">
@@ -539,7 +539,7 @@ export const PurchaseEntrySection = () => {
                                 {isGstRegistered ? (
                                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                                 ) : (
-                                    <XCircle className="h-3.5 w-3.5 text-amber-600" />
+                                    <XCircle className="h-3.5 w-3.5 text-red-600" />
                                 )}
                                 <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${
                                     isGstRegistered ? 'text-emerald-700' : 'text-amber-700'
@@ -624,7 +624,7 @@ export const PurchaseEntrySection = () => {
                         onClick={handleReset}
                         disabled={form.formState.isSubmitting}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 text-blue-600 ${form.formState.isSubmitting ? 'animate-spin' : ''}`} />
                         Reset
                     </Button>
                     <Button
@@ -700,7 +700,7 @@ export const PurchaseEntrySection = () => {
                             </select>
                         )}
                         <div className="relative flex-1 sm:max-w-xs">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                             <Input
                                 className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
                                 placeholder="Invoice or Supplier…"
@@ -713,7 +713,7 @@ export const PurchaseEntrySection = () => {
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                         </div>
@@ -724,7 +724,7 @@ export const PurchaseEntrySection = () => {
                                 onClick={handleDownloadAllPdf}
                                 disabled={invoices.length === 0}
                             >
-                                <FileDown className="h-4 w-4" />
+                                <FileDown className="h-4 w-4 text-slate-600" />
                                 Save as PDF
                             </Button>
                             <Button
@@ -733,7 +733,7 @@ export const PurchaseEntrySection = () => {
                                 onClick={handleDownloadAllExcel}
                                 disabled={invoices.length === 0}
                             >
-                                <FileSpreadsheet className="h-4 w-4" />
+                                <FileSpreadsheet className="h-4 w-4 text-slate-600" />
                                 Export Excel
                             </Button>
                             <Button
@@ -743,7 +743,7 @@ export const PurchaseEntrySection = () => {
                                 variant="outline"
                                 onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, viewDivisionId); }}
                             >
-                                <RefreshCw className="mr-1.5 h-3 w-3" />
+                                <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" />
                                 Refresh
                             </Button>
                         </div>
@@ -869,7 +869,7 @@ export const PurchaseEntrySection = () => {
                                                                     className="h-8 w-8 p-0 hover:bg-(--cl-accent)/15 dark:hover:bg-(--cl-accent)/20 transition-all duration-200"
                                                                     variant="ghost"
                                                                 >
-                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                    <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                                                                     <span className="sr-only">Open menu</span>
                                                                 </Button>
                                                             </DropdownMenuTrigger>
@@ -878,14 +878,14 @@ export const PurchaseEntrySection = () => {
                                                                     className="flex items-center gap-2 cursor-pointer focus:bg-sky-500/20 focus:text-sky-400 dark:focus:bg-sky-400/20 dark:focus:text-sky-300"
                                                                     onClick={() => setViewInvoice(inv)}
                                                                 >
-                                                                    <Eye className="h-4 w-4" />
+                                                                    <Eye className="h-4 w-4 text-muted-foreground" />
                                                                     <span>View Details</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer focus:bg-sky-500/20 focus:text-sky-400 dark:focus:bg-sky-400/20 dark:focus:text-sky-300"
                                                                     onClick={() => setPdfPreviewInvoice(inv)}
                                                                 >
-                                                                    <FileDown className="h-4 w-4" />
+                                                                    <FileDown className="h-4 w-4 text-slate-600" />
                                                                     <span>Invoice PDF</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
@@ -895,7 +895,7 @@ export const PurchaseEntrySection = () => {
                                                                 >
                                                                     {excelLoadingId === inv.id
                                                                         ? <Loader2 className="h-4 w-4 animate-spin" />
-                                                                        : <FileSpreadsheet className="h-4 w-4" />
+                                                                        : <FileSpreadsheet className="h-4 w-4 text-slate-600" />
                                                                     }
                                                                     <span>Download Excel</span>
                                                                 </DropdownMenuItem>
@@ -910,7 +910,7 @@ export const PurchaseEntrySection = () => {
                                                                         setSelectedBrand(String(inv.brand_id)); setEditInvoice(inv); setMode('new');
                                                                     }}
                                                                 >
-                                                                    <Pencil className="h-4 w-4" />
+                                                                    <Pencil className="h-4 w-4 text-blue-600" />
                                                                     <span>Edit Invoice</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
@@ -923,7 +923,7 @@ export const PurchaseEntrySection = () => {
                                                                         setDeleteId(inv.id);
                                                                     }}
                                                                 >
-                                                                    <Trash2 className="h-4 w-4" />
+                                                                    <Trash2 className="h-4 w-4 text-red-600" />
                                                                     <span>Delete Invoice</span>
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
@@ -977,7 +977,7 @@ export const PurchaseEntrySection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(1)}
                                 >
-                                    <ChevronsLeftIcon className="h-4 w-4" />
+                                    <ChevronsLeftIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button
                                     className="h-7 w-7"
@@ -987,7 +987,7 @@ export const PurchaseEntrySection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(p => p - 1)}
                                 >
-                                    <ChevronLeftIcon className="h-4 w-4" />
+                                    <ChevronLeftIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button
                                     className="h-7 w-7"
@@ -997,7 +997,7 @@ export const PurchaseEntrySection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(p => p + 1)}
                                 >
-                                    <ChevronRightIcon className="h-4 w-4" />
+                                    <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button
                                     className="h-7 w-7"
@@ -1007,7 +1007,7 @@ export const PurchaseEntrySection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(totalPages)}
                                 >
-                                    <ChevronsRightIcon className="h-4 w-4" />
+                                    <ChevronsRightIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                             </div>
                         </div>

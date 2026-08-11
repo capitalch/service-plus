@@ -320,7 +320,7 @@ export const SeedRolesDialog = ({
 					{!checking && step === "error" && (
 						<div className="flex flex-col gap-4">
 							<div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-								<AlertTriangleIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
+								<AlertTriangleIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
 								<p className="text-sm text-red-700">{MESSAGES.ERROR_SEED_ACCESS_RIGHTS_FAILED}</p>
 							</div>
 							<div className="flex justify-end gap-2">
@@ -350,7 +350,7 @@ export const SeedRolesDialog = ({
 					{!checking && step === "success" && (
 						<div className="flex flex-col items-center py-6 text-center">
 							<div className="mb-4 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600">
-								<PartyPopper className="h-8 w-8 text-white" />
+								<PartyPopper className="h-8 w-8 text-emerald-600" />
 							</div>
 							<h3 className="mb-2 text-lg font-bold text-slate-800">
 								{accessRightsAlreadyExisted ? "Access Rights Upgraded!" : "Access Rights Seeded!"}

@@ -127,7 +127,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
                     className="absolute top-3 right-3 z-20 rounded-md p-1.5 text-white/70 hover:text-white hover:bg-white/15 transition-colors cursor-pointer"
                     title="Close"
                 >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4 text-muted-foreground" />
                 </button>
 
                 {/* ── Accent header ─────────────────────────────────────────── */}
@@ -141,7 +141,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
 
                     <div className="relative flex items-center gap-3 pr-8">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20">
-                            <Users className="h-4.5 w-4.5 text-white" />
+                            <Users className="h-4.5 w-4.5 text-purple-600" />
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -162,7 +162,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
                         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
                             {loading
                                 ? <Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--cl-accent, #007acc)' }} />
-                                : <Search className="h-4 w-4 text-zinc-400" />}
+                                : <Search className="h-4 w-4 text-slate-500" />}
                         </span>
 
                         <Input
@@ -181,7 +181,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
                                 className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
                                 title="Reset search"
                             >
-                                <X className="h-3.5 w-3.5" />
+                                <X className="h-3.5 w-3.5 text-muted-foreground" />
                             </button>
                         )}
                     </div>
@@ -202,7 +202,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
                     {showIdleHint && (
                         <div className="flex flex-col items-center gap-3 py-14">
                             <div className="rounded-full bg-zinc-100 p-4">
-                                <Users className="h-6 w-6 text-zinc-400" />
+                                <Users className="h-6 w-6 text-purple-600" />
                             </div>
                             <p className="text-sm font-medium text-zinc-500">Find a customer</p>
                             <p className="text-xs text-zinc-400">Type a name, mobile number, or GSTIN</p>
@@ -212,7 +212,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
                     {/* Too few chars */}
                     {showMinHint && (
                         <div className="flex flex-col items-center gap-2 py-12">
-                            <Search className="h-5 w-5 text-zinc-300" />
+                            <Search className="h-5 w-5 text-slate-500" />
                             <p className="text-sm text-zinc-500">
                                 Enter at least <span className="font-semibold">{MIN_CHARS}</span> characters to search
                             </p>
@@ -231,7 +231,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
                     {showEmpty && (
                         <div className="flex flex-col items-center gap-3 py-14">
                             <div className="rounded-full bg-zinc-100 p-4">
-                                <Search className="h-6 w-6 text-zinc-300" />
+                                <Search className="h-6 w-6 text-slate-500" />
                             </div>
                             <p className="text-sm font-medium text-zinc-500">No customers found</p>
                             <p className="text-xs text-zinc-400">
@@ -268,24 +268,24 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
                             {/* Line 2: mobile · alt mobile · email · gstin · state */}
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-zinc-500">
                                 <span className="flex items-center gap-1">
-                                    <Phone className="h-3 w-3 shrink-0" />
+                                    <Phone className="h-3 w-3 shrink-0 text-indigo-600" />
                                     <span className="font-mono">{row.mobile}</span>
                                 </span>
                                 {row.alternate_mobile && (
                                     <span className="flex items-center gap-1">
-                                        <Phone className="h-3 w-3 shrink-0 text-zinc-300" />
+                                        <Phone className="h-3 w-3 shrink-0 text-indigo-600" />
                                         <span className="font-mono">{row.alternate_mobile}</span>
                                     </span>
                                 )}
                                 {row.email && (
                                     <span className="flex items-center gap-1">
-                                        <Mail className="h-3 w-3 shrink-0" />
+                                        <Mail className="h-3 w-3 shrink-0 text-indigo-600" />
                                         <span>{row.email}</span>
                                     </span>
                                 )}
                                 {row.gstin && (
                                     <span className="flex items-center gap-1">
-                                        <Tag className="h-3 w-3 shrink-0" />
+                                        <Tag className="h-3 w-3 shrink-0 text-slate-600" />
                                         <span className="font-mono">{row.gstin}</span>
                                     </span>
                                 )}
@@ -297,7 +297,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
                             {/* Line 3: address + landmark */}
                             {(row.address_line1 || row.address_line2 || row.landmark || row.city || row.postal_code) && (
                                 <p className="mt-1 flex items-start gap-1 text-xs text-zinc-400 truncate">
-                                    <MapPin className="mt-px h-3 w-3 shrink-0" />
+                                    <MapPin className="mt-px h-3 w-3 shrink-0 text-indigo-600" />
                                     {[row.address_line1, row.address_line2, row.landmark, row.city, row.postal_code]
                                         .filter(Boolean)
                                         .join(", ")}
@@ -307,7 +307,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
                             {/* Line 4: remarks */}
                             {row.remarks && (
                                 <p className="mt-1 flex items-start gap-1 text-xs text-zinc-400 truncate">
-                                    <MessageSquare className="mt-px h-3 w-3 shrink-0" />
+                                    <MessageSquare className="mt-px h-3 w-3 shrink-0 text-indigo-600" />
                                     {row.remarks}
                                 </p>
                             )}

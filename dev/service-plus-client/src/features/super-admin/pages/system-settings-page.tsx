@@ -130,7 +130,7 @@ export const SystemSettingsPage = () => {
                 </div>
 
                 <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
-                    <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                    <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
                     <div className="text-sm text-amber-800">
                         <span className="font-semibold">Read-only view.</span>{" "}
                         To change these settings, modify{" "}

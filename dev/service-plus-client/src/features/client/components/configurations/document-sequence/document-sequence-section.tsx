@@ -204,7 +204,7 @@ export const DocumentSequenceSection = () => {
             <div className="flex flex-col gap-4 border-b border-(--cl-border) pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-(--cl-accent)/10">
-                        <FileText className="h-5 w-5 text-(--cl-accent)" />
+                        <FileText className="h-5 w-5 text-slate-600" />
                     </div>
                     <div>
                         <h2 className="text-base font-semibold text-(--cl-text)">Numbering / Auto Series</h2>

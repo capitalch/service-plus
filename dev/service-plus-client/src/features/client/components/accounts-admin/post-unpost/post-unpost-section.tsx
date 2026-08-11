@@ -151,7 +151,7 @@ export function PostUnpostSection() {
             {/* Header */}
             <div className="flex items-center gap-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-2">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                    <BookCheck className="h-4 w-4" />
+                    <BookCheck className="h-4 w-4 text-emerald-600" />
                 </div>
                 <h1 className="text-lg font-bold text-(--cl-text)">Post / Unpost</h1>
             </div>
@@ -174,7 +174,7 @@ export function PostUnpostSection() {
                 >
                     {saving
                         ? <><Loader2 className="h-4 w-4 animate-spin" /><span>Saving…</span></>
-                        : <><Save className="h-4 w-4" /><span>Save{activePending.size > 0 ? ` (${activePending.size})` : ''}</span></>
+                        : <><Save className="h-4 w-4 text-emerald-600" /><span>Save{activePending.size > 0 ? ` (${activePending.size})` : ''}</span></>
                     }
                 </button>
                 </div>

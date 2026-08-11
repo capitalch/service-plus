@@ -182,7 +182,7 @@ export function AccountsPostingSection() {
             {/* Header */}
             <div className="flex items-center gap-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-2">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                    <BookCheck className="h-4 w-4" />
+                    <BookCheck className="h-4 w-4 text-emerald-600" />
                 </div>
                 <h1 className="text-lg font-bold text-(--cl-text)">Accounts Posting</h1>
                 <button
@@ -190,7 +190,7 @@ export function AccountsPostingSection() {
                     onClick={() => { if (branchId) void loadCounts(branchId); }}
                     className="ml-auto flex cursor-pointer items-center gap-1.5 rounded-md border border-(--cl-border) px-3 py-1.5 text-sm font-medium text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text) disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                    <RefreshCw className={`h-3.5 w-3.5 ${loadingCounts ? "animate-spin" : ""}`} />
+                    <RefreshCw className={`h-3.5 w-3.5 text-blue-600 ${loadingCounts ? "animate-spin" : ""}`} />
                     Refresh
                 </button>
             </div>
@@ -270,7 +270,7 @@ export function AccountsPostingSection() {
                         {/* Persistent failure alert — stays visible after the toast disappears */}
                         {postAlert && (
                             <Alert variant={postAlert.variant}>
-                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTriangle className="h-4 w-4 text-amber-600" />
                                 <AlertTitle>{postAlert.message}</AlertTitle>
                                 {postAlert.details.length > 0 && (
                                     <AlertDescription>
@@ -309,7 +309,7 @@ export function AccountsPostingSection() {
                             })() : (
                                 <p className="text-sm">
                                     {grandTotal === 0
-                                        ? <span className="flex items-center gap-1.5 font-medium text-emerald-600"><CheckCircle2 className="h-4 w-4" /> Everything is posted</span>
+                                        ? <span className="flex items-center gap-1.5 font-medium text-emerald-600"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Everything is posted</span>
                                         : <span className="text-(--cl-text-muted)"><span className="font-bold text-(--cl-text)">{postableTotal}</span> record{postableTotal !== 1 ? "s" : ""} ready to post</span>}
                                 </p>
                             )}
@@ -321,7 +321,7 @@ export function AccountsPostingSection() {
                             >
                                 {isPosting
                                     ? <><Loader2 className="h-5 w-5 animate-spin" /><span>Posting…</span></>
-                                    : <><UploadCloud className="h-5 w-5" /><span>Post data to Trace Plus</span></>}
+                                    : <><UploadCloud className="h-5 w-5 text-slate-600" /><span>Post data to Trace Plus</span></>}
                             </button>
                         </div>
                     </div>

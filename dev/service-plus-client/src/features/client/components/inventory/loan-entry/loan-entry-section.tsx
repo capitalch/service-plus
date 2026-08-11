@@ -360,7 +360,7 @@ export const LoanEntrySection = () => {
                 {/* Title */}
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <FileText className="h-4 w-4" />
+                        <FileText className="h-4 w-4 text-slate-600" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
                         <h1 className="text-lg font-bold text-(--cl-text) truncate">
@@ -407,7 +407,7 @@ export const LoanEntrySection = () => {
                         variant="ghost"
                         onClick={handleReset}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 text-blue-600 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
                         Reset
                     </Button>
                     <Button
@@ -454,7 +454,7 @@ export const LoanEntrySection = () => {
                             />
                         </div>
                         <div className="relative flex-1 sm:max-w-xs">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                             <Input
                                 className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
                                 placeholder="Loan To, Ref #…"
@@ -467,7 +467,7 @@ export const LoanEntrySection = () => {
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
-                                    <X className="h-2.5 w-2.5" />
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
                                 </button>
                             )}
                         </div>
@@ -479,7 +479,7 @@ export const LoanEntrySection = () => {
                                 variant="outline"
                                 onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
                             >
-                                <RefreshCw className="mr-1.5 h-3 w-3" />
+                                <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" />
                                 Refresh
                             </Button>
                         </div>
@@ -559,7 +559,7 @@ export const LoanEntrySection = () => {
                                                                     className="h-8 w-8 p-0 hover:bg-(--cl-accent)/15 dark:hover:bg-(--cl-accent)/20 transition-all duration-200"
                                                                     variant="ghost"
                                                                 >
-                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                    <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                                                                     <span className="sr-only">Open menu</span>
                                                                 </Button>
                                                             </DropdownMenuTrigger>
@@ -568,14 +568,14 @@ export const LoanEntrySection = () => {
                                                                     className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
                                                                     onClick={() => { setEditLoan(loan); setSelectedBrand(String(loan.brand_id)); setMode("new"); }}
                                                                 >
-                                                                    <Pencil className="h-4 w-4" />
+                                                                    <Pencil className="h-4 w-4 text-blue-600" />
                                                                     <span>Edit</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
                                                                     onClick={() => setDeleteId(loan.id)}
                                                                 >
-                                                                    <Trash2 className="h-4 w-4" />
+                                                                    <Trash2 className="h-4 w-4 text-red-600" />
                                                                     <span>Delete</span>
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
@@ -621,7 +621,7 @@ export const LoanEntrySection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(1)}
                                 >
-                                    <ChevronsLeftIcon className="h-4 w-4" />
+                                    <ChevronsLeftIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button
                                     className="h-7 w-7"
@@ -631,7 +631,7 @@ export const LoanEntrySection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(p => p - 1)}
                                 >
-                                    <ChevronLeftIcon className="h-4 w-4" />
+                                    <ChevronLeftIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button
                                     className="h-7 w-7"
@@ -641,7 +641,7 @@ export const LoanEntrySection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(p => p + 1)}
                                 >
-                                    <ChevronRightIcon className="h-4 w-4" />
+                                    <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                                 <Button
                                     className="h-7 w-7"
@@ -651,7 +651,7 @@ export const LoanEntrySection = () => {
                                     variant="ghost"
                                     onClick={() => setPage(totalPages)}
                                 >
-                                    <ChevronsRightIcon className="h-4 w-4" />
+                                    <ChevronsRightIcon className="h-4 w-4 text-muted-foreground" />
                                 </Button>
                             </div>
                         </div>

@@ -234,7 +234,7 @@ export const OrphanBuSchemasDialog = ({
                                                             setRowState(s.schema_name, { expanded: true })
                                                         }
                                                     >
-                                                        <Trash2Icon className="h-3.5 w-3.5" />
+                                                        <Trash2Icon className="h-3.5 w-3.5 text-red-600" />
                                                         Delete
                                                     </Button>
                                                 )}
@@ -311,7 +311,7 @@ export const OrphanBuSchemasDialog = ({
                         variant="outline"
                         onClick={fetchOrphanSchemas}
                     >
-                        <RefreshCwIcon className="h-3.5 w-3.5" />
+                        <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
                         Refresh
                     </Button>
                     <div className="flex flex-1 justify-end gap-2">
