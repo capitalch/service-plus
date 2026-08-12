@@ -68,7 +68,7 @@ export const WarrantyRangeTabs = ({ children, className, fyStartMonth, onChange,
                     <button
                         key={t.key}
                         className={cn(
-                            "rounded px-3 py-1.5 text-xs font-semibold transition-colors",
+                            "cursor-pointer rounded px-3 py-1.5 text-xs font-semibold transition-colors",
                             activeKey === t.key
                                 ? "bg-(--cl-accent) text-white"
                                 : "text-(--cl-text-muted) hover:text-(--cl-text)",

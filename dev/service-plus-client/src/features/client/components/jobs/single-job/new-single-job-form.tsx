@@ -54,6 +54,8 @@ type Props = {
     onEditJob?: (job: JobControlRow) => void;
     onPrintPdf?: (job: JobControlRow) => void;
     onAttachFiles?: (jobNo: string, jobId: number) => void;
+    onWhatsapp?: (job: JobControlRow) => void;
+    isSendingWhatsapp?: (jobId: number) => boolean;
     refreshTrigger?: number;
 };
 
@@ -63,7 +65,7 @@ const labelCls = "text-xs font-extrabold text-(--cl-text) uppercase tracking-wid
 
 export function NewSingleJobForm({
     branchId, divisions, jobStatuses, jobTypes, receiveMannners, receiveConditions, models, brands, products, customerTypes, masterStates, editJob,
-    onRefreshModels, onViewJob, onEditJob, onPrintPdf, onAttachFiles, refreshTrigger,
+    onRefreshModels, onViewJob, onEditJob, onPrintPdf, onAttachFiles, onWhatsapp, isSendingWhatsapp, refreshTrigger,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
@@ -154,6 +156,8 @@ export function NewSingleJobForm({
                         onEdit={onEditJob}
                         onPrint={onPrintPdf}
                         onAttach={onAttachFiles}
+                        onWhatsapp={onWhatsapp}
+                        isSendingWhatsapp={isSendingWhatsapp}
                         refreshTrigger={refreshTrigger}
                     />
 

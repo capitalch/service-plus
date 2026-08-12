@@ -303,18 +303,16 @@ function ReportsExplorer() {
             </CollapsibleGroup>
             <CollapsibleGroup label="Job Reports">
                 <TreeItem icon={History} iconColor="text-orange-600"       label="Event Tracking" />
-                <TreeItem icon={ClipboardList} iconColor="text-slate-600" label="Job Intake Summary" />
-                <TreeItem icon={Wrench} iconColor="text-blue-600"        label="Jobs Repaired (OK)" />
-                <TreeItem icon={Truck} iconColor="text-orange-600"         label="Jobs Delivered (OK)" />
+                <TreeItem icon={ClipboardList} iconColor="text-slate-600" label="Jobs Summary" />
                 <TreeItem icon={FileText} iconColor="text-slate-600"      label="Delivered Jobs — Detailed" />
                 <TreeItem icon={Activity} iconColor="text-sky-600"      label="Job Transaction Ledger" />
                 <TreeItem icon={Timer} iconColor="text-orange-600"         label="Job Pipeline / Aging" />
                 <TreeItem icon={LineChart} iconColor="text-green-600"     label="Job Status Trend" />
             </CollapsibleGroup>
             <CollapsibleGroup label="Warranty Reports">
-                <TreeItem icon={ShieldCheck} iconColor="text-violet-600" label="Warranty Repairs & Parts Value" />
-                <TreeItem icon={FileText}    iconColor="text-slate-600" label="Warranty Parts Consumption Detail" />
-                <TreeItem icon={LineChart}   iconColor="text-green-600" label="Warranty Trend (6-month)" />
+                <TreeItem icon={ShieldCheck} iconColor="text-violet-600" label="Warranty Jobs" />
+                <TreeItem icon={FileText}    iconColor="text-slate-600" label="Warranty Parts" />
+                <TreeItem icon={LineChart}   iconColor="text-green-600" label="Warranty Trend" />
             </CollapsibleGroup>
             <CollapsibleGroup label="Financial Reports" defaultOpen={false}>
                 <TreeItem icon={DollarSign} iconColor="text-green-600" label="Profit Summary" />

@@ -1,11 +1,15 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon, Eye, Printer, Paperclip, FileText, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import type { JobControlRow } from "@/features/client/types/job";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
+import { MESSAGES } from "@/constants/messages";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { isValidMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema, selectCurrentBranch, selectAvailableDivisions } from "@/store/context-slice";
@@ -15,6 +19,8 @@ type QuickInfoCardProps = {
     onPrint?: (job: JobControlRow) => void;
     onAttach?: (jobNo: string, jobId: number) => void;
     onEdit?: (job: JobControlRow) => void;
+    onWhatsapp?: (job: JobControlRow) => void;
+    isSendingWhatsapp?: (jobId: number) => boolean;
     refreshTrigger?: number;
 };
 
@@ -22,7 +28,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 
 const JOB_COMMON_ARGS = { search: "", from_date: "2000-01-01", to_date: "3000-12-31", limit: 1 };
 
-export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refreshTrigger }: QuickInfoCardProps) {
+export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, onWhatsapp, isSendingWhatsapp, refreshTrigger }: QuickInfoCardProps) {
     const dbName    = useAppSelector(selectDbName);
     const schema    = useAppSelector(selectSchema);
     const branch    = useAppSelector(selectCurrentBranch);
@@ -324,6 +330,19 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
                         >
                             <Paperclip className="h-3.5 w-3.5 mr-1.5" />
                             Attach
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 px-3 text-[11px] font-semibold bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                            disabled={!WHATSAPP_FEATURE_ENABLED || !isValidMobile(currentJob.mobile) || !!isSendingWhatsapp?.(currentJob.id)}
+                            title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : !isValidMobile(currentJob.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                            onClick={() => onWhatsapp?.(currentJob)}
+                        >
+                            {isSendingWhatsapp?.(currentJob.id)
+                                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                : <WhatsAppIcon className="h-3.5 w-3.5 mr-1.5" />}
+                            Whatsapp
                         </Button>
                     </div>
 

@@ -728,10 +728,15 @@ export const JobControlSection = () => {
                                         </td>
                                         <td className={tdClass}>
                                             <div className="flex flex-col gap-0.5">
-                                                <div className="font-mono font-medium text-(--cl-accent)">
-                                                    {job.job_no}
-                                                    {job.is_closed && (
-                                                        <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                <div className="flex items-center justify-between gap-1.5 font-mono font-medium text-(--cl-accent)">
+                                                    <span>
+                                                        {job.job_no}
+                                                        {job.is_closed && (
+                                                            <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                        )}
+                                                    </span>
+                                                    {job.alternate_job_no && (
+                                                        <span className="shrink-0 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {job.alternate_job_no}</span>
                                                     )}
                                                 </div>
                                                 {isDelivered && (
@@ -739,9 +744,6 @@ export const JobControlSection = () => {
                                                 )}
                                                 {job.is_opening_job && (
                                                     <span className="text-[10.5px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1.5 py-0.5 w-fit">OPENING</span>
-                                                )}
-                                                {job.alternate_job_no && (
-                                                    <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {job.alternate_job_no}</span>
                                                 )}
                                                 {job.purchase_date && (
                                                     <span className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {job.purchase_date}</span>

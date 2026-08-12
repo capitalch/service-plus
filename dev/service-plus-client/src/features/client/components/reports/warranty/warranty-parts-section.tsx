@@ -90,7 +90,7 @@ const COLUMNS: ReportColumnType<WarrantyPartLineType>[] = [
     },
 ];
 
-export const WarrantyPartsConsumptionDetailSection = () => {
+export const WarrantyPartsSection = () => {
     const { fyStartMonth, isReady } = useFiscalSetting();
 
     const initialRange = useMemo<DateRangeType>(
@@ -108,7 +108,7 @@ export const WarrantyPartsConsumptionDetailSection = () => {
     const linesQ = useGenericQuery<WarrantyPartLineType>({
         enabled: isReady,
         sqlArgs: rangeArgs,
-        sqlId:   SQL_MAP.GET_WARRANTY_PARTS_CONSUMPTION_RANGE,
+        sqlId:   SQL_MAP.GET_WARRANTY_PARTS_RANGE,
     });
 
     function handlePdfExport() {
@@ -127,7 +127,7 @@ export const WarrantyPartsConsumptionDetailSection = () => {
                     { align: "right", dataKey: "value", header: "Value", width: 22 },
                     { dataKey: "technician",    header: "Technician", width: 28 },
                 ],
-                fileName:    `warranty-parts-consumption_${rangeArgs.from}_${rangeArgs.to}`,
+                fileName:    `warranty-parts_${rangeArgs.from}_${rangeArgs.to}`,
                 meta:        [
                     { label: "Range", value: `${rangeArgs.from} → ${rangeArgs.to}` },
                     { label: "Lines", value: formatNumber(linesQ.data.length) },
@@ -147,7 +147,7 @@ export const WarrantyPartsConsumptionDetailSection = () => {
                     value:         formatInr(Number(r.line_value)),
                 })),
                 subtitle:    "Line-level parts consumed against in-warranty jobs",
-                title:       "Warranty Parts Consumption — Detail",
+                title:       "Warranty Parts",
                 totalsRow:   {
                     brand: "", consumed_date: "TOTAL", cost: "", job_no: "",
                     part_code: "", part_name: "",
@@ -165,7 +165,7 @@ export const WarrantyPartsConsumptionDetailSection = () => {
     function handleXlsxExport() {
         try {
             exportReportXlsx({
-                fileName: `warranty-parts-consumption_${rangeArgs.from}_${rangeArgs.to}`,
+                fileName: `warranty-parts_${rangeArgs.from}_${rangeArgs.to}`,
                 sheets: [{
                     name: "Parts Consumption",
                     rows: linesQ.data.map(r => ({
@@ -195,7 +195,7 @@ export const WarrantyPartsConsumptionDetailSection = () => {
                 onPrint={() => window.print()}
                 onRefresh={linesQ.refetch}
                 subtitle="Every spare part consumed against an in-warranty job"
-                title="Warranty Parts Consumption — Detail"
+                title="Warranty Parts"
             >
                 <WarrantyRangeTabs
                     fyStartMonth={fyStartMonth}

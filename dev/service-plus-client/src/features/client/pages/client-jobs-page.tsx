@@ -12,6 +12,7 @@ import { JobPipelineSection } from "../components/jobs/job-pipeline/job-pipeline
 import { AccountsPostingSection } from "../components/jobs/accounts-posting/accounts-posting-section";
 import { BatchWarrantySection } from "../components/jobs/batch-warranty-transactions/batch-warranty-section";
 import { CustomerConnectSection } from "../components/jobs/customer-connect/customer-connect-section";
+import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ function JobsContent() {
         case "Deliver Job":
             return <DeliverJobSection />;
         case "Customer Connect":
-            return <CustomerConnectSection />;
+            return WHATSAPP_FEATURE_ENABLED ? <CustomerConnectSection /> : <ComingSoon label="Customer Connect" />;
         case "Accounts Posting":
             return <AccountsPostingSection />;
         case "Job Control":

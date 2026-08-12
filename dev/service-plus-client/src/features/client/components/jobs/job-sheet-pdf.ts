@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 
 import type { JobDetailType, JobTransactionRow } from "@/features/client/types/job";
 import type { DivisionContextType } from "@/features/client/types/division";
+import { isGstDivision } from "@/features/client/types/division";
 import type { JobInvoiceFullRow } from "./deliver-job/deliver-job-schema";
 
 // ── Types used by the full job-info PDF ──────────────────────────────────────
@@ -29,9 +30,10 @@ type JobInfoPaymentRow = {
 // ── Shared "track job" info line (single job sheet + batch job sheet) ─────────
 
 type SingleJobSheetPrintMeta = {
-    clientName?:  string | null;
-    buName?:      string | null;
-    trackJobUrl?: string | null;
+    clientName?:         string | null;
+    buName?:             string | null;
+    trackJobUrl?:        string | null;
+    termsAndConditions?: string | null;
 };
 
 function buildTrackInfoLine(printMeta: SingleJobSheetPrintMeta | undefined, extra: { label: string; value: string }[]): string {
@@ -56,6 +58,31 @@ function fitSingleLineFontSize(doc: jsPDF, text: string, maxWidth: number, start
         doc.setFontSize(size);
     }
     return size;
+}
+
+// Terms & conditions notice — bold italic, full width, hard-clipped to 3 lines (a 4th+
+// line is simply dropped, not shrunk to fit). Used by both the single and batch job sheet
+// builders, each of which anchors it differently (fixed vs. content-relative), so wrapping
+// and drawing are split: callers measure first to know the block's height, then draw at
+// whatever Y that anchoring works out to.
+const PT_PER_MM = 1 / 0.352778;
+
+function wrapTermsAndConditions(doc: jsPDF, text: string, maxWidth: number, fontSize: number): string[] {
+    doc.setFont("helvetica", "bolditalic");
+    doc.setFontSize(fontSize);
+    // Normalize any ₹ back to "Rs" regardless of how it got into the stored setting (e.g.
+    // OS/keyboard autocorrect converting "Rs" while it was being typed into App Settings) —
+    // the printed Job Sheet should never show the symbol.
+    const normalized = text.replace(/₹\s*/g, "Rs ");
+    return (doc.splitTextToSize(normalized, maxWidth) as string[]).slice(0, 3);
+}
+
+function drawTermsAndConditions(doc: jsPDF, lines: string[], x: number, topY: number, fontSize: number, lineHeightMm: number): void {
+    if (lines.length === 0) return;
+    doc.setFont("helvetica", "bolditalic");
+    doc.setFontSize(fontSize);
+    doc.text(lines, x, topY, { lineHeightFactor: (lineHeightMm * PT_PER_MM) / fontSize });
+    doc.setFont("helvetica", "normal");
 }
 
 function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextType | null, branchCode?: string, copies = 1, printMeta?: SingleJobSheetPrintMeta): jsPDF {
@@ -114,7 +141,7 @@ function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextTyp
         doc.setFontSize(13);
         doc.setFont("helvetica", "bold");
         doc.text("JOB SHEET", pageWidth / 2, y + 1, { align: "center" });
-        y += 9;
+        y += 6;
 
         // ── Info Grid ─────────────────────────────────────────────────────────────
         autoTable(doc, {
@@ -154,9 +181,20 @@ function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextTyp
             startY:       y,
             styles:       { cellPadding: 2, fontSize: 9, lineColor: [180, 180, 180], lineWidth: 0.3 },
             theme:        "grid",
+            // Alt Job No is pushed to the right edge of the Job No cell instead of taking its
+            // own row — drawn manually since autoTable can't right-align part of a cell's text.
+            didDrawCell: data => {
+                if (data.row.index === 0 && data.column.index === 1 && job.alternate_job_no) {
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(8);
+                    doc.setTextColor(90, 90, 90);
+                    doc.text(`Alt: ${job.alternate_job_no}`, data.cell.x + data.cell.width - 2, data.cell.y + data.cell.height / 2 + 1, { align: "right" });
+                    doc.setTextColor(0, 0, 0);
+                }
+            },
         });
 
-        y = (doc as any).lastAutoTable.finalY + 5;
+        y = (doc as any).lastAutoTable.finalY + 3;
 
         // ── Problem Reported & Remarks ───────────────────────────────────────────
         const hasRemarks = job.remarks && job.remarks.trim().length > 0;
@@ -172,13 +210,31 @@ function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextTyp
         doc.setFont("helvetica", "normal");
         const splitProblem = doc.splitTextToSize(job.problem_reported || "—", halfWidth);
         doc.text(splitProblem, 15, y);
+        let remarksLineCount = 0;
         if (hasRemarks) {
             const splitRemarks = doc.splitTextToSize(job.remarks!, halfWidth);
             doc.text(splitRemarks, pageWidth / 2, y);
+            remarksLineCount = splitRemarks.length;
         }
+        // Normal 9pt text's default line height (jsPDF's own lineHeightFactor, ~1.15).
+        const contentBottom = y + Math.max(splitProblem.length, remarksLineCount) * 3.65;
 
         // ── Signatures (anchored to bottom of half-A4 area) ──────────────────────
         const sigY = HALF_A4_BOTTOM + yOffset;
+
+        // Terms & conditions — follows directly after Problem Reported/Remarks (no dead
+        // gap above it), but never later than a fixed distance above the signature line,
+        // so unusually long Problem/Remarks text still can't push it into the signature.
+        if (printMeta?.termsAndConditions) {
+            const tncFontSize   = 6.5;
+            const tncLineHeight = 2.4; // mm, baseline-to-baseline
+            const tncLines      = wrapTermsAndConditions(doc, printMeta.termsAndConditions, pageWidth - 30, tncFontSize);
+            const tncBlockSpan  = (tncLines.length - 1) * tncLineHeight;
+            const latestFirstLineY = sigY - 4 - 1 - tncBlockSpan; // 1mm clear of the signature underline
+            const tncFirstLineY    = Math.min(contentBottom + 2, latestFirstLineY);
+            drawTermsAndConditions(doc, tncLines, 15, tncFirstLineY, tncFontSize, tncLineHeight);
+        }
+
         doc.setFontSize(9);
         doc.setDrawColor(180);
         doc.line(15,             sigY - 4, 70,             sigY - 4);
@@ -308,7 +364,7 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
             const job = jobs[i]!;
             body.push([
                 i + 1,
-                job.job_no,
+                job.job_no + (job.alternate_job_no ? ` (Alt: ${job.alternate_job_no})` : ""),
                 job.job_date,
                 ...(showPurchaseDate ? [job.purchase_date ?? "—"] : []),
                 [job.product_name, job.brand_name, job.model_name].filter(Boolean).join(" / ") || "—",
@@ -366,6 +422,21 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
         const finalY   = (doc as any).lastAutoTable.finalY ?? y;
         const pageHeight = doc.internal.pageSize.getHeight();
         const sigY = Math.min(finalY + 20, pageHeight - 10);
+
+        // Terms & conditions — drawn into the existing (currently blank) `finalY + 20` gap
+        // reserved for the signature block, so this never grows the page's total height.
+        // Guarded against the rare case where sigY got clamped to pageHeight - 10 (content
+        // ran close to the page bottom), leaving less than the usual 20mm of slack.
+        if (printMeta?.termsAndConditions) {
+            const tncFontSize   = 6;
+            const tncLineHeight = 2.2; // mm, baseline-to-baseline
+            const tncLines      = wrapTermsAndConditions(doc, printMeta.termsAndConditions, pageWidth - 30, tncFontSize);
+            const tncTop        = finalY + 3;
+            const tncBottom     = tncTop + (tncLines.length - 1) * tncLineHeight;
+            if (tncBottom <= sigY - 5) {
+                drawTermsAndConditions(doc, tncLines, 15, tncTop, tncFontSize, tncLineHeight);
+            }
+        }
 
         doc.setFontSize(7.5);
         doc.setDrawColor(180);
@@ -474,8 +545,9 @@ function checkPage(doc: jsPDF, y: number, needed = 20): number {
 }
 
 function buildJobInfoDoc({ job, division, branchCode, transactions, parts, charges, files, invoice, payments }: JobInfoInput): jsPDF {
-    const doc       = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
+    const doc        = new jsPDF();
+    const pageWidth   = doc.internal.pageSize.getWidth();
+    const gstEnabled  = isGstDivision(division);
 
     doc.setProperties({
         title:   `Job-Info_${job.job_no}`,
@@ -518,24 +590,37 @@ function buildJobInfoDoc({ job, division, branchCode, transactions, parts, charg
         ["Status:", `${job.job_status_name}${job.is_final && !job.is_closed ? "  [FINAL]" : ""}`, "Job Type:", job.job_type_name],
         ["Branch:", branchCode ?? "—", "Division:", division?.name ?? "—"],
     ];
-    if (job.alternate_job_no) overviewRows.push(["Alt Job No:", job.alternate_job_no, "", ""]);
     autoTable(doc, {
         body: overviewRows,
         startY: y, margin: { left: 14, right: 14 },
         styles: { fontSize: 8, cellPadding: 1.8, lineColor: [210, 210, 210], lineWidth: 0.2 },
         columnStyles: { 0: { cellWidth: 30, fontStyle: "bold" }, 2: { cellWidth: 30, fontStyle: "bold" } },
         theme: "grid",
+        // Alt Job No is pushed to the right edge of the Job No cell instead of taking its
+        // own row — same treatment as the Job Sheet PDF (job-sheet-pdf.ts's single job
+        // sheet builder), drawn manually since autoTable can't right-align part of a cell.
+        didDrawCell: data => {
+            if (data.row.index === 0 && data.column.index === 1 && job.alternate_job_no) {
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(8);
+                doc.setTextColor(90, 90, 90);
+                doc.text(`Alt: ${job.alternate_job_no}`, data.cell.x + data.cell.width - 2, data.cell.y + data.cell.height / 2 + 1, { align: "right" });
+                doc.setTextColor(0, 0, 0);
+            }
+        },
     });
     y = (doc as any).lastAutoTable.finalY + 5;
 
     // ── 2. Customer ───────────────────────────────────────────────────────────
     y = checkPage(doc, y, 30);
     y = sectionHeader(doc, "Customer", y, pageWidth);
+    const customerRows: (string | { content: string; colSpan?: number; styles?: Record<string, unknown> })[][] = [
+        ["Name:", job.customer_name ?? "—", "Mobile:", job.mobile],
+        [{ content: "Address:", styles: { fontStyle: "bold" } }, { content: job.address_snapshot ?? "—", colSpan: 3 }],
+    ];
+    if (gstEnabled && job.customer_gstin) customerRows.push(["GSTIN:", job.customer_gstin, "", ""]);
     autoTable(doc, {
-        body: [
-            ["Name:", job.customer_name ?? "—", "Mobile:", job.mobile],
-            [{ content: "Address:", styles: { fontStyle: "bold" } }, { content: job.address_snapshot ?? "—", colSpan: 3 }],
-        ],
+        body: customerRows,
         startY: y, margin: { left: 14, right: 14 },
         styles: { fontSize: 8, cellPadding: 1.8, lineColor: [210, 210, 210], lineWidth: 0.2 },
         columnStyles: { 0: { cellWidth: 30, fontStyle: "bold" }, 2: { cellWidth: 30, fontStyle: "bold" } },
@@ -620,42 +705,66 @@ function buildJobInfoDoc({ job, division, branchCode, transactions, parts, charg
     if (invoice) {
         y = checkPage(doc, y, 35);
         y = sectionHeader(doc, `Invoice #${invoice.invoice_no}  (${invoice.invoice_date})`, y, pageWidth);
+        // GST columns/rows only render when the division is GST-registered — matches
+        // job-proforma-invoice-pdf-gen.ts's established GST-vs-non-GST branch, rather than
+        // gating on the invoice's own tax amounts (which are already 0 for a non-GST division,
+        // but showing "GST% 0% / Tax Rs.0.00" columns there reads as if tax were charged and
+        // waived, not as "tax doesn't apply here").
         autoTable(doc, {
-            head: [["#", "Description", "HSN", "Qty", "Price", "Taxable", "GST%", "Tax", "Total"]],
-            body: invoice.lines.map((l, i) => [
-                i + 1,
-                l.description,
-                l.hsn_code ?? "—",
-                Number(l.qty).toFixed(2),
-                fmt(l.price),
-                fmt(l.aggregate),
-                `${l.gst_rate}%`,
-                fmt(l.cgst_amount + l.sgst_amount + l.igst_amount),
-                fmt(l.amount),
-            ]),
+            head: gstEnabled
+                ? [["#", "Description", "HSN", "Qty", "Price", "Taxable", "GST%", "Tax", "Total"]]
+                : [["#", "Description", "Qty", "Price", "Total"]],
+            body: invoice.lines.map((l, i) => gstEnabled
+                ? [
+                    i + 1,
+                    l.description,
+                    l.hsn_code ?? "—",
+                    Number(l.qty).toFixed(2),
+                    fmt(l.price),
+                    fmt(l.aggregate),
+                    `${l.gst_rate}%`,
+                    fmt(l.cgst_amount + l.sgst_amount + l.igst_amount),
+                    fmt(l.amount),
+                ]
+                : [
+                    i + 1,
+                    l.description,
+                    Number(l.qty).toFixed(2),
+                    fmt(l.price),
+                    fmt(l.amount),
+                ]),
             startY: y, margin: { left: 14, right: 14 },
             styles: { fontSize: 7, cellPadding: 1.4, lineColor: [210, 210, 210], lineWidth: 0.2 },
             headStyles: { fontSize: 6.5, fontStyle: "bold", fillColor: [245, 245, 245], textColor: [60, 60, 60] },
-            columnStyles: {
-                0: { cellWidth: 8 },
-                2: { cellWidth: 16 },
-                3: { cellWidth: 12 },
-                4: { cellWidth: 20 },
-                5: { cellWidth: 20 },
-                6: { cellWidth: 12 },
-                7: { cellWidth: 18 },
-                8: { cellWidth: 20 },
-            },
+            columnStyles: gstEnabled
+                ? {
+                    0: { cellWidth: 8 },
+                    2: { cellWidth: 16 },
+                    3: { cellWidth: 12 },
+                    4: { cellWidth: 20 },
+                    5: { cellWidth: 20 },
+                    6: { cellWidth: 12 },
+                    7: { cellWidth: 18 },
+                    8: { cellWidth: 20 },
+                }
+                : {
+                    0: { cellWidth: 8 },
+                    2: { cellWidth: 24 },
+                    3: { cellWidth: 30 },
+                    4: { cellWidth: 30 },
+                },
             theme: "grid",
         });
         y = (doc as any).lastAutoTable.finalY + 2;
         // Invoice totals
-        const totals: [string, string][] = [
-            ["Taxable Amount", fmt(invoice.aggregate)],
-        ];
-        if (invoice.cgst_amount > 0) totals.push(["CGST", fmt(invoice.cgst_amount)], ["SGST", fmt(invoice.sgst_amount)]);
-        if (invoice.igst_amount > 0) totals.push(["IGST", fmt(invoice.igst_amount)]);
-        totals.push(["Grand Total", fmt(invoice.amount)]);
+        const totals: [string, string][] = gstEnabled
+            ? [
+                ["Taxable Amount", fmt(invoice.aggregate)],
+                ...(invoice.cgst_amount > 0 ? ([["CGST", fmt(invoice.cgst_amount)], ["SGST", fmt(invoice.sgst_amount)]] as [string, string][]) : []),
+                ...(invoice.igst_amount > 0 ? ([["IGST", fmt(invoice.igst_amount)]] as [string, string][]) : []),
+                ["Grand Total", fmt(invoice.amount)],
+            ]
+            : [["Grand Total", fmt(invoice.amount)]];
         autoTable(doc, {
             body: totals,
             startY: y, margin: { left: pageWidth / 2, right: 14 },

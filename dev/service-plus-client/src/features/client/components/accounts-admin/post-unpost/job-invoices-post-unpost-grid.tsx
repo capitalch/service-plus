@@ -169,10 +169,10 @@ export function JobInvoicesPostUnpostGrid({ pendingChanges, onChangeToggle, onSt
                                             <td className={tdClass}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                                             <td className={`${tdClass} font-medium`}>{row.invoice_no}</td>
                                             <td className={tdClass}>
-                                                <div className="flex flex-col gap-0.5">
+                                                <div className="flex items-center justify-between gap-1.5">
                                                     <span>{row.job_no}</span>
                                                     {row.alternate_job_no && (
-                                                        <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {row.alternate_job_no}</span>
+                                                        <span className="shrink-0 font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {row.alternate_job_no}</span>
                                                     )}
                                                 </div>
                                             </td>

@@ -2,6 +2,11 @@ import { getApiBaseUrl } from "./utils";
 import { refreshIfNeeded } from "@/lib/token-refresh";
 import { MESSAGES } from "@/constants/messages";
 
+/** Flip to true once the server side of the WhatsApp send path (plan-whatsapp.md §4)
+ * ships. Until then every WhatsApp button/menu-item across the app renders disabled
+ * with a "coming soon" tooltip instead of calling a backend that doesn't exist yet. */
+export const WHATSAPP_FEATURE_ENABLED = false;
+
 // The three PDF-carrying WhatsApp sends — job completion is text-only and goes
 // through the sendWhatsappCompletion GraphQL mutation instead (see plan-whatsapp.md §4d/§4e).
 export type WhatsappDocumentEventType = "JOB_CREATION" | "JOB_DELIVERY" | "JOB_RECEIPT";

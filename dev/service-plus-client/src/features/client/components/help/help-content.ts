@@ -1109,14 +1109,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
         id: "job-reports",
         category: "Reports",
         title: "Job Reports",
-        summary: "Reports for job intake, repair, delivery, aging, and transaction history.",
-        tags: ["job reports", "intake", "repaired", "delivered", "aging", "pipeline", "ledger", "trend", "event tracking"],
+        summary: "Reports for jobs received/repaired/delivered, aging, and transaction history.",
+        tags: ["job reports", "received", "repaired", "delivered", "aging", "pipeline", "ledger", "trend", "event tracking", "jobs summary"],
         content: [
             { type: "table", headers: ["Report", "What It Shows", "Best Used For"], rows: [
                 ["Event Tracking",           "Counts of Received / Status Change / Finalize / Deliver events, across fixed periods (Today/This Week/.../YTD)", "Monitor job-lifecycle activity volume over time"],
-                ["Job Intake Summary",       "Cumulative jobs received, shown across fixed periods (Today/This Week/.../YTD)", "Monitor inflow volume and trends"],
-                ["Jobs Repaired",            "Count of jobs Completed OK or already Delivered OK, by last-updated date", "Track technician output"],
-                ["Jobs Delivered",           "Count of jobs delivered in working condition (DELIVERED_OK only)", "Revenue recognition milestone"],
+                ["Jobs Summary",             "Four tabs — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Job Transactions — each one row per product category (Job Transactions: one row per job status, in workflow order) and one column per fixed period (Today/This Week/.../YTD); each cell shows the total with an orange Warranty / emerald Out-of-Warranty split below it, plus a Total row summing each period across categories", "Monitor inflow, repair output, delivery volume, and status-change activity"],
                 ["Delivered Jobs - Detailed","Per-job delivery info with amounts, custom date range (default this month)", "Customer billing audit"],
                 ["Job Transaction Ledger",   "Full status-change history per job, custom date range (default this month)", "Dispute resolution, audit trail"],
                 ["Job Pipeline / Aging",     "How long jobs sit in each status",                "Identify operational bottlenecks"],

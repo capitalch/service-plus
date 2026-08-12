@@ -23,3 +23,8 @@ export function formatNumber(value: number | null | undefined): string {
     if (value == null || !Number.isFinite(Number(value))) return "0";
     return INR_PLAIN.format(Number(value));
 }
+
+export function formatWarrantySplit(split: { oow_count: number; warranty_count: number }): string {
+    const total = split.warranty_count + split.oow_count;
+    return `${formatNumber(total)} (W:${formatNumber(split.warranty_count)} OW:${formatNumber(split.oow_count)})`;
+}

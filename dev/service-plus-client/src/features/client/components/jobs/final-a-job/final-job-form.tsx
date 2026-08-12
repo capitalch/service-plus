@@ -4,6 +4,7 @@ import {
     Eye, Loader2, Plus, Radius, RefreshCw, RotateCcw, Trash2, XCircle,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -432,13 +433,15 @@ export function FinalJobForm({
                     </Button>
                     <Button
                         className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
-                        disabled={sendingWhatsapp || !selectedJob.is_final || !isValidMobile(selectedJob.mobile)}
+                        disabled={sendingWhatsapp || !WHATSAPP_FEATURE_ENABLED || !selectedJob.is_final || !isValidMobile(selectedJob.mobile)}
                         title={
-                            !selectedJob.is_final
-                                ? "Finalize the job first"
-                                : !isValidMobile(selectedJob.mobile)
-                                    ? MESSAGES.INFO_WHATSAPP_NO_MOBILE
-                                    : undefined
+                            !WHATSAPP_FEATURE_ENABLED
+                                ? MESSAGES.INFO_WHATSAPP_COMING_SOON
+                                : !selectedJob.is_final
+                                    ? "Finalize the job first"
+                                    : !isValidMobile(selectedJob.mobile)
+                                        ? MESSAGES.INFO_WHATSAPP_NO_MOBILE
+                                        : undefined
                         }
                         onClick={() => void onSendWhatsapp()}
                     >

@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import type { BatchJobQuickInfoRow } from "@/features/client/types/job";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
@@ -159,8 +160,11 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, on
 
                     {/* Job lines */}
                     <div className="flex flex-col gap-1">
-                        {rows.map(row => (
+                        {rows.map((row, idx) => (
                             <div key={row.job_id} className="flex items-center gap-2 text-xs min-w-0">
+                                <span className="text-(--cl-text-muted) shrink-0 w-4 text-right tabular-nums">
+                                    {idx + 1}.
+                                </span>
                                 <span className="font-mono font-semibold text-(--cl-accent) shrink-0 w-24 truncate">
                                     {row.job_no}
                                 </span>
@@ -235,8 +239,8 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, on
                             type="button"
                             size="sm"
                             className="h-7 px-3 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                            disabled={!isValidMobile(rows[0].mobile) || (isSendingWhatsapp?.(batchNo) ?? false)}
-                            title={!isValidMobile(rows[0].mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                            disabled={!WHATSAPP_FEATURE_ENABLED || !isValidMobile(rows[0].mobile) || (isSendingWhatsapp?.(batchNo) ?? false)}
+                            title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : !isValidMobile(rows[0].mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
                             onClick={() => onWhatsapp?.(batchNo)}
                         >
                             {isSendingWhatsapp?.(batchNo)

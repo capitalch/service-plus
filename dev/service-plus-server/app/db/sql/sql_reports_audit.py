@@ -149,7 +149,7 @@ class ReportsAuditSql:
 
     # ── Reports — Warranty (Special) ──────────────────────────────────────────
 
-    GET_WARRANTY_REPAIRS_SUMMARY_RANGE = """
+    GET_WARRANTY_JOBS_SUMMARY_RANGE = """
         with
             "p_from" as (values(%(from)s::date)),
             "p_to"   as (values(%(to)s::date))
@@ -170,7 +170,7 @@ class ReportsAuditSql:
           AND COALESCE(j.delivery_date, j.job_date) BETWEEN (table "p_from") AND (table "p_to")
     """
 
-    GET_WARRANTY_REPAIRS_LIST_RANGE = """
+    GET_WARRANTY_JOBS_LIST_RANGE = """
         with
             "p_from" as (values(%(from)s::date)),
             "p_to"   as (values(%(to)s::date))
@@ -205,7 +205,7 @@ class ReportsAuditSql:
         ORDER BY COALESCE(j.delivery_date, j.job_date) DESC, j.id DESC
     """
 
-    GET_WARRANTY_PARTS_CONSUMPTION_RANGE = """
+    GET_WARRANTY_PARTS_RANGE = """
         with
             "p_from" as (values(%(from)s::date)),
             "p_to"   as (values(%(to)s::date))
@@ -298,16 +298,20 @@ class ReportsAuditSql:
 
     # ── Reports — Job Reports ─────────────────────────────────────────────────
 
-    GET_JOBS_RECEIVED_RANGE_SPLIT = """
+    GET_JOBS_RECEIVED_BY_CATEGORY_RANGE_SPLIT = """
         with
             "p_from" as (values(%(from)s::date)),
             "p_to"   as (values(%(to)s::date))
         SELECT
+            p.name AS category_name,
             COUNT(*) FILTER (WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
             COUNT(*) FILTER (WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count,
             COUNT(*)                                                                            AS total_count
         FROM job j
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN product p ON p.id = pbm.product_id
         WHERE j.job_date BETWEEN (table "p_from") AND (table "p_to")
+        GROUP BY p.name
     """
 
     GET_EVENT_TRACKING_COUNTS = """
@@ -335,33 +339,68 @@ class ReportsAuditSql:
         group by event_name
     """
 
-    GET_JOBS_REPAIRED_OK_RANGE_SPLIT = """
+    GET_JOBS_REPAIRED_OK_BY_CATEGORY_RANGE_SPLIT = """
         with
             "p_from" as (values(%(from)s::date)),
             "p_to"   as (values(%(to)s::date))
         SELECT
+            p.name AS category_name,
             COUNT(*) FILTER (WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
             COUNT(*) FILTER (WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count,
             COUNT(*)                                                                            AS total_count
         FROM job j
         JOIN job_status js ON js.id = j.job_status_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN product p ON p.id = pbm.product_id
         WHERE j.is_final = true
           AND js.code IN ('COMPLETED_OK', 'DELIVERED_OK')
           AND j.updated_at::date BETWEEN (table "p_from") AND (table "p_to")
+        GROUP BY p.name
     """
 
-    GET_JOBS_DELIVERED_OK_RANGE_SPLIT = """
+    GET_JOBS_DELIVERED_OK_BY_CATEGORY_RANGE_SPLIT = """
+        with
+            "p_from" as (values(%(from)s::date)),
+            "p_to"   as (values(%(to)s::date)),
+            parts as (
+                SELECT job_id, SUM(cost_price * qty) AS parts_cost FROM job_part_used GROUP BY job_id
+            ),
+            charges as (
+                SELECT job_id, SUM(cost_price * qty) AS charges_cost FROM job_additional_charge GROUP BY job_id
+            )
+        SELECT
+            p.name AS category_name,
+            COUNT(*) FILTER (WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
+            COUNT(*) FILTER (WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count,
+            COUNT(*)                                                                            AS total_count,
+            COALESCE(SUM(ji.aggregate), 0)                                                      AS revenue_amount,
+            COALESCE(SUM(ji.aggregate), 0) - COALESCE(SUM(parts.parts_cost), 0) - COALESCE(SUM(charges.charges_cost), 0) AS profit_amount
+        FROM job j
+        JOIN job_status js ON js.id = j.job_status_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN product p ON p.id = pbm.product_id
+        LEFT JOIN job_invoice ji ON ji.job_id = j.id
+        LEFT JOIN parts   ON parts.job_id   = j.id
+        LEFT JOIN charges ON charges.job_id = j.id
+        WHERE js.code = 'DELIVERED_OK'
+          AND j.delivery_date BETWEEN (table "p_from") AND (table "p_to")
+        GROUP BY p.name
+    """
+
+    GET_JOB_TRANSACTIONS_BY_STATUS_RANGE_SPLIT = """
         with
             "p_from" as (values(%(from)s::date)),
             "p_to"   as (values(%(to)s::date))
         SELECT
+            js.name AS category_name,
             COUNT(*) FILTER (WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
             COUNT(*) FILTER (WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count,
             COUNT(*)                                                                            AS total_count
-        FROM job j
-        JOIN job_status js ON js.id = j.job_status_id
-        WHERE js.code = 'DELIVERED_OK'
-          AND j.delivery_date BETWEEN (table "p_from") AND (table "p_to")
+        FROM job_transaction jt
+        JOIN job_status js ON js.id = jt.status_id
+        JOIN job j ON j.id = jt.job_id
+        WHERE jt.transaction_date BETWEEN (table "p_from") AND (table "p_to")
+        GROUP BY js.name
     """
 
     GET_DELIVERED_JOBS_DETAILED_RANGE = """

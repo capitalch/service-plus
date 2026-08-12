@@ -3,6 +3,7 @@ import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, Eye,
     Loader2, MoreHorizontal, Paperclip, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -32,7 +33,7 @@ import { saveCustomerGstin } from "@/lib/gstin";
 
 import { useAppSelector } from "@/store/hooks";
 import { selectClientName, selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentBu, selectCurrentDivision, selectDefaultDivisionId, selectNoOfJobSheetsPerPrint, selectSchema, selectTrackJobUrl } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentBu, selectCurrentDivision, selectDefaultDivisionId, selectJobTermsAndConditions, selectNoOfJobSheetsPerPrint, selectSchema, selectTrackJobUrl } from "@/store/context-slice";
 import type { JobDetailType, JobControlRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { DivisionContextType } from "@/features/client/types/division";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
@@ -71,6 +72,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const currentBu           = useAppSelector(selectCurrentBu);
     const clientName          = useAppSelector(selectClientName);
     const trackJobUrl         = useAppSelector(selectTrackJobUrl);
+    const jobTermsAndConditions = useAppSelector(selectJobTermsAndConditions);
     const branchId           = globalBranch?.id ?? null;
 
     // Filters
@@ -487,7 +489,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
             const jobDivision = availableDivisions.find(d => d.id === details.division_id) ?? currentDivision;
             pendingPrintRef.current = { job: details, division: jobDivision ?? null, branchCode: globalBranch?.code };
             setPrintCopies(copies);
-            const url = getJobSheetBlobUrl(details, jobDivision ?? null, globalBranch?.code, copies, { clientName, buName: currentBu?.name ?? null, trackJobUrl });
+            const url = getJobSheetBlobUrl(details, jobDivision ?? null, globalBranch?.code, copies, { clientName, buName: currentBu?.name ?? null, trackJobUrl, termsAndConditions: jobTermsAndConditions });
             setPdfPreviewUrl(url);
             setPdfFilename(`Job-Sheet_${details.job_date}_${details.customer_name || "customer"}.pdf`);
             setPdfTitle(`Job Sheet #${details.job_no}`);
@@ -518,7 +520,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                 return;
             }
             const jobDivision = availableDivisions.find(d => d.id === details.division_id) ?? currentDivision;
-            const pdf = getJobSheetPdfBlob(details, jobDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint, { clientName, buName: currentBu?.name ?? null, trackJobUrl });
+            const pdf = getJobSheetPdfBlob(details, jobDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint, { clientName, buName: currentBu?.name ?? null, trackJobUrl, termsAndConditions: jobTermsAndConditions });
             await sendWhatsapp(job.id, job.mobile, {
                 dbName, schema, jobIds: [job.id], eventType: "JOB_CREATION",
                 pdf, filename: `Job-Sheet_${details.job_no}.pdf`,
@@ -614,6 +616,8 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                         onEditJob={(j: JobControlRow) => handleEditJob(j)}
                         onPrintPdf={(j: JobControlRow) => void handlePrintPdf(j)}
                         onAttachFiles={(jobNo: string, jobId: number) => { setAttachJobId(jobId); setAttachJobNo(jobNo); setAttachMode("attach"); }}
+                        onWhatsapp={(j: JobControlRow) => void handleSendWhatsapp(j)}
+                        isSendingWhatsapp={isSendingWhatsapp}
                         refreshTrigger={quickInfoKey}
                         />
                     </FormProvider>
@@ -722,15 +726,17 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                 </td>
                                                 <td className={tdClass}>
                                                     <div className="flex flex-col gap-0.5">
-                                                        <div className="font-mono font-medium text-(--cl-text)">
-                                                            {job.job_no}
-                                                            {job.is_closed && (
-                                                                <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                        <div className="flex items-center justify-between gap-1.5 font-mono font-medium text-(--cl-text)">
+                                                            <span>
+                                                                {job.job_no}
+                                                                {job.is_closed && (
+                                                                    <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                                )}
+                                                            </span>
+                                                            {job.alternate_job_no && (
+                                                                <span className="shrink-0 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {job.alternate_job_no}</span>
                                                             )}
                                                         </div>
-                                                        {job.alternate_job_no && (
-                                                            <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {job.alternate_job_no}</span>
-                                                        )}
                                                         {job.batch_no && (
                                                             <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{job.batch_no}</span>
                                                         )}
@@ -812,8 +818,8 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-emerald-600 focus:bg-emerald-500/10 focus:text-emerald-700 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-                                                                    disabled={!isValidMobile(job.mobile) || isSendingWhatsapp(job.id)}
-                                                                    title={!isValidMobile(job.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                                                                    disabled={!WHATSAPP_FEATURE_ENABLED || !isValidMobile(job.mobile) || isSendingWhatsapp(job.id)}
+                                                                    title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : !isValidMobile(job.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
                                                                     onClick={() => void handleSendWhatsapp(job)}
                                                                 >
                                                                     {isSendingWhatsapp(job.id)
@@ -929,7 +935,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                     setPrintCopies(n);
                     if (pendingPrintRef.current) {
                         const { job, division, branchCode } = pendingPrintRef.current;
-                        setPdfPreviewUrl(getJobSheetBlobUrl(job, division ?? null, branchCode, n, { clientName, buName: currentBu?.name ?? null, trackJobUrl }));
+                        setPdfPreviewUrl(getJobSheetBlobUrl(job, division ?? null, branchCode, n, { clientName, buName: currentBu?.name ?? null, trackJobUrl, termsAndConditions: jobTermsAndConditions }));
                     }
                 }}
                 onClose={() => {

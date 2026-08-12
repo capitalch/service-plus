@@ -210,13 +210,13 @@ export const DashboardSection = () => {
                     value={formatNumber(kpis?.jobs_overdue ?? 0)}
                 />
                 <KpiCard
-                    accentClassName="text-(--cl-accent-text)"
+                    accentClassName="text-orange-500"
                     icon={ShieldCheck}
                     label={`Warranty Jobs (${selectedRange.label})`}
                     value={formatNumber(kpis?.jobs_received_warranty ?? 0)}
                 />
                 <KpiCard
-                    accentClassName="text-(--cl-accent-text)"
+                    accentClassName="text-emerald-500"
                     icon={Package}
                     label={`Out-of-Warranty (${selectedRange.label})`}
                     value={formatNumber(kpis?.jobs_received_oow ?? 0)}
@@ -233,8 +233,8 @@ export const DashboardSection = () => {
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <ChartCard
                     className="lg:col-span-2"
-                    description="Warranty vs Out-of-Warranty intake — last 12 months"
-                    title="Monthly Job Intake"
+                    description="Warranty vs Out-of-Warranty — last 12 months"
+                    title="Monthly Jobs Received"
                 >
                     {monthlyQ.loading
                         ? <ReportLoading lines={3} />

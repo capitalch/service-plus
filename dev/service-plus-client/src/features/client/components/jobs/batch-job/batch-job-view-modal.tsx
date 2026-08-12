@@ -6,6 +6,7 @@ import type { JobDetailType } from "../../../types/job";
 import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import { MESSAGES } from "@/constants/messages";
 import { isValidMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
@@ -92,13 +93,17 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                                                 <td className={`${tdClass} text-(--cl-text-muted) text-xs`}>{idx + 1}</td>
                                                 <td className={`${tdClass} whitespace-nowrap text-xs`}>{job.job_date}</td>
                                                 <td className={`${tdClass} font-mono text-xs font-medium text-(--cl-accent)`}>
-                                                    {job.job_no}
-                                                    {job.is_closed && (
-                                                        <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
-                                                    )}
-                                                    {job.alternate_job_no && (
-                                                        <div className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {job.alternate_job_no}</div>
-                                                    )}
+                                                    <div className="flex items-center justify-between gap-1.5">
+                                                        <span>
+                                                            {job.job_no}
+                                                            {job.is_closed && (
+                                                                <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                            )}
+                                                        </span>
+                                                        {job.alternate_job_no && (
+                                                            <span className="shrink-0 font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {job.alternate_job_no}</span>
+                                                        )}
+                                                    </div>
                                                     {job.purchase_date && (
                                                         <div className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {job.purchase_date}</div>
                                                     )}
@@ -168,8 +173,8 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                         </Button>
                         <Button
                             className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                            disabled={loading || jobs.length === 0 || !isValidMobile(jobs[0]?.mobile) || !!sendingWhatsapp}
-                            title={jobs.length > 0 && !isValidMobile(jobs[0]?.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                            disabled={loading || jobs.length === 0 || !WHATSAPP_FEATURE_ENABLED || !isValidMobile(jobs[0]?.mobile) || !!sendingWhatsapp}
+                            title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : jobs.length > 0 && !isValidMobile(jobs[0]?.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
                             onClick={() => onSendWhatsapp(jobs)}
                         >
                             {sendingWhatsapp

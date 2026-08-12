@@ -366,10 +366,12 @@ export function ReprintDeliveryNoteModal({ branchId, branchName, availableDivisi
                                                             </td>
                                                             <td className="border-b border-(--cl-surface-3) p-2">
                                                                 <div className="flex flex-col gap-0.5">
-                                                                    <span className="font-mono text-sm font-semibold text-(--cl-accent)">#{job.job_no}</span>
-                                                                    {job.alternate_job_no && (
-                                                                        <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {job.alternate_job_no}</span>
-                                                                    )}
+                                                                    <div className="flex items-center justify-between gap-1.5">
+                                                                        <span className="font-mono text-sm font-semibold text-(--cl-accent)">#{job.job_no}</span>
+                                                                        {job.alternate_job_no && (
+                                                                            <span className="shrink-0 font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {job.alternate_job_no}</span>
+                                                                        )}
+                                                                    </div>
                                                                     {job.device_details && (
                                                                         <span className="truncate text-xs leading-snug text-(--cl-text-muted)" title={job.device_details}>{job.device_details}</span>
                                                                     )}

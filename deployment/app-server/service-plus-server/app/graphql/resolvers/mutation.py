@@ -53,6 +53,9 @@ from app.graphql.resolvers.jobs.mutations import (
     resolve_update_job_helper,
     resolve_update_opening_job_helper,
 )
+from app.graphql.resolvers.jobs.whatsapp import (
+    resolve_send_whatsapp_completion_helper,
+)
 from app.graphql.resolvers.sales_accounts.mutations import (
     resolve_accounts_posting_helper,
     resolve_create_sales_invoice_helper,
@@ -412,3 +415,16 @@ async def resolve_accounts_posting(
     """Post unposted money receipts to trace-plus accounts."""
     require_access_right(info, "JOBS_ACCOUNTS_POSTING")
     return await resolve_accounts_posting_helper(db_name, schema, value)
+
+
+@mutation.field("sendWhatsappCompletion")
+@handle_graphql_errors("Error sending WhatsApp completion message")
+async def resolve_send_whatsapp_completion(
+    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Send the job-completion WhatsApp message, one per customer. Called from
+    both the finalize-job form (single job) and the Customer Connect bulk screen
+    (many jobs) — no dedicated access right here since the finalize form itself
+    has none; Customer Connect's own right (plan-whatsapp.md §6) gates reaching
+    this mutation via that screen's menu entry instead."""
+    return await resolve_send_whatsapp_completion_helper(db_name, schema, value)

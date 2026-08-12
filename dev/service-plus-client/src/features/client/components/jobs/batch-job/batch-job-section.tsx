@@ -5,6 +5,7 @@ import {
     Loader2, MoreHorizontal, Paperclip, Pencil, Printer, RefreshCw, Save, Search, Trash2, X, Eye,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -23,7 +24,7 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { saveCustomerGstin } from "@/lib/gstin";
 import { useAppSelector } from "@/store/hooks";
 import { selectClientName, selectDbName, selectCurrentUser } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentBu, selectCurrentDivision, selectDefaultDivisionId, selectNoOfJobSheetsPerPrint, selectSchema, selectTrackJobUrl } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentBu, selectCurrentDivision, selectDefaultDivisionId, selectJobTermsAndConditions, selectNoOfJobSheetsPerPrint, selectSchema, selectTrackJobUrl } from "@/store/context-slice";
 import type { JobBatchDetailRow, JobDetailType, JobInBatchRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
@@ -79,6 +80,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
     const currentBu           = useAppSelector(selectCurrentBu);
     const clientName          = useAppSelector(selectClientName);
     const trackJobUrl         = useAppSelector(selectTrackJobUrl);
+    const jobTermsAndConditions = useAppSelector(selectJobTermsAndConditions);
     const branchId           = globalBranch?.id ?? null;
 
     const [search,   setSearch]   = useState("");
@@ -476,7 +478,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
         const copies = noOfJobSheetsPerPrint;
         pendingPrintRef.current = { jobs: batchJobs, division: batchDivision, branchCode: globalBranch?.code };
         setPrintCopies(copies);
-        const url = getBatchJobSheetBlobUrl(batchJobs, batchDivision, globalBranch?.code, copies, { clientName, buName: currentBu?.name ?? null, trackJobUrl });
+        const url = getBatchJobSheetBlobUrl(batchJobs, batchDivision, globalBranch?.code, copies, { clientName, buName: currentBu?.name ?? null, trackJobUrl, termsAndConditions: jobTermsAndConditions });
         setPdfPreviewUrl(url);
         setPdfFilename(`Batch-Job-Sheet_${batchJobs[0]?.job_no ?? "batch"}.pdf`);
         setShowPdfModal(true);
@@ -488,7 +490,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
         const batchDivision = firstJob.division_id
             ? (availableDivisions.find(d => d.id === firstJob.division_id) ?? currentDivision)
             : currentDivision;
-        const pdf = getBatchJobSheetPdfBlob(batchJobs, batchDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint, { clientName, buName: currentBu?.name ?? null, trackJobUrl });
+        const pdf = getBatchJobSheetPdfBlob(batchJobs, batchDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint, { clientName, buName: currentBu?.name ?? null, trackJobUrl, termsAndConditions: jobTermsAndConditions });
         await sendWhatsapp(batchNo, firstJob.mobile, {
             dbName, schema, jobIds: batchJobs.map(j => j.id), eventType: "JOB_CREATION",
             pdf, filename: `Batch-Job-Sheet_${firstJob.job_no}.pdf`,
@@ -905,7 +907,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 setPrintCopies(n);
                 if (pendingPrintRef.current) {
                     const { jobs: batchJobs, division, branchCode } = pendingPrintRef.current;
-                    setPdfPreviewUrl(getBatchJobSheetBlobUrl(batchJobs, division ?? null, branchCode, n, { clientName, buName: currentBu?.name ?? null, trackJobUrl }));
+                    setPdfPreviewUrl(getBatchJobSheetBlobUrl(batchJobs, division ?? null, branchCode, n, { clientName, buName: currentBu?.name ?? null, trackJobUrl, termsAndConditions: jobTermsAndConditions }));
                 }
             }}
             onClose={() => {
@@ -977,8 +979,8 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onW
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     className="flex items-center gap-2 cursor-pointer text-emerald-600 focus:bg-emerald-500/10 focus:text-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                                    disabled={!isValidMobile(batch.mobile) || sendingWhatsapp}
-                                    title={!isValidMobile(batch.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                                    disabled={!WHATSAPP_FEATURE_ENABLED || !isValidMobile(batch.mobile) || sendingWhatsapp}
+                                    title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : !isValidMobile(batch.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
                                     onClick={onWhatsapp}
                                 >
                                     {sendingWhatsapp
@@ -1014,15 +1016,17 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onW
                     <td className={`${tdClass} whitespace-nowrap text-xs`}>{job.job_date}</td>
                     <td className={tdClass}>
                         <div className="flex flex-col gap-0.5">
-                            <div className="font-mono font-medium text-xs text-(--cl-accent)">
-                                {job.job_no}
-                                {job.is_closed && (
-                                    <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                            <div className="flex items-center justify-between gap-1.5 font-mono font-medium text-xs text-(--cl-accent)">
+                                <span>
+                                    {job.job_no}
+                                    {job.is_closed && (
+                                        <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                    )}
+                                </span>
+                                {job.alternate_job_no && (
+                                    <span className="shrink-0 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {job.alternate_job_no}</span>
                                 )}
                             </div>
-                            {job.alternate_job_no && (
-                                <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {job.alternate_job_no}</span>
-                            )}
                             {job.purchase_date && (
                                 <span className="text-[11px] font-semibold text-(--cl-text-muted) w-fit">PUR: {job.purchase_date}</span>
                             )}

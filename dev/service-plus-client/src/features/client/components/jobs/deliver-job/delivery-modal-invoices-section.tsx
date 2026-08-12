@@ -1,6 +1,7 @@
 import { Loader2, Printer, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
@@ -115,9 +116,9 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loading
                                 {invoiceable && job.invoice_id && onSendWhatsapp && (
                                     <Button
                                         className="h-8 gap-1 px-2 text-sm text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 disabled:opacity-40 disabled:cursor-not-allowed"
-                                        disabled={!!isSendingWhatsapp?.(job.id) || !isValidMobile(job.mobile)}
+                                        disabled={!!isSendingWhatsapp?.(job.id) || !WHATSAPP_FEATURE_ENABLED || !isValidMobile(job.mobile)}
                                         size="sm"
-                                        title={!isValidMobile(job.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                                        title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : !isValidMobile(job.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
                                         variant="ghost"
                                         onClick={() => onSendWhatsapp(job)}
                                     >

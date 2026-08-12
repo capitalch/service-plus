@@ -3,6 +3,7 @@ import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     DollarSign, Eye, Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -355,7 +356,7 @@ export const ReceiptsSection = () => {
             const jobId = values.job_id;
             toast.success(
                 isEdit ? MESSAGES.SUCCESS_RECEIPT_UPDATED : MESSAGES.SUCCESS_RECEIPT_CREATED,
-                !isEdit && paymentId
+                !isEdit && paymentId && WHATSAPP_FEATURE_ENABLED
                     ? {
                         action: {
                             label: "Send WhatsApp",
@@ -550,18 +551,20 @@ export const ReceiptsSection = () => {
                                         </td>
                                         <td className={tdClass}>
                                             <div className="flex flex-col gap-0.5">
-                                                <div className="font-mono font-semibold text-(--cl-accent)">
-                                                    {row.job_no}
-                                                    {row.is_closed && (
-                                                        <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
-                                                    )}
-                                                    {row.is_opening_job && (
-                                                        <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
+                                                <div className="flex items-center justify-between gap-1.5 font-mono font-semibold text-(--cl-accent)">
+                                                    <span>
+                                                        {row.job_no}
+                                                        {row.is_closed && (
+                                                            <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                        )}
+                                                        {row.is_opening_job && (
+                                                            <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
+                                                        )}
+                                                    </span>
+                                                    {row.alternate_job_no && (
+                                                        <span className="shrink-0 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {row.alternate_job_no}</span>
                                                     )}
                                                 </div>
-                                                {row.alternate_job_no && (
-                                                    <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {row.alternate_job_no}</span>
-                                                )}
                                                 {row.batch_no != null && (
                                                     <span className="text-[10px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{row.batch_no}</span>
                                                 )}
@@ -649,8 +652,8 @@ export const ReceiptsSection = () => {
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         className="text-emerald-600 focus:text-emerald-700"
-                                                        disabled={!isValidMobile(row.mobile) || isSendingWhatsapp(row.id)}
-                                                        title={!isValidMobile(row.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
+                                                        disabled={!WHATSAPP_FEATURE_ENABLED || !isValidMobile(row.mobile) || isSendingWhatsapp(row.id)}
+                                                        title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : !isValidMobile(row.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
                                                         onClick={() => void handleSendWhatsapp(row)}
                                                     >
                                                         {isSendingWhatsapp(row.id)

@@ -7,10 +7,11 @@ type Props = {
     children: ReactNode;
     className?: string;
     description?: string;
-    title: string;
+    title?: string;
 };
 
 export const ChartCard = ({ actions, children, className, description, title }: Props) => {
+    const hasHeader = Boolean(title || description || actions);
     return (
         <section
             className={cn(
@@ -18,15 +19,17 @@ export const ChartCard = ({ actions, children, className, description, title }: 
                 className,
             )}
         >
-            <header className="flex items-start justify-between gap-2 border-b border-(--cl-border) px-4 py-3">
-                <div className="min-w-0">
-                    <h2 className="text-sm font-bold tracking-tight text-(--cl-text)">{title}</h2>
-                    {description && (
-                        <p className="mt-0.5 text-xs text-(--cl-text-muted)">{description}</p>
-                    )}
-                </div>
-                {actions && <div className="flex items-center gap-1">{actions}</div>}
-            </header>
+            {hasHeader && (
+                <header className="flex items-start justify-between gap-2 border-b border-(--cl-border) px-4 py-3">
+                    <div className="min-w-0">
+                        {title && <h2 className="text-sm font-bold tracking-tight text-(--cl-text)">{title}</h2>}
+                        {description && (
+                            <p className={cn("text-xs text-(--cl-text-muted)", title && "mt-0.5")}>{description}</p>
+                        )}
+                    </div>
+                    {actions && <div className="flex items-center gap-1">{actions}</div>}
+                </header>
+            )}
             <div className="flex-1 p-3">{children}</div>
         </section>
     );

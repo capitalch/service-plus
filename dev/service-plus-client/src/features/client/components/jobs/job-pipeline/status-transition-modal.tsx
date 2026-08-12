@@ -76,6 +76,8 @@ const today = new Date().toISOString().slice(0, 10);
 export const StatusTransitionModal = ({ divisions, job, transition, technicians, onClose, onSubmit }: Props) => {
     const { fields } = transition;
     const showEstimate = fields.includes("E");
+    const showTechnician = fields.includes("T") || fields.includes("t");
+    const technicianRequired = fields.includes("T");
     const canPickDivision = divisions.length > 1;
 
     const dbName = useAppSelector(selectDbName);
@@ -125,7 +127,7 @@ export const StatusTransitionModal = ({ divisions, job, transition, technicians,
             form.setValue("division_id", job.division_id ? String(job.division_id) : "");
             return;
         }
-        if (fields.includes("T") && !values.technician_id) {
+        if (technicianRequired && !values.technician_id) {
             form.setError("technician_id", { message: "Technician is required" });
             return;
         }
@@ -235,7 +237,7 @@ export const StatusTransitionModal = ({ divisions, job, transition, technicians,
 
                     {/* ── Date + Technician + Remarks ────────────────────────── */}
                     <div className="space-y-3 rounded-lg border border-border p-4">
-                        {fields.includes("T") ? (
+                        {showTechnician ? (
                             <div className="grid grid-cols-[1fr_2fr] gap-4">
                                 <div className="space-y-3">
                                     <div className="space-y-1.5">
@@ -254,7 +256,7 @@ export const StatusTransitionModal = ({ divisions, job, transition, technicians,
                                     </div>
                                     <div className="space-y-1.5">
                                         <Label htmlFor="stm-technician">
-                                            Technician <span className="text-red-500">*</span>
+                                            Technician {technicianRequired && <span className="text-red-500">*</span>}
                                         </Label>
                                         <Select
                                             value={form.watch("technician_id")}

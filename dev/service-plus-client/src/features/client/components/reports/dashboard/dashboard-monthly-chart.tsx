@@ -48,8 +48,8 @@ export const DashboardMonthlyChart = ({ data }: Props) => {
                     cursor={{ fill: "var(--cl-hover)" }}
                 />
                 <Legend wrapperStyle={{ fontSize: "11px" }} />
-                <Bar dataKey="warranty" fill="#10b981" name="Warranty" radius={[3, 3, 0, 0]} stackId="a" />
-                <Bar dataKey="oow"      fill="#3b82f6" name="Out of Warranty" radius={[3, 3, 0, 0]} stackId="a" />
+                <Bar dataKey="warranty" fill="#f97316" name="Warranty" radius={[3, 3, 0, 0]} stackId="a" />
+                <Bar dataKey="oow"      fill="#10b981" name="Out of Warranty" radius={[3, 3, 0, 0]} stackId="a" />
             </BarChart>
         </ResponsiveContainer>
     );

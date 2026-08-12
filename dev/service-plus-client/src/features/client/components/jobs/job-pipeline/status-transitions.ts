@@ -1,4 +1,4 @@
-type TransitionFields = "none" | "R" | "RT" | "RET";
+type TransitionFields = "none" | "R" | "RT" | "RET" | "Rt";
 
 export type Transition = {
     targetId:   number;
@@ -41,7 +41,7 @@ export function getTransitions(statusId: number, jobTypeCode: string): Transitio
                 { targetId: 2,  targetCode: "ASSIGNED",        targetName: "Assigned",        fields: "RT"   },
                 { targetId: 3,  targetCode: "ESTIMATED",       targetName: "Estimated",       fields: "RET"  },
                 { targetId: 6,  targetCode: "IN_PROGRESS",     targetName: "In Progress",     fields: "RT"   },
-                { targetId: 10, targetCode: "SENT_TO_COMPANY", targetName: "Sent to Company", fields: "R"    },
+                { targetId: 10, targetCode: "SENT_TO_COMPANY", targetName: "Sent to Company", fields: "Rt"   },
                 { targetId: 11, targetCode: "COMPLETED_OK",    targetName: "Completed OK",    fields: "RT" },
                 { targetId: 12, targetCode: "RETURN",          targetName: "Return",          fields: "R"    },
                 { targetId: 15, targetCode: "CANCELLED",       targetName: "Cancelled",       fields: "R"    },
@@ -74,7 +74,7 @@ export function getTransitions(statusId: number, jobTypeCode: string): Transitio
                 { targetId: 7,  targetCode: "PARTS_PENDING",   targetName: "Parts Pending",   fields: "R"     },
                 { targetId: 8,  targetCode: "ON_HOLD",         targetName: "On Hold",         fields: "R"     },
                 { targetId: 9,  targetCode: "OUTSOURCED",      targetName: "Outsourced",      fields: "R"     },
-                { targetId: 10, targetCode: "SENT_TO_COMPANY", targetName: "Sent to Company", fields: "R"     },
+                { targetId: 10, targetCode: "SENT_TO_COMPANY", targetName: "Sent to Company", fields: "Rt"    },
                 { targetId: 11, targetCode: "COMPLETED_OK",    targetName: "Completed OK",    fields: "RT" },
                 { targetId: 12, targetCode: "RETURN",          targetName: "Return",          fields: "R"    },
                 { targetId: 15, targetCode: "CANCELLED",       targetName: "Cancelled",       fields: "R"    },

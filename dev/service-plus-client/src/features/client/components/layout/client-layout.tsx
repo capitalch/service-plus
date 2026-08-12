@@ -22,6 +22,7 @@ import {
     setNoOfJobSheetsPerPrint,
     setPostDataToAccounts,
     setTrackJobUrl,
+    setJobTermsAndConditions,
 } from "@/store/context-slice";
 import { HelpPanel } from "@/components/shared/help/help-panel";
 import { HelpFab } from "@/components/shared/help/help-fab";
@@ -204,6 +205,11 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
             let parsedTrackUrl: unknown = rawTrackUrl;
             if (typeof rawTrackUrl === 'string') { try { parsedTrackUrl = JSON.parse(rawTrackUrl); } catch { /* keep raw */ } }
             dispatch(setTrackJobUrl(parsedTrackUrl != null ? String(parsedTrackUrl) : null));
+
+            const rawTerms = settings.find(s => s.setting_key === 'job_terms_and_conditions')?.setting_value;
+            let parsedTerms: unknown = rawTerms;
+            if (typeof rawTerms === 'string') { try { parsedTerms = JSON.parse(rawTerms); } catch { /* keep raw */ } }
+            dispatch(setJobTermsAndConditions(parsedTerms != null ? String(parsedTerms) : ""));
         }).catch(() => {/* silently ignore */});
     }, [dbName, schema]); // eslint-disable-line react-hooks/exhaustive-deps
 

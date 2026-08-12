@@ -265,15 +265,17 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
                                         </td>
                                         <td className={tdClass}>
                                             <div className="flex flex-col gap-0.5">
-                                                <div className="font-mono font-semibold text-(--cl-accent)">
-                                                    #{row.job_no}
-                                                    {row.is_opening_job && (
-                                                        <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
+                                                <div className="flex items-center justify-between gap-1.5 font-mono font-semibold text-(--cl-accent)">
+                                                    <span>
+                                                        #{row.job_no}
+                                                        {row.is_opening_job && (
+                                                            <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
+                                                        )}
+                                                    </span>
+                                                    {row.alternate_job_no && (
+                                                        <span className="shrink-0 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {row.alternate_job_no}</span>
                                                     )}
                                                 </div>
-                                                {row.alternate_job_no && (
-                                                    <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {row.alternate_job_no}</span>
-                                                )}
                                                 {row.purchase_date && (
                                                     <span className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {row.purchase_date}</span>
                                                 )}

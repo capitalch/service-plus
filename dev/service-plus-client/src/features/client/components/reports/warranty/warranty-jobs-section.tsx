@@ -135,7 +135,7 @@ const PART_COLUMNS: ReportColumnType<WarrantyPartRollupType>[] = [
     },
 ];
 
-export const WarrantyRepairsPartsValueSection = () => {
+export const WarrantyJobsSection = () => {
     const { fyStartMonth, isReady } = useFiscalSetting();
 
     const initialRange = useMemo<DateRangeType>(
@@ -166,13 +166,13 @@ export const WarrantyRepairsPartsValueSection = () => {
     const summaryQ = useGenericQuery<WarrantySummaryRowType>({
         enabled: isReady,
         sqlArgs: rangeArgs,
-        sqlId:   SQL_MAP.GET_WARRANTY_REPAIRS_SUMMARY_RANGE,
+        sqlId:   SQL_MAP.GET_WARRANTY_JOBS_SUMMARY_RANGE,
     });
 
     const jobsQ = useGenericQuery<WarrantyJobRowType>({
         enabled: isReady,
         sqlArgs: rangeArgs,
-        sqlId:   SQL_MAP.GET_WARRANTY_REPAIRS_LIST_RANGE,
+        sqlId:   SQL_MAP.GET_WARRANTY_JOBS_LIST_RANGE,
     });
 
     const partsQ = useGenericQuery<WarrantyPartRollupType>({
@@ -184,13 +184,13 @@ export const WarrantyRepairsPartsValueSection = () => {
     const thisMonthSummaryQ = useGenericQuery<WarrantySummaryRowType>({
         enabled: isReady,
         sqlArgs: thisMonthArgs,
-        sqlId:   SQL_MAP.GET_WARRANTY_REPAIRS_SUMMARY_RANGE,
+        sqlId:   SQL_MAP.GET_WARRANTY_JOBS_SUMMARY_RANGE,
     });
 
     const lastMonthSummaryQ = useGenericQuery<WarrantySummaryRowType>({
         enabled: isReady,
         sqlArgs: lastMonthArgs,
-        sqlId:   SQL_MAP.GET_WARRANTY_REPAIRS_SUMMARY_RANGE,
+        sqlId:   SQL_MAP.GET_WARRANTY_JOBS_SUMMARY_RANGE,
     });
 
     const summary  = summaryQ.data?.[0] ?? null;
@@ -218,7 +218,7 @@ export const WarrantyRepairsPartsValueSection = () => {
                     { align: "right", dataKey: "qty",   header: "Qty",   width: 16 },
                     { align: "right", dataKey: "value", header: "Value ₹", width: 24 },
                 ],
-                fileName:    `warranty-repairs_${rangeArgs.from}_${rangeArgs.to}`,
+                fileName:    `warranty-jobs_${rangeArgs.from}_${rangeArgs.to}`,
                 meta:        [
                     { label: "Range", value: rangeLabel },
                     { label: "Warranty Jobs",  value: formatNumber(summary?.warranty_jobs_count ?? 0) },
@@ -236,7 +236,7 @@ export const WarrantyRepairsPartsValueSection = () => {
                     value:         formatInr(Number(r.parts_value)),
                 })),
                 subtitle:    "In-warranty job repairs · parts consumed · parts value",
-                title:       "Warranty Repairs & Parts Value",
+                title:       "Warranty Jobs",
                 totalsRow:   {
                     customer_name: "",
                     date:          "",
@@ -257,7 +257,7 @@ export const WarrantyRepairsPartsValueSection = () => {
         try {
             const rangeLabel = `${rangeArgs.from} → ${rangeArgs.to}`;
             exportReportXlsx({
-                fileName: `warranty-repairs_${rangeArgs.from}_${rangeArgs.to}`,
+                fileName: `warranty-jobs_${rangeArgs.from}_${rangeArgs.to}`,
                 sheets: [
                     {
                         name: "Summary",
@@ -313,7 +313,7 @@ export const WarrantyRepairsPartsValueSection = () => {
                 onPrint={() => window.print()}
                 onRefresh={handleRefresh}
                 subtitle="In-warranty job repairs, parts consumed and parts value — by month or custom range"
-                title="Warranty Repairs & Parts Value"
+                title="Warranty Jobs"
             >
                 <WarrantyRangeTabs
                     fyStartMonth={fyStartMonth}

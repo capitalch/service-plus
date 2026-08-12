@@ -34,9 +34,9 @@ export function TabsTrigger({ value, children, className }: { value: string; chi
         <button
             type="button"
             className={cn(
-                "flex-1 flex items-center justify-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 cursor-pointer",
+                "flex items-center justify-center whitespace-nowrap px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-150 cursor-pointer",
                 isActive
-                    ? "bg-indigo-600 text-white shadow-md"
+                    ? "bg-(--cl-accent) text-white shadow-md"
                     : "text-(--cl-text-muted) hover:text-(--cl-text) hover:bg-(--cl-surface)/60",
                 className
             )}

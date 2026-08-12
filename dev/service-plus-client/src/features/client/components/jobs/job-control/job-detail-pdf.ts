@@ -4,14 +4,16 @@ import { jsPDF } from "jspdf";
 import type { JobDetailType } from "@/features/client/types/job";
 import type { JobTransactionRow } from "@/features/client/types/job";
 import type { DivisionContextType } from "@/features/client/types/division";
+import { isGstDivision } from "@/features/client/types/division";
 
 export type JobPartUsedRow = {
     id:            number;
     part_code:     string;
     part_name:     string;
-    uom:           string;
     qty:           number;
     selling_price: number | null;
+    gst_rate:      number | null;
+    hsn_code:      string | null;
     remarks:       string | null;
 };
 
@@ -20,6 +22,8 @@ export type JobAdditionalChargeRow = {
     charge_name:   string;
     ref_no:        string | null;
     description:   string | null;
+    hsn_code:      string | null;
+    gst_rate:      number;
     selling_price: number;
 };
 
@@ -37,7 +41,7 @@ function fmtDateTime(iso: string): string {
     if (!iso) return "—";
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
-    const date = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const time = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
     return `${date}\n${time}`;
 }
@@ -52,6 +56,12 @@ function buildJobDetailDoc(
     const doc       = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
+    // Same GST computation as job-final-info-modal.tsx's JobChargesReadonlyPanel — GST is
+    // derived live from each part/charge's own gst_rate, not from a saved invoice (a job may
+    // not be invoiced yet, but this report should still show the same GST breakdown staff
+    // already see in "Final Info").
+    const gstEnabled = isGstDivision(division);
+    const forceIgst  = job.is_igst ?? false;
 
     doc.setProperties({
         title:   `Job-Detail_${job.job_no}`,
@@ -97,6 +107,7 @@ function buildJobDetailDoc(
             ["Status:",        fmt(job.job_status_name),     "Technician:",     fmt(job.technician_name)],
             ["Customer:",      fmt(job.customer_name),        "Mobile:",         fmt(job.mobile)],
             ["Address:",       { content: fmt(job.address_snapshot), colSpan: 3 }],
+            ...(gstEnabled && job.customer_gstin ? [["GSTIN:", { content: fmt(job.customer_gstin), colSpan: 3 }]] : []),
             ["Device:",        fmt(device),                   "Serial No:",      fmt(job.serial_no)],
             ["Warranty Card:", fmt(job.warranty_card_no),     "Qty:",            fmt(job.qty)],
             ["Job Type:",      fmt(job.job_type_name),        "Receive Manner:", fmt(job.job_receive_manner_name)],
@@ -108,6 +119,18 @@ function buildJobDetailDoc(
         startY:  y,
         styles:  { cellPadding: 2.5, fontSize: 9, lineColor: [200, 200, 200], lineWidth: 0.3, overflow: "linebreak" },
         theme:   "grid",
+        // Alt Job No is pushed to the right edge of the Job No cell instead of taking its
+        // own row — same treatment as the Job Sheet PDF (job-sheet-pdf.ts), drawn manually
+        // since autoTable can't right-align part of a cell's text.
+        didDrawCell: data => {
+            if (data.row.index === 0 && data.column.index === 1 && job.alternate_job_no) {
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(8);
+                doc.setTextColor(90, 90, 90);
+                doc.text(`Alt: ${job.alternate_job_no}`, data.cell.x + data.cell.width - 2, data.cell.y + data.cell.height / 2 + 1, { align: "right" });
+                doc.setTextColor(0, 0, 0);
+            }
+        },
     });
 
     y = (doc as any).lastAutoTable.finalY + 5;
@@ -136,9 +159,28 @@ function buildJobDetailDoc(
     }
 
     // ── Parts Used ────────────────────────────────────────────────────────────
-    const partsSelling   = parts.reduce((s, p) => s + Number(p.selling_price ?? 0) * Number(p.qty), 0);
-    const chargesSelling = charges.reduce((s, c) => s + Number(c.selling_price ?? 0), 0);
-    const grandTotal     = partsSelling + chargesSelling;
+    // GST-inclusive amount per line — identical formula to job-final-info-modal.tsx's
+    // partSaleGst(): GST only applies when the division is GST-registered.
+    const partGstRate = (p: JobPartUsedRow) => gstEnabled ? (p.gst_rate ?? 0) : 0;
+    const partAmount  = (p: JobPartUsedRow) => Number(p.selling_price ?? 0) * (1 + partGstRate(p) / 100) * Number(p.qty);
+    const chargeGstRate = (c: JobAdditionalChargeRow) => gstEnabled ? (c.gst_rate ?? 0) : 0;
+    const chargeAmount  = (c: JobAdditionalChargeRow) => Number(c.selling_price ?? 0) * (1 + chargeGstRate(c) / 100);
+
+    const partsTotal   = parts.reduce((s, p) => s + partAmount(p), 0);
+    const chargesTotal = charges.reduce((s, c) => s + chargeAmount(c), 0);
+    const grandTotal   = partsTotal + chargesTotal;
+    // The job's own recorded amount is the authoritative total (matches what's actually
+    // billed) — fall back to the live parts/charges calculation only when it isn't set.
+    const effectiveTotal = (job.amount != null && job.amount > 0) ? job.amount : grandTotal;
+
+    // CGST/SGST (or IGST, per the job's is_igst flag) portion already folded into the
+    // totals above — broken out here purely for transparency, not added again.
+    const partsGstAmt   = gstEnabled ? parts.reduce((s, p) => s + Number(p.selling_price ?? 0) * Number(p.qty) * partGstRate(p) / 100, 0) : 0;
+    const chargesGstAmt = gstEnabled ? charges.reduce((s, c) => s + Number(c.selling_price ?? 0) * chargeGstRate(c) / 100, 0) : 0;
+    const totalGstAmt   = partsGstAmt + chargesGstAmt;
+    const cgstAmt = forceIgst ? 0 : totalGstAmt / 2;
+    const sgstAmt = forceIgst ? 0 : totalGstAmt / 2;
+    const igstAmt = forceIgst ? totalGstAmt : 0;
 
     if (parts.length > 0) {
         if (y > pageHeight - 40) { doc.addPage(); y = 14; }
@@ -147,28 +189,35 @@ function buildJobDetailDoc(
         doc.text("Parts Used", 14, y);
         y += 6;
         autoTable(doc, {
-            head: [["#", "Code", "Part Name", "UOM", "Qty", "Unit Price", "Total"]],
-            body: parts.map((p, i) => [
-                String(i + 1),
-                fmt(p.part_code),
-                fmt(p.part_name),
-                fmt(p.uom),
-                Number(p.qty).toFixed(2),
-                fmtAmount(p.selling_price),
-                p.selling_price != null ? fmtAmount(Number(p.selling_price) * Number(p.qty)) : "—",
-            ]),
+            head: gstEnabled
+                ? [["#", "Code", "Part Name", "HSN", "GST%", "Qty", "Unit Price", "Total"]]
+                : [["#", "Code", "Part Name", "Qty", "Unit Price", "Total"]],
+            body: parts.map((p, i) => gstEnabled
+                ? [
+                    String(i + 1), fmt(p.part_code), fmt(p.part_name),
+                    fmt(p.hsn_code), `${partGstRate(p)}%`,
+                    Number(p.qty).toFixed(2), fmtAmount(p.selling_price),
+                    p.selling_price != null ? fmtAmount(partAmount(p)) : "—",
+                ]
+                : [
+                    String(i + 1), fmt(p.part_code), fmt(p.part_name),
+                    Number(p.qty).toFixed(2), fmtAmount(p.selling_price),
+                    p.selling_price != null ? fmtAmount(partAmount(p)) : "—",
+                ]),
             margin:     { left: 14, right: 14 },
             startY:     y,
             styles:     { cellPadding: 2.5, fontSize: 9, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
             headStyles: { fontSize: 8.5, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [50, 50, 50] },
-            columnStyles: {
-                0: { cellWidth: 7 },
-                1: { cellWidth: 22 },
-                3: { cellWidth: 13 },
-                4: { cellWidth: 15, halign: "right" },
-                5: { cellWidth: 30, halign: "right" },
-                6: { cellWidth: 30, halign: "right" },
-            },
+            columnStyles: gstEnabled
+                ? {
+                    0: { cellWidth: 7 }, 1: { cellWidth: 20 },
+                    3: { cellWidth: 18 }, 4: { cellWidth: 14, halign: "right" },
+                    5: { cellWidth: 14, halign: "right" }, 6: { cellWidth: 26, halign: "right" }, 7: { cellWidth: 26, halign: "right" },
+                }
+                : {
+                    0: { cellWidth: 7 }, 1: { cellWidth: 26 },
+                    3: { cellWidth: 17, halign: "right" }, 4: { cellWidth: 32, halign: "right" }, 5: { cellWidth: 32, halign: "right" },
+                },
             theme: "grid",
         });
         y = (doc as any).lastAutoTable.finalY + 5;
@@ -182,38 +231,44 @@ function buildJobDetailDoc(
         doc.text("Additional Charges", 14, y);
         y += 6;
         autoTable(doc, {
-            head: [["#", "Charge Name", "Ref No", "Description", "Amount"]],
-            body: charges.map((c, i) => [
-                String(i + 1),
-                fmt(c.charge_name),
-                fmt(c.ref_no),
-                fmt(c.description),
-                fmtAmount(c.selling_price),
-            ]),
+            head: gstEnabled
+                ? [["#", "Charge Name", "Ref No", "Description", "HSN", "GST%", "Amount"]]
+                : [["#", "Charge Name", "Ref No", "Description", "Amount"]],
+            body: charges.map((c, i) => gstEnabled
+                ? [String(i + 1), fmt(c.charge_name), fmt(c.ref_no), fmt(c.description), fmt(c.hsn_code), `${chargeGstRate(c)}%`, fmtAmount(chargeAmount(c))]
+                : [String(i + 1), fmt(c.charge_name), fmt(c.ref_no), fmt(c.description), fmtAmount(chargeAmount(c))]),
             margin:     { left: 14, right: 14 },
             startY:     y,
             styles:     { cellPadding: 2.5, fontSize: 9, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
             headStyles: { fontSize: 8.5, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [50, 50, 50] },
-            columnStyles: {
-                0: { cellWidth: 7 },
-                1: { cellWidth: 48 },
-                2: { cellWidth: 28 },
-                3: { cellWidth: 67 },
-                4: { cellWidth: 32, halign: "right" },
-            },
+            columnStyles: gstEnabled
+                ? {
+                    0: { cellWidth: 7 }, 1: { cellWidth: 38 }, 2: { cellWidth: 22 }, 3: { cellWidth: 47 },
+                    4: { cellWidth: 18 }, 5: { cellWidth: 14, halign: "right" }, 6: { cellWidth: 26, halign: "right" },
+                }
+                : {
+                    0: { cellWidth: 7 }, 1: { cellWidth: 48 }, 2: { cellWidth: 28 }, 3: { cellWidth: 67 }, 4: { cellWidth: 32, halign: "right" },
+                },
             theme: "grid",
         });
         y = (doc as any).lastAutoTable.finalY + 5;
     }
 
     // ── Summary ───────────────────────────────────────────────────────────────
+    // GST info shown here the same way job-final-info-modal.tsx's "Final Info" panel
+    // shows it — computed live from parts/charges' own gst_rate, not from a saved
+    // invoice, so it's available even for a job that hasn't been invoiced yet.
     if ((parts.length > 0 || charges.length > 0) && grandTotal > 0) {
         if (y > pageHeight - 30) { doc.addPage(); y = 14; }
         autoTable(doc, {
             body: [
-                ...(parts.length   > 0 ? [["Parts",   fmtAmount(partsSelling)]]   : []),
-                ...(charges.length > 0 ? [["Charges", fmtAmount(chargesSelling)]] : []),
-                ["Grand Total", fmtAmount(grandTotal)],
+                ...(parts.length   > 0 ? [["Parts",   fmtAmount(partsTotal)]]   : []),
+                ...(charges.length > 0 ? [["Charges", fmtAmount(chargesTotal)]] : []),
+                ...(gstEnabled && totalGstAmt > 0
+                    ? (forceIgst ? [["IGST (incl. above)", fmtAmount(igstAmt)]] : [["CGST (incl. above)", fmtAmount(cgstAmt)], ["SGST (incl. above)", fmtAmount(sgstAmt)]])
+                    : []),
+                ["Calculated", fmtAmount(grandTotal)],
+                ["Grand Total", fmtAmount(effectiveTotal)],
             ],
             margin:       { left: pageWidth - 84, right: 14 },
             startY:       y,

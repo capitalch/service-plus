@@ -476,6 +476,7 @@ export const MESSAGES = {
   // WhatsApp Messaging (plans/plan-whatsapp.md)
   ERROR_WHATSAPP_SEND_FAILED:          'Failed to send WhatsApp message. Please try again.',
   ERROR_WHATSAPP_JOBS_LOAD_FAILED:     'Failed to load jobs for Customer Connect. Please try again.',
+  INFO_WHATSAPP_COMING_SOON:           'WhatsApp messaging is coming soon.',
   INFO_WHATSAPP_NOT_CONFIGURED:        'WhatsApp is not configured for this business.',
   INFO_WHATSAPP_NO_ELIGIBLE_JOBS:      'No jobs are eligible for the completion message.',
   INFO_WHATSAPP_NO_MOBILE:             'Customer has no valid mobile number.',

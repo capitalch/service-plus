@@ -8,16 +8,14 @@ import { ReportLoading } from "../components/reports/common/report-loading";
 const DashboardSection                       = lazy(() => import("../components/reports/dashboard/dashboard-section").then(m => ({ default: m.DashboardSection })));
 
 const EventTrackingSection                   = lazy(() => import("../components/reports/jobs/event-tracking-section").then(m => ({ default: m.EventTrackingSection })));
-const JobIntakeSummarySection                = lazy(() => import("../components/reports/jobs/job-intake-summary-section").then(m => ({ default: m.JobIntakeSummarySection })));
 const JobPipelineAgingSection                = lazy(() => import("../components/reports/jobs/job-pipeline-aging-section").then(m => ({ default: m.JobPipelineAgingSection })));
-const JobsRepairedSection                    = lazy(() => import("../components/reports/jobs/jobs-repaired-section").then(m => ({ default: m.JobsRepairedSection })));
-const JobsDeliveredSection                   = lazy(() => import("../components/reports/jobs/jobs-delivered-section").then(m => ({ default: m.JobsDeliveredSection })));
+const JobsSummarySection                     = lazy(() => import("../components/reports/jobs/jobs-summary-section").then(m => ({ default: m.JobsSummarySection })));
 const JobsDeliveredDetailedSection           = lazy(() => import("../components/reports/jobs/jobs-delivered-detailed-section").then(m => ({ default: m.JobsDeliveredDetailedSection })));
 const JobStatusTrendSection                  = lazy(() => import("../components/reports/jobs/job-status-trend-section").then(m => ({ default: m.JobStatusTrendSection })));
 const JobTransactionLedgerSection            = lazy(() => import("../components/reports/jobs/job-transaction-ledger-section").then(m => ({ default: m.JobTransactionLedgerSection })));
 
-const WarrantyRepairsPartsValueSection       = lazy(() => import("../components/reports/warranty/warranty-repairs-parts-value-section").then(m => ({ default: m.WarrantyRepairsPartsValueSection })));
-const WarrantyPartsConsumptionDetailSection  = lazy(() => import("../components/reports/warranty/warranty-parts-consumption-detail-section").then(m => ({ default: m.WarrantyPartsConsumptionDetailSection })));
+const WarrantyJobsSection                    = lazy(() => import("../components/reports/warranty/warranty-jobs-section").then(m => ({ default: m.WarrantyJobsSection })));
+const WarrantyPartsSection                   = lazy(() => import("../components/reports/warranty/warranty-parts-section").then(m => ({ default: m.WarrantyPartsSection })));
 const WarrantyTrendSection                   = lazy(() => import("../components/reports/warranty/warranty-trend-section").then(m => ({ default: m.WarrantyTrendSection })));
 
 const CashRegisterSection                    = lazy(() => import("../components/reports/financial/cash-register-section").then(m => ({ default: m.CashRegisterSection })));
@@ -53,15 +51,13 @@ const REPORT_SECTIONS: Record<string, ComponentType> = {
     "Delivered Jobs — Detailed":             JobsDeliveredDetailedSection,
     "Event Tracking":                        EventTrackingSection,
     "GST Summary":                           GstSummarySection,
-    "Job Intake Summary":                    JobIntakeSummarySection,
     "Job Pipeline / Aging":                  JobPipelineAgingSection,
     "Job Status Trend":                      JobStatusTrendSection,
     "Job Transaction Ledger":                JobTransactionLedgerSection,
-    "Jobs Delivered (OK)":                   JobsDeliveredSection,
     "Jobs Received — 12/24/36-month":        JobsReceivedTrailingSection,
     "Jobs Received — Monthly":               JobsReceivedMonthlySection,
     "Jobs Received — Year-wise":             JobsReceivedYearwiseSection,
-    "Jobs Repaired (OK)":                    JobsRepairedSection,
+    "Jobs Summary":                          JobsSummarySection,
     "Parts Consumption — Detailed":          PartsConsumptionDetailedSection,
     "Parts Reorder Suggestions":             PartsReorderSuggestionsSection,
     "Profit Summary":                        ProfitSummarySection,
@@ -79,9 +75,9 @@ const REPORT_SECTIONS: Record<string, ComponentType> = {
     "Technician Profit Report":              TechnicianProfitReportSection,
     "Technician Repaired vs Delivered":      TechnicianRepairedDeliveredSection,
     "Technician Scorecard":                  TechnicianScorecardSection,
-    "Warranty Parts Consumption Detail":     WarrantyPartsConsumptionDetailSection,
-    "Warranty Repairs & Parts Value":        WarrantyRepairsPartsValueSection,
-    "Warranty Trend (6-month)":              WarrantyTrendSection,
+    "Warranty Jobs":                         WarrantyJobsSection,
+    "Warranty Parts":                        WarrantyPartsSection,
+    "Warranty Trend":                        WarrantyTrendSection,
 };
 
 function ComingSoon({ label }: { label: string }) {

@@ -42,6 +42,7 @@ type Mutation {
     undoJobTransaction(db_name: String!, schema: String, value: String!): Generic
     undeliverJob(db_name: String!, schema: String, value: String!): Generic
     accountsPosting(db_name: String!, schema: String, value: String!): Generic
+    sendWhatsappCompletion(db_name: String!, schema: String, value: String!): Generic
 }
 
 type Subscription {

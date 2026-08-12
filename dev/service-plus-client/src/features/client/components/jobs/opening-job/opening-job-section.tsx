@@ -559,13 +559,17 @@ export const OpeningJobSection = () => {
                                                 </td>
                                                 <td className={tdClass}>{job.job_date}</td>
                                                 <td className={`${tdClass} font-mono font-medium text-(--cl-accent)`}>
-                                                    {job.job_no}
-                                                    {job.is_closed && (
-                                                        <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
-                                                    )}
-                                                    {job.alternate_job_no && (
-                                                        <div className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {job.alternate_job_no}</div>
-                                                    )}
+                                                    <div className="flex items-center justify-between gap-1.5">
+                                                        <span>
+                                                            {job.job_no}
+                                                            {job.is_closed && (
+                                                                <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                            )}
+                                                        </span>
+                                                        {job.alternate_job_no && (
+                                                            <span className="shrink-0 font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {job.alternate_job_no}</span>
+                                                        )}
+                                                    </div>
                                                     {job.purchase_date && (
                                                         <div className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {job.purchase_date}</div>
                                                     )}

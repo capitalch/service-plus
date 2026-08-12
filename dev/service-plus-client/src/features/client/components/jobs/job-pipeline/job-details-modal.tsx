@@ -10,7 +10,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectClientName, selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentBu, selectNoOfJobInvoicesPerPrint, selectNoOfJobReceiptsPerPrint, selectNoOfJobSheetsPerPrint, selectSchema, selectTrackJobUrl } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentBu, selectJobTermsAndConditions, selectNoOfJobInvoicesPerPrint, selectNoOfJobReceiptsPerPrint, selectNoOfJobSheetsPerPrint, selectSchema, selectTrackJobUrl } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType, JobTransactionRow } from "@/features/client/types/job";
 import type { JobInvoiceFullRow, JobInvoiceLineRow } from "../deliver-job/deliver-job-schema";
@@ -118,6 +118,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
     const currentBu    = useAppSelector(selectCurrentBu);
     const clientName   = useAppSelector(selectClientName);
     const trackJobUrl  = useAppSelector(selectTrackJobUrl);
+    const jobTermsAndConditions = useAppSelector(selectJobTermsAndConditions);
 
     const [job, setJob] = useState<JobDetailType | null>(null);
     const [transactions, setTransactions] = useState<JobTransactionRow[]>([]);
@@ -231,7 +232,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
     function handlePrintSheet() {
         if (!job) return;
         const jobDivision = job.division_id ? (divisions.find(d => d.id === job.division_id) ?? null) : null;
-        const url = getJobSheetBlobUrl(job, jobDivision, currentBranch?.code, noOfSheets, { clientName, buName: currentBu?.name ?? null, trackJobUrl });
+        const url = getJobSheetBlobUrl(job, jobDivision, currentBranch?.code, noOfSheets, { clientName, buName: currentBu?.name ?? null, trackJobUrl, termsAndConditions: jobTermsAndConditions });
         openPdf(url, `Job Sheet #${job.job_no}`, noOfSheets, "sheet");
     }
 
@@ -305,7 +306,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
         const jobDivision = job.division_id ? (divisions.find(d => d.id === job.division_id) ?? null) : null;
         if (pdfUrl) URL.revokeObjectURL(pdfUrl);
         if (type === "sheet") {
-            setPdfUrl(getJobSheetBlobUrl(job, jobDivision, currentBranch?.code, n, { clientName, buName: currentBu?.name ?? null, trackJobUrl }));
+            setPdfUrl(getJobSheetBlobUrl(job, jobDivision, currentBranch?.code, n, { clientName, buName: currentBu?.name ?? null, trackJobUrl, termsAndConditions: jobTermsAndConditions }));
         } else if (type === "invoice" && invoice) {
             const doc = buildInvoicePdf(
                 { ...job, customer_name: job.customer_name ?? "", payments },
@@ -356,7 +357,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                 {loading || !job ? (
                                     <span className="text-lg font-bold">Job Details</span>
                                 ) : (
-                                    <span className="flex flex-col gap-0.5">
+                                    <span className="flex items-baseline gap-2">
                                         <span className="font-mono text-2xl font-extrabold tracking-tight">#{job.job_no}</span>
                                         {job.alternate_job_no && (
                                             <span className="text-xs font-medium text-slate-500">
