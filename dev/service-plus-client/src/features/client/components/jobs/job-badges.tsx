@@ -66,3 +66,36 @@ export function StatusBadge({ code, name, className = "" }: {
     if (!name) return <>—</>;
     return <span className={`${BADGE_BASE} ${statusBadgeClass(code)} ${className}`}>{name}</span>;
 }
+
+// Same hue per status as StatusBadge, but text-only for use in reports/tables
+// where a solid pill is too heavy.
+const STATUS_TEXT_COLORS: Record<string, string> = {
+    RECEIVED:                    "text-blue-600    dark:text-blue-400",
+    ASSIGNED:                    "text-indigo-600  dark:text-indigo-400",
+    ESTIMATED:                   "text-purple-600  dark:text-purple-400",
+    ESTIMATE_APPROVED:           "text-violet-600  dark:text-violet-400",
+    ESTIMATE_REJECTED:           "text-pink-600    dark:text-pink-400",
+    IN_PROGRESS:                 "text-orange-600  dark:text-orange-400",
+    PARTS_PENDING:                "text-amber-600   dark:text-amber-400",
+    ON_HOLD:                     "text-yellow-600  dark:text-yellow-400",
+    OUTSOURCED:                  "text-teal-600    dark:text-teal-400",
+    SENT_TO_COMPANY:             "text-cyan-600    dark:text-cyan-400",
+    COMPLETED_OK:                "text-emerald-600 dark:text-emerald-400",
+    COMPLETED_OK_FINAL:          "text-emerald-700 dark:text-emerald-300",
+    RETURN:                      "text-lime-600    dark:text-lime-400",
+    DELIVERED_OK:                "text-green-600   dark:text-green-400",
+    DELIVERED_NOT_OK:            "text-orange-600  dark:text-orange-400",
+    CANCELLED:                   "text-slate-500   dark:text-slate-400",
+    DISPOSED:                    "text-zinc-600    dark:text-zinc-400",
+    RECEIVED_BACK_FROM_COMPANY:  "text-sky-600     dark:text-sky-400",
+};
+
+export function StatusText({ code, name, className = "" }: {
+    code:       string | null | undefined;
+    name:       string | null | undefined;
+    className?: string;
+}) {
+    if (!name) return <>—</>;
+    const color = STATUS_TEXT_COLORS[code ?? ""] ?? "text-slate-500 dark:text-slate-400";
+    return <span className={`font-medium ${color} ${className}`}>{name}</span>;
+}

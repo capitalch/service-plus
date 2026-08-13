@@ -148,14 +148,14 @@ function InventoryExplorer() {
                     disabled={!canBranchTransfer}
                     title={!canBranchTransfer ? "Your role does not have access to Branch Transfer" : undefined}
                 />
-                <TreeItem icon={ClipboardList} iconColor="text-slate-600" label="Loan Entry" />
+                <TreeItem icon={ClipboardList} iconColor="text-amber-600" label="Loan Entry" />
                 <TreeItem
-                    icon={Package} iconColor="text-slate-600"
+                    icon={Package} iconColor="text-teal-600"
                     label="Opening Stock"
                     disabled={!canOpeningStock}
                     title={!canOpeningStock ? "Your role does not have access to Opening Stock" : undefined}
                 />
-                <TreeItem icon={Globe} iconColor="text-slate-600"         label="Part Finder" />
+                <TreeItem icon={Globe} iconColor="text-cyan-600"         label="Part Finder" />
                 <TreeItem
                     icon={MapPin} iconColor="text-indigo-600"
                     label="Set Part Location"

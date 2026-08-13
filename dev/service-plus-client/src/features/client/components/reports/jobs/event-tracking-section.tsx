@@ -115,7 +115,7 @@ export const EventTrackingSection = () => {
 
             {matrix.error && <ReportError onRetry={matrix.refetch} />}
 
-            <ChartCard description="Received, Status Change, Finalize, and Deliver — Return/Cancel/Disposed are not tracked" title={TITLE}>
+            <ChartCard description="Received, Status Change, Finalize, and Deliver — Return/Cancel/Disposed are not tracked">
                 {matrix.loading
                     ? <ReportLoading lines={4} />
                     : (

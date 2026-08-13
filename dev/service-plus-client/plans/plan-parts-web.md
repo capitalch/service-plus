@@ -47,78 +47,108 @@ Everything below is grounded in the actual code, not guessed: `sql_bu_admin_ddl.
 - **`job_image_doc`**: `id, job_id (FK job), url, created_at, about` — the codebase's one-parent-many-images pattern (child table, not an array/JSON column). **This design deliberately does not follow it**; see §3c.
   - The load-bearing detail is `about`: `job-image-upload.tsx` treats it as a **required** per-image caption (blocks upload when any staged file has an empty `about`, line ~249) and renders it as both the visible label and the `alt` text. A row per image exists largely to hold that caption.
 - **`jsonb` precedent**: `app_setting.setting_value` and `division.account_setting` are `jsonb`. Worth knowing because it establishes how a non-scalar column is written through the generic envelope — the client `JSON.stringify()`s the value and sends it as a string (`edit-division-dialog.tsx:287`), which Postgres casts on the way in. There is **no `text[]` column in the DDL yet**; §3c explains why one is still the right call.
-- No existing order/inquiry table anywhere, confirmed via grep — `web_part_order`/`web_part_order_line` are from scratch.
+- No existing order/inquiry table anywhere, confirmed via grep — `spare_part_web_order`/`spare_part_web_order_line` are from scratch.
 
-### 3b. New tables
+### 3b. New tables — **§12 Step 1 done**
 
-Added per-tenant-schema, in the same hand-maintained style as `spare_part_master`/`job_image_doc` (`app/db/sql/sql_bu_admin_ddl.py`, subclassed by `app/db/sql/sql_bu_admin.py`). **Important constraint discovered during research: there is no migration runner in this codebase.** New-tenant provisioning applies the whole `BU_SCHEMA_DDL` string wholesale (`app/graphql/resolvers/bu_admin/provisioning.py`); for tables added later, existing tenants need the DDL hand-applied to each live schema, and the template `service_plus_service.sql` re-extracted via `python -m app.db.tools.extract_schema` so `sql_bu_admin_ddl.py` stays in sync. Budget for this manual step explicitly in the rollout — it is not automatic.
+Added per-tenant-schema, in the same hand-maintained style as `spare_part_master`/`job_image_doc` (`app/db/sql/sql_bu_admin_ddl.py`, subclassed by `app/db/sql/sql_bu_admin.py`). **Important constraint discovered during research: there is no migration runner in this codebase.** New-tenant provisioning applies the whole `BU_SCHEMA_DDL` string wholesale (`app/graphql/resolvers/bu_admin/provisioning.py`); for tables added later, existing tenants need the DDL hand-applied to each live schema, and the template `service_plus_service.sql` re-extracted via `python -m app.db.tools.extract_schema` so `sql_bu_admin_ddl.py` stays in sync.
+
+**Status: §12 Step 1 (template + regeneration) is done** — all three tables, under their renamed `spare_part_web_order`/`spare_part_web_order_line` identifiers, are confirmed in `sql_bu_admin_ddl.py` (lines 895–959, 1426–1432, 1602–1604, 1766–1778). The block below is copied from that generated output, not the hand-authored draft — as before, `extract_schema`/`pg_dump` normalizes the identity column back to the two-statement `ALTER TABLE ... ADD GENERATED ALWAYS AS IDENTITY (SEQUENCE NAME ...)` form and PK/FK constraints to `ALTER TABLE ONLY ... ADD CONSTRAINT`, matching every other table in this codebase; that's expected, not a hand-edit slip. **Still open**: §12 Step 3, hand-applying this DDL to each existing live tenant schema (track per-tenant, not evidenced from the code alone), and §12 Step 2, the `web_order_notify_email` app-setting (not yet present in `service-plus-server`).
 
 ```sql
 CREATE TABLE spare_part_web (
-    id               bigint NOT NULL,
-    branch_id        bigint NOT NULL REFERENCES branch(id),    -- the catalogue is per branch; every row belongs to exactly one
-    part_id          bigint REFERENCES spare_part_master(id),  -- nullable: NULL for market-sourced parts with no internal part code
-    part_name        text NOT NULL,
+    id bigint NOT NULL,
+    branch_id bigint NOT NULL,                    -- the catalogue is per branch; every row belongs to exactly one
+    part_id bigint,                                -- nullable: NULL for market-sourced parts with no internal part code
+    part_name text NOT NULL,
     part_description text,
-    price            numeric(12,2) NOT NULL,
-    model            text,                                     -- free text, same convention as spare_part_master.model
-    hsn_code         text,
-    is_active        boolean NOT NULL DEFAULT true,
+    price numeric(12,2) NOT NULL,
+    model text,                                    -- free text, same convention as spare_part_master.model
+    hsn_code text,
+    is_active boolean DEFAULT true NOT NULL,
     -- Ordered gallery. Element 1 is the cover/thumbnail; there is no separate cover column.
-    -- Relative file-server paths, e.g. "uploads/acme/mumbai/spare_parts_web_bhopal/42/front_....webp".
+    -- Relative file-server paths, e.g. "uploads/acme/mumbai/spare_part_web_bhopal/42/front_....webp".
     -- NOT NULL + DEFAULT '{}' so every read can assume a real array and skip NULL handling.
-    image_urls       text[] NOT NULL DEFAULT '{}',
-    created_at       timestamptz NOT NULL DEFAULT now(),
-    updated_at       timestamptz NOT NULL DEFAULT now()
+    image_urls text[] DEFAULT '{}'::text[] NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
 ALTER TABLE spare_part_web ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME spare_part_web_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
+    SEQUENCE NAME spare_part_web_id_seq
+    START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
 );
-ALTER TABLE spare_part_web ADD CONSTRAINT spare_part_web_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY spare_part_web
+    ADD CONSTRAINT spare_part_web_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY spare_part_web
+    ADD CONSTRAINT spare_part_web_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branch(id);
+
+ALTER TABLE ONLY spare_part_web
+    ADD CONSTRAINT spare_part_web_part_id_fkey FOREIGN KEY (part_id) REFERENCES spare_part_master(id);
 
 -- Every public read filters on (branch_id, is_active); this is the one index that matters.
-CREATE INDEX spare_part_web_branch_active_idx ON spare_part_web (branch_id, is_active);
+CREATE INDEX spare_part_web_branch_active_idx ON spare_part_web USING btree (branch_id, is_active);
 
 -- A branch should not list the same internal part twice. Partial, because part_id is NULL for
 -- market-sourced rows and a branch may legitimately list several distinct unlinked parts.
 CREATE UNIQUE INDEX spare_part_web_branch_part_uq
-    ON spare_part_web (branch_id, part_id) WHERE part_id IS NOT NULL;
+    ON spare_part_web USING btree (branch_id, part_id) WHERE (part_id IS NOT NULL);
 
-CREATE TABLE web_part_order (
-    id               bigint NOT NULL,
-    branch_id        bigint NOT NULL REFERENCES branch(id),  -- the branch whose catalogue was ordered from; also decides who gets the email (§7)
-    customer_name    text NOT NULL,
-    mobile           text NOT NULL,
-    email            text,
-    remarks          text,
-    status           text NOT NULL DEFAULT 'NEW'          -- NEW | CONTACTED | CANCELLED (see §8 — no automated fulfillment state machine in v1)
-                        CHECK (status IN ('NEW','CONTACTED','CANCELLED')),
-    total_amount     numeric(12,2) NOT NULL DEFAULT 0,     -- snapshot at submission time, server-computed
-    created_at       timestamptz NOT NULL DEFAULT now(),
-    updated_at       timestamptz NOT NULL DEFAULT now()
+CREATE TABLE spare_part_web_order (
+    id bigint NOT NULL,
+    branch_id bigint NOT NULL,                    -- the branch whose catalogue was ordered from; also decides who gets the email (§7)
+    customer_name text NOT NULL,
+    mobile text NOT NULL,
+    email text,
+    remarks text,
+    status text DEFAULT 'NEW'::text NOT NULL,      -- NEW | CONTACTED | CANCELLED (see §8 — no automated fulfillment state machine in v1)
+    total_amount numeric(12,2) DEFAULT 0 NOT NULL, -- snapshot at submission time, server-computed
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT spare_part_web_order_status_check CHECK ((status = ANY (ARRAY['NEW'::text, 'CONTACTED'::text, 'CANCELLED'::text])))
 );
-ALTER TABLE web_part_order ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME web_part_order_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
-);
-ALTER TABLE web_part_order ADD CONSTRAINT web_part_order_pkey PRIMARY KEY (id);
 
-CREATE TABLE web_part_order_line (
-    id                  bigint NOT NULL,
-    web_part_order_id   bigint NOT NULL REFERENCES web_part_order(id) ON DELETE CASCADE,
-    spare_part_web_id   bigint NOT NULL REFERENCES spare_part_web(id),
-    qty                 integer NOT NULL CHECK (qty > 0),
-    unit_price          numeric(12,2) NOT NULL,   -- spare_part_web.price snapshot at order time, server-recomputed, never client-trusted
-    line_total          numeric(12,2) NOT NULL
+ALTER TABLE spare_part_web_order ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME spare_part_web_order_id_seq
+    START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
 );
-ALTER TABLE web_part_order_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME web_part_order_line_id_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
+
+ALTER TABLE ONLY spare_part_web_order
+    ADD CONSTRAINT spare_part_web_order_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY spare_part_web_order
+    ADD CONSTRAINT spare_part_web_order_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branch(id);
+
+CREATE TABLE spare_part_web_order_line (
+    id bigint NOT NULL,
+    spare_part_web_order_id bigint NOT NULL,
+    spare_part_web_id bigint NOT NULL,
+    qty integer NOT NULL,
+    unit_price numeric(12,2) NOT NULL,             -- spare_part_web.price snapshot at order time, server-recomputed, never client-trusted
+    line_total numeric(12,2) NOT NULL,
+    CONSTRAINT spare_part_web_order_line_qty_check CHECK ((qty > 0))
 );
-ALTER TABLE web_part_order_line ADD CONSTRAINT web_part_order_line_pkey PRIMARY KEY (id);
+
+ALTER TABLE spare_part_web_order_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME spare_part_web_order_line_id_seq
+    START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
+);
+
+ALTER TABLE ONLY spare_part_web_order_line
+    ADD CONSTRAINT spare_part_web_order_line_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY spare_part_web_order_line
+    ADD CONSTRAINT spare_part_web_order_line_spare_part_web_id_fkey FOREIGN KEY (spare_part_web_id) REFERENCES spare_part_web(id);
+
+ALTER TABLE ONLY spare_part_web_order_line
+    ADD CONSTRAINT spare_part_web_order_line_spare_part_web_order_id_fkey FOREIGN KEY (spare_part_web_order_id) REFERENCES spare_part_web_order(id) ON DELETE CASCADE;
 ```
 
 Three tables total. Images need no table of their own (§3c).
 
-**An order never spans two branches.** `web_part_order.branch_id` is on the header, not the line, and the server rejects the whole submission if any `spare_part_web_id` in `lines` belongs to a different branch (§5). This is enforced server-side rather than by a DB constraint because the cross-table check would need a trigger; the frontend also prevents it structurally by scoping the cart to one branch (§9).
+**An order never spans two branches.** `spare_part_web_order.branch_id` is on the header, not the line, and the server rejects the whole submission if any `spare_part_web_id` in `lines` belongs to a different branch (§5). This is enforced server-side rather than by a DB constraint because the cross-table check would need a trigger; the frontend also prevents it structurally by scoping the cart to one branch (§9).
 
 ### 3c. Image urls: why `image_urls text[]`
 
@@ -155,21 +185,21 @@ What `text[]` buys concretely:
 **Design decision: repurpose those four segments instead of adding new file-server routes.** Because the catalogue is branch-scoped, it maps onto the file server's existing hierarchy almost exactly.
 
 - `client_code` / `bu_code` — the tenant, exactly as for job images.
-- `branch_code` → the literal `"spare-parts-web-"` prefixed with the row's own `branch.code`, e.g. `"spare-parts-web-BHOPAL"`. The file server's `_to_snake_case()` (`re.sub(r"[^a-z0-9]", "_", s.lower())`, collapsing runs and stripping edges) turns that into `spare_parts_web_bhopal`. This satisfies "a service center folder, so the entire folder can be deleted" literally: **each branch's web-catalogue images live in exactly one directory that can be deleted in one shot.**
+- `branch_code` → the literal `"spare-part-web-"` prefixed with the row's own `branch.code`, e.g. `"spare-part-web-BHOPAL"`. The file server's `_to_snake_case()` (`re.sub(r"[^a-z0-9]", "_", s.lower())`, collapsing runs and stripping edges) turns that into `spare_part_web_bhopal`. This satisfies "a service center folder, so the entire folder can be deleted" literally: **each branch's web-catalogue images live in exactly one directory that can be deleted in one shot.**
   - *Why not the bare branch code?* Because `.../{client}/{bu}/{branch}/` is already the job-image folder for that branch. Sharing it would (a) let a `job_no` and a `spare_part_web_id` collide on the 4th segment, and (b) make "delete this branch's part photos" indistinguishable from "delete this branch's job photos." The prefix keeps the two feature namespaces disjoint while staying per-branch.
   - *Residual collision risk, noted and accepted*: `branch.code` is `^[A-Z0-9_]+$` (§3a), so a branch literally named `SPARE_PARTS_WEB_BHOPAL` would slugify onto another branch's part folder. Vanishingly unlikely, unenforceable at the DB level, and cheap to guard against in the admin UI if it ever matters.
 - `job_no` → `str(spare_part_web_id)`. The id comes from a schema-level identity sequence, so it is unique across every branch in the BU — no cross-branch path collision is possible even before the branch folder scopes it. This means **`DELETE /files/delete-job` works unmodified as "delete all images for this one part"**; no file-server change is needed for per-part cleanup.
 
 **The one actual file-server change needed**: a route to delete a whole 3-level `client/bu/{branch-folder}` subtree in one call. There is no delete-above-job-level capability today — the closest precedent is `delete-job`'s per-file `iterdir()` loop. Add `DELETE /files/delete-folder` taking `client_code, bu_code, branch_code`, doing the equivalent of `shutil.rmtree` on that resolved 3-level directory, behind the same `X-API-Key` gate as every other route. This is what satisfies "if required entire folder can be deleted."
-- Called with `branch_code="spare-parts-web-{CODE}"` it wipes **one branch's** catalogue images — the common case, e.g. a branch that stops selling parts online.
+- Called with `branch_code="spare-part-web-{CODE}"` it wipes **one branch's** catalogue images — the common case, e.g. a branch that stops selling parts online.
 - A **tenant-wide** reset is that same call looped over the BU's branches. Deliberately *not* a 2-level `client/bu` rmtree, which would take every branch's job images with it.
 
 **`service-plus-server` side** (`app/routers/media/image_router.py`, `app/services/file_client.py`) — extend, don't replace:
-- `POST /api/images/spare-part-web/upload` — sibling route next to the job-scoped `/api/images/upload`. Body: `db_name, schema, spare_part_web_id, client_code, bu_code, files`. Calls `file_client.upload(...)` with `branch_code=f"spare-parts-web-{branch_code}"` and `job_no=str(spare_part_web_id)` (existing `FileClient.upload`, unchanged — it forwards a `form_data` dict, so no signature change), then appends the returned urls in **one statement**: `UPDATE spare_part_web SET image_urls = image_urls || %s::text[], updated_at = now() WHERE id = %s` (§3c). No cover-assignment step exists, because element 1 is the cover by definition — the first upload onto an empty array becomes the cover automatically. The route resolves the part's `branch_id → branch.code` itself rather than trusting a client-supplied branch, so an image can never be filed under a branch the part doesn't belong to.
+- `POST /api/images/spare-part-web/upload` — sibling route next to the job-scoped `/api/images/upload`. Body: `db_name, schema, spare_part_web_id, client_code, bu_code, files`. Calls `file_client.upload(...)` with `branch_code=f"spare-part-web-{branch_code}"` and `job_no=str(spare_part_web_id)` (existing `FileClient.upload`, unchanged — it forwards a `form_data` dict, so no signature change), then appends the returned urls in **one statement**: `UPDATE spare_part_web SET image_urls = image_urls || %s::text[], updated_at = now() WHERE id = %s` (§3c). No cover-assignment step exists, because element 1 is the cover by definition — the first upload onto an empty array becomes the cover automatically. The route resolves the part's `branch_id → branch.code` itself rather than trusting a client-supplied branch, so an image can never be filed under a branch the part doesn't belong to.
 - `DELETE /api/images/spare-part-web/{db_name}/{schema}/{spare_part_web_id}/image` with the url in the body — **keyed by url, not by an image id**, since there are no per-image ids. Calls the existing `file_client.delete_by_url(url)` (unchanged), then `UPDATE spare_part_web SET image_urls = array_remove(image_urls, %s) WHERE id = %s`. Both halves key off the same url, matching `DELETE /files/by-url`, which is the file server's native single-file idiom.
   - Removing element 1 promotes element 2 to cover automatically — no cover-repair step.
 - `PUT /api/images/spare-part-web/{db_name}/{schema}/{spare_part_web_id}/order` — accepts the full reordered url list and writes it in one `UPDATE ... SET image_urls = %s`. Validate that the submitted list is a permutation of the stored one (same multiset) and reject otherwise, so a stale client can't inject or drop urls through the reorder path.
-- `DELETE /api/images/spare-part-web/{db_name}/{schema}/part/{spare_part_web_id}` — mirrors `delete_job_images`: `UPDATE spare_part_web SET image_urls = '{}' WHERE id = %s`, then `file_client.delete_job_files(client_code, bu_code, f"spare-parts-web-{branch_code}", str(spare_part_web_id))` (existing method, unchanged), with `branch_code` again resolved server-side from the part's `branch_id`.
+- `DELETE /api/images/spare-part-web/{db_name}/{schema}/part/{spare_part_web_id}` — mirrors `delete_job_images`: `UPDATE spare_part_web SET image_urls = '{}' WHERE id = %s`, then `file_client.delete_job_files(client_code, bu_code, f"spare-part-web-{branch_code}", str(spare_part_web_id))` (existing method, unchanged), with `branch_code` again resolved server-side from the part's `branch_id`.
 - **Deleting a part row** must call that route first. There is no `ON DELETE CASCADE` to lean on, and clearing an array is not what removes files anyway — wire it into the admin delete action so a deleted part doesn't strand its folder on disk.
 - **Reads need no new route at all.** `GET /api/images/uploads/{path}` exists, is unauthenticated by design ("paths are unguessable" — stated in `image_router.py`), and proxies the file server with the server's own trusted API key. It is safe to use directly as the public image URL for the catalogue (`{API_BASE}/api/images/{any element of spare_part_web.image_urls, with the leading "uploads/" segment}`), and needs no branch awareness, since the branch is baked into the stored path.
 
@@ -194,7 +224,7 @@ Endpoints:
 - **`GET /api/public/company-info?company=&branch=`** — returns `{support_phone, branch_name}` for the **selected branch** (`branch.phone`), falling back to the head-office branch's phone when the selected branch has none, then to the first active branch. Backs the "phone no of staff will be visible on web" requirement (§9); per-branch matters, since a customer ordering from the Bhopal catalogue should be calling Bhopal. If a dedicated public-facing number is wanted later instead of the branch line, add a `web_support_phone` app-setting following the existing `track_job_url` pattern — not needed for v1.
 - **`GET /api/public/parts?company=&branch=&search=&page=&page_size=`** → paginated `{items: PartOut[], total, page, page_size}`. `PartOut = {id, part_name, part_description, price, model, image_url}`, where `image_url` is the **cover only**, selected as `image_urls[1] AS image_url` (Postgres arrays are 1-based, and the expression yields `NULL` for an empty array, so no CASE is needed). The listing deliberately does not ship the whole gallery. Query: `SELECT ... FROM spare_part_web WHERE branch_id = %(branch_id)s AND is_active = true`, `ILIKE` on `part_name`/`part_description`/`model` for `search`, ordered newest-first or by name. **`hsn_code`, `part_id` and `branch_id` are excluded from the response** — HSN isn't sensitive but customers have no use for it, and `part_id`/`branch_id` are internal ids (§2).
 - **`GET /api/public/parts/{part_id}?company=&branch=`** → single `PartOut` plus `images: string[]`, read straight off the same row's `image_urls`, already in display order, **no second query and no join** (§3c). psycopg returns a `text[]` as a Python list, so it serialises to a JSON array with no conversion code. 404 if not found, inactive, **or not owned by the resolved branch** — the `branch_id` predicate belongs in this query too, not just the list query, so a guessed part id from a sibling branch returns 404 rather than leaking a row.
-- **`POST /api/public/part-orders`** → body `{company, branch?, customer_name, mobile, email?, remarks?, lines: [{part_id, qty}]}`. Resolves the branch as above, then re-validates each line **against that branch**: the part must exist, be `is_active`, **and have `branch_id` = the resolved branch** (no stock check, per §3d). Recomputes `unit_price`/`line_total`/`total_amount` from the current `spare_part_web.price`, never trusting a client-cached price; rejects with a clear per-line error if a part is inactive, deleted, or from another branch; otherwise inserts `web_part_order` (with `branch_id`) + `web_part_order_line`, **sends a notification email to staff** (§7), and returns `{order_id, status: "NEW"}`. Rate-limited tighter than reads.
+- **`POST /api/public/part-orders`** → body `{company, branch?, customer_name, mobile, email?, remarks?, lines: [{part_id, qty}]}`. Resolves the branch as above, then re-validates each line **against that branch**: the part must exist, be `is_active`, **and have `branch_id` = the resolved branch** (no stock check, per §3d). Recomputes `unit_price`/`line_total`/`total_amount` from the current `spare_part_web.price`, never trusting a client-cached price; rejects with a clear per-line error if a part is inactive, deleted, or from another branch; otherwise inserts `spare_part_web_order` (with `branch_id`) + `spare_part_web_order_line`, **sends a notification email to staff** (§7), and returns `{order_id, status: "NEW"}`. Rate-limited tighter than reads.
 
 ## 6. Internal admin interface (`service-plus-client`) — maintaining the web catalogue
 
@@ -204,7 +234,7 @@ Staff need a full CRUD screen before there is anything to show on the public sit
 
 Follows the pattern already used for `spare_part_master` at `src/features/client/components/masters/parts/` (`parts-section.tsx` + `part-dialog.tsx`) — table + toolbar + single add/edit dialog (`mode: "add" | "edit"`), `react-hook-form` + `zod`, persistence through the **GraphQL generic-query/generic-update envelope** (`GRAPHQL_MAP.genericQuery` / `genericUpdate`, `SQL_MAP.*` named queries resolved server-side, `tableName: "spare_part_web"` for writes). This is the established convention for every master-data table in this app; there are no per-table REST CRUD routers to build.
 
-- New folder `src/features/client/components/masters/spare-parts-web/`: `spare-parts-web-section.tsx` (table: thumbnail, part name, model, price, HSN, "linked to `{part_code}`" badge when `part_id` is set vs. a "Market part" badge when null, is_active toggle, search) + `spare-part-web-dialog.tsx` (form fields matching §3b's columns, plus an optional autocomplete against `spare_part_master` to set `part_id`).
+- New folder `src/features/client/components/masters/spare-part-web/`: `spare-part-web-section.tsx` (table: thumbnail, part name, model, price, HSN, "linked to `{part_code}`" badge when `part_id` is set vs. a "Market part" badge when null, is_active toggle, search) + `spare-part-web-dialog.tsx` (form fields matching §3b's columns, plus an optional autocomplete against `spare_part_master` to set `part_id`).
 - **Branch scoping comes from the existing context** (§3a): read `selectCurrentBranch` from `src/store/context-slice.ts`, filter the list query by that `branch.id`, and stamp it onto `branch_id` on insert — `branch_id` is never a form field. Staff maintain "this branch's web catalogue" and switch branches with the existing `bu-branch-switcher.tsx` in the top nav, exactly as they do for every other branch-scoped screen. Show the current branch name in the section header so it is unambiguous which catalogue is being edited.
   - The screen must react to a branch switch by refetching (the same invalidation the other branch-scoped sections use), not show a stale list.
   - `selectIsBuBranchDivisionComplete` already blocks the client area until a branch is chosen, so `currentBranch` can be treated as non-null here.
@@ -232,7 +262,7 @@ There is no payment gateway and no automated fulfillment workflow: customers sel
 
 ## 8. Staff-side fulfillment — optional fast-follow, not required for v1
 
-Since delivery and billing are manual and offline, `web_part_order` rows need only be queryable to ship — a direct DB query or a simple read-only admin list is enough, with no state-machine UI. If and when it is worth building:
+Since delivery and billing are manual and offline, `spare_part_web_order` rows need only be queryable to ship — a direct DB query or a simple read-only admin list is enough, with no state-machine UI. If and when it is worth building:
 
 - A "Web Part Orders" list screen (list + expandable line items, filter by `status`), status transitions `NEW → CONTACTED → (fulfilled offline, no further status)` or `CANCELLED`. Scope it to `currentBranch` like §6a, with the branch name in the header — branch staff should see their own orders by default. A BU-wide "all branches" toggle for managers is a nice-to-have.
 - **Do not** auto-generate a Sales Invoice from every order. Many lines will have `spare_part_web.part_id IS NULL` (market-sourced parts with no `spare_part_master` row), so there is nothing to invoice against automatically. For lines where `part_id IS NOT NULL`, staff *may* manually create a normal Sales Invoice through the existing flow if they want stock and accounting reconciliation — a manual staff action, not something this feature automates, consistent with billing being manual.
@@ -276,55 +306,87 @@ Following the conventions the "Track your repair" feature established (`react-ho
 3. **Phase 3 — order submission.** `POST /api/public/part-orders` with branch validation, branch-scoped cart/checkout/confirmation UI, branch-routed staff email notification (§5, §7). This is the point the feature is usable end-to-end.
 4. **Phase 4 (optional)** — the "Web Part Orders" staff list screen, the §6a "Copy to branch…" bulk action, and/or the per-branch `DELETE /files/delete-folder` capability (§4, §8), added only if and when actually needed.
 
+**For the actual step-by-step build**, use §12 — a single serial list, Step 1 through Step 29, one atomic change with a Verify per step, grouped under these same four phases.
+
 ## 12. Implementation steps
 
-Each step maps onto the corresponding phase in §11; substeps are in dependency order within the step and tagged with the repo they touch. A step's "Exit check" is the minimum bar for moving to the next one — it is a fast smoke test, not a substitute for §13.
+**One flat, serial sequence — Step 1 through Step 29, in the order you execute them.** Each step is scoped to a single, atomic change (usually one file or one route) and is followed by a **Verify** line: a concrete thing to run or click *immediately after that step*, before moving to the next one. Don't batch steps — the whole point of this numbering is that step *N*'s Verify should pass before step *N+1* starts, so a failure always points at the one change you just made. The step numbers are stable references — other sections of this doc (§3b, §7) cite them by number. Steps are grouped under the §11 phase headers for context, but the numbering runs continuously across all four phases. A phase's "Exit check" (kept from the original plan) is a broader smoke test once every step in that phase is done — it is not a substitute for the per-step Verify, and neither replaces §13.
 
-### Step 1 — schema + internal admin (Phase 1: nothing public yet)
+### Phase 1 — schema + internal admin (nothing public yet)
 
-1. **[server]** Add `spare_part_web`, `web_part_order`, `web_part_order_line` DDL (§3b) to the template `service_plus_service.sql`; regenerate `sql_bu_admin_ddl.py` via `python -m app.db.tools.extract_schema`.
-2. **[server]** Add the `web_order_notify_email` app-setting (two-step DDL pattern, matching the existing `track_job_url` setting) — needed by §7's recipient resolution in Step 3.
+1. ✅ **[server]** Add `spare_part_web`, `spare_part_web_order`, `spare_part_web_order_line` DDL (§3b) to the template `service_plus_service.sql`; regenerate `sql_bu_admin_ddl.py` via `python -m app.db.tools.extract_schema`.
+   **Done.** Verify: `grep -n "spare_part_web" app/db/sql/sql_bu_admin_ddl.py` shows all three `CREATE TABLE` blocks (confirmed at the lines cited in §3b).
+2. **[server]** Add the `web_order_notify_email` app-setting (two-step DDL pattern, matching the existing `track_job_url` setting) — needed by Step 23's recipient resolution.
+   Verify: the new setting key exists in the DDL/seed for the app-setting table and a `genericQuery` for it from an admin screen (or a one-off SQL `SELECT`) returns a row, even if the value is still empty.
 3. **[server]** Hand-apply the new DDL to every existing tenant schema (no migration runner exists — §3b); track which schemas are done.
+   Verify: for each tenant schema, `\dt spare_part_web*` / `\dt spare_part_web_order*` in `psql` (or the equivalent client) lists all three tables; keep a checklist of schema names as you go.
 4. **[server]** Add `spare_part_web` to `BU_ADMIN_GENERIC_UPDATE_TABLE_RIGHTS` (`provisioning.py`) with a new right code, and register the `SQL_MAP` read query the admin list needs (parts by branch).
+   Verify: the new right code appears in the seeded `access_right` rows for a fresh/re-provisioned tenant, and the new `SQL_MAP` entry runs standalone (e.g. via the GraphQL playground) against a schema with zero rows, returning an empty array rather than erroring.
 5. **[file-server]** Add `DELETE /files/delete-folder` (`client_code, bu_code, branch_code` → `shutil.rmtree`, `X-API-Key` gated) — the one net-new file-server route this whole design needs (§4).
-6. **[server]** Add the four `/api/images/spare-part-web/*` routes in `image_router.py` — upload (append to `image_urls`), delete-by-url, reorder, delete-all-for-part — plus a `FileClient.delete_folder()` wrapper calling substep 5's new route (§4).
-7. **[client]** Add the sidebar entry (`TreeItem` in `client-explorer-panel.tsx` + matching branch in `client-masters-page.tsx`) and the new `src/features/client/components/masters/spare-parts-web/` folder: `spare-parts-web-section.tsx` (branch-scoped table + toolbar) and `spare-part-web-dialog.tsx` (RHF+zod form, optional `part_id` autocomplete against `spare_part_master`) (§6a).
-8. **[client]** Generalize `job-image-upload.tsx` into an entity-agnostic uploader — drop the required `about` caption, post the full url list on reorder — and wire it into the dialog against substep 6's routes (§6b).
-9. **[client]** Wire the part-delete action to call the delete-all-for-part image route (substep 6) *before* the GraphQL delete, so a removed part never strands its image folder (§4).
-10. **[client]** *(optional — only if a live tenant's branch shape calls for it)* Add the "Copy to branch…" bulk action (§6a).
+   Verify: `curl -X DELETE -H "X-API-Key: $KEY" ".../files/delete-folder?client_code=...&bu_code=...&branch_code=spare-part-web-TESTBRANCH"` against a manually created test folder returns success and the folder is gone; a request with a wrong/missing API key is rejected.
+6. **[server]** Add the four `/api/images/spare-part-web/*` routes in `image_router.py` — upload (append to `image_urls`), delete-by-url, reorder, delete-all-for-part — plus a `FileClient.delete_folder()` wrapper calling Step 5's new route (§4).
+   Verify: with a manually inserted `spare_part_web` row (raw SQL is fine at this point), `curl` the upload route with a test image and confirm the row's `image_urls` gains the new path; `curl` delete-by-url and confirm it's removed again.
+7. **[client]** Add the sidebar entry (`TreeItem` in `client-explorer-panel.tsx` + matching branch in `client-masters-page.tsx`) and a first-cut `spare-part-web-section.tsx` — branch-scoped table + toolbar, **read-only, no dialog yet** (§6a).
+   Verify: run the client app, open Masters, see the new "Spare Parts – Web Catalogue" entry in the sidebar, and land on an empty table (or the manually inserted Step 6 row) scoped to the current branch.
+8. **[client]** Build `spare-part-web-dialog.tsx` (RHF+zod form, optional `part_id` autocomplete against `spare_part_master`) and wire it into Step 7's section for add/edit (§6a).
+   Verify: in the running app, add a new part through the dialog and see it appear in the table without a page reload; edit it and confirm the change persists after a refresh.
+9. **[client]** Generalize `job-image-upload.tsx` into an entity-agnostic uploader — drop the required `about` caption, post the full url list on reorder — and wire it into Step 8's dialog against Step 6's routes (§6b).
+   Verify: upload a photo to a part through the dialog and see the thumbnail appear; drag-reorder two photos and refresh to confirm the new order persisted.
+10. **[client]** Wire the part-delete action to call the delete-all-for-part image route (Step 6) *before* the GraphQL delete, so a removed part never strands its image folder (§4).
+    Verify: delete a part that has photos, then check the file server's folder for that part id is gone (not just the DB row).
+11. **[client]** *(optional — only if a live tenant's branch shape calls for it)* Add the "Copy to branch…" bulk action (§6a).
+    Verify: select rows in one branch, run "Copy to branch…" to a second branch, and confirm the second branch's list gains the rows with `image_urls` reset to empty (not pointing at the source branch's photos).
 
-**Exit check**: staff can create/edit/deactivate a `spare_part_web` row, upload/delete/reorder its photos, and switching branch in the top-nav switcher swaps the list — all with nothing public-facing yet.
+**Exit check** (Phase 1, after Steps 1–11): staff can create/edit/deactivate a `spare_part_web` row, upload/delete/reorder its photos, and switching branch in the top-nav switcher swaps the list — all with nothing public-facing yet.
 
-### Step 2 — public read-only catalogue (Phase 2)
+### Phase 2 — public read-only catalogue
 
-1. **[server]** Add the branch query, `company-info` query, parts-list query, and part-detail query to `sql_public.py` (§5).
-2. **[server]** Add the shared `resolve_branch(db_name, schema, branch_code | None)` helper in `website_router.py` (§5).
-3. **[server]** Add `GET /api/public/branches`, `GET /api/public/company-info`, `GET /api/public/parts`, `GET /api/public/parts/{part_id}` — each behind `require_website_key` + a read-tier rate limit (§5).
-4. **[web]** Add `fetchBranches`, `fetchParts`, `fetchPartById`, `fetchCompanyInfo` to `lib/api.ts` / `lib/types.ts` (§9).
-5. **[web]** Extract the shared `company-select.tsx` out of `job-status-form.tsx` / `open-jobs-form.tsx` (§9).
-6. **[web]** Build `branch-select.tsx` — silent auto-select and no render at exactly one branch, preselected dropdown at more than one, empty state at zero (§9).
-7. **[web]** Build `parts-search.tsx` and `parts-grid.tsx` / `part-card.tsx`, including the empty-gallery placeholder and the persistent "prices are indicative" disclaimer (§9).
-8. **[web]** Build `part-detail-dialog.tsx` with the image gallery/lightbox sourced from the detail endpoint's `images: string[]` (§9).
-9. **[web]** Wire `app/spare-parts/page.tsx` end to end — company → branch → grid → detail — read-only, no cart/checkout yet.
-10. **[web]** Flip `feature-cards.tsx`'s "Coming soon" card to link to `/spare-parts`; add the nav link in `header.tsx` (§9).
+12. **[server]** Add the branch query, `company-info` query, parts-list query, and part-detail query to `sql_public.py` (§5).
+    Verify: each new query runs standalone against a seeded schema (e.g. via a quick Python REPL call into the driver, or a temporary debug route) and returns the expected whitelisted columns — no `SELECT *`.
+13. **[server]** Add the shared `resolve_branch(db_name, schema, branch_code | None)` helper in `website_router.py` (§5).
+    Verify: call it directly (REPL or a temporary test) with a valid code, no code, and a bogus code against a seeded tenant — confirm it returns the matching branch, the first/head-office branch, and raises/404s respectively.
+14. **[server]** Add `GET /api/public/branches`, `GET /api/public/company-info`, `GET /api/public/parts`, `GET /api/public/parts/{part_id}` — each behind `require_website_key` + a read-tier rate limit (§5).
+    Verify: `curl` each route with the correct `X-Website-Key` and a valid `company` token and get real JSON back; `curl` one without the header and confirm it's rejected.
+15. **[web]** Add `fetchBranches`, `fetchParts`, `fetchPartById`, `fetchCompanyInfo` to `lib/api.ts` / `lib/types.ts` (§9).
+    Verify: `tsc --noEmit` passes, and a scratch call from the browser console (or a temporary test page) against the dev server returns typed data matching Step 14's routes.
+16. **[web]** Extract the shared `company-select.tsx` out of `job-status-form.tsx` / `open-jobs-form.tsx` (§9).
+    Verify: **regression check** — the existing "Track your repair" and "Open Jobs" pages still load and let you pick a company exactly as before the extraction.
+17. **[web]** Build `branch-select.tsx` — silent auto-select and no render at exactly one branch, preselected dropdown at more than one, empty state at zero (§9).
+    Verify: point it at a single-branch seeded tenant and confirm no dropdown renders at all; point it at a multi-branch tenant and confirm a dropdown appears, preselected to the first branch.
+18. **[web]** Build `parts-search.tsx` and `parts-grid.tsx` / `part-card.tsx`, including the empty-gallery placeholder and the persistent "prices are indicative" disclaimer (§9).
+    Verify: render against Step 6/8's manually created part(s) and see cards with name/model/price and the disclaimer text visible without scrolling.
+19. **[web]** Build `part-detail-dialog.tsx` with the image gallery/lightbox sourced from the detail endpoint's `images: string[]` (§9).
+    Verify: click a part card and see the detail dialog open with its full description and photo gallery in the uploaded order.
+20. **[web]** Wire `app/spare-parts/page.tsx` end to end — company → branch → grid → detail — read-only, no cart/checkout yet.
+    Verify: `npm run dev` in `service-plus-web`, navigate to `/spare-parts`, and complete the full company → branch → grid → detail click-path against a seeded tenant.
+21. **[web]** Flip `feature-cards.tsx`'s "Coming soon" card to link to `/spare-parts`; add the nav link in `header.tsx` (§9).
+    Verify: from the site's home page, click the "Genuine spare parts" card (and the new nav link) and land on the working `/spare-parts` page from Step 20.
 
-**Exit check**: both a single-branch and a multi-branch seeded tenant browse correctly end to end, and part images load through the existing unauthenticated `/api/images/uploads/{path}` proxy.
+**Exit check** (Phase 2, after Steps 12–21): both a single-branch and a multi-branch seeded tenant browse correctly end to end, and part images load through the existing unauthenticated `/api/images/uploads/{path}` proxy.
 
-### Step 3 — order submission (Phase 3: usable end to end)
+### Phase 3 — order submission (usable end to end)
 
-1. **[server]** Implement `POST /api/public/part-orders` — branch-scoped re-validation of every line, server-recomputed pricing, insert into `web_part_order` + `web_part_order_line` (§5).
-2. **[server]** Wire the staff notification email — `send_email` call, branch-first recipient resolution (`branch.email` → `web_order_notify_email` setting → head office), branch name in the subject line (§7).
-3. **[web]** Build `cart-drawer.tsx`, keyed on `(company, branch)`, with a discard-confirmation prompt on branch switch (§9).
-4. **[web]** Build `checkout-form.tsx` and `order-confirmation.tsx` with the no-payment / no-return / manual-fulfillment messaging and the selected branch's phone number (§7, §9).
-5. **[web]** Add `submitPartOrder` to `lib/api.ts` and wire cart → checkout → confirmation.
+22. **[server]** Implement `POST /api/public/part-orders` — branch-scoped re-validation of every line, server-recomputed pricing, insert into `spare_part_web_order` + `spare_part_web_order_line` (§5).
+    Verify: `curl -X POST` a valid single-branch cart and confirm rows land in both tables with server-computed totals; `curl` a hand-crafted cross-branch cart and confirm it's rejected.
+23. **[server]** Wire the staff notification email — `send_email` call, branch-first recipient resolution (`branch.email` → `web_order_notify_email` setting → head office), branch name in the subject line (§7).
+    Verify: repeat Step 22's successful `curl` and confirm an email arrives (or, without SMTP configured locally, that a clear warning is logged) with the branch name in the subject.
+24. **[web]** Build `cart-drawer.tsx`, keyed on `(company, branch)`, with a discard-confirmation prompt on branch switch (§9).
+    Verify: add items to the cart, reload the page, and confirm the cart survived (`localStorage`); switch branch and confirm the discard-confirmation prompt appears.
+25. **[web]** Build `checkout-form.tsx` and `order-confirmation.tsx` with the no-payment / no-return / manual-fulfillment messaging and the selected branch's phone number (§7, §9).
+    Verify: open checkout from a populated cart and see the disclaimer text and the correct branch's phone number rendered (still no real submission yet).
+26. **[web]** Add `submitPartOrder` to `lib/api.ts` and wire cart → checkout → confirmation.
+    Verify: place a real order through the full UI (cart → checkout → confirm), see the confirmation screen with an order id, then confirm that order id exists in `spare_part_web_order` with the right `branch_id` (closes the loop with Step 22).
 
-**Exit check**: a real order submitted through the UI lands in the DB with the correct `branch_id`, staff receive the email, and a hand-crafted cross-branch or stale-price request is rejected server-side, not silently accepted.
+**Exit check** (Phase 3, after Steps 22–26): a real order submitted through the UI lands in the DB with the correct `branch_id`, staff receive the email, and a hand-crafted cross-branch or stale-price request is rejected server-side, not silently accepted.
 
-### Step 4 — optional fast-follow (Phase 4)
+### Phase 4 — optional fast-follow
 
-1. **[client]** "Web Part Orders" staff list screen, branch-scoped by default, `NEW → CONTACTED/CANCELLED` status (§8).
-2. **[client]** The §6a "Copy to branch…" bulk action, if not already built in Step 1.
-3. **[server + file-server]** Expose substep 1.5's `DELETE /files/delete-folder` as an admin-triggered action (e.g. "clear this branch's web catalogue photos"), only once an actual need for it shows up (§4, §10).
+27. **[client]** "Web Part Orders" staff list screen, branch-scoped by default, `NEW → CONTACTED/CANCELLED` status (§8).
+    Verify: the order placed in Step 26 shows up in this list under the correct branch; changing its status persists after a refresh.
+28. **[client]** The §6a "Copy to branch…" bulk action, if not already built in Step 11.
+    Verify: same as Step 11's Verify, if it wasn't already done there.
+29. **[server + file-server]** Expose Step 5's `DELETE /files/delete-folder` as an admin-triggered action (e.g. "clear this branch's web catalogue photos"), only once an actual need for it shows up (§4, §10).
+    Verify: trigger it from the admin UI for a test branch and confirm that branch's part photos are gone while its job-image folder and other branches' part photos are untouched.
 
 ## 13. Verification
 
@@ -333,10 +395,10 @@ Each step maps onto the corresponding phase in §11; substeps are in dependency 
   - `GET /api/public/branches` returns exactly one row for a single-branch BU and the head-office-first order for a multi-branch one; inactive branches never appear.
   - Omitting `branch` on `/parts`, `/parts/{id}`, `/company-info` and `/part-orders` resolves to the **first** branch, not to "all branches" — a missing param must never widen the result set.
   - `/parts?branch=OTHER` returns only that branch's rows; `/parts/{id}` for a part belonging to a different branch returns **404, not the row**.
-  - `POST /api/public/part-orders` with a hand-crafted body mixing two branches' part ids is **rejected**, and the persisted `web_part_order.branch_id` matches the resolved branch.
+  - `POST /api/public/part-orders` with a hand-crafted body mixing two branches' part ids is **rejected**, and the persisted `spare_part_web_order.branch_id` matches the resolved branch.
   - An unknown or inactive `branch` code 404s rather than falling back to the default branch.
   - The notification email lands at the ordered-from branch's address, and falls back correctly when `branch.email` is null.
-- **Images**: confirm an uploaded part image lands at `.../{client}/{bu}/spare_parts_web_{branch}/{spare_part_web_id}/...` — under the **owning branch's** folder, and *not* in that branch's job-image folder; that deleting a part's images both empties `image_urls` and removes the on-disk files (via the reused `delete-job` route); that `DELETE /files/delete-folder` for one branch's part folder leaves the other branch's part images **and** that branch's job images untouched; and that the public detail page can load images through `GET /api/images/uploads/{path}` unauthenticated.
+- **Images**: confirm an uploaded part image lands at `.../{client}/{bu}/spare_part_web_{branch}/{spare_part_web_id}/...` — under the **owning branch's** folder, and *not* in that branch's job-image folder; that deleting a part's images both empties `image_urls` and removes the on-disk files (via the reused `delete-job` route); that `DELETE /files/delete-folder` for one branch's part folder leaves the other branch's part images **and** that branch's job images untouched; and that the public detail page can load images through `GET /api/images/uploads/{path}` unauthenticated.
 - **`image_urls` array behaviour** — the failure modes here are array-specific, so test them deliberately:
   - Uploading two images in one request, and two images in two concurrent requests, both end with **both** urls present. This is the read-modify-write regression the `||` append (§3c) exists to prevent; don't assume it.
   - Deleting the first image promotes the second to cover on the listing page with no extra action; deleting the last leaves `'{}'` (never `NULL`) and the card renders its placeholder.

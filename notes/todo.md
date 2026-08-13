@@ -1,12 +1,17 @@
 # To Do
+- Service plus web
+	- Job Query
+		- Company selection: include branch also in web job query
+	- Spare parts
+	
 						- Opening stock does not save
 						- app settings: no_of_job_receipts per print and single page print
 - Release
-	- New client
-		- Admin user
-			- Receptionists
-			- Master
-						- Inventory testing
+				- New client
+					- Admin user
+						- Receptionists
+						- Master
+							- Inventory testing
 							- Loan Entry
 								- Save issue
 							- Branch transfer

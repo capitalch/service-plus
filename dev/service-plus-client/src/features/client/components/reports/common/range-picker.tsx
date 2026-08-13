@@ -121,7 +121,7 @@ export const RangePicker = ({ className, onChange, range }: Props) => {
                 </div>
             )}
 
-            <div className="flex items-center gap-1.5 rounded-md border border-(--cl-border) bg-(--cl-surface-2) px-2.5 py-1.5 text-xs text-(--cl-text-muted)">
+            <div className="flex items-center gap-1.5 rounded-sm border border-(--cl-border) bg-(--cl-surface-2) px-2.5 py-1.5 text-xs text-(--cl-text-muted)">
                 <CalendarRange className="h-3.5 w-3.5 text-orange-600" />
                 <span>{formatRangeLabel(range.from, range.to)}</span>
             </div>
