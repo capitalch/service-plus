@@ -3,6 +3,7 @@
 import io
 import os
 import re
+import shutil
 import time
 from pathlib import Path
 
@@ -226,6 +227,27 @@ async def delete_job_files(
                 deleted_count += 1
 
     return {"deleted": deleted_count}
+
+
+@router.delete("/delete-folder")
+async def delete_folder(
+    client_code: str = Form(...),
+    bu_code: str = Form(...),
+    branch_code: str = Form(...),
+    _api_key: str = Depends(verify_api_key),
+) -> dict[str, bool]:
+    """Delete an entire client/bu/branch folder subtree in one shot."""
+    client_snake = _to_snake_case(client_code)
+    bu_snake = _to_snake_case(bu_code)
+    branch_snake = _to_snake_case(branch_code)
+
+    branch_dir = _BASE_DIR / client_snake / bu_snake / branch_snake
+    resolved = _resolve_path(str(branch_dir.relative_to(_BASE_DIR)))
+
+    if resolved.exists() and resolved.is_dir():
+        shutil.rmtree(resolved)
+
+    return {"deleted": True}
 
 
 @router.get("/uploads/{path:path}")

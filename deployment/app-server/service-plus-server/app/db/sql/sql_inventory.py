@@ -218,6 +218,57 @@ class InventorySql:
         RETURNING id
     """
 
+    # ── Spare Parts – Web Catalogue (spare_part_web) ──────────────────────────
+
+    GET_SPARE_PART_WEB_BY_BRANCH = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        -- with "p_branch_id" as (values(1::bigint)) -- Test line
+        SELECT
+            w.id, w.branch_id, w.part_id, w.part_name, w.part_description,
+            w.price, w.model, w.hsn_code, w.is_active,
+            w.image_urls[1] AS thumbnail_url,
+            m.part_code
+        FROM spare_part_web w
+        LEFT JOIN spare_part_master m ON m.id = w.part_id
+        WHERE w.branch_id = (table "p_branch_id")
+        ORDER BY w.part_name
+    """
+
+    # image_urls context for the image-management routes (§4/§12 Step 6): branch_code
+    # is what the file-server folder hierarchy needs, image_urls is what reorder/clear
+    # validate against — one query serves both call sites instead of two.
+    GET_SPARE_PART_WEB_IMAGE_CONTEXT = """
+        SELECT w.id, w.branch_id, w.image_urls, b.code AS branch_code
+        FROM spare_part_web w
+        JOIN branch b ON b.id = w.branch_id
+        WHERE w.id = %(id)s
+    """
+
+    # Read-modify-write done in SQL, not Python, so concurrent uploads never lose a
+    # write (§3c). Append-only; never read image_urls into Python and write it back.
+    APPEND_SPARE_PART_WEB_IMAGES = """
+        UPDATE spare_part_web
+        SET image_urls = image_urls || %(urls)s::text[], updated_at = now()
+        WHERE id = %(id)s
+        RETURNING image_urls
+    """
+
+    REMOVE_SPARE_PART_WEB_IMAGE = """
+        UPDATE spare_part_web
+        SET image_urls = array_remove(image_urls, %(url)s), updated_at = now()
+        WHERE id = %(id)s
+        RETURNING image_urls
+    """
+
+    # Full-array write — used for both reorder (validated permutation) and clearing
+    # all images (called with an empty list), per §3c/§4.
+    SET_SPARE_PART_WEB_IMAGES = """
+        UPDATE spare_part_web
+        SET image_urls = %(urls)s::text[], updated_at = now()
+        WHERE id = %(id)s
+        RETURNING image_urls
+    """
+
     # ── Part Location Master ──────────────────────────────────────────────────
 
     CHECK_PART_LOCATION_EXISTS = """

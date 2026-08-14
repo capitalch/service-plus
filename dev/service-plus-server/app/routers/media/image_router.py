@@ -176,6 +176,186 @@ async def delete_image(
     return {"deleted": image_id}
 
 
+async def _resolve_spare_part_web_context(
+    db_name: str, schema: str, spare_part_web_id: int
+) -> dict[str, Any]:
+    """Look up a spare_part_web row's branch_code + current image_urls, or 404."""
+    rows = await exec_sql(
+        db_name=db_name,
+        schema=schema,
+        sql=SqlStore.GET_SPARE_PART_WEB_IMAGE_CONTEXT,
+        sql_args={"id": spare_part_web_id},
+    )
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Spare part not found",
+        )
+    return rows[0]
+
+
+@router.post("/spare-part-web/upload")
+async def upload_spare_part_web_images(
+    db_name: str = Form(...),
+    schema: str = Form(...),
+    spare_part_web_id: int = Form(...),
+    client_code: str = Form(...),
+    bu_code: str = Form(...),
+    files: list[UploadFile] | None = File(None),
+    _current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Upload photos for a web-catalogue part, appending to image_urls (§3c/§4)."""
+    if not files:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No files provided",
+        )
+
+    context = await _resolve_spare_part_web_context(db_name, schema, spare_part_web_id)
+    branch_code = context["branch_code"]
+
+    form_data: dict[str, Any] = {
+        "client_code": client_code,
+        "bu_code": bu_code,
+        "branch_code": f"spare-part-web-{branch_code}",
+        "job_no": str(spare_part_web_id),
+        # spare_part_web photos have no per-image caption (§3c/§6b); the file server
+        # requires a non-empty 'about' regardless, so a fixed, unused value is sent.
+        "about": "spare-part-web-photo",
+    }
+
+    try:
+        file_server_results = await _file_client.upload(form_data, files)
+    except Exception as e:
+        raise _file_server_error(e, "upload") from e
+
+    urls = [file_info["url"] for file_info in file_server_results]
+
+    rows = await exec_sql(
+        db_name=db_name,
+        schema=schema,
+        sql=SqlStore.APPEND_SPARE_PART_WEB_IMAGES,
+        sql_args={"urls": urls, "id": spare_part_web_id},
+    )
+    logger.info(
+        "Uploaded %d spare_part_web image(s): id=%s", len(urls), spare_part_web_id
+    )
+    return {"image_urls": rows[0]["image_urls"]}
+
+
+@router.delete("/spare-part-web/{db_name}/{schema}/{spare_part_web_id}/image")
+async def delete_spare_part_web_image(
+    db_name: str,
+    schema: str,
+    spare_part_web_id: int,
+    body: dict,
+    _current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Delete a single web-catalogue part image, keyed by url (§3c/§4)."""
+    url = body.get("url", "")
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="'url' is required",
+        )
+
+    try:
+        await _file_client.delete_by_url(url)
+    except Exception as e:
+        raise _file_server_error(e, "delete") from e
+
+    rows = await exec_sql(
+        db_name=db_name,
+        schema=schema,
+        sql=SqlStore.REMOVE_SPARE_PART_WEB_IMAGE,
+        sql_args={"url": url, "id": spare_part_web_id},
+    )
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Spare part not found",
+        )
+
+    logger.info("Deleted spare_part_web image: id=%s url=%s", spare_part_web_id, url)
+    return {"image_urls": rows[0]["image_urls"]}
+
+
+@router.put("/spare-part-web/{db_name}/{schema}/{spare_part_web_id}/order")
+async def reorder_spare_part_web_images(
+    db_name: str,
+    schema: str,
+    spare_part_web_id: int,
+    body: dict,
+    _current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Persist a reordered gallery — a full-array write, validated as a permutation
+    of the currently stored urls so a stale client can't inject or drop urls (§4)."""
+    new_urls = body.get("image_urls")
+    if not isinstance(new_urls, list):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="'image_urls' must be a list",
+        )
+
+    context = await _resolve_spare_part_web_context(db_name, schema, spare_part_web_id)
+    current_urls: list[str] = context["image_urls"] or []
+
+    if sorted(new_urls) != sorted(current_urls):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Reordered list must be a permutation of the existing images",
+        )
+
+    rows = await exec_sql(
+        db_name=db_name,
+        schema=schema,
+        sql=SqlStore.SET_SPARE_PART_WEB_IMAGES,
+        sql_args={"urls": new_urls, "id": spare_part_web_id},
+    )
+    return {"image_urls": rows[0]["image_urls"]}
+
+
+@router.delete("/spare-part-web/{db_name}/{schema}/part/{spare_part_web_id}")
+async def delete_spare_part_web_part_images(
+    db_name: str,
+    schema: str,
+    spare_part_web_id: int,
+    client_code: str,
+    bu_code: str,
+    _current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Delete all photos for one part: empty image_urls, then wipe its file-server
+    folder — mirrors delete_job_images. Called before the GraphQL row delete (§6a)
+    so a removed part never strands its folder on disk."""
+    context = await _resolve_spare_part_web_context(db_name, schema, spare_part_web_id)
+    current_urls: list[str] = context["image_urls"] or []
+
+    if not current_urls:
+        return {"deleted": 0}
+
+    await exec_sql(
+        db_name=db_name,
+        schema=schema,
+        sql=SqlStore.SET_SPARE_PART_WEB_IMAGES,
+        sql_args={"urls": [], "id": spare_part_web_id},
+    )
+
+    branch_code = context["branch_code"]
+    try:
+        await _file_client.delete_job_files(
+            client_code, bu_code, f"spare-part-web-{branch_code}", str(spare_part_web_id)
+        )
+        logger.info(
+            "Deleted %d spare_part_web image(s) from file server: id=%s",
+            len(current_urls),
+            spare_part_web_id,
+        )
+    except Exception as e:
+        raise _file_server_error(e, "delete_spare_part_web_part_images") from e
+
+    return {"deleted": len(current_urls)}
+
+
 @router.delete("/{db_name}/{schema}/job/{job_id}")
 async def delete_job_images(
     db_name: str,

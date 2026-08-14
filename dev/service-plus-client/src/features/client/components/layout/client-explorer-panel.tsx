@@ -279,6 +279,7 @@ function MastersExplorer() {
                 <TreeItem icon={BookOpen} iconColor="text-sky-600" label="Model" />
                 <TreeItem icon={Package} iconColor="text-slate-600"  label="Parts"        helpArticleId="parts" />
                 <TreeItem icon={MapPin} iconColor="text-indigo-600"   label="Part Location" />
+                <TreeItem icon={Globe} iconColor="text-cyan-600"      label="Spare Parts – Web Catalogue" />
             </CollapsibleGroup>
         </div>
     );

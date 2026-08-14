@@ -892,6 +892,72 @@ class BuAdminDdl:
             CACHE 1
         );
 
+        CREATE TABLE spare_part_web (
+            id bigint NOT NULL,
+            branch_id bigint NOT NULL,
+            part_id bigint,
+            part_name text NOT NULL,
+            part_description text,
+            price numeric(12,2) NOT NULL,
+            model text,
+            hsn_code text,
+            is_active boolean DEFAULT true NOT NULL,
+            image_urls text[] DEFAULT '{}'::text[] NOT NULL,
+            created_at timestamp with time zone DEFAULT now() NOT NULL,
+            updated_at timestamp with time zone DEFAULT now() NOT NULL
+        );
+
+        ALTER TABLE spare_part_web ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+            SEQUENCE NAME spare_part_web_id_seq
+            START WITH 1
+            INCREMENT BY 1
+            NO MINVALUE
+            NO MAXVALUE
+            CACHE 1
+        );
+
+        CREATE TABLE spare_part_web_order (
+            id bigint NOT NULL,
+            branch_id bigint NOT NULL,
+            customer_name text NOT NULL,
+            mobile text NOT NULL,
+            email text,
+            remarks text,
+            status text DEFAULT 'NEW'::text NOT NULL,
+            total_amount numeric(12,2) DEFAULT 0 NOT NULL,
+            created_at timestamp with time zone DEFAULT now() NOT NULL,
+            updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            CONSTRAINT spare_part_web_order_status_check CHECK ((status = ANY (ARRAY['NEW'::text, 'CONTACTED'::text, 'CANCELLED'::text])))
+        );
+
+        ALTER TABLE spare_part_web_order ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+            SEQUENCE NAME spare_part_web_order_id_seq
+            START WITH 1
+            INCREMENT BY 1
+            NO MINVALUE
+            NO MAXVALUE
+            CACHE 1
+        );
+
+        CREATE TABLE spare_part_web_order_line (
+            id bigint NOT NULL,
+            spare_part_web_order_id bigint NOT NULL,
+            spare_part_web_id bigint NOT NULL,
+            qty integer NOT NULL,
+            unit_price numeric(12,2) NOT NULL,
+            line_total numeric(12,2) NOT NULL,
+            CONSTRAINT spare_part_web_order_line_qty_check CHECK ((qty > 0))
+        );
+
+        ALTER TABLE spare_part_web_order_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+            SEQUENCE NAME spare_part_web_order_line_id_seq
+            START WITH 1
+            INCREMENT BY 1
+            NO MINVALUE
+            NO MAXVALUE
+            CACHE 1
+        );
+
         CREATE TABLE state (
             id integer NOT NULL,
             code text NOT NULL,
@@ -1357,6 +1423,15 @@ class BuAdminDdl:
         ALTER TABLE ONLY spare_part_master
             ADD CONSTRAINT spare_part_pkey PRIMARY KEY (id);
 
+        ALTER TABLE ONLY spare_part_web_order_line
+            ADD CONSTRAINT spare_part_web_order_line_pkey PRIMARY KEY (id);
+
+        ALTER TABLE ONLY spare_part_web_order
+            ADD CONSTRAINT spare_part_web_order_pkey PRIMARY KEY (id);
+
+        ALTER TABLE ONLY spare_part_web
+            ADD CONSTRAINT spare_part_web_pkey PRIMARY KEY (id);
+
         ALTER TABLE ONLY state
             ADD CONSTRAINT state_code_uidx UNIQUE (code);
 
@@ -1524,6 +1599,10 @@ class BuAdminDdl:
 
         CREATE INDEX spare_part_master_part_name_idx ON spare_part_master USING btree (part_name) WITH (deduplicate_items='true');
 
+        CREATE INDEX spare_part_web_branch_active_idx ON spare_part_web USING btree (branch_id, is_active);
+
+        CREATE UNIQUE INDEX spare_part_web_branch_part_uq ON spare_part_web USING btree (branch_id, part_id) WHERE (part_id IS NOT NULL);
+
         CREATE INDEX stock_balance_location_id_idx ON stock_balance USING btree (location_id) WITH (deduplicate_items='true');
 
         CREATE INDEX stock_branch_transfer_from_branch_id_idx ON stock_branch_transfer USING btree (from_branch_id) WITH (deduplicate_items='true');
@@ -1683,6 +1762,21 @@ class BuAdminDdl:
 
         ALTER TABLE ONLY spare_part_master
             ADD CONSTRAINT spare_part_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES brand(id);
+
+        ALTER TABLE ONLY spare_part_web
+            ADD CONSTRAINT spare_part_web_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branch(id);
+
+        ALTER TABLE ONLY spare_part_web_order
+            ADD CONSTRAINT spare_part_web_order_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branch(id);
+
+        ALTER TABLE ONLY spare_part_web_order_line
+            ADD CONSTRAINT spare_part_web_order_line_spare_part_web_id_fkey FOREIGN KEY (spare_part_web_id) REFERENCES spare_part_web(id);
+
+        ALTER TABLE ONLY spare_part_web_order_line
+            ADD CONSTRAINT spare_part_web_order_line_spare_part_web_order_id_fkey FOREIGN KEY (spare_part_web_order_id) REFERENCES spare_part_web_order(id) ON DELETE CASCADE;
+
+        ALTER TABLE ONLY spare_part_web
+            ADD CONSTRAINT spare_part_web_part_id_fkey FOREIGN KEY (part_id) REFERENCES spare_part_master(id);
 
         ALTER TABLE ONLY stock_adjustment
             ADD CONSTRAINT stock_adjustment_branch_fk FOREIGN KEY (branch_id) REFERENCES branch(id) ON DELETE RESTRICT;

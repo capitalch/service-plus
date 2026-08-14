@@ -1,1 +1,14 @@
-Warranty Trend (6-month) --> Warranty Trend. Change variable names also
+# New atand alone gui tool for migration of all database schemas in all the clients
+- The tool keeps all the db connection parameters in an .env file. This file is not version controlled
+- The tool takes input of client database name
+- Reads the client database and get all the db_name from that.
+- These db_name are shown in the UI along with the schemas in them, ignore security schema
+- User confirms and selects schemas to be migrated. 
+- The tool takes input of sql scripts and seed data values in GUI
+- The tool can also read an sql file to execute.
+- The sql will be shown on the screen
+- On continue button click the sql is applied to all schemas in all the clients
+- Each schema migration will show status success / failure and error message if any
+- Create the tool in a subfolder named as migration-tool, of service-plus-tool main folder
+- Create a design and architecture document explaining the design and architecture of the tool
+- The design and architecture document should be in the same folder as the tool.

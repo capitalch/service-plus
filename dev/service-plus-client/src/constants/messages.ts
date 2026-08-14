@@ -191,6 +191,15 @@ export const MESSAGES = {
   SUCCESS_PART_LOCATION_DELETED:          'Part location deleted successfully.',
   SUCCESS_PART_LOCATION_UPDATED:          'Part location updated successfully.',
 
+  // Spare Parts – Web Catalogue CRUD
+  ERROR_SPARE_PART_WEB_CREATE_FAILED: 'Failed to create catalogue part. Please try again.',
+  ERROR_SPARE_PART_WEB_DELETE_FAILED: 'Failed to delete catalogue part. Please try again.',
+  ERROR_SPARE_PART_WEB_LOAD_FAILED:   'Failed to load the web catalogue. Please try again.',
+  ERROR_SPARE_PART_WEB_UPDATE_FAILED: 'Failed to update catalogue part. Please try again.',
+  SUCCESS_SPARE_PART_WEB_CREATED:     'Catalogue part created successfully.',
+  SUCCESS_SPARE_PART_WEB_DELETED:     'Catalogue part deleted successfully.',
+  SUCCESS_SPARE_PART_WEB_UPDATED:     'Catalogue part updated successfully.',
+
   // Part Finder
   ERROR_PART_FINDER_LOAD_FAILED:               'Failed to load parts. Please try again.',
   ERROR_PART_FINDER_STOCK_BY_LOCATION_FAILED:  'Failed to load stock by location. Please try again.',

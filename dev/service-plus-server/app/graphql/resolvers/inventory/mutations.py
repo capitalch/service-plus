@@ -22,6 +22,7 @@ INVENTORY_GENERIC_UPDATE_TABLE_RIGHTS: dict[str, str] = {
     "job_receive_condition": "MASTERS_MENU",
     "product_brand_model": "MASTERS_MENU",
     "spare_part_master": "MASTERS_MENU",
+    "spare_part_web": "MASTERS_MENU",
     "customer_contact": "MASTERS_MENU",
     "supplier": "MASTERS_MENU",
     "technician": "MASTERS_MENU",

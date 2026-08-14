@@ -11,6 +11,7 @@ import { ModelSection } from "@/features/client/components/masters/model/model-s
 import { PartsSection } from "@/features/client/components/masters/parts/parts-section";
 import { PartLocationSection } from "@/features/client/components/masters/part-location/part-location-section";
 import { ProductSection } from "@/features/client/components/masters/product/product-section";
+import { SparePartWebSection } from "@/features/client/components/masters/spare-part-web/spare-part-web-section";
 import { StateSection } from "@/features/client/components/masters/state-province/state-section";
 import { TechnicianSection } from "@/features/client/components/masters/technician/technician-section";
 import { VendorSection } from "@/features/client/components/masters/vendor/vendor-section";
@@ -64,6 +65,7 @@ function MastersContent() {
     if (selected === "Parts") return <PartsSection />;
     if (selected === "Part Location") return <PartLocationSection />;
     if (selected === "Product") return <ProductSection />;
+    if (selected === "Spare Parts – Web Catalogue") return <SparePartWebSection />;
     if (selected === "State / Province") return <StateSection />;
     if (selected === "Technician") return <TechnicianSection />;
     if (selected === "Vendor / Supplier") return <VendorSection />;

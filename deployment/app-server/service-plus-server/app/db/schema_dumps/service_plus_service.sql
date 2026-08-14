@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict DqMjAmGCxrgu6bwaSwMAna1xLrAo4LXxCfcAP9yeQQ550XAB3SJBi3EbvKpUhRB
+\restrict ySu7OUo94P2nzNDgnPOeNgASf5rTKvgwZeA4bjFAKV3u2OTXTeKKnzC9JUZXp7V
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -1120,6 +1120,108 @@ ALTER TABLE demo1.stock_location_master ALTER COLUMN id ADD GENERATED ALWAYS AS 
 
 
 --
+-- Name: spare_part_web; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.spare_part_web (
+    id bigint NOT NULL,
+    branch_id bigint NOT NULL,
+    part_id bigint,
+    part_name text NOT NULL,
+    part_description text,
+    price numeric(12,2) NOT NULL,
+    model text,
+    hsn_code text,
+    is_active boolean DEFAULT true NOT NULL,
+    image_urls text[] DEFAULT '{}'::text[] NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE demo1.spare_part_web OWNER TO webadmin;
+
+--
+-- Name: spare_part_web_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.spare_part_web ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.spare_part_web_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: spare_part_web_order; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.spare_part_web_order (
+    id bigint NOT NULL,
+    branch_id bigint NOT NULL,
+    customer_name text NOT NULL,
+    mobile text NOT NULL,
+    email text,
+    remarks text,
+    status text DEFAULT 'NEW'::text NOT NULL,
+    total_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT spare_part_web_order_status_check CHECK ((status = ANY (ARRAY['NEW'::text, 'CONTACTED'::text, 'CANCELLED'::text])))
+);
+
+
+ALTER TABLE demo1.spare_part_web_order OWNER TO webadmin;
+
+--
+-- Name: spare_part_web_order_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.spare_part_web_order ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.spare_part_web_order_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: spare_part_web_order_line; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.spare_part_web_order_line (
+    id bigint NOT NULL,
+    spare_part_web_order_id bigint NOT NULL,
+    spare_part_web_id bigint NOT NULL,
+    qty integer NOT NULL,
+    unit_price numeric(12,2) NOT NULL,
+    line_total numeric(12,2) NOT NULL,
+    CONSTRAINT spare_part_web_order_line_qty_check CHECK ((qty > 0))
+);
+
+
+ALTER TABLE demo1.spare_part_web_order_line OWNER TO webadmin;
+
+--
+-- Name: spare_part_web_order_line_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.spare_part_web_order_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.spare_part_web_order_line_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: state; Type: TABLE; Schema: demo1; Owner: webadmin
 --
 
@@ -2161,6 +2263,30 @@ ALTER TABLE ONLY demo1.spare_part_master
 
 
 --
+-- Name: spare_part_web_order_line spare_part_web_order_line_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_web_order_line
+    ADD CONSTRAINT spare_part_web_order_line_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: spare_part_web_order spare_part_web_order_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_web_order
+    ADD CONSTRAINT spare_part_web_order_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: spare_part_web spare_part_web_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_web
+    ADD CONSTRAINT spare_part_web_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: state state_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -2771,6 +2897,20 @@ CREATE INDEX spare_part_master_part_name_idx ON demo1.spare_part_master USING bt
 
 
 --
+-- Name: spare_part_web_branch_active_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_web_branch_active_idx ON demo1.spare_part_web USING btree (branch_id, is_active);
+
+
+--
+-- Name: spare_part_web_branch_part_uq; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE UNIQUE INDEX spare_part_web_branch_part_uq ON demo1.spare_part_web USING btree (branch_id, part_id) WHERE (part_id IS NOT NULL);
+
+
+--
 -- Name: stock_balance_location_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -3287,6 +3427,46 @@ ALTER TABLE ONLY demo1.spare_part_master
 
 
 --
+-- Name: spare_part_web spare_part_web_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_web
+    ADD CONSTRAINT spare_part_web_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: spare_part_web_order spare_part_web_order_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_web_order
+    ADD CONSTRAINT spare_part_web_order_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: spare_part_web_order_line spare_part_web_order_line_spare_part_web_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_web_order_line
+    ADD CONSTRAINT spare_part_web_order_line_spare_part_web_id_fkey FOREIGN KEY (spare_part_web_id) REFERENCES demo1.spare_part_web(id);
+
+
+--
+-- Name: spare_part_web_order_line spare_part_web_order_line_spare_part_web_order_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_web_order_line
+    ADD CONSTRAINT spare_part_web_order_line_spare_part_web_order_id_fkey FOREIGN KEY (spare_part_web_order_id) REFERENCES demo1.spare_part_web_order(id) ON DELETE CASCADE;
+
+
+--
+-- Name: spare_part_web spare_part_web_part_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_web
+    ADD CONSTRAINT spare_part_web_part_id_fkey FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id);
+
+
+--
 -- Name: stock_adjustment stock_adjustment_branch_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -3634,5 +3814,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict DqMjAmGCxrgu6bwaSwMAna1xLrAo4LXxCfcAP9yeQQ550XAB3SJBi3EbvKpUhRB
+\unrestrict ySu7OUo94P2nzNDgnPOeNgASf5rTKvgwZeA4bjFAKV3u2OTXTeKKnzC9JUZXp7V
 

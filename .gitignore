@@ -147,5 +147,7 @@ node_modules
 .vscode/settings.json
 **/config.*
 !dev/service-plus-server/app/config.py
+!dev/service-plus-tools/migration-tool/config.py
+!dev/service-plus-tools/migration-tool/.streamlit/config.toml
 logs/
 deployment/

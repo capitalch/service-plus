@@ -137,6 +137,44 @@ class FileClient:
             )
             raise
 
+    async def delete_folder(
+        self, client_code: str, bu_code: str, branch_code: str
+    ) -> dict[str, Any]:
+        """Delete an entire client/bu/branch folder subtree on the file server."""
+        url = f"{self.base_url}/files/delete-folder"
+        logger.info("FileClient delete_folder → %s", url)
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.request(
+                    "DELETE",
+                    url,
+                    headers={
+                        **self.headers,
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    data={
+                        "client_code": client_code,
+                        "bu_code": bu_code,
+                        "branch_code": branch_code,
+                    },
+                )
+                resp.raise_for_status()
+                return resp.json()
+        except httpx.ConnectError as e:
+            logger.error("File server unreachable for folder delete: %s", e)
+            raise
+        except httpx.TimeoutException as e:
+            logger.error("File server folder delete timed out: %s", e)
+            raise
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "File server HTTP error on folder delete %d: %s",
+                e.response.status_code,
+                e.response.text,
+            )
+            raise
+
     async def get_config(self) -> dict[str, Any]:
         """Get upload configuration from the file server."""
         url = f"{self.base_url}/files/config"

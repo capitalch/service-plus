@@ -1,0 +1,7 @@
+[client]
+# Hides the whole top-right toolbar — Deploy button, the "⋮" main menu
+# (Settings/About/etc.), all of it — leaving just the functional bits
+# (fullscreen icon on charts/tables, the "running" spinner). This tool is run
+# locally against production data by one operator at a time; none of that
+# menu is needed here.
+toolbarMode = "minimal"

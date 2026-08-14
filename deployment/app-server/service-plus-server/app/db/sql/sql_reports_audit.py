@@ -451,9 +451,9 @@ class ReportsAuditSql:
             jt.id,
             jt.transaction_date,
             j.job_no,
+            js.code                AS status_code,
             js.name                AS status_name,
             t.name                 AS technician_name,
-            jt.amount,
             jt.remarks
         FROM job_transaction jt
         JOIN job              j  ON j.id  = jt.job_id

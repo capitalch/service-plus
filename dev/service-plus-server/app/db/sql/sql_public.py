@@ -75,3 +75,96 @@ class PublicSql:
           AND j.is_closed = false
         ORDER BY j.job_date DESC NULLS LAST
     """
+
+    # ── Spare Parts – Web Catalogue (public, §5) ────────────────────────────────
+    # `price` is shown deliberately — it's the catalogue price being browsed —
+    # but no internal ids: no branch_id, no part_id (spare_part_master FK), no
+    # hsn_code. `id` below is spare_part_web's own id, the public-facing
+    # catalogue identifier the frontend needs for cart/order lines, not an
+    # internal FK the "no internal ids" rule is guarding against.
+
+    GET_ACTIVE_BRANCHES = """
+        with "dummy" as (values(1::int))
+        SELECT id, code, name, phone, email, city, is_head_office
+        FROM branch
+        WHERE is_active = true
+        ORDER BY is_head_office DESC, code
+    """
+
+    GET_SPARE_PART_WEB_PUBLIC_LIST = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            id, part_name, part_description, price, model,
+            image_urls[1] AS image_url
+        FROM spare_part_web
+        WHERE branch_id = (table "p_branch_id")
+          AND is_active = true
+          AND (
+                (table "p_search") = ''
+             OR LOWER(part_name)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
+             OR LOWER(COALESCE(part_description, ''))   LIKE '%%' || LOWER((table "p_search")) || '%%'
+             OR LOWER(COALESCE(model, ''))               LIKE '%%' || LOWER((table "p_search")) || '%%'
+          )
+        ORDER BY part_name
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_SPARE_PART_WEB_PUBLIC_LIST_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM spare_part_web
+        WHERE branch_id = (table "p_branch_id")
+          AND is_active = true
+          AND (
+                (table "p_search") = ''
+             OR LOWER(part_name)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
+             OR LOWER(COALESCE(part_description, ''))   LIKE '%%' || LOWER((table "p_search")) || '%%'
+             OR LOWER(COALESCE(model, ''))               LIKE '%%' || LOWER((table "p_search")) || '%%'
+          )
+    """
+
+    GET_SPARE_PART_WEB_PUBLIC_DETAIL = """
+        with
+            "p_id"        as (values(%(id)s::bigint)),
+            "p_branch_id" as (values(%(branch_id)s::bigint))
+        SELECT
+            id, part_name, part_description, price, model,
+            image_urls[1] AS image_url, image_urls AS images
+        FROM spare_part_web
+        WHERE id = (table "p_id")
+          AND branch_id = (table "p_branch_id")
+          AND is_active = true
+    """
+
+    # Order submission (§5's POST /api/public/part-orders). Deliberately NOT
+    # filtered by branch_id/is_active here — the route re-fetches every requested
+    # id unconditionally and checks branch/active in Python so it can return a
+    # specific per-line reason (not found vs. inactive vs. wrong branch) instead
+    # of a single opaque "some lines are invalid".
+    GET_SPARE_PART_WEB_FOR_ORDER = """
+        SELECT id, price, is_active, branch_id
+        FROM spare_part_web
+        WHERE id = ANY(%(ids)s::bigint[])
+    """
+
+    INSERT_SPARE_PART_WEB_ORDER = """
+        INSERT INTO spare_part_web_order
+            (branch_id, customer_name, mobile, email, remarks, total_amount)
+        VALUES
+            (%(branch_id)s, %(customer_name)s, %(mobile)s, %(email)s, %(remarks)s, %(total_amount)s)
+        RETURNING id
+    """
+
+    INSERT_SPARE_PART_WEB_ORDER_LINE = """
+        INSERT INTO spare_part_web_order_line
+            (spare_part_web_order_id, spare_part_web_id, qty, unit_price, line_total)
+        VALUES
+            (%(order_id)s, %(spare_part_web_id)s, %(qty)s, %(unit_price)s, %(line_total)s)
+    """
