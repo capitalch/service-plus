@@ -2,6 +2,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SQL_MAP } from "@/constants/sql-map";
 
 import { CategoryRangeMatrixSection } from "../common/category-range-matrix-section";
+import { JobsCombinedChartSection } from "./jobs-combined-chart-section";
+import { JobsCombinedSection } from "./jobs-combined-section";
 
 // job_status is a small, seeded, tenant-consistent enum (not tenant-managed like product
 // categories), so rows are ordered by its display_order instead of alphabetically — mirrors
@@ -14,10 +16,12 @@ const TRANSACTION_STATUS_ORDER = [
 
 export const JobsSummarySection = () => (
     <Tabs className="flex h-full min-h-0 flex-1 flex-col" defaultValue="received">
-        <TabsList className="w-fit shrink-0">
+        <TabsList className="w-fit shrink-0 flex-wrap">
             <TabsTrigger value="received">Jobs Received</TabsTrigger>
             <TabsTrigger value="repaired">Jobs Repaired (OK)</TabsTrigger>
             <TabsTrigger value="delivered">Jobs Delivered (OK)</TabsTrigger>
+            <TabsTrigger value="combined">Combined</TabsTrigger>
+            <TabsTrigger value="combined-chart">Combined Chart</TabsTrigger>
             <TabsTrigger value="transactions">Job Transactions</TabsTrigger>
         </TabsList>
 
@@ -47,6 +51,14 @@ export const JobsSummarySection = () => (
                 sqlId={SQL_MAP.GET_JOBS_DELIVERED_OK_BY_CATEGORY_RANGE_SPLIT}
                 title="Jobs Delivered (OK)"
             />
+        </TabsContent>
+
+        <TabsContent value="combined">
+            <JobsCombinedSection />
+        </TabsContent>
+
+        <TabsContent value="combined-chart">
+            <JobsCombinedChartSection />
         </TabsContent>
 
         <TabsContent value="transactions">

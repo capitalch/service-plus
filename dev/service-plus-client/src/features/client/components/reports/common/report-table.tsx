@@ -24,6 +24,7 @@ type Props<T> = {
     columns: ReportColumnType<T>[];
     emptyMessage?: string;
     onRowClick?: (row: T) => void;
+    rowClassName?: (row: T) => string | undefined;
     rowKey: (row: T) => string | number;
     rows: T[];
     showFooter?: boolean;
@@ -42,6 +43,7 @@ export function ReportTable<T>({
     columns,
     emptyMessage = "No data.",
     onRowClick,
+    rowClassName,
     rowKey,
     rows,
     showFooter = false,
@@ -133,6 +135,7 @@ export function ReportTable<T>({
                                 className={cn(
                                     "border-b border-(--cl-divider)",
                                     onRowClick && "cursor-pointer transition-colors hover:bg-(--cl-hover)",
+                                    rowClassName?.(row),
                                 )}
                                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                             >

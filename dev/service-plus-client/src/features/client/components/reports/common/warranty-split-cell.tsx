@@ -13,8 +13,8 @@ type Props = {
 // color already shown for warranty jobs in every job grid (Job Control, Single Job, Job
 // Pipeline). Emerald = Out-of-Warranty, for clear contrast against the orange.
 // Profit/Revenue follow technician-profit-revenue-section.tsx's own hierarchy: Profit is the
-// prominent bold emerald figure, Revenue is plain de-emphasized text (there, an unstyled
-// table cell) — here shown smaller and parenthesized right below Profit.
+// prominent bold emerald figure — colored text only, no filled pill — and Revenue is plain
+// de-emphasized text (there, an unstyled table cell), shown smaller and parenthesized below it.
 export function WarrantySplitCell({ bold = false, showProfit = false, showRevenue = false, showSplit = true, split }: Props) {
     const total = split.warranty_count + split.oow_count;
     return (
@@ -35,7 +35,7 @@ export function WarrantySplitCell({ bold = false, showProfit = false, showRevenu
                 </span>
             )}
             {showProfit && (
-                <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-extrabold text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-950/50 tabular-nums">
+                <span className="text-xs font-extrabold text-emerald-600 tabular-nums dark:text-emerald-400">
                     {formatInr(split.profit_amount)}
                 </span>
             )}

@@ -1110,11 +1110,13 @@ export const HELP_ARTICLES: HelpArticle[] = [
         category: "Reports",
         title: "Job Reports",
         summary: "Reports for jobs received/repaired/delivered, aging, and transaction history.",
-        tags: ["job reports", "received", "repaired", "delivered", "aging", "pipeline", "ledger", "trend", "event tracking", "jobs summary"],
+        tags: ["job reports", "received", "repaired", "delivered", "aging", "pipeline", "ledger", "trend", "event tracking", "jobs summary", "combined", "combined chart", "graph", "revenue", "profit"],
         content: [
             { type: "table", headers: ["Report", "What It Shows", "Best Used For"], rows: [
                 ["Event Tracking",           "Counts of Received / Status Change / Finalize / Deliver events, across fixed periods (Today/This Week/.../YTD)", "Monitor job-lifecycle activity volume over time"],
-                ["Jobs Summary",             "Four tabs — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Job Transactions — each one row per product category (Job Transactions: one row per job status, in workflow order) and one column per fixed period (Today/This Week/.../YTD); each cell shows the total with an orange Warranty / emerald Out-of-Warranty split below it, plus a Total row summing each period across categories", "Monitor inflow, repair output, delivery volume, and status-change activity"],
+                ["Jobs Summary",             "Six tabs — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Combined, Combined Chart, Job Transactions — each one row per product category (Job Transactions: one row per job status, in workflow order) and one column per fixed period (Today/This Week/.../YTD); each cell shows the total with an orange Warranty / emerald Out-of-Warranty split below it, plus a Total row summing each period across categories", "Monitor inflow, repair output, delivery volume, and status-change activity"],
+                ["Jobs Summary → Combined",  "The fourth tab: received, repaired (OK) and delivered (OK) merged into one grid — three stage rows under every product category, same fixed period columns, with Warranty / Out-of-Warranty split plus revenue and profit toggles (revenue and profit appear on the Jobs Delivered (OK) row only), and three TOTAL rows at the bottom", "Compare inflow vs. repair output vs. delivery and earnings in a single view"],
+                ["Jobs Summary → Combined Chart", "The fifth tab: the same combined figures drawn as charts — KPI cards for the selected period, grouped bars per period (all categories together) and grouped bars per product category for a period you pick, with revenue and profit as lines on a right-hand ₹ axis", "Spot trends and category outliers at a glance"],
                 ["Delivered Jobs - Detailed","Per-job delivery info with amounts, custom date range (default this month)", "Customer billing audit"],
                 ["Job Transaction Ledger",   "Full status-change history per job, custom date range (default this month)", "Dispute resolution, audit trail"],
                 ["Job Pipeline / Aging",     "How long jobs sit in each status",                "Identify operational bottlenecks"],
@@ -1127,6 +1129,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { q: "Can I export job reports?", a: "Yes. Most reports have an Export button that downloads a PDF or XLSX file." },
             { q: "Why doesn't a job appear in the delivered report?", a: "The job must have completed the Deliver Job workflow (status = DELIVERED_OK or DELIVERED_NOT_OK) within the selected date range." },
             { q: "What counts as an \"event\" in Event Tracking?", a: "Received (job created), Finalize (Final a Job step), Deliver (Deliver Job — OK or Not OK), and Status Change (any other intermediate status update). Return, Cancel, and Disposed are intentionally not tracked in this report." },
+            { q: "Where do I see received, repaired and delivered jobs together?", a: "Open Jobs Summary and pick the fourth tab, Combined. It stacks the three stages as rows under each product category, over the same fixed period columns, and its figures match the individual tabs exactly." },
+            { q: "Is there a chart version of the Combined tab?", a: "Yes — the Combined Chart tab, right after it. Bars show received / repaired / delivered counts, and Revenue and Profit toggle on as lines against a right-hand ₹ axis. The period selector in the header controls the per-category chart and the KPI cards; the first chart always shows every period." },
+            { q: "Why is revenue or profit blank on the received and repaired rows of the Combined tab?", a: "Revenue and profit are booked from the job invoice at delivery, so they exist only for delivered jobs. The Combined tab therefore shows them on the Jobs Delivered (OK) row only." },
         ],
     },
 
