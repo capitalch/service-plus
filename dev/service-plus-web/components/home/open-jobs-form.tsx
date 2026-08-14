@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, SearchX } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -11,17 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { fetchCompanies, fetchOpenJobsByMobile } from "@/lib/api";
+import { CompanySelect } from "@/components/shared/company-select";
+import { fetchOpenJobsByMobile } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { statusPillClass } from "@/lib/status-colors";
-import { ApiError, type Company, type CustomerJobs } from "@/lib/types";
+import { ApiError, type CustomerJobs } from "@/lib/types";
 
 const openJobsSchema = z.object({
   company: z.string().min(1, "Select a company"),
@@ -33,8 +27,6 @@ const openJobsSchema = z.object({
 type OpenJobsFormValues = z.infer<typeof openJobsSchema>;
 
 export function OpenJobsForm() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [companiesError, setCompaniesError] = useState(false);
   const [result, setResult] = useState<CustomerJobs | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -48,12 +40,6 @@ export function OpenJobsForm() {
     resolver: zodResolver(openJobsSchema),
     defaultValues: { company: "", mobile: "" },
   });
-
-  useEffect(() => {
-    fetchCompanies()
-      .then(setCompanies)
-      .catch(() => setCompaniesError(true));
-  }, []);
 
   const onSubmit = async (values: OpenJobsFormValues) => {
     setResult(null);
@@ -73,29 +59,12 @@ export function OpenJobsForm() {
   return (
     <div>
       <form onSubmit={handleSubmit(onSubmit)} className="mx-auto w-full max-w-sm space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="open-jobs-company">Company</Label>
-          <Select
-            value={watch("company")}
-            onValueChange={(value) => setValue("company", value, { shouldValidate: true })}
-          >
-            <SelectTrigger id="open-jobs-company" className="w-full">
-              <SelectValue
-                placeholder={companiesError ? "Couldn't load companies" : "Select a company"}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {companies.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.company && (
-            <p className="text-sm text-destructive">{errors.company.message}</p>
-          )}
-        </div>
+        <CompanySelect
+          id="open-jobs-company"
+          value={watch("company")}
+          onChange={(value) => setValue("company", value, { shouldValidate: true })}
+          error={errors.company?.message}
+        />
 
         <div className="space-y-1.5">
           <Label htmlFor="open-jobs-mobile">Mobile number</Label>

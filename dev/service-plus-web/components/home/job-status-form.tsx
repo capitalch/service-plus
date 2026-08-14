@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, SearchX } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,15 +10,9 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { fetchCompanies, fetchJobStatus } from "@/lib/api";
-import { ApiError, type Company, type JobStatus } from "@/lib/types";
+import { CompanySelect } from "@/components/shared/company-select";
+import { fetchJobStatus } from "@/lib/api";
+import { ApiError, type JobStatus } from "@/lib/types";
 
 import { JobStatusResult } from "./job-status-result";
 
@@ -33,8 +27,6 @@ const jobStatusSchema = z.object({
 type JobStatusFormValues = z.infer<typeof jobStatusSchema>;
 
 export function JobStatusForm() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [companiesError, setCompaniesError] = useState(false);
   const [result, setResult] = useState<JobStatus | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -48,12 +40,6 @@ export function JobStatusForm() {
     resolver: zodResolver(jobStatusSchema),
     defaultValues: { company: "", jobNo: "", mobile: "" },
   });
-
-  useEffect(() => {
-    fetchCompanies()
-      .then(setCompanies)
-      .catch(() => setCompaniesError(true));
-  }, []);
 
   const onSubmit = async (values: JobStatusFormValues) => {
     setResult(null);
@@ -73,29 +59,11 @@ export function JobStatusForm() {
   return (
     <div className="mx-auto w-full max-w-sm">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="company">Company</Label>
-          <Select
-            value={watch("company")}
-            onValueChange={(value) => setValue("company", value, { shouldValidate: true })}
-          >
-            <SelectTrigger id="company" className="w-full">
-              <SelectValue
-                placeholder={companiesError ? "Couldn't load companies" : "Select a company"}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {companies.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.company && (
-            <p className="text-sm text-destructive">{errors.company.message}</p>
-          )}
-        </div>
+        <CompanySelect
+          value={watch("company")}
+          onChange={(value) => setValue("company", value, { shouldValidate: true })}
+          error={errors.company?.message}
+        />
 
         <div className="space-y-1.5">
           <Label htmlFor="jobNo">Job number</Label>
