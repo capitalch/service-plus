@@ -93,11 +93,25 @@ export function PartDetailDialog({ company, branch, partId, onClose }: Props) {
               </div>
             )}
 
+            {detail.partCode && (
+              <p className="font-mono text-xs text-muted-foreground">
+                Part code: <span className="text-foreground">{detail.partCode}</span>
+              </p>
+            )}
+
             <div className="space-y-1">
-              {detail.model && (
-                <p className="text-sm text-muted-foreground">Model: {detail.model}</p>
+              <p className="text-sm font-medium">
+                {detail.partName}
+                {detail.model && (
+                  <span className="font-normal text-muted-foreground"> · {detail.model}</span>
+                )}
+              </p>
+              {detail.brandName && (
+                <p className="text-sm text-muted-foreground">{detail.brandName}</p>
               )}
-              {detail.partDescription && <p className="text-sm">{detail.partDescription}</p>}
+              {detail.partDescription && (
+                <p className="text-sm text-muted-foreground">{detail.partDescription}</p>
+              )}
             </div>
 
             <p className="text-xl font-semibold">₹{detail.price.toFixed(2)}</p>

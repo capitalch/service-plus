@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -15,24 +15,23 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SearchableCombobox } from "@/components/ui/searchable-combobox";
-import { EntityImageUpload } from "@/components/shared/entity-image-upload";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
-import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import { SQL_MAP } from "@/constants/sql-map";
-import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
-import {
-    deleteSparePartWebImage,
-    reorderSparePartWebImages,
-    uploadSparePartWebImages,
-} from "@/lib/image-service";
 import { useAppSelector } from "@/store/hooks";
-import { selectClientCode, selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectCurrentBu, selectSchema } from "@/store/context-slice";
-import type { PartRow } from "@/features/client/components/inventory/part-code-input";
+import { selectDbName } from "@/features/auth/store/auth-slice";
+import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { PartCodeInput, type PartRow } from "@/features/client/components/inventory/part-code-input";
+import type { BrandOption } from "@/features/client/types/model";
 import type { SparePartWebType } from "@/features/client/types/spare-part-web";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -105,20 +104,32 @@ export const SparePartWebDialog = (props: SparePartWebDialogProps) => {
     const dbName        = useAppSelector(selectDbName);
     const schema_        = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
-    const currentBu      = useAppSelector(selectCurrentBu);
-    const clientCode     = useAppSelector(selectClientCode) ?? "";
-    const buCode          = currentBu?.code ?? "";
 
     const [submitting, setSubmitting] = useState(false);
-    const [images, setImages] = useState<string[]>([]);
 
-    // Optional link to spare_part_master — search-as-you-type against the same
-    // GET_PARTS_BY_KEYWORD query the job-parts screens already use.
-    const [selectedPart,      setSelectedPart]      = useState<PartRow | null>(null);
-    const [partSearch,        setPartSearch]        = useState("");
-    const [partOptions,       setPartOptions]       = useState<PartRow[]>([]);
-    const [partSearchLoading, setPartSearchLoading] = useState(false);
-    const debouncedPartSearch = useDebounce(partSearch, SEARCH_DEBOUNCE_MS);
+    // Optional link to spare_part_master — uses the same PartCodeInput control
+    // as the inventory screens. Brand narrows the code lookup/browse and seeds
+    // the "Add new part" flow, mirroring how other PartCodeInput callers work.
+    const [brands,       setBrands]       = useState<BrandOption[]>([]);
+    const [brandId,      setBrandId]      = useState<number | null>(null);
+    const [linkedPart,   setLinkedPart]   = useState<PartRow | null>(null);
+    const [partCodeText, setPartCodeText] = useState("");
+
+    useEffect(() => {
+        if (!dbName || !schema_) return;
+        apolloClient
+            .query<GenericQueryDataType<BrandOption>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema:  schema_,
+                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANDS }),
+                },
+            })
+            .then(res => setBrands(res.data?.genericQuery ?? []))
+            .catch(() => setBrands([]));
+    }, [dbName, schema_]);
 
     const form = useForm<FormType>({
         defaultValues: isEdit ? partDefaultValues(part!) : addDefaultValues,
@@ -127,23 +138,24 @@ export const SparePartWebDialog = (props: SparePartWebDialogProps) => {
     });
 
     const { formState: { errors } } = form;
+    const partIdValue = useWatch({ control: form.control, name: "part_id" });
 
     // ── Reset / populate on open ───────────────────────────────────────────────
     useEffect(() => {
         if (!open) {
             setSubmitting(false);
-            setPartSearch("");
-            setPartOptions([]);
             if (!isEdit) {
                 form.reset(addDefaultValues);
-                setSelectedPart(null);
+                setLinkedPart(null);
+                setPartCodeText("");
+                setBrandId(null);
             }
             return;
         }
 
         if (isEdit) {
             form.reset(partDefaultValues(part!));
-            // Seed the combobox with the currently-linked part (if any) so its
+            // Seed the part-code control with the currently-linked part (if any) so its
             // code/name show without the user having to search for it again.
             if (part!.part_id && part!.part_code && dbName && schema_) {
                 apolloClient
@@ -159,67 +171,62 @@ export const SparePartWebDialog = (props: SparePartWebDialogProps) => {
                             }),
                         },
                     })
-                    .then(res => setSelectedPart(res.data?.genericQuery?.[0] ?? null))
-                    .catch(() => setSelectedPart(null));
-            } else {
-                setSelectedPart(null);
-            }
-
-            // The list row (Step 7) only carries the cover thumbnail — fetch the full
-            // gallery for the editor from the same context query the image routes use.
-            if (dbName && schema_) {
-                apolloClient
-                    .query<GenericQueryDataType<{ image_urls: string[] }>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: {
-                            db_name: dbName,
-                            schema:  schema_,
-                            value: graphQlUtils.buildGenericQueryValue({
-                                sqlArgs: { id: part!.id },
-                                sqlId:   SQL_MAP.GET_SPARE_PART_WEB_IMAGE_CONTEXT,
-                            }),
-                        },
+                    .then(res => {
+                        const row = res.data?.genericQuery?.[0] ?? null;
+                        setLinkedPart(row);
+                        setPartCodeText(row?.part_code ?? part!.part_code ?? "");
+                        setBrandId(row?.brand_id ?? null);
                     })
-                    .then(res => setImages(res.data?.genericQuery?.[0]?.image_urls ?? []))
-                    .catch(() => setImages([]));
+                    .catch(() => {
+                        setLinkedPart(null);
+                        setPartCodeText(part!.part_code ?? "");
+                        setBrandId(null);
+                    });
+            } else {
+                setLinkedPart(null);
+                setPartCodeText("");
+                setBrandId(null);
             }
         } else {
             form.reset(addDefaultValues);
-            setSelectedPart(null);
-            setImages([]);
+            setLinkedPart(null);
+            setPartCodeText("");
+            setBrandId(null);
         }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // ── Part search ───────────────────────────────────────────────────────────
-    useEffect(() => {
-        if (!debouncedPartSearch.trim() || !dbName || !schema_) { setPartOptions([]); return; }
-        setPartSearchLoading(true);
-        apolloClient
-            .query<GenericQueryDataType<PartRow>>({
-                fetchPolicy: "network-only",
-                query: GRAPHQL_MAP.genericQuery,
-                variables: {
-                    db_name: dbName,
-                    schema:  schema_,
-                    value: graphQlUtils.buildGenericQueryValue({
-                        sqlArgs: { search: debouncedPartSearch.trim(), limit: 20, offset: 0 },
-                        sqlId:   SQL_MAP.GET_PARTS_BY_KEYWORD,
-                    }),
-                },
-            })
-            .then(res => setPartOptions(res.data?.genericQuery ?? []))
-            .catch(() => setPartOptions([]))
-            .finally(() => setPartSearchLoading(false));
-    }, [debouncedPartSearch, dbName, schema_]);
+    function handleBrandChange(id: number) {
+        setBrandId(id);
+        setLinkedPart(null);
+        setPartCodeText("");
+        form.setValue("part_id", null, { shouldValidate: true });
+    }
 
-    function handleSelectPart(selected: PartRow | null) {
-        setSelectedPart(selected);
-        form.setValue("part_id", selected ? selected.id : null, { shouldValidate: true });
-        if (selected) {
-            if (!form.getValues("part_name")) form.setValue("part_name", selected.part_name);
-            if (!form.getValues("model") && selected.model) form.setValue("model", selected.model);
-            if (!form.getValues("hsn_code") && selected.hsn_code) form.setValue("hsn_code", selected.hsn_code);
+    function handleSelectPart(selected: PartRow) {
+        if (existingPartIds.includes(selected.id) && selected.id !== part?.part_id) {
+            toast.error("Already linked to another web part in this branch.");
+            return;
+        }
+        setLinkedPart(selected);
+        setPartCodeText(selected.part_code);
+        setBrandId(selected.brand_id);
+        form.setValue("part_id", selected.id, { shouldValidate: true });
+        if (!form.getValues("part_name")) form.setValue("part_name", selected.part_name);
+        if (!form.getValues("model") && selected.model) form.setValue("model", selected.model);
+        if (!form.getValues("hsn_code") && selected.hsn_code) form.setValue("hsn_code", selected.hsn_code);
+    }
+
+    function handleClearPart() {
+        setLinkedPart(null);
+        setPartCodeText("");
+        form.setValue("part_id", null, { shouldValidate: true });
+    }
+
+    function handlePartCodeChange(code: string) {
+        setPartCodeText(code);
+        if (linkedPart) {
+            setLinkedPart(null);
+            form.setValue("part_id", null, { shouldValidate: true });
         }
     }
 
@@ -259,12 +266,6 @@ export const SparePartWebDialog = (props: SparePartWebDialogProps) => {
 
     const submitDisabled = Object.keys(errors).length > 0 || submitting;
 
-    // Make sure the currently-selected part is always addressable in `items`,
-    // even before/without a search matching it (e.g. right after opening in edit mode).
-    const comboItems = selectedPart && !partOptions.some(p => p.id === selectedPart.id)
-        ? [selectedPart, ...partOptions]
-        : partOptions;
-
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
@@ -275,36 +276,48 @@ export const SparePartWebDialog = (props: SparePartWebDialogProps) => {
             >
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
-                        {isEdit ? "Edit Catalogue Part" : "Add Catalogue Part"}
+                        {isEdit ? "Edit Web Part" : "Add Web Part"}
                     </DialogTitle>
                 </DialogHeader>
 
                 <form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
                     {/* Optional link to spare_part_master */}
-                    <SearchableCombobox<PartRow>
-                        getDisplayValue={p => `${p.part_code} — ${p.part_name}`}
-                        getFilterKey={p => `${p.part_code} ${p.part_name} ${p.part_description ?? ""}`}
-                        getIdentifier={p => String(p.id)}
-                        getItemDisabledReason={p =>
-                            existingPartIds.includes(p.id) && p.id !== part?.part_id
-                                ? "Already linked to another catalogue entry in this branch"
-                                : null}
-                        isLoading={partSearchLoading}
-                        items={comboItems}
-                        label="Link to Internal Part (optional)"
-                        placeholder="Search by part name, description or model…"
-                        renderItem={p => (
-                            <div>
-                                <p className="font-mono text-sm font-medium">{p.part_code} <span className="font-sans font-normal">{p.part_name}</span></p>
-                                {p.part_description && <p className="text-xs text-(--cl-text-muted) truncate">{p.part_description}</p>}
-                            </div>
-                        )}
-                        selectedValue={selectedPart ? String(selectedPart.id) : ""}
-                        onInputChange={setPartSearch}
-                        onSelect={handleSelectPart}
-                    />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Brand</Label>
+                            <Select
+                                value={brandId ? String(brandId) : ""}
+                                onValueChange={v => handleBrandChange(Number(v))}
+                            >
+                                <SelectTrigger className="h-9 text-sm">
+                                    <SelectValue placeholder="Select brand…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {brands.map(b => (
+                                        <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Part Code (optional)</Label>
+                            <PartCodeInput
+                                brandId={brandId}
+                                brandName={brands.find(b => b.id === brandId)?.name}
+                                costPrice={linkedPart?.cost_price ?? null}
+                                partCode={partCodeText}
+                                partDescription={linkedPart?.part_description ?? null}
+                                partId={partIdValue}
+                                partName={linkedPart?.part_name ?? ""}
+                                selectedBrandId={brandId}
+                                onChange={handlePartCodeChange}
+                                onClear={handleClearPart}
+                                onSelect={handleSelectPart}
+                            />
+                        </div>
+                    </div>
                     <p className="-mt-2 text-xs text-(--cl-text-muted)">
-                        Leave unlinked for a market-sourced part with no internal part code.
+                        Keep part code empty for market-sourced part.
                     </p>
 
                     {/* Part Name */}
@@ -381,24 +394,6 @@ export const SparePartWebDialog = (props: SparePartWebDialogProps) => {
                     <p className="text-xs text-(--cl-text-muted)">
                         Prices are shown to customers as indicative and subject to change without notice.
                     </p>
-
-                    {/* Photos — only available once the part exists (needs an id for the file-server folder). */}
-                    {isEdit ? (
-                        <div className="flex flex-col gap-1.5 border-t border-border pt-4">
-                            <Label>Photos</Label>
-                            <EntityImageUpload
-                                deleteImage={url => deleteSparePartWebImage(dbName!, schema_!, part!.id, url)}
-                                images={images}
-                                reorderImages={urls => reorderSparePartWebImages(dbName!, schema_!, part!.id, urls)}
-                                uploadFiles={files => uploadSparePartWebImages(dbName!, schema_!, part!.id, clientCode, buCode, files)}
-                                onChange={setImages}
-                            />
-                        </div>
-                    ) : (
-                        <p className="border-t border-border pt-3 text-xs text-(--cl-text-muted)">
-                            Save the part first, then reopen it to add photos.
-                        </p>
-                    )}
 
                     <DialogFooter className="pt-2">
                         <Button disabled={submitting} type="button" variant="ghost" onClick={() => onOpenChange(false)}>

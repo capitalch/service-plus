@@ -29,6 +29,8 @@ export interface Branch {
 
 export interface CompanyInfo {
   supportPhone: string | null;
+  email: string | null;
+  address: string | null;
   branchName: string;
 }
 
@@ -39,6 +41,8 @@ export interface Part {
   price: number;
   model: string | null;
   imageUrl: string | null;
+  images: string[];
+  partCode: string | null;
 }
 
 export interface PartsPage {
@@ -49,7 +53,7 @@ export interface PartsPage {
 }
 
 export interface PartDetail extends Part {
-  images: string[];
+  brandName: string | null;
 }
 
 export interface CartLine {

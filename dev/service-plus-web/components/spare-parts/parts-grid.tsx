@@ -8,11 +8,12 @@ import type { Part } from "@/lib/types";
 type Props = {
   parts: Part[];
   loading: boolean;
+  startIndex: number;
   onSelectPart: (partId: number) => void;
   onAddToCart: (part: Part, qty: number) => void;
 };
 
-export function PartsGrid({ parts, loading, onSelectPart, onAddToCart }: Props) {
+export function PartsGrid({ parts, loading, startIndex, onSelectPart, onAddToCart }: Props) {
   if (loading && parts.length === 0) {
     return (
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -39,10 +40,11 @@ export function PartsGrid({ parts, loading, onSelectPart, onAddToCart }: Props) 
         Prices are indicative and subject to change without prior notice.
       </p>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {parts.map((part) => (
+        {parts.map((part, i) => (
           <PartCard
             key={part.id}
             part={part}
+            index={startIndex + i + 1}
             onClick={() => onSelectPart(part.id)}
             onAddToCart={onAddToCart}
           />

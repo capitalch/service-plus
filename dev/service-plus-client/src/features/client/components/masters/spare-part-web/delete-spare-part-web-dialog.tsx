@@ -53,14 +53,23 @@ export const DeleteSparePartWebDialog = ({
         });
     }
 
+    const entityName = part.part_code
+        || `${part.part_name}${part.part_description ? ` — ${part.part_description}` : ""}`;
+
+    // Part code first (most exact, unambiguous), then model, then part name — the one
+    // field that's always present — so there's never an empty confirm-to-delete value.
+    const confirmKey        = part.part_code || part.model || part.part_name;
+    const confirmFieldLabel = part.part_code ? "part code" : part.model ? "model" : "part name";
+
     return (
         <DeleteConfirmDialog
             open={open}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
-            title="Delete Catalogue Part"
-            entityName={part.part_name}
-            confirmKey={part.part_name}
+            title="Delete Web Part"
+            entityName={entityName}
+            confirmKey={confirmKey}
+            confirmFieldLabel={confirmFieldLabel}
             onDelete={handleDelete}
             toastMessages={{
                 success: MESSAGES.SUCCESS_SPARE_PART_WEB_DELETED,

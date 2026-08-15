@@ -81,11 +81,19 @@ class PublicSql:
     # but no internal ids: no branch_id, no part_id (spare_part_master FK), no
     # hsn_code. `id` below is spare_part_web's own id, the public-facing
     # catalogue identifier the frontend needs for cart/order lines, not an
-    # internal FK the "no internal ids" rule is guarding against.
+    # internal FK the "no internal ids" rule is guarding against. `part_code`
+    # (via a LEFT JOIN on part_id — the FK itself is still never selected) is a
+    # human-facing catalogue code, not an internal id, so it's fine to expose;
+    # it's LEFT JOIN, not JOIN, since part_id is nullable.
+    #
+    # The list query also ships the full `images` gallery, not just the cover —
+    # the catalogue grid lets shoppers flip through a part's photos inline
+    # without opening the detail dialog, so every card needs its full set.
 
     GET_ACTIVE_BRANCHES = """
         with "dummy" as (values(1::int))
-        SELECT id, code, name, phone, email, city, is_head_office
+        SELECT id, code, name, phone, email, address_line1, address_line2, city, pincode,
+               is_head_office
         FROM branch
         WHERE is_active = true
         ORDER BY is_head_office DESC, code
@@ -98,18 +106,19 @@ class PublicSql:
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
         SELECT
-            id, part_name, part_description, price, model,
-            image_urls[1] AS image_url
-        FROM spare_part_web
-        WHERE branch_id = (table "p_branch_id")
-          AND is_active = true
+            sp.id, sp.part_name, sp.part_description, sp.price, sp.model,
+            sp.image_urls[1] AS image_url, sp.image_urls AS images, spm.part_code
+        FROM spare_part_web sp
+        LEFT JOIN spare_part_master spm ON spm.id = sp.part_id
+        WHERE sp.branch_id = (table "p_branch_id")
+          AND sp.is_active = true
           AND (
                 (table "p_search") = ''
-             OR LOWER(part_name)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
-             OR LOWER(COALESCE(part_description, ''))   LIKE '%%' || LOWER((table "p_search")) || '%%'
-             OR LOWER(COALESCE(model, ''))               LIKE '%%' || LOWER((table "p_search")) || '%%'
+             OR LOWER(sp.part_name)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
+             OR LOWER(COALESCE(sp.part_description, ''))   LIKE '%%' || LOWER((table "p_search")) || '%%'
+             OR LOWER(COALESCE(sp.model, ''))               LIKE '%%' || LOWER((table "p_search")) || '%%'
           )
-        ORDER BY part_name
+        ORDER BY sp.part_name
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """
@@ -135,12 +144,15 @@ class PublicSql:
             "p_id"        as (values(%(id)s::bigint)),
             "p_branch_id" as (values(%(branch_id)s::bigint))
         SELECT
-            id, part_name, part_description, price, model,
-            image_urls[1] AS image_url, image_urls AS images
-        FROM spare_part_web
-        WHERE id = (table "p_id")
-          AND branch_id = (table "p_branch_id")
-          AND is_active = true
+            sp.id, sp.part_name, sp.part_description, sp.price, sp.model,
+            sp.image_urls[1] AS image_url, sp.image_urls AS images, spm.part_code,
+            b.name AS brand_name
+        FROM spare_part_web sp
+        LEFT JOIN spare_part_master spm ON spm.id = sp.part_id
+        LEFT JOIN brand b ON b.id = spm.brand_id
+        WHERE sp.id = (table "p_id")
+          AND sp.branch_id = (table "p_branch_id")
+          AND sp.is_active = true
     """
 
     # Order submission (§5's POST /api/public/part-orders). Deliberately NOT

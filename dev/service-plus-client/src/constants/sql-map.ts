@@ -121,7 +121,7 @@ export const SQL_MAP = {
     CHECK_PART_LOCATION_EXISTS:                    "CHECK_PART_LOCATION_EXISTS",
     CHECK_PART_LOCATION_EXISTS_EXCLUDE_ID:         "CHECK_PART_LOCATION_EXISTS_EXCLUDE_ID",
     CHECK_PART_LOCATION_IN_USE:                    "CHECK_PART_LOCATION_IN_USE",
-    // Spare Parts – Web Catalogue (spare_part_web)
+    // Spare Parts Web (spare_part_web)
     GET_SPARE_PART_WEB_BY_BRANCH:                  "GET_SPARE_PART_WEB_BY_BRANCH",
     GET_SPARE_PART_WEB_IMAGE_CONTEXT:              "GET_SPARE_PART_WEB_IMAGE_CONTEXT",
     // Part Finder

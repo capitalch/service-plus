@@ -10,4 +10,5 @@ export type SparePartWebType = {
     is_active:        boolean;
     thumbnail_url:    string | null;
     part_code:        string | null;
+    brand_name:       string | null;
 };

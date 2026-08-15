@@ -6,7 +6,7 @@ Endpoints:
     GET /api/public/job-status   - Single job lookup by job_no + mobile
     GET /api/public/open-jobs    - All open jobs for a customer, looked up by mobile alone
     GET /api/public/branches     - Active branches for a company (spare-parts catalogue)
-    GET /api/public/company-info - Support phone + branch name for a (company, branch) pair
+    GET /api/public/company-info - Support phone, email, address + branch name for a (company, branch) pair
     GET /api/public/parts        - Paginated spare-parts catalogue for a (company, branch)
     GET /api/public/parts/{id}   - Single catalogue part, with its full photo gallery
     POST /api/public/part-orders - Submit a spare-parts order request (no payment, §7)
@@ -19,6 +19,7 @@ catalogue price being browsed, not an internal accounting figure — see
 plans/plan-parts-web.md §5.
 """
 from dataclasses import dataclass
+from typing import Callable
 
 import psycopg.sql as pgsql
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -72,6 +73,8 @@ class BranchOut(BaseModel):
 
 class CompanyInfoOut(BaseModel):
     support_phone: str | None
+    email: str | None
+    address: str | None
     branch_name: str
 
 
@@ -82,6 +85,8 @@ class PartOut(BaseModel):
     price: float
     model: str | None
     image_url: str | None
+    images: list[str]
+    part_code: str | None
 
 
 class PartsListOut(BaseModel):
@@ -92,7 +97,7 @@ class PartsListOut(BaseModel):
 
 
 class PartDetailOut(PartOut):
-    images: list[str]
+    brand_name: str | None
 
 
 class PartOrderLineIn(BaseModel):
@@ -125,8 +130,15 @@ class _Branch:
     name: str
     phone: str | None
     email: str | None
+    address_line1: str | None
+    address_line2: str | None
     city: str | None
+    pincode: str | None
     is_head_office: bool
+
+    def formatted_address(self) -> str | None:
+        parts = [p for p in (self.address_line1, self.address_line2, self.city, self.pincode) if p]
+        return ", ".join(parts) if parts else None
 
 
 async def _get_active_branches(db_name: str, schema: str) -> list[_Branch]:
@@ -303,8 +315,10 @@ async def get_company_info(
     branch: str | None = Query(default=None, min_length=1, max_length=50),
 ) -> CompanyInfoOut:
     """
-    Support phone + name for the selected branch (§7): the branch's own phone,
-    falling back to the head-office branch's, then to the first active branch's.
+    Support phone, email, and address for the selected branch (§7): each is the
+    branch's own value, falling back to the head-office branch's, then to the
+    first active branch's — independently per field, since a branch can have
+    e.g. its own phone but no email on file.
     """
     resolved = await public_directory.resolve_company(company)
     if resolved is None:
@@ -315,14 +329,23 @@ async def get_company_info(
     branches = await _get_active_branches(db_name, schema)
     target = await resolve_branch(db_name, schema, branch, branches=branches)
 
-    support_phone = target.phone
-    if not support_phone:
+    def resolve_field(getter: Callable[[_Branch], str | None]) -> str | None:
+        value = getter(target)
+        if value:
+            return value
         head_office = next((b for b in branches if b.is_head_office), None)
-        support_phone = head_office.phone if head_office else None
-    if not support_phone:
-        support_phone = branches[0].phone
+        if head_office:
+            value = getter(head_office)
+            if value:
+                return value
+        return getter(branches[0])
 
-    return CompanyInfoOut(support_phone=support_phone, branch_name=target.name)
+    return CompanyInfoOut(
+        support_phone=resolve_field(lambda b: b.phone),
+        email=resolve_field(lambda b: b.email),
+        address=resolve_field(lambda b: b.formatted_address()),
+        branch_name=target.name,
+    )
 
 
 @router.get(
@@ -337,8 +360,10 @@ async def list_parts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=50),
 ) -> PartsListOut:
-    """Paginated, branch-scoped spare-parts catalogue (§5). `image_url` is the cover
-    only (`image_urls[1]`) — the full gallery is only shipped by the detail route."""
+    """Paginated, branch-scoped spare-parts catalogue (§5). Each item carries both
+    `image_url` (the cover, `image_urls[1]`) and the full `images` gallery, so the
+    catalogue grid can let shoppers flip through photos without opening the detail
+    dialog."""
     resolved = await public_directory.resolve_company(company)
     if resolved is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown company")

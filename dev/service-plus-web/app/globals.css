@@ -32,6 +32,9 @@
     --chart-4: oklch(0.488 0.243 264.376);
     --chart-5: oklch(0.424 0.199 265.638);
     --radius: 0.75rem;
+    --bg-gradient:
+        radial-gradient(1200px 600px at 50% -12%, oklch(0.55 0.19 260 / 12%), transparent 60%),
+        radial-gradient(800px 520px at 100% 100%, oklch(0.55 0.19 260 / 6%), transparent 55%);
 }
 
 .dark {
@@ -60,6 +63,7 @@
     --chart-3: oklch(0.546 0.245 262.881);
     --chart-4: oklch(0.488 0.243 264.376);
     --chart-5: oklch(0.424 0.199 265.638);
+    --bg-gradient: none;
 }
 
 @theme inline {
@@ -104,5 +108,8 @@
   }
   body {
     @apply font-sans bg-background text-foreground;
+    background-image: var(--bg-gradient);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
 }

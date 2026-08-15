@@ -31,7 +31,7 @@ function DetailRow({
 
 export function JobStatusResult({ result }: { result: JobStatus }) {
   return (
-    <Card className="text-left shadow-sm">
+    <Card className="text-left">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Job {result.jobNo}</span>

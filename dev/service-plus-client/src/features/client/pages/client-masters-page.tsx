@@ -65,7 +65,7 @@ function MastersContent() {
     if (selected === "Parts") return <PartsSection />;
     if (selected === "Part Location") return <PartLocationSection />;
     if (selected === "Product") return <ProductSection />;
-    if (selected === "Spare Parts – Web Catalogue") return <SparePartWebSection />;
+    if (selected === "Spare Parts Web") return <SparePartWebSection />;
     if (selected === "State / Province") return <StateSection />;
     if (selected === "Technician") return <TechnicianSection />;
     if (selected === "Vendor / Supplier") return <VendorSection />;

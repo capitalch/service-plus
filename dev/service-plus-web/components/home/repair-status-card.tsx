@@ -10,8 +10,8 @@ import { OpenJobsForm } from "./open-jobs-form";
 
 export function RepairStatusCard() {
   return (
-    <div id="job-status" className="mx-auto w-full max-w-2xl">
-      <Card className="shadow-sm">
+    <div id="job-status" className="mx-auto w-full max-w-2xl scroll-mt-24">
+      <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">

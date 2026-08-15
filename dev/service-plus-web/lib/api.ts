@@ -52,6 +52,7 @@ async function publicGet<T>(path: string, params: Record<string, string>): Promi
   const websiteKey = process.env.NEXT_PUBLIC_WEBSITE_KEY ?? "";
   const response = await fetch(url.toString(), {
     headers: { "X-Website-Key": websiteKey },
+    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -149,6 +150,8 @@ export async function fetchBranches(company: string): Promise<Branch[]> {
 
 interface CompanyInfoApiResponse {
   support_phone: string | null;
+  email: string | null;
+  address: string | null;
   branch_name: string;
 }
 
@@ -161,7 +164,12 @@ export async function fetchCompanyInfo(params: {
     branch: params.branch,
   });
 
-  return { supportPhone: data.support_phone, branchName: data.branch_name };
+  return {
+    supportPhone: data.support_phone,
+    email: data.email,
+    address: data.address,
+    branchName: data.branch_name,
+  };
 }
 
 interface PartApiResponse {
@@ -171,6 +179,8 @@ interface PartApiResponse {
   price: number;
   model: string | null;
   image_url: string | null;
+  images: string[];
+  part_code: string | null;
 }
 
 function mapPart(data: PartApiResponse): Part {
@@ -181,6 +191,8 @@ function mapPart(data: PartApiResponse): Part {
     price: data.price,
     model: data.model,
     imageUrl: data.image_url,
+    images: data.images ?? [],
+    partCode: data.part_code,
   };
 }
 
@@ -215,7 +227,7 @@ export async function fetchParts(params: {
 }
 
 interface PartDetailApiResponse extends PartApiResponse {
-  images: string[];
+  brand_name: string | null;
 }
 
 export async function fetchPartById(params: {
@@ -228,7 +240,7 @@ export async function fetchPartById(params: {
     branch: params.branch,
   });
 
-  return { ...mapPart(data), images: data.images };
+  return { ...mapPart(data), brandName: data.brand_name };
 }
 
 interface PartOrderApiResponse {

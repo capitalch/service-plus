@@ -23,6 +23,8 @@ export type DeleteConfirmDialogPropsType = {
     title:              string;
     entityName:         string;
     confirmKey:         string;
+    /** Names the field confirmKey comes from, e.g. "model" — spelled out when it isn't obvious from entityName. */
+    confirmFieldLabel?: string;
     confirmKeyClass?:   string;
     confirmInputClass?: string;
     confirmMatch?:      (typed: string, key: string) => boolean;
@@ -42,6 +44,7 @@ export const DeleteConfirmDialog = ({
     title,
     entityName,
     confirmKey,
+    confirmFieldLabel,
     confirmKeyClass,
     confirmInputClass,
     confirmMatch = (typed, key) => typed.toLowerCase() === key.toLowerCase(),
@@ -118,7 +121,7 @@ export const DeleteConfirmDialog = ({
                     {!isBlocked && (
                         <div className="flex flex-col gap-1.5">
                             <Label htmlFor="delete_confirm_input">
-                                Type{" "}
+                                Type {confirmFieldLabel ? `the ${confirmFieldLabel} ` : ""}
                                 <span className={`font-semibold text-foreground${confirmKeyClass ? ` ${confirmKeyClass}` : ""}`}>
                                     {confirmKey}
                                 </span>{" "}

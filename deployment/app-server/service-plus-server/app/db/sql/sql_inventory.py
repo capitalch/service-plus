@@ -227,9 +227,10 @@ class InventorySql:
             w.id, w.branch_id, w.part_id, w.part_name, w.part_description,
             w.price, w.model, w.hsn_code, w.is_active,
             w.image_urls[1] AS thumbnail_url,
-            m.part_code
+            m.part_code, br.name AS brand_name
         FROM spare_part_web w
         LEFT JOIN spare_part_master m ON m.id = w.part_id
+        LEFT JOIN brand br ON br.id = m.brand_id
         WHERE w.branch_id = (table "p_branch_id")
         ORDER BY w.part_name
     """

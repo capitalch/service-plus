@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, PackageSearch, ShoppingCart } from "lucide-react";
+import { ChevronLeft, ChevronRight, Mail, MapPin, PackageSearch, Phone, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -114,7 +114,7 @@ export default function SparePartsPage() {
   const totalPages = partsPage ? Math.max(1, Math.ceil(partsPage.total / PAGE_SIZE)) : 1;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 lg:py-16">
+    <div className="mx-auto max-w-6xl px-4 py-8 lg:py-12">
       <div className="mx-auto max-w-2xl text-center">
         <span className="mx-auto flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <PackageSearch className="size-5" />
@@ -145,6 +145,31 @@ export default function SparePartsPage() {
             onBranchesChange={setBranches}
           />
         </div>
+        {companyInfo && (
+          <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">{companyInfo.branchName}</p>
+            <div className="mt-1.5 flex flex-col gap-1">
+              {companyInfo.supportPhone && (
+                <span className="flex items-center gap-1.5">
+                  <Phone className="size-3.5 shrink-0" />
+                  {companyInfo.supportPhone}
+                </span>
+              )}
+              {companyInfo.email && (
+                <span className="flex items-center gap-1.5">
+                  <Mail className="size-3.5 shrink-0" />
+                  {companyInfo.email}
+                </span>
+              )}
+              {companyInfo.address && (
+                <span className="flex items-start gap-1.5">
+                  <MapPin className="mt-0.5 size-3.5 shrink-0" />
+                  {companyInfo.address}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
         {branch && (
           <Button
             type="button"
@@ -173,6 +198,7 @@ export default function SparePartsPage() {
             <PartsGrid
               parts={partsPage?.items ?? []}
               loading={loadingParts}
+              startIndex={(page - 1) * PAGE_SIZE}
               onSelectPart={setSelectedPartId}
               onAddToCart={cart.addLine}
             />

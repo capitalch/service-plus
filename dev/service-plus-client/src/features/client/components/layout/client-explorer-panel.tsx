@@ -274,12 +274,12 @@ function MastersExplorer() {
                 <TreeItem icon={Receipt} iconColor="text-green-600"       label="Job Additional Charges" disabled={!canServiceConfig} title={configTitle} />
             </CollapsibleGroup>
             <CollapsibleGroup label="Product & Parts" defaultOpen={false}>
+                <TreeItem icon={Globe} iconColor="text-cyan-600"      label="Spare Parts Web" />
                 <TreeItem icon={Tag} iconColor="text-slate-600"      label="Brand" />
                 <TreeItem icon={Package} iconColor="text-slate-600"  label="Product" />
                 <TreeItem icon={BookOpen} iconColor="text-sky-600" label="Model" />
                 <TreeItem icon={Package} iconColor="text-slate-600"  label="Parts"        helpArticleId="parts" />
                 <TreeItem icon={MapPin} iconColor="text-indigo-600"   label="Part Location" />
-                <TreeItem icon={Globe} iconColor="text-cyan-600"      label="Spare Parts – Web Catalogue" />
             </CollapsibleGroup>
         </div>
     );

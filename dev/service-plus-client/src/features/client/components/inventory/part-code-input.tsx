@@ -371,7 +371,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                             >
                                 {inlineLoading
                                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    : <Search className="h-3.5 w-3.5 text-slate-500" />}
+                                    : <Search className="h-3.5 w-3.5" />}
                             </button>
                             <Input
                                 ref={el => {
@@ -545,6 +545,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                 <DialogContent
                     aria-describedby={undefined}
                     onCloseAutoFocus={(e) => e.preventDefault()}
+                    onInteractOutside={(e) => e.preventDefault()}
                     className="sm:max-w-lg bg-white text-black border-(--cl-border) shadow-2xl opacity-100"
                 >
                     <div className="pr-6 pb-3 border-b border-slate-200">

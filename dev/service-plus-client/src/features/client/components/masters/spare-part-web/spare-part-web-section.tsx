@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
+    ImageIcon,
     ImageOffIcon,
     MapPinIcon,
     MoreHorizontalIcon,
@@ -45,6 +46,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { DeleteSparePartWebDialog } from "./delete-spare-part-web-dialog";
 import { SparePartWebDialog } from "./spare-part-web-dialog";
+import { SparePartWebPhotosDialog } from "./spare-part-web-photos-dialog";
 import type { SparePartWebType } from "@/features/client/types/spare-part-web";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -74,6 +76,7 @@ export const SparePartWebSection = () => {
     const [addOpen, setAddOpen] = useState(false);
     const [deletePart, setDeletePart] = useState<SparePartWebType | null>(null);
     const [editPart, setEditPart] = useState<SparePartWebType | null>(null);
+    const [photosPart, setPhotosPart] = useState<SparePartWebType | null>(null);
     const [loading, setLoading] = useState(false);
     const [parts, setParts] = useState<SparePartWebType[]>([]);
     const [search, setSearch] = useState("");
@@ -163,7 +166,7 @@ export const SparePartWebSection = () => {
                 <div className="text-center">
                     <p className="text-sm font-semibold text-(--cl-text)">No Branch Selected</p>
                     <p className="mt-2 text-xs text-(--cl-text-muted)">
-                        Select a branch from the top navigation to manage its web catalogue.
+                        Select a branch from the top navigation to manage its web parts.
                     </p>
                 </div>
             </div>
@@ -182,7 +185,7 @@ export const SparePartWebSection = () => {
             {/* Page header */}
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="text-xl font-bold text-(--cl-text)">Spare Parts – Web Catalogue</h1>
+                    <h1 className="text-xl font-bold text-(--cl-text)">Spare Parts Web</h1>
                     <p className="mt-1 flex items-center gap-1.5 text-sm text-(--cl-text-muted)">
                         <MapPinIcon className="h-3.5 w-3.5 text-indigo-600" />
                         {currentBranch.name}
@@ -250,7 +253,7 @@ export const SparePartWebSection = () => {
                     <div>
                         <PackageIcon className="mx-auto h-8 w-8 text-(--cl-text-muted)" />
                         <p className="mt-2 text-sm text-(--cl-text-muted)">
-                            No web-catalogue parts for {currentBranch.name} yet.
+                            No web parts for {currentBranch.name} yet.
                         </p>
                     </div>
                 </div>
@@ -262,11 +265,12 @@ export const SparePartWebSection = () => {
                                 <TableRow className="sticky top-0 z-10 bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
                                     <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
                                     <TableHead className={`w-14 ${thClass}`}>Photo</TableHead>
-                                    <TableHead className={thClass}>Part Name</TableHead>
+                                    <TableHead className={thClass}>Brand</TableHead>
+                                    <TableHead className={thClass}>Part Code</TableHead>
+                                    <TableHead className={thClass}>Part Details</TableHead>
                                     <TableHead className={thClass}>Model</TableHead>
                                     <TableHead className={`text-right ${thClass}`}>Price</TableHead>
                                     <TableHead className={thClass}>HSN</TableHead>
-                                    <TableHead className={thClass}>Source</TableHead>
                                     <TableHead className={thClass}>Status</TableHead>
                                     <TableHead className={thClass}>Actions</TableHead>
                                 </TableRow>
@@ -274,7 +278,7 @@ export const SparePartWebSection = () => {
                             <TableBody>
                                 {displayParts.length === 0 ? (
                                     <tr>
-                                        <td colSpan={9} className="px-6 py-10 text-center text-sm text-(--cl-text-muted)">
+                                        <td colSpan={10} className="px-6 py-10 text-center text-sm text-(--cl-text-muted)">
                                             No results match &ldquo;{search}&rdquo;.
                                         </td>
                                     </tr>
@@ -304,6 +308,12 @@ export const SparePartWebSection = () => {
                                                     </div>
                                                 )}
                                             </TableCell>
+                                            <TableCell className="text-sm text-(--cl-text-muted)">
+                                                {part.brand_name ?? "—"}
+                                            </TableCell>
+                                            <TableCell className="font-mono text-sm text-(--cl-text-muted)">
+                                                {part.part_code ?? "—"}
+                                            </TableCell>
                                             <TableCell className="text-sm font-medium text-(--cl-text)">
                                                 {part.part_name}
                                                 {part.part_description && (
@@ -320,23 +330,6 @@ export const SparePartWebSection = () => {
                                             </TableCell>
                                             <TableCell className="text-sm text-(--cl-text-muted)">
                                                 {part.hsn_code ?? "—"}
-                                            </TableCell>
-                                            <TableCell>
-                                                {part.part_code ? (
-                                                    <Badge
-                                                        className="border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-50"
-                                                        variant="outline"
-                                                    >
-                                                        Linked to {part.part_code}
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge
-                                                        className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50"
-                                                        variant="outline"
-                                                    >
-                                                        Market part
-                                                    </Badge>
-                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <Badge
@@ -368,6 +361,13 @@ export const SparePartWebSection = () => {
                                                         >
                                                             <PencilIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
                                                             Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            className="cursor-pointer text-violet-600 focus:text-violet-600"
+                                                            onClick={() => setPhotosPart(part)}
+                                                        >
+                                                            <ImageIcon className="mr-1.5 h-3.5 w-3.5 text-violet-600" />
+                                                            Photos
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         {part.is_active ? (
@@ -421,6 +421,14 @@ export const SparePartWebSection = () => {
                     open={!!editPart}
                     part={editPart}
                     onOpenChange={(o) => { if (!o) setEditPart(null); }}
+                    onSuccess={loadData}
+                />
+            )}
+            {photosPart && (
+                <SparePartWebPhotosDialog
+                    open={!!photosPart}
+                    part={photosPart}
+                    onOpenChange={(o) => { if (!o) setPhotosPart(null); }}
                     onSuccess={loadData}
                 />
             )}
