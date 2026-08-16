@@ -63,8 +63,19 @@ async function publicGet<T>(path: string, params: Record<string, string>): Promi
   return response.json() as Promise<T>;
 }
 
+interface CompanyApiResponse {
+  id: string;
+  label: string;
+  parts_count?: number | null;
+}
+
 export async function fetchCompanies(): Promise<Company[]> {
-  return publicGet<Company[]>("/api/public/companies", {});
+  const data = await publicGet<CompanyApiResponse[]>("/api/public/companies", {});
+  return data.map((company) => ({
+    id: company.id,
+    label: company.label,
+    partsCount: typeof company.parts_count === "number" ? company.parts_count : null,
+  }));
 }
 
 interface JobStatusApiResponse {
@@ -181,6 +192,7 @@ interface PartApiResponse {
   image_url: string | null;
   images: string[];
   part_code: string | null;
+  brand_name: string | null;
 }
 
 function mapPart(data: PartApiResponse): Part {
@@ -193,6 +205,7 @@ function mapPart(data: PartApiResponse): Part {
     imageUrl: data.image_url,
     images: data.images ?? [],
     partCode: data.part_code,
+    brandName: data.brand_name,
   };
 }
 
@@ -226,21 +239,17 @@ export async function fetchParts(params: {
   };
 }
 
-interface PartDetailApiResponse extends PartApiResponse {
-  brand_name: string | null;
-}
-
 export async function fetchPartById(params: {
   company: string;
   branch: string;
   partId: number;
 }): Promise<PartDetail> {
-  const data = await publicGet<PartDetailApiResponse>(`/api/public/parts/${params.partId}`, {
+  const data = await publicGet<PartApiResponse>(`/api/public/parts/${params.partId}`, {
     company: params.company,
     branch: params.branch,
   });
 
-  return { ...mapPart(data), brandName: data.brand_name };
+  return mapPart(data);
 }
 
 interface PartOrderApiResponse {

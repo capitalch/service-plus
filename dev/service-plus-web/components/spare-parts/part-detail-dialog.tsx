@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchPartById, imageUrl } from "@/lib/api";
-import { cn } from "@/lib/utils";
 import type { PartDetail } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type Props = {
   company: string;
@@ -52,7 +52,7 @@ export function PartDetailDialog({ company, branch, partId, onClose }: Props) {
           <div className="space-y-4">
             {detail.images.length > 0 ? (
               <div className="space-y-2">
-                <div className="aspect-square w-full overflow-hidden rounded-lg bg-muted">
+                <div className="aspect-square w-full overflow-hidden rounded-xl bg-muted">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={imageUrl(detail.images[activeImage])}
@@ -65,15 +65,15 @@ export function PartDetailDialog({ company, branch, partId, onClose }: Props) {
                   />
                 </div>
                 {detail.images.length > 1 && (
-                  <div className="flex gap-2 overflow-x-auto">
+                  <div className="flex gap-2 overflow-x-auto pb-1">
                     {detail.images.map((img, index) => (
                       <button
                         key={img}
                         type="button"
                         onClick={() => setActiveImage(index)}
                         className={cn(
-                          "size-14 shrink-0 cursor-pointer overflow-hidden rounded-md border-2 transition-colors",
-                          index === activeImage ? "border-primary" : "border-transparent",
+                          "size-16 shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 transition-colors",
+                          index === activeImage ? "border-primary" : "border-transparent opacity-70 hover:opacity-100",
                         )}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -88,7 +88,7 @@ export function PartDetailDialog({ company, branch, partId, onClose }: Props) {
                 )}
               </div>
             ) : (
-              <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <div className="flex aspect-square w-full items-center justify-center rounded-xl bg-muted text-muted-foreground">
                 <ImageOff className="size-10" />
               </div>
             )}
@@ -100,7 +100,7 @@ export function PartDetailDialog({ company, branch, partId, onClose }: Props) {
             )}
 
             <div className="space-y-1">
-              <p className="text-sm font-medium">
+              <p className="text-sm font-semibold">
                 {detail.partName}
                 {detail.model && (
                   <span className="font-normal text-muted-foreground"> · {detail.model}</span>
@@ -114,7 +114,7 @@ export function PartDetailDialog({ company, branch, partId, onClose }: Props) {
               )}
             </div>
 
-            <p className="text-xl font-semibold">₹{detail.price.toFixed(2)}</p>
+            <p className="text-2xl font-bold">₹{detail.price.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">
               Prices are indicative and subject to change without prior notice.
             </p>

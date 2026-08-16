@@ -57,6 +57,9 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
   </FilesMatch>
 </IfModule>
 
+# Routes are exported as <route>/index.html (next.config.ts trailingSlash).
+DirectoryIndex index.html
+
 # Static export 404 fallback
 ErrorDocument 404 /404.html
 HTACCESS
@@ -102,13 +105,44 @@ esac
 
 echo "==> Deploy complete"
 
-if [[ -n "${DEPLOY_SITE_URL:-}" ]]; then
-  echo "==> Smoke-checking $DEPLOY_SITE_URL"
-  code="$(curl -sS -o /dev/null -w '%{http_code}' "$DEPLOY_SITE_URL")"
-  echo "HTTP $code from $DEPLOY_SITE_URL"
-  if [[ "$code" != "200" ]]; then
-    echo "Warning: expected 200, got $code — check the site manually." >&2
-  fi
-else
+if [[ -z "${DEPLOY_SITE_URL:-}" ]]; then
   echo "Set DEPLOY_SITE_URL in deploy/.env.deploy to enable the post-deploy smoke check."
+  exit 0
 fi
+
+BASE_URL="${DEPLOY_SITE_URL%/}"
+# Check sub-routes too, not just "/". The homepage is served straight out of the
+# document root and stays green even when route resolution is broken, which is
+# exactly how the /spare-parts 404 went unnoticed.
+SMOKE_PATHS="${DEPLOY_SMOKE_PATHS:-/ /spare-parts/ /ai-repair-help/}"
+
+echo "==> Smoke-checking $BASE_URL"
+smoke_failed=0
+for path in $SMOKE_PATHS; do
+  code="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL$path")"
+  echo "  HTTP $code  $path"
+  if [[ "$code" != "200" ]]; then
+    smoke_failed=1
+  fi
+done
+
+# The .htaccess is a dotfile: rsync and lftp carry it, but a manual zip upload
+# through cPanel's File Manager silently drops it. Long-cache headers on a
+# hashed asset are the cheapest proof that it actually landed and is in effect.
+asset="$(find "$OUT_DIR/_next/static" -name '*.js' -print -quit 2>/dev/null || true)"
+if [[ -n "$asset" ]]; then
+  asset_url="$BASE_URL/_next/static/${asset#"$OUT_DIR/_next/static/"}"
+  cache_header="$(curl -sS -D - -o /dev/null "$asset_url" | grep -i '^cache-control:' | tr -d '\r' || true)"
+  echo "  $cache_header  (hashed asset)"
+  if [[ "$cache_header" != *immutable* ]]; then
+    echo "Warning: no 'immutable' in Cache-Control — .htaccess is missing or not applied." >&2
+    smoke_failed=1
+  fi
+fi
+
+if [[ "$smoke_failed" -ne 0 ]]; then
+  echo "Smoke check failed — the deploy is live but not serving correctly." >&2
+  exit 1
+fi
+
+echo "==> Smoke check passed"

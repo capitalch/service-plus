@@ -1,11 +1,11 @@
 # To Do
-- Migration tool
+							- Migration tool
 								- creation
 - Service plus web
 	- Job Query
 		- Company selection: include branch also in web job query
 	- Spare parts
-	
+		- Sale and images
 						- Opening stock does not save
 						- app settings: no_of_job_receipts per print and single page print
 - Release

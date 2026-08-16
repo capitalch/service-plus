@@ -45,6 +45,7 @@ router = APIRouter(
 class CompanyOut(BaseModel):
     id: str
     label: str
+    parts_count: int
 
 
 class JobStatusOut(BaseModel):
@@ -87,6 +88,7 @@ class PartOut(BaseModel):
     image_url: str | None
     images: list[str]
     part_code: str | None
+    brand_name: str | None
 
 
 class PartsListOut(BaseModel):
@@ -94,10 +96,6 @@ class PartsListOut(BaseModel):
     total: int
     page: int
     page_size: int
-
-
-class PartDetailOut(PartOut):
-    brand_name: str | None
 
 
 class PartOrderLineIn(BaseModel):
@@ -190,7 +188,7 @@ async def resolve_branch(
 async def list_companies() -> list[CompanyOut]:
     """Return the public company (business unit) dropdown list."""
     companies = await public_directory.list_companies()
-    return [CompanyOut(id=c.id, label=c.label) for c in companies]
+    return [CompanyOut(id=c.id, label=c.label, parts_count=c.parts_count) for c in companies]
 
 
 @router.get(
@@ -398,14 +396,14 @@ async def list_parts(
 
 @router.get(
     "/parts/{part_id}",
-    response_model=PartDetailOut,
+    response_model=PartOut,
     dependencies=[Depends(rate_limit("part-detail", limit=60, window_seconds=60))],
 )
 async def get_part_detail(
     part_id: int,
     company: str = Query(..., min_length=1),
     branch: str | None = Query(default=None, min_length=1, max_length=50),
-) -> PartDetailOut:
+) -> PartOut:
     """Single catalogue part with its full photo gallery, already in display order
     straight off `image_urls` — no second query, no join (§3c/§5). 404 if the part
     doesn't exist, is inactive, or belongs to a different branch than resolved."""
@@ -426,7 +424,7 @@ async def get_part_detail(
     if not rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Part not found")
 
-    return PartDetailOut(**rows[0])
+    return PartOut(**rows[0])
 
 
 # ─── Order submission ──────────────────────────────────────────────────────────

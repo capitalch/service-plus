@@ -11,10 +11,12 @@ type Props = {
 export function OrderConfirmation({ orderId, branchName, supportPhone }: Props) {
   return (
     <div className="space-y-4 text-center">
-      <CheckCircle2 className="mx-auto size-10 text-primary" />
+      <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-success/15 text-success">
+        <CheckCircle2 className="size-7" />
+      </span>
       <div>
         <p className="text-lg font-semibold">Order request received</p>
-        <p className="text-sm text-muted-foreground">
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Order #{orderId} — {branchName}
         </p>
       </div>
@@ -28,7 +30,7 @@ export function OrderConfirmation({ orderId, branchName, supportPhone }: Props) 
         <p className="flex items-center justify-center gap-1.5 text-sm">
           <Phone className="size-4 text-primary" />
           Questions? Call {branchName}:{" "}
-          <a href={`tel:${supportPhone}`} className="font-medium underline">
+          <a href={`tel:${supportPhone}`} className="font-medium underline underline-offset-2">
             {supportPhone}
           </a>
         </p>

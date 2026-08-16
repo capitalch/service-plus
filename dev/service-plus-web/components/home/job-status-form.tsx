@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { motion } from "framer-motion";
 import { Loader2, SearchX } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -19,9 +20,7 @@ import { JobStatusResult } from "./job-status-result";
 const jobStatusSchema = z.object({
   company: z.string().min(1, "Select a company"),
   jobNo: z.string().min(1, "Enter your job number"),
-  mobile: z
-    .string()
-    .regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
+  mobile: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
 });
 
 type JobStatusFormValues = z.infer<typeof jobStatusSchema>;
@@ -67,10 +66,8 @@ export function JobStatusForm() {
 
         <div className="space-y-1.5">
           <Label htmlFor="jobNo">Job number</Label>
-          <Input id="jobNo" placeholder="e.g. J/00001" {...register("jobNo")} />
-          {errors.jobNo && (
-            <p className="text-sm text-destructive">{errors.jobNo.message}</p>
-          )}
+          <Input id="jobNo" placeholder="e.g. J/00001" autoComplete="off" {...register("jobNo")} />
+          {errors.jobNo && <p className="text-sm text-destructive">{errors.jobNo.message}</p>}
         </div>
 
         <div className="space-y-1.5">
@@ -80,11 +77,10 @@ export function JobStatusForm() {
             inputMode="numeric"
             maxLength={10}
             placeholder="10-digit mobile number"
+            autoComplete="off"
             {...register("mobile")}
           />
-          {errors.mobile && (
-            <p className="text-sm text-destructive">{errors.mobile.message}</p>
-          )}
+          {errors.mobile && <p className="text-sm text-destructive">{errors.mobile.message}</p>}
         </div>
 
         <Button type="submit" disabled={isSubmitting} className="w-full">
@@ -94,16 +90,20 @@ export function JobStatusForm() {
       </form>
 
       {notFound && (
-        <div className="mt-6 flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground"
+        >
           <SearchX className="size-4 shrink-0" />
           No job found for that job number and mobile number — please double-check both.
-        </div>
+        </motion.div>
       )}
 
       {result && (
-        <div className="mt-6">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
           <JobStatusResult result={result} />
-        </div>
+        </motion.div>
       )}
     </div>
   );

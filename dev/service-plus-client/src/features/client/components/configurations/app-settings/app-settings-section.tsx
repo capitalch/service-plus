@@ -63,6 +63,7 @@ export const AppSettingsSection = () => {
     const [loading,      setLoading]      = useState(false);
     const [records,      setRecords]      = useState<AppSettingRecord[]>([]);
     const [search,       setSearch]       = useState("");
+    const [selectedId,   setSelectedId]   = useState<number | null>(null);
 
     const loadData = useCallback(async () => {
         if (!dbName || !schema) return;
@@ -203,11 +204,11 @@ export const AppSettingsSection = () => {
                                 <TableHeader>
                                     <TableRow className="sticky top-0 z-10 bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
+                                        <TableHead className={`w-10 ${thClass}`}></TableHead>
                                         <TableHead className={thClass}>Key</TableHead>
                                         <TableHead className={thClass}>Value</TableHead>
                                         <TableHead className={thClass}>Description</TableHead>
                                         <TableHead className={thClass}>Editable</TableHead>
-                                        <TableHead className={thClass}></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -221,20 +222,39 @@ export const AppSettingsSection = () => {
                                             </td>
                                         </tr>
                                     ) : (
-                                        displayRecords.map((record, idx) => (
+                                        displayRecords.map((record, idx) => {
+                                            const isSelected = selectedId === record.id;
+                                            const isWarnRow  = isDefaultDivisionInactive
+                                                && record.setting_key === "default_division_id";
+                                            return (
                                             <motion.tr
                                                 animate="visible"
-                                                className={`border-b border-(--cl-border) transition-colors last:border-b-0 hover:bg-(--cl-surface-3) ${
-                                                    isDefaultDivisionInactive && record.setting_key === "default_division_id"
-                                                        ? "bg-yellow-50/60 dark:bg-yellow-900/10"
-                                                        : ""
+                                                className={`cursor-pointer border-b border-(--cl-border) transition-colors last:border-b-0 ${
+                                                    isSelected
+                                                        ? "bg-(--cl-accent)/40 hover:bg-(--cl-accent)/45"
+                                                        : isWarnRow
+                                                            ? "bg-yellow-50/60 hover:bg-(--cl-surface-3) dark:bg-yellow-900/10"
+                                                            : "hover:bg-(--cl-surface-3)"
                                                 }`}
                                                 custom={idx}
                                                 initial="hidden"
                                                 key={record.id}
                                                 variants={rowVariants}
+                                                onClick={() => setSelectedId(record.id)}
                                             >
                                                 <TableCell className="text-center text-xs text-(--cl-text-muted)">{idx + 1}</TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        className="h-7 w-7 text-(--cl-text-muted) hover:text-sky-600 disabled:opacity-30"
+                                                        disabled={!record.is_editable}
+                                                        size="icon"
+                                                        title="Edit"
+                                                        variant="ghost"
+                                                        onClick={() => { setSelectedId(record.id); setEditRecord(record); }}
+                                                    >
+                                                        <PencilIcon className="h-3.5 w-3.5 text-blue-600" />
+                                                    </Button>
+                                                </TableCell>
                                                 <TableCell className="font-mono text-sm font-medium text-(--cl-text)">{record.setting_key}</TableCell>
                                                 <TableCell className="font-mono text-sm text-(--cl-text-muted)">{displayValue(record.setting_value)}</TableCell>
                                                 <TableCell className="max-w-xs truncate text-sm text-(--cl-text-muted)">{record.description ?? "—"}</TableCell>
@@ -256,20 +276,9 @@ export const AppSettingsSection = () => {
                                                         </Badge>
                                                     )}
                                                 </TableCell>
-                                                <TableCell>
-                                                    <Button
-                                                        className="h-7 w-7 text-(--cl-text-muted) hover:text-sky-600 disabled:opacity-30"
-                                                        disabled={!record.is_editable}
-                                                        size="icon"
-                                                        title="Edit"
-                                                        variant="ghost"
-                                                        onClick={() => setEditRecord(record)}
-                                                    >
-                                                        <PencilIcon className="h-3.5 w-3.5 text-blue-600" />
-                                                    </Button>
-                                                </TableCell>
                                             </motion.tr>
-                                        ))
+                                            );
+                                        })
                                     )}
                                 </TableBody>
                             </Table>

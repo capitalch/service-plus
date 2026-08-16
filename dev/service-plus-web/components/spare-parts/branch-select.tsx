@@ -17,20 +17,15 @@ type Props = {
   company: string | null;
   value: string | null;
   onChange: (branch: string | null) => void;
-  /** Lets the page know the resolved branch list — e.g. to render a full
-   * "catalogue unavailable" state when a company has zero active branches. */
   onBranchesChange?: (branches: Branch[]) => void;
 };
 
 /**
- * Branch picker for the spare-parts catalogue (§9). Renders nothing at all in the
+ * Branch picker for the spare-parts catalogue. Renders nothing at all in the
  * common case — a single-branch company's customer never learns branches exist:
  *   - exactly one active branch  -> selected silently, no dropdown, no layout shift
  *   - more than one              -> dropdown, preselected to the first branch
  *   - zero                       -> caller handles via onBranchesChange (empty state)
- *
- * The resolved branch is never persisted across a company change — every company
- * change clears it and refetches from scratch.
  */
 export function BranchSelect({ company, value, onChange, onBranchesChange }: Props) {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -42,10 +37,6 @@ export function BranchSelect({ company, value, onChange, onBranchesChange }: Pro
     setBranches([]);
     setError(false);
 
-    // Deliberately not reported via onBranchesChange here (while company is unset
-    // or the fetch is still in flight) — the page treats an empty list as "catalogue
-    // unavailable," and reporting [] before the real result arrives would flash that
-    // state on every company switch, even when the branch list turns out non-empty.
     if (!company) return;
 
     setLoading(true);
@@ -57,8 +48,6 @@ export function BranchSelect({ company, value, onChange, onBranchesChange }: Pro
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-    // Only re-run when the company changes — onChange/onBranchesChange are stable
-    // setState callbacks from the parent and must not retrigger this fetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [company]);
 
@@ -69,7 +58,6 @@ export function BranchSelect({ company, value, onChange, onBranchesChange }: Pro
     return null;
   }
 
-  // Disambiguate branches that share a display name with their city.
   const nameCounts = new Map<string, number>();
   for (const b of branches) nameCounts.set(b.name, (nameCounts.get(b.name) ?? 0) + 1);
 

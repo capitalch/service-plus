@@ -6,3 +6,4 @@ out
 deploy/.env.deploy
 *.log
 .DS_Store
+tsconfig.tsbuildinfo

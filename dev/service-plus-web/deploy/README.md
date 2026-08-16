@@ -55,11 +55,29 @@ an acceptable coarse gate, not a real secret, for this POC).
 
 This installs dependencies, runs `pnpm build` (static export to `./out`), writes an
 `.htaccess` (forces https, long-caches `/_next/` assets, sets the 404 page), syncs `./out/` to
-the configured remote path (rsync over SSH, or `lftp mirror` for FTP), and finally curls
-`DEPLOY_SITE_URL` to confirm the deploy is live.
+the configured remote path (rsync over SSH, or `lftp mirror` for FTP), and finally smoke-checks
+`DEPLOY_SITE_URL` — the homepage, each sub-route, and the `Cache-Control` header on a hashed
+asset — failing the deploy if anything is off.
 
 Re-running the script is safe — `rsync --delete` / `lftp mirror --delete` keep the remote
 directory in sync with the latest build, removing files that no longer exist locally.
+
+**Use the script, not a manual zip upload.** `.htaccess` is a dotfile, and cPanel's File
+Manager zip extraction (like many FTP clients) silently skips dotfiles — you get a site that
+loads but has no https redirect, no asset caching, and the host's default 404 page instead of
+the app's. `rsync` and `lftp mirror` both transfer it correctly.
+
+## Routing on shared hosting
+
+`next.config.ts` sets **`trailingSlash: true`, and it must stay set.** MilesWeb's LiteSpeed has
+Apache `MultiViews` off, so it never maps an extension-less URL like `/spare-parts` to
+`spare-parts.html` — it serves exact filenames and a directory's `index.html`, nothing else.
+`trailingSlash` makes the export emit `spare-parts/index.html`, which the server's own
+trailing-slash redirect resolves.
+
+Without it every route except `/` returns 404 on direct load or refresh, while in-app
+navigation keeps working (the client router renders the route without ever requesting that
+path from the server) — so the breakage is invisible unless you test a deep link directly.
 
 ## Troubleshooting
 
@@ -70,5 +88,10 @@ directory in sync with the latest build, removing files that no longer exist loc
 - **Blank page / API calls failing after deploy**: open the browser console — a CORS error
   means the site's origin isn't yet in `service-plus-server`'s `CORS_ORIGINS`; a 401 means
   `NEXT_PUBLIC_WEBSITE_KEY` doesn't match the server's `WEBSITE_API_KEY`.
-- **404s on refresh for a route other than `/`**: this POC only has one route (`/`), so this
-  shouldn't come up yet — revisit `.htaccess` rewrite rules once more routes are added.
+- **404s on refresh for a route other than `/`**: check that `trailingSlash: true` is still in
+  `next.config.ts` and that the deployed tree has `spare-parts/index.html` rather than a flat
+  `spare-parts.html` — see "Routing on shared hosting" above. This is a server-side 404, not a
+  CORS problem: CORS errors appear in the browser console on an API call while the page still
+  renders, and never differ between a typed URL and an in-app link.
+- **Host's default 404 page instead of the app's**: the `.htaccess` didn't make it to the
+  document root — redeploy with the script rather than a zip upload.

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const checkoutSchema = z.object({
   customerName: z.string().min(1, "Enter your name"),
@@ -23,8 +24,6 @@ type Props = {
   onSubmit: (values: CheckoutFormValues) => void;
 };
 
-// No pickup/delivery choice, no address field, no payment step — fulfillment is
-// entirely manual and offline (§7/§9), so this form only collects who to contact.
 export function CheckoutForm({ submitting, onSubmit }: Props) {
   const {
     register,
@@ -39,7 +38,7 @@ export function CheckoutForm({ submitting, onSubmit }: Props) {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-1.5">
         <Label htmlFor="checkout-name">Your name</Label>
-        <Input id="checkout-name" {...register("customerName")} />
+        <Input id="checkout-name" autoComplete="name" {...register("customerName")} />
         {errors.customerName && (
           <p className="text-sm text-destructive">{errors.customerName.message}</p>
         )}
@@ -52,6 +51,7 @@ export function CheckoutForm({ submitting, onSubmit }: Props) {
           inputMode="numeric"
           maxLength={10}
           placeholder="10-digit mobile number"
+          autoComplete="tel"
           {...register("mobile")}
         />
         {errors.mobile && <p className="text-sm text-destructive">{errors.mobile.message}</p>}
@@ -59,13 +59,17 @@ export function CheckoutForm({ submitting, onSubmit }: Props) {
 
       <div className="space-y-1.5">
         <Label htmlFor="checkout-email">Email (optional)</Label>
-        <Input id="checkout-email" type="email" {...register("email")} />
+        <Input id="checkout-email" type="email" autoComplete="email" {...register("email")} />
         {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
       </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="checkout-remarks">Remarks (optional)</Label>
-        <Input id="checkout-remarks" placeholder="Anything we should know?" {...register("remarks")} />
+        <Textarea
+          id="checkout-remarks"
+          placeholder="Anything we should know?"
+          {...register("remarks")}
+        />
       </div>
 
       <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">

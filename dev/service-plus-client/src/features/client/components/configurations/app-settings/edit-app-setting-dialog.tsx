@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -35,14 +35,23 @@ type EditAppSettingDialogProps = {
     record:       AppSettingRecord;
 };
 
-const formSchema = z.object({
-    setting_value: z.string().min(1, "Value is required").refine((v) => {
-        try { JSON.parse(v); return true; } catch { return false; }
-    }, "Must be a valid JSON value (e.g. 18, true, \"text\", or {\"key\": \"value\"})"),
+// Simple mode edits a bare scalar — `valueToString` strips the JSON quotes, so
+// plain text like `example.com` is legitimate here and must NOT be JSON-parsed.
+// It gets re-encoded to JSON on submit by `encodeSimpleValue`.
+const simpleSchema = z.object({
+    setting_value: z.string().min(1, "Value is required"),
     description:   z.string().optional(),
 });
 
-type FormType = z.infer<typeof formSchema>;
+// JSON mode edits the raw JSON text, so it does have to parse.
+const jsonSchema = z.object({
+    setting_value: z.string().min(1, "Value is required").refine((v) => {
+        try { JSON.parse(v); return true; } catch { return false; }
+    }, "Must be valid JSON (e.g. {\"key\": \"value\"})"),
+    description:   z.string().optional(),
+});
+
+type FormType = z.infer<typeof simpleSchema>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +64,22 @@ function valueToString(v: unknown): string {
     if (v === null || v === undefined) return "";
     if (typeof v === "object") return JSON.stringify(v, null, 2);
     return String(v);
+}
+
+/**
+ * Turn what the user typed in Simple mode into the JSON text that the
+ * `setting_value` jsonb column requires. Simple mode shows scalars unquoted, so
+ * a plain string has to be re-quoted before it can be saved.
+ */
+function encodeSimpleValue(text: string, original: unknown): string {
+    // Preserve the setting's existing type: a value already stored as a JSON
+    // string stays one, so entering `123` there doesn't silently become a number.
+    if (typeof original === "string") return JSON.stringify(text);
+
+    const trimmed = text.trim();
+    if (trimmed === "true" || trimmed === "false" || trimmed === "null") return trimmed;
+    if (trimmed !== "" && Number.isFinite(Number(trimmed))) return trimmed;
+    return JSON.stringify(text);
 }
 
 // ─── Field error ──────────────────────────────────────────────────────────────
@@ -82,7 +107,7 @@ export const EditAppSettingDialog = ({
             description:   record.description ?? "",
         },
         mode:     "onChange",
-        resolver: zodResolver(formSchema),
+        resolver: zodResolver(valueMode === "json" ? jsonSchema : simpleSchema),
     });
 
     const { formState: { errors } } = form;
@@ -98,12 +123,35 @@ export const EditAppSettingDialog = ({
         });
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Re-validate when the mode changes: the resolver swaps with `valueMode`, so
+    // an error raised under the old mode's rules has to be recomputed. Skipped on
+    // first render so opening the dialog doesn't flag an untouched field.
+    const skipModeValidation = useRef(true);
+    useEffect(() => {
+        if (skipModeValidation.current) { skipModeValidation.current = false; return; }
+        form.trigger("setting_value");
+    }, [valueMode, form]);
+
     function handleModeSwitch(m: ValueMode) {
+        if (m === valueMode) return;
+        const current = form.getValues("setting_value");
+
         if (m === "json") {
+            // Show the real JSON for whatever Simple mode was holding, so the
+            // textarea starts from valid, parseable text.
+            const asJson = encodeSimpleValue(current, record.setting_value);
             try {
-                const parsed = JSON.parse(form.getValues("setting_value"));
-                if (typeof parsed === "object" && parsed !== null)
-                    form.setValue("setting_value", JSON.stringify(parsed, null, 2), { shouldValidate: true });
+                form.setValue("setting_value", JSON.stringify(JSON.parse(asJson), null, 2));
+            } catch {
+                form.setValue("setting_value", asJson);
+            }
+        } else {
+            // Back to Simple: unwrap a JSON scalar so the bare value is edited.
+            // An object/array can't be shown unquoted, so it is left untouched.
+            try {
+                const parsed = JSON.parse(current);
+                if (parsed === null || typeof parsed !== "object")
+                    form.setValue("setting_value", String(parsed));
             } catch { /* leave as-is */ }
         }
         setValueMode(m);
@@ -111,6 +159,11 @@ export const EditAppSettingDialog = ({
 
     async function onSubmit(data: FormType) {
         if (!dbName || !schema) return;
+        // The column is jsonb, so Simple mode's bare scalar must be encoded as
+        // JSON text; JSON mode is already exactly that.
+        const settingValue = valueMode === "json"
+            ? data.setting_value
+            : encodeSimpleValue(data.setting_value, record.setting_value);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
@@ -121,7 +174,7 @@ export const EditAppSettingDialog = ({
                         tableName: "app_setting",
                         xData: {
                             id:            record.id,
-                            setting_value: data.setting_value,
+                            setting_value: settingValue,
                             description:   data.description || null,
                         },
                     }),
@@ -161,22 +214,26 @@ export const EditAppSettingDialog = ({
                             <Label htmlFor="es_value">
                                 Value <span className="text-red-500">*</span>
                             </Label>
-                            {/* Mode toggle */}
-                            <div className="flex gap-0.5 rounded-md border border-(--cl-border) bg-(--cl-surface-3) p-0.5">
-                                {(["simple", "json"] as const).map(m => (
-                                    <button
-                                        key={m}
-                                        className={`rounded px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                                            valueMode === m
-                                                ? "bg-white dark:bg-zinc-800 text-(--cl-text) shadow-sm"
-                                                : "text-(--cl-text-muted) hover:text-(--cl-text)"
-                                        }`}
-                                        type="button"
-                                        onClick={() => handleModeSwitch(m)}
-                                    >
-                                        {m === "simple" ? "Simple" : "JSON"}
-                                    </button>
-                                ))}
+                            {/* Mode toggle — real buttons, with the active one held visibly pressed */}
+                            <div className="flex items-center gap-1.5">
+                                {(["simple", "json"] as const).map(m => {
+                                    const isActive = valueMode === m;
+                                    return (
+                                        <Button
+                                            key={m}
+                                            aria-pressed={isActive}
+                                            className={isActive
+                                                ? "translate-y-px inset-shadow-sm ring-1 ring-(--cl-accent)/40"
+                                                : ""}
+                                            size="xs"
+                                            type="button"
+                                            variant={isActive ? "default" : "outline"}
+                                            onClick={() => handleModeSwitch(m)}
+                                        >
+                                            {m === "simple" ? "Simple" : "JSON"}
+                                        </Button>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -185,7 +242,7 @@ export const EditAppSettingDialog = ({
                                 autoComplete="off"
                                 className="font-mono"
                                 id="es_value"
-                                placeholder='e.g. 18, true, "some text"'
+                                placeholder="e.g. 18, true, or plain text"
                                 {...form.register("setting_value")}
                             />
                         ) : (

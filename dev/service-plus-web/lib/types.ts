@@ -1,6 +1,12 @@
 export interface Company {
   id: string;
   label: string;
+  /**
+   * Active spare parts across the company's active branches. Null when the
+   * server predates the parts-count field — the dropdown then omits the count
+   * instead of showing a bogus number.
+   */
+  partsCount: number | null;
 }
 
 export interface JobStatus {
@@ -43,6 +49,7 @@ export interface Part {
   imageUrl: string | null;
   images: string[];
   partCode: string | null;
+  brandName: string | null;
 }
 
 export interface PartsPage {
@@ -52,9 +59,8 @@ export interface PartsPage {
   pageSize: number;
 }
 
-export interface PartDetail extends Part {
-  brandName: string | null;
-}
+/** The detail endpoint returns the same shape as a list item. */
+export type PartDetail = Part;
 
 export interface CartLine {
   partId: number;

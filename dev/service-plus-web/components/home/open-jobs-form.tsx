@@ -1,7 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, SearchX } from "lucide-react";
+import { motion } from "framer-motion";
+import { CalendarClock, Loader2, SearchX, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -16,12 +17,11 @@ import { fetchOpenJobsByMobile } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { statusPillClass } from "@/lib/status-colors";
 import { ApiError, type CustomerJobs } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const openJobsSchema = z.object({
   company: z.string().min(1, "Select a company"),
-  mobile: z
-    .string()
-    .regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
+  mobile: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
 });
 
 type OpenJobsFormValues = z.infer<typeof openJobsSchema>;
@@ -73,11 +73,10 @@ export function OpenJobsForm() {
             inputMode="numeric"
             maxLength={10}
             placeholder="10-digit mobile number"
+            autoComplete="off"
             {...register("mobile")}
           />
-          {errors.mobile && (
-            <p className="text-sm text-destructive">{errors.mobile.message}</p>
-          )}
+          {errors.mobile && <p className="text-sm text-destructive">{errors.mobile.message}</p>}
         </div>
 
         <Button type="submit" disabled={isSubmitting} className="w-full">
@@ -87,41 +86,47 @@ export function OpenJobsForm() {
       </form>
 
       {notFound && (
-        <div className="mt-6 flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground"
+        >
           <SearchX className="size-4 shrink-0" />
           No open jobs found for that mobile number — please double-check it.
-        </div>
+        </motion.div>
       )}
 
       {result && (
-        <div className="mt-6">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
           <p className="text-sm font-medium">
             Hi {result.customerName}, here {result.jobs.length === 1 ? "is" : "are"} your open
             job{result.jobs.length === 1 ? "" : "s"}:
           </p>
-          <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+
+          {/* Desktop table */}
+          <div className="mt-3 hidden overflow-hidden rounded-xl border border-border/70 sm:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/50 text-xs text-muted-foreground">
-                  <th className="w-10 px-3 py-2 text-left font-medium">#</th>
-                  <th className="px-3 py-2 text-left font-medium">Job no</th>
-                  <th className="px-3 py-2 text-left font-medium">Device</th>
-                  <th className="px-3 py-2 text-left font-medium">Status</th>
-                  <th className="px-3 py-2 text-left font-medium">Job date</th>
+                <tr className="border-b border-border/70 bg-muted/50 text-xs text-muted-foreground">
+                  <th className="w-10 px-4 py-2.5 text-left font-medium">#</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Job no</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Device</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Status</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Job date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border/70">
                 {result.jobs.map((job, index) => (
-                  <tr key={job.jobNo} className="transition-colors hover:bg-muted/30">
-                    <td className="px-3 py-2.5 text-muted-foreground">{index + 1}</td>
-                    <td className="px-3 py-2.5 font-medium whitespace-nowrap">{job.jobNo}</td>
-                    <td className="max-w-[11rem] px-3 py-2.5 break-words text-muted-foreground">
+                  <tr key={job.jobNo} className="transition-colors hover:bg-muted/40">
+                    <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
+                    <td className="px-3 py-3 font-medium whitespace-nowrap">{job.jobNo}</td>
+                    <td className="max-w-[11rem] px-3 py-3 break-words text-muted-foreground">
                       {job.deviceDetails ?? "—"}
                       {job.serialNo && (
                         <span className="mt-0.5 block text-xs">SN: {job.serialNo}</span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-3">
                       <Badge className={statusPillClass(job.statusCode)}>{job.status}</Badge>
                       {job.statusDescription && (
                         <span className="mt-1 block text-xs text-muted-foreground">
@@ -129,13 +134,47 @@ export function OpenJobsForm() {
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">{formatDate(job.jobDate)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(job.jobDate)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+
+          {/* Mobile cards */}
+          <div className="mt-3 space-y-3 sm:hidden">
+            {result.jobs.map((job, index) => (
+              <div
+                key={job.jobNo}
+                className="rounded-xl border border-border/70 bg-card p-4 shadow-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold">
+                    <span className="mr-1 text-muted-foreground">#{index + 1}</span>
+                    {job.jobNo}
+                  </p>
+                  <Badge className={statusPillClass(job.statusCode)}>{job.status}</Badge>
+                </div>
+                <div className="mt-3 space-y-2 text-sm">
+                  <p className="flex items-start gap-2 text-muted-foreground">
+                    <Smartphone className="mt-0.5 size-4 shrink-0" />
+                    {job.deviceDetails ?? "—"}
+                    {job.serialNo && <span className="block text-xs">SN: {job.serialNo}</span>}
+                  </p>
+                  <p className="flex items-center gap-2 text-muted-foreground">
+                    <CalendarClock className="size-4 shrink-0" />
+                    {formatDate(job.jobDate)}
+                  </p>
+                  {job.statusDescription && (
+                    <p className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                      {job.statusDescription}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       )}
     </div>
   );

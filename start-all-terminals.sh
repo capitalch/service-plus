@@ -56,9 +56,6 @@ sleep 1
 
 # Window 10: Trace Client Shell 1
 konsole --workdir "/home/sushant/projects/trace-plus/dev/trace-client" &
-sleep 1
-
-konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" & -e bash -ic "git pull; exec bash" &
 sleep 5
 
 konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" & -e bash -ic "pnpm start; exec bash" &

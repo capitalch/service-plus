@@ -9,7 +9,7 @@ export type NavItem = {
 };
 
 export const navItems: NavItem[] = [
-  { label: "Job status", href: "/", icon: Wrench },
-  { label: "Buy Genuine parts", href: "/spare-parts", icon: PackageSearch },
+  { label: "Track repair", href: "/", icon: Wrench },
+  { label: "Buy genuine parts", href: "/spare-parts", icon: PackageSearch },
   { label: "AI repair help", href: "/ai-repair-help", icon: Bot, badge: "Soon" },
 ];

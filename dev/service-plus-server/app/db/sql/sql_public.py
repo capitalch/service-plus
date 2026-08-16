@@ -88,7 +88,10 @@ class PublicSql:
     #
     # The list query also ships the full `images` gallery, not just the cover —
     # the catalogue grid lets shoppers flip through a part's photos inline
-    # without opening the detail dialog, so every card needs its full set.
+    # without opening the detail dialog, so every card needs its full set. Same
+    # reasoning for `brand_name` (LEFT JOIN via spm.brand_id, the FK itself never
+    # selected): the card shows it beside the part code, so list and detail now
+    # select the identical column set.
 
     GET_ACTIVE_BRANCHES = """
         with "dummy" as (values(1::int))
@@ -99,6 +102,18 @@ class PublicSql:
         ORDER BY is_head_office DESC, code
     """
 
+    # Company-level catalogue size for the /companies dropdown. Counts only what a
+    # shopper could actually reach — active parts in active branches — so it stays
+    # consistent with what GET_SPARE_PART_WEB_PUBLIC_LIST would return across every
+    # branch of the company. Run once per BU on each (cached) directory refresh.
+    COUNT_ACTIVE_SPARE_PARTS_WEB = """
+        with "dummy" as (values(1::int))
+        SELECT COUNT(*) AS total
+        FROM spare_part_web sp
+        JOIN branch b ON b.id = sp.branch_id
+        WHERE sp.is_active = true AND b.is_active = true
+    """
+
     GET_SPARE_PART_WEB_PUBLIC_LIST = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
@@ -107,9 +122,11 @@ class PublicSql:
             "p_offset"    as (values(%(offset)s::int))
         SELECT
             sp.id, sp.part_name, sp.part_description, sp.price, sp.model,
-            sp.image_urls[1] AS image_url, sp.image_urls AS images, spm.part_code
+            sp.image_urls[1] AS image_url, sp.image_urls AS images, spm.part_code,
+            b.name AS brand_name
         FROM spare_part_web sp
         LEFT JOIN spare_part_master spm ON spm.id = sp.part_id
+        LEFT JOIN brand b ON b.id = spm.brand_id
         WHERE sp.branch_id = (table "p_branch_id")
           AND sp.is_active = true
           AND (

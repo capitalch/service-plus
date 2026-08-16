@@ -26,6 +26,7 @@ _CACHE_TTL_SECONDS: float = 300.0  # 5 minutes
 class Company:
     id: str
     label: str
+    parts_count: int
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,7 @@ class _CompanyEntry:
     db_name: str
     bu_code: str
     label: str
+    parts_count: int
 
 
 def _company_token(db_name: str, bu_code: str) -> str:
@@ -48,7 +50,10 @@ class PublicDirectory:
 
     async def list_companies(self) -> list[Company]:
         await self._refresh_if_stale()
-        return [Company(id=token, label=entry.label) for token, entry in self._companies.items()]
+        return [
+            Company(id=token, label=entry.label, parts_count=entry.parts_count)
+            for token, entry in self._companies.items()
+        ]
 
     async def resolve_company(self, token: str) -> tuple[str, str] | None:
         """Return (db_name, bu_code) for a company token, or None if unknown/expired."""
@@ -86,11 +91,37 @@ class PublicDirectory:
                 bu_code = bu["code"]
                 label = f"{client_name} — {bu['name']}" if multi_bu else client_name
                 token = _company_token(db_name, bu_code)
-                companies[token] = _CompanyEntry(db_name=db_name, bu_code=bu_code, label=label)
+                companies[token] = _CompanyEntry(
+                    db_name=db_name,
+                    bu_code=bu_code,
+                    label=label,
+                    parts_count=await self._count_parts(db_name, bu_code),
+                )
 
         self._companies = companies
         self._expires_at = time.monotonic() + _CACHE_TTL_SECONDS
         logger.info("Public directory refreshed: %d compan(y/ies)", len(companies))
+
+    @staticmethod
+    async def _count_parts(db_name: str, bu_code: str) -> int:
+        """Size of the BU's public spare-parts catalogue, shown in the company dropdown.
+
+        Counted here rather than on demand because it rides the directory's 5-minute
+        cache — one COUNT per BU per refresh, not one per page load. A BU whose schema
+        predates spare_part_web simply reports 0 instead of breaking the dropdown.
+        """
+        try:
+            rows = await exec_sql_query(
+                db_name=db_name,
+                schema=bu_code.lower(),
+                sql=PublicSql.COUNT_ACTIVE_SPARE_PARTS_WEB,
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.warning(
+                "Parts count unavailable for %r/%r: %s", db_name, bu_code, exc
+            )
+            return 0
+        return rows[0]["total"] if rows else 0
 
 
 public_directory = PublicDirectory()

@@ -16,8 +16,6 @@ type Props = {
   supportPhone: string | null;
 };
 
-/** Small orchestrating wrapper — swaps CheckoutForm for OrderConfirmation in the
- * same dialog once an order is placed (Step 26's "wire cart → checkout → confirmation"). */
 export function CheckoutDialog({
   open,
   onOpenChange,
