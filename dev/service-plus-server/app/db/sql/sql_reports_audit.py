@@ -376,6 +376,8 @@ class ReportsAuditSql:
     # split as GET_EVENT_TRACKING_COUNTS above, just returning the underlying rows
     # instead of a count. 'Received' reads job.job_date (job-level, one row per
     # job); the other three read job_transaction.transaction_date (event-level).
+    # Status is always the job's *current* status (job.job_status_id) for
+    # 'Received' — the event itself is already known to be the receipt.
     GET_EVENT_TRACKING_JOBS = """
         with
             "p_from"       as (values(%(from)s::date)),
@@ -383,7 +385,7 @@ class ReportsAuditSql:
             "p_event_name" as (values(%(event_name)s::text))
         (
             select
-                'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, 'Received'::text as status_label,
+                'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, cur_js.name as status_label,
                 cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
                 (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
                 d.code as division_code,
@@ -391,6 +393,7 @@ class ReportsAuditSql:
                 COALESCE(ji.aggregate, 0) as total_charges,
                 COALESCE(ji.aggregate, 0) - COALESCE(parts.parts_cost, 0) - COALESCE(charges.charges_cost, 0) as profit
             from job j
+            left join job_status cur_js on cur_js.id = j.job_status_id
             left join customer_contact cc on cc.id = j.customer_contact_id
             left join product_brand_model pbm on pbm.id = j.product_brand_model_id
             left join brand b on b.id = pbm.brand_id
