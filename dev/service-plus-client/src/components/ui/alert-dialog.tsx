@@ -3,6 +3,7 @@ import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { usePortalContainer } from "@/features/client/components/layout/client-layout"
 
 function AlertDialog({
   ...props
@@ -19,10 +20,13 @@ function AlertDialogTrigger({
 }
 
 function AlertDialogPortal({
+  container,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Portal>) {
+  // See DialogPortal in dialog.tsx — same .client-theme CSS-variable scoping issue.
+  const themeRoot = usePortalContainer()
   return (
-    <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" {...props} />
+    <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" container={container ?? themeRoot ?? undefined} {...props} />
   )
 }
 

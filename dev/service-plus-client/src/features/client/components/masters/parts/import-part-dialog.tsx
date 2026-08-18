@@ -939,7 +939,7 @@ export const ImportPartDialog = ({
         >
             <DialogContent
                 aria-describedby={undefined}
-                className="max-w-xl"
+                className="sm:max-w-xl"
                 onInteractOutside={(e) => e.preventDefault()}
                 onFocusOutside={(e) => e.preventDefault()}
             >

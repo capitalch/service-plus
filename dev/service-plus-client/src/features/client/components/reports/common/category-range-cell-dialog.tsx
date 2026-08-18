@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { DollarSign } from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
-import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -15,42 +15,45 @@ import { useAppSelector } from "@/store/hooks";
 import { cn } from "@/lib/utils";
 import { JobFinalInfoModal } from "../../jobs/final-a-job/job-final-info-modal";
 
-import { ReportEmpty } from "../common/report-empty";
-import { ReportError } from "../common/report-error";
-import { ReportLoading } from "../common/report-loading";
-import { ReportTable } from "../common/report-table";
-import type { ReportColumnType } from "../common/report-table";
-import { formatNumber } from "../common/formatters";
+import { ReportEmpty } from "./report-empty";
+import { ReportError } from "./report-error";
+import { ReportLoading } from "./report-loading";
+import { ReportTable } from "./report-table";
+import type { ReportColumnType } from "./report-table";
+import { formatNumber } from "./formatters";
 
-export type ProfitCellType = {
-    technicianId:   number;
-    technicianName: string;
-    monthLabel:     string;
-    from:           string;
-    to:             string;
+export type CategoryRangeCellType = {
+    reportTitle:   string;
+    rowLabel:      string;
+    categoryValue: string;
+    bucketLabel:   string;
+    from:          string;
+    to:            string;
+    sqlId:         string;
+    showFinancials?: boolean;
 };
 
 type CellJobType = {
-    id: number;
-    job_no: string;
-    delivery_date: string;
-    customer_name: string;
-    brand_name: string | null;
-    model_name: string | null;
-    product_name: string | null;
-    parts_cost: number;
-    charges_cost: number;
-    total_cost: number;
-    profit: number;
-    total_charges: number;
+    row_key:       string;
+    id:            number;
+    job_no:        string;
+    event_date:    string;
+    customer_name: string | null;
+    brand_name:    string | null;
+    model_name:    string | null;
+    product_name:  string | null;
+    is_warranty:   boolean;
+    total_cost?:   number;
+    total_charges?: number;
+    profit?:       number;
 };
 
 type Props = {
-    cell: ProfitCellType | null;
+    cell: CategoryRangeCellType | null;
     onClose: () => void;
 };
 
-export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
+export const CategoryRangeCellDialog = ({ cell, onClose }: Props) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -59,8 +62,10 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
     const [error, setError]     = useState<string | null>(null);
     const [finalInfoJobId, setFinalInfoJobId] = useState<number | null>(null);
 
+    const showFinancials = cell?.showFinancials ?? false;
+
     const columns: ReportColumnType<CellJobType>[] = [
-        { header: "Delivery Date", id: "delivery_date", value: r => r.delivery_date, width: "110px" },
+        { header: "Date", id: "event_date", value: r => r.event_date, width: "100px" },
         {
             cell:   r => <span className="font-mono text-xs font-semibold text-(--cl-accent) hover:underline">{r.job_no}</span>,
             header: "Job No",
@@ -68,7 +73,7 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
             value:  r => r.job_no,
             width:  "110px",
         },
-        { header: "Customer",      id: "customer",      value: r => r.customer_name },
+        { header: "Customer", id: "customer", value: r => r.customer_name ?? "—" },
         {
             cell:   r => (
                 <div className="flex flex-col">
@@ -83,32 +88,43 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
             value:  r => `${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""}`,
         },
         {
-            align:  "right",
-            cell:   r => formatNumber(Number(r.total_cost)),
-            footer: rs => formatNumber(rs.reduce((s, r) => s + Number(r.total_cost), 0)),
-            header: "Cost",
-            id:     "total_cost",
-            value:  r => Number(r.total_cost),
+            cell:   r => r.is_warranty
+                ? <Badge className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-50" variant="outline">Warranty</Badge>
+                : <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50" variant="outline">OOW</Badge>,
+            header: "Type",
+            id:     "warranty",
+            value:  r => r.is_warranty ? "Warranty" : "OOW",
             width:  "100px",
         },
-        {
-            align:  "right",
-            cell:   r => <span className="font-light text-amber-600 dark:text-amber-400">{formatNumber(Number(r.total_charges))}</span>,
-            footer: rs => formatNumber(rs.reduce((s, r) => s + Number(r.total_charges), 0)),
-            header: "Sale",
-            id:     "charges",
-            value:  r => Number(r.total_charges),
-            width:  "110px",
-        },
-        {
-            align:  "right",
-            cell:   r => <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatNumber(Number(r.profit))}</span>,
-            footer: rs => formatNumber(rs.reduce((s, r) => s + Number(r.profit), 0)),
-            header: "Profit",
-            id:     "profit",
-            value:  r => Number(r.profit),
-            width:  "110px",
-        },
+        ...(showFinancials ? [
+            {
+                align:  "right",
+                cell:   r => formatNumber(Number(r.total_cost ?? 0)),
+                footer: rs => formatNumber(rs.reduce((s, r) => s + Number(r.total_cost ?? 0), 0)),
+                header: "Cost",
+                id:     "total_cost",
+                value:  r => Number(r.total_cost ?? 0),
+                width:  "100px",
+            },
+            {
+                align:  "right",
+                cell:   r => <span className="font-light text-amber-600 dark:text-amber-400">{formatNumber(Number(r.total_charges ?? 0))}</span>,
+                footer: rs => formatNumber(rs.reduce((s, r) => s + Number(r.total_charges ?? 0), 0)),
+                header: "Sale",
+                id:     "charges",
+                value:  r => Number(r.total_charges ?? 0),
+                width:  "110px",
+            },
+            {
+                align:  "right",
+                cell:   r => <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatNumber(Number(r.profit ?? 0))}</span>,
+                footer: rs => formatNumber(rs.reduce((s, r) => s + Number(r.profit ?? 0), 0)),
+                header: "Profit",
+                id:     "profit",
+                value:  r => Number(r.profit ?? 0),
+                width:  "110px",
+            },
+        ] as ReportColumnType<CellJobType>[] : []),
     ];
 
     useEffect(() => {
@@ -125,8 +141,8 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
                 db_name: dbName,
                 schema,
                 value:   graphQlUtils.buildGenericQueryValue({
-                    sqlArgs: { technician_id: cell.technicianId, from: cell.from, to: cell.to },
-                    sqlId:   SQL_MAP.GET_TECHNICIAN_PROFIT_MONTH_JOBS,
+                    sqlArgs: { category_name: cell.categoryValue, from: cell.from, to: cell.to },
+                    sqlId:   cell.sqlId,
                 }),
             },
         }).then(res => {
@@ -152,22 +168,22 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
             {/* Hidden (not unmounted) while the nested Job Final Info modal is open — a
                 fixed-position dialog narrower than this one would otherwise leave this
                 dialog's edges visibly peeking out from behind it. */}
-            <DialogContent className={cn("sm:max-w-5xl", finalInfoJobId != null && "invisible")}>
+            <DialogContent className={cn("sm:max-w-3xl", finalInfoJobId != null && "invisible")}>
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-green-600" />
-                        <span>{cell?.technicianName ?? "Jobs"}</span>
-                        {cell && <span className="font-mono text-(--cl-accent-text)">{cell.monthLabel}</span>}
+                        <LayoutGrid className="h-4 w-4 text-blue-600" />
+                        <span>{cell?.reportTitle ?? "Jobs"}</span>
+                        {cell && <span className="font-mono text-(--cl-accent-text)">{cell.bucketLabel}</span>}
                     </DialogTitle>
                     <DialogDescription>
-                        {cell ? `Delivered-OK jobs for “${cell.technicianName}” in ${cell.monthLabel}.` : ""}
+                        {cell ? `${cell.rowLabel} “${cell.categoryValue}” — ${cell.bucketLabel}.` : ""}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div>
                     {loading && <ReportLoading lines={3} />}
                     {!loading && error && <ReportError message={error} />}
-                    {!loading && !error && rows.length === 0 && <ReportEmpty message="No delivered jobs in this month." />}
+                    {!loading && !error && rows.length === 0 && <ReportEmpty message="No jobs in this range." />}
                     {!loading && !error && rows.length > 0 && (
                         <>
                             <div className="mb-2 text-xs text-(--cl-text-muted)">
@@ -176,9 +192,9 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
                             <ReportTable
                                 columns={columns}
                                 maxHeight="60vh"
-                                rowKey={r => r.id}
+                                rowKey={r => r.row_key}
                                 rows={rows}
-                                showFooter
+                                showFooter={showFinancials}
                                 showRowIndex
                                 stickyHeader={false}
                                 onRowClick={r => setFinalInfoJobId(r.id)}

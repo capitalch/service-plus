@@ -314,6 +314,27 @@ class ReportsAuditSql:
         GROUP BY p.name
     """
 
+    # Drill-down for one Jobs Received cell (category × date bucket) — same filter
+    # as GET_JOBS_RECEIVED_BY_CATEGORY_RANGE_SPLIT above, row-level instead of counted.
+    GET_JOBS_RECEIVED_DETAIL = """
+        with
+            "p_from"     as (values(%(from)s::date)),
+            "p_to"       as (values(%(to)s::date)),
+            "p_category" as (values(%(category_name)s::text))
+        SELECT
+            'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date,
+            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+            (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
+        FROM job j
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand b ON b.id = pbm.brand_id
+        LEFT JOIN product p ON p.id = pbm.product_id
+        WHERE j.job_date BETWEEN (table "p_from") AND (table "p_to")
+          AND p.name = (table "p_category")
+        ORDER BY j.job_date DESC, j.job_no
+    """
+
     GET_EVENT_TRACKING_COUNTS = """
         with
             "p_from" as (values(%(from)s::date)),
@@ -321,7 +342,6 @@ class ReportsAuditSql:
             categorized as (
                 select
                     case js.code
-                        when 'RECEIVED'         then 'Received'
                         when 'COMPLETED_OK'     then 'Finalize'
                         when 'DELIVERED_OK'     then 'Deliver'
                         when 'DELIVERED_NOT_OK' then 'Deliver'
@@ -330,13 +350,91 @@ class ReportsAuditSql:
                 from job_transaction jt
                 join job_status js on js.id = jt.status_id
                 where jt.transaction_date between (table "p_from") and (table "p_to")
+                  -- Received is counted from job.job_date below, one row per job —
+                  -- matches the Dashboard / Jobs Summary "received" count instead of
+                  -- job_transaction's per-status-change row (which double-counts a
+                  -- job that is later corrected back to Received).
                   -- Return / Cancel / Disposed are not tracked as events at all —
                   -- excluded here rather than folded into "Status Change".
-                  and js.code not in ('RETURN', 'CANCELLED', 'DISPOSED')
+                  and js.code not in ('RECEIVED', 'RETURN', 'CANCELLED', 'DISPOSED')
+            ),
+            received as (
+                select count(distinct j.id) as cnt
+                from job j
+                where j.job_date between (table "p_from") and (table "p_to")
             )
         select event_name, count(*) as count
         from categorized
         group by event_name
+        union all
+        select 'Received' as event_name, cnt as count
+        from received
+        where cnt > 0
+    """
+
+    # Drill-down for one Event Tracking cell (event × date bucket) — same event
+    # split as GET_EVENT_TRACKING_COUNTS above, just returning the underlying rows
+    # instead of a count. 'Received' reads job.job_date (job-level, one row per
+    # job); the other three read job_transaction.transaction_date (event-level).
+    GET_EVENT_TRACKING_JOBS = """
+        with
+            "p_from"       as (values(%(from)s::date)),
+            "p_to"         as (values(%(to)s::date)),
+            "p_event_name" as (values(%(event_name)s::text))
+        (
+            select
+                'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, 'Received'::text as status_label,
+                cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+                COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
+                COALESCE(ji.aggregate, 0) as total_charges,
+                COALESCE(ji.aggregate, 0) - COALESCE(parts.parts_cost, 0) - COALESCE(charges.charges_cost, 0) as profit
+            from job j
+            left join customer_contact cc on cc.id = j.customer_contact_id
+            left join product_brand_model pbm on pbm.id = j.product_brand_model_id
+            left join brand b on b.id = pbm.brand_id
+            left join product p on p.id = pbm.product_id
+            left join job_invoice ji on ji.job_id = j.id
+            left join (
+                select job_id, SUM(cost_price * qty) as parts_cost from job_part_used group by job_id
+            ) parts on parts.job_id = j.id
+            left join (
+                select job_id, SUM(cost_price * qty) as charges_cost from job_additional_charge group by job_id
+            ) charges on charges.job_id = j.id
+            where (table "p_event_name") = 'Received'
+              and j.job_date between (table "p_from") and (table "p_to")
+        )
+        union all
+        (
+            select
+                't-' || jt.id as row_key, j.id, j.job_no, jt.transaction_date as event_date, js.name as status_label,
+                cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+                COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
+                COALESCE(ji.aggregate, 0) as total_charges,
+                COALESCE(ji.aggregate, 0) - COALESCE(parts.parts_cost, 0) - COALESCE(charges.charges_cost, 0) as profit
+            from job_transaction jt
+            join job j on j.id = jt.job_id
+            join job_status js on js.id = jt.status_id
+            left join customer_contact cc on cc.id = j.customer_contact_id
+            left join product_brand_model pbm on pbm.id = j.product_brand_model_id
+            left join brand b on b.id = pbm.brand_id
+            left join product p on p.id = pbm.product_id
+            left join job_invoice ji on ji.job_id = j.id
+            left join (
+                select job_id, SUM(cost_price * qty) as parts_cost from job_part_used group by job_id
+            ) parts on parts.job_id = j.id
+            left join (
+                select job_id, SUM(cost_price * qty) as charges_cost from job_additional_charge group by job_id
+            ) charges on charges.job_id = j.id
+            where (table "p_event_name") <> 'Received'
+              and jt.transaction_date between (table "p_from") and (table "p_to")
+              and (
+                    ((table "p_event_name") = 'Finalize' and js.code = 'COMPLETED_OK')
+                 or ((table "p_event_name") = 'Deliver' and js.code in ('DELIVERED_OK', 'DELIVERED_NOT_OK'))
+                 or ((table "p_event_name") = 'Status Change'
+                     and js.code not in ('RECEIVED', 'COMPLETED_OK', 'DELIVERED_OK', 'DELIVERED_NOT_OK', 'RETURN', 'CANCELLED', 'DISPOSED'))
+              )
+        )
+        order by event_date desc, job_no
     """
 
     GET_JOBS_REPAIRED_OK_BY_CATEGORY_RANGE_SPLIT = """
@@ -356,6 +454,30 @@ class ReportsAuditSql:
           AND js.code IN ('COMPLETED_OK', 'DELIVERED_OK')
           AND j.updated_at::date BETWEEN (table "p_from") AND (table "p_to")
         GROUP BY p.name
+    """
+
+    # Drill-down for one Jobs Repaired (OK) cell — same filter as
+    # GET_JOBS_REPAIRED_OK_BY_CATEGORY_RANGE_SPLIT above, row-level instead of counted.
+    GET_JOBS_REPAIRED_OK_DETAIL = """
+        with
+            "p_from"     as (values(%(from)s::date)),
+            "p_to"       as (values(%(to)s::date)),
+            "p_category" as (values(%(category_name)s::text))
+        SELECT
+            'j-' || j.id as row_key, j.id, j.job_no, j.updated_at::date as event_date,
+            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+            (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
+        FROM job j
+        JOIN job_status js ON js.id = j.job_status_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand b ON b.id = pbm.brand_id
+        LEFT JOIN product p ON p.id = pbm.product_id
+        WHERE j.is_final = true
+          AND js.code IN ('COMPLETED_OK', 'DELIVERED_OK')
+          AND j.updated_at::date BETWEEN (table "p_from") AND (table "p_to")
+          AND p.name = (table "p_category")
+        ORDER BY j.updated_at DESC, j.job_no
     """
 
     GET_JOBS_DELIVERED_OK_BY_CATEGORY_RANGE_SPLIT = """
@@ -387,6 +509,42 @@ class ReportsAuditSql:
         GROUP BY p.name
     """
 
+    # Drill-down for one Jobs Delivered (OK) cell — same filter as
+    # GET_JOBS_DELIVERED_OK_BY_CATEGORY_RANGE_SPLIT above, row-level instead of counted,
+    # plus per-job cost/sale/profit (meaningful once a job is delivered and invoiced).
+    GET_JOBS_DELIVERED_OK_DETAIL = """
+        with
+            "p_from"     as (values(%(from)s::date)),
+            "p_to"       as (values(%(to)s::date)),
+            "p_category" as (values(%(category_name)s::text)),
+            parts as (
+                SELECT job_id, SUM(cost_price * qty) AS parts_cost FROM job_part_used GROUP BY job_id
+            ),
+            charges as (
+                SELECT job_id, SUM(cost_price * qty) AS charges_cost FROM job_additional_charge GROUP BY job_id
+            )
+        SELECT
+            'j-' || j.id as row_key, j.id, j.job_no, j.delivery_date as event_date,
+            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+            (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
+            COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
+            COALESCE(ji.aggregate, 0) as total_charges,
+            COALESCE(ji.aggregate, 0) - COALESCE(parts.parts_cost, 0) - COALESCE(charges.charges_cost, 0) as profit
+        FROM job j
+        JOIN job_status js ON js.id = j.job_status_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand b ON b.id = pbm.brand_id
+        LEFT JOIN product p ON p.id = pbm.product_id
+        LEFT JOIN job_invoice ji ON ji.job_id = j.id
+        LEFT JOIN parts   ON parts.job_id   = j.id
+        LEFT JOIN charges ON charges.job_id = j.id
+        WHERE js.code = 'DELIVERED_OK'
+          AND j.delivery_date BETWEEN (table "p_from") AND (table "p_to")
+          AND p.name = (table "p_category")
+        ORDER BY j.delivery_date DESC, j.job_no
+    """
+
     GET_JOB_TRANSACTIONS_BY_STATUS_RANGE_SPLIT = """
         with
             "p_from" as (values(%(from)s::date)),
@@ -401,6 +559,31 @@ class ReportsAuditSql:
         JOIN job j ON j.id = jt.job_id
         WHERE jt.transaction_date BETWEEN (table "p_from") AND (table "p_to")
         GROUP BY js.name
+    """
+
+    # Drill-down for one Job Transactions cell (status × date bucket) — same filter
+    # as GET_JOB_TRANSACTIONS_BY_STATUS_RANGE_SPLIT above, row-level instead of counted.
+    # Uses jt.id (not j.id) for row_key since one job can have multiple transactions
+    # of the same status within a range (e.g. a status corrected back-and-forth).
+    GET_JOB_TRANSACTIONS_DETAIL = """
+        with
+            "p_from"     as (values(%(from)s::date)),
+            "p_to"       as (values(%(to)s::date)),
+            "p_category" as (values(%(category_name)s::text))
+        SELECT
+            't-' || jt.id as row_key, j.id, j.job_no, jt.transaction_date as event_date,
+            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+            (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
+        FROM job_transaction jt
+        JOIN job_status js ON js.id = jt.status_id
+        JOIN job j ON j.id = jt.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand b ON b.id = pbm.brand_id
+        LEFT JOIN product p ON p.id = pbm.product_id
+        WHERE jt.transaction_date BETWEEN (table "p_from") AND (table "p_to")
+          AND js.name = (table "p_category")
+        ORDER BY jt.transaction_date DESC, j.job_no
     """
 
     GET_DELIVERED_JOBS_DETAILED_RANGE = """

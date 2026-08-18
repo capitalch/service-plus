@@ -15,6 +15,8 @@ export type CategoryBucketFieldType =
     "today" | "yesterday" | "thisWeek" | "prevWeek" | "thisMonth" | "lastMonth"
     | "q1" | "q2" | "q3" | "q4" | "ytd" | "lastYear";
 
+export type CategoryBucketRangeType = { from: string; to: string };
+
 export type CategoryRangeRowType = { category: string } & Record<CategoryBucketFieldType, CategorySplitType>;
 
 type CategoryCountRowType = {
@@ -103,5 +105,11 @@ export function useCategoryRangeMatrix(sqlId: string, fyStartMonth: number, enab
         queries.forEach(q => q.refetch());
     }
 
-    return { error, loading, refetch, rows };
+    // Per-bucket date bounds, keyed by field — lets a drill-down dialog re-query
+    // the exact same range a clicked cell's count came from.
+    const bucketRanges = Object.fromEntries(
+        ranges.map(r => [r.key, { from: formatIsoDate(r.range.from), to: formatIsoDate(r.range.to) }]),
+    ) as Record<CategoryBucketFieldType, CategoryBucketRangeType>;
+
+    return { bucketRanges, error, loading, refetch, rows };
 }

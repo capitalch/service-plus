@@ -27,7 +27,8 @@ export const JobsSummarySection = () => (
 
         <TabsContent value="received">
             <CategoryRangeMatrixSection
-                description="Jobs received across all standard date buckets, split warranty vs out-of-warranty"
+                description="Jobs received across all standard date buckets, split warranty vs out-of-warranty. Click a cell to view its jobs."
+                drillDownSqlId={SQL_MAP.GET_JOBS_RECEIVED_DETAIL}
                 fileSlug="jobs-received"
                 sqlId={SQL_MAP.GET_JOBS_RECEIVED_BY_CATEGORY_RANGE_SPLIT}
                 title="Jobs Received"
@@ -36,7 +37,8 @@ export const JobsSummarySection = () => (
 
         <TabsContent value="repaired">
             <CategoryRangeMatrixSection
-                description="Jobs marked Completed OK or Delivered OK in each date bucket"
+                description="Jobs marked Completed OK or Delivered OK in each date bucket. Click a cell to view its jobs."
+                drillDownSqlId={SQL_MAP.GET_JOBS_REPAIRED_OK_DETAIL}
                 fileSlug="jobs-repaired-ok"
                 sqlId={SQL_MAP.GET_JOBS_REPAIRED_OK_BY_CATEGORY_RANGE_SPLIT}
                 title="Jobs Repaired (OK)"
@@ -45,8 +47,10 @@ export const JobsSummarySection = () => (
 
         <TabsContent value="delivered">
             <CategoryRangeMatrixSection
-                description="Jobs Delivered OK in each date bucket"
+                description="Jobs Delivered OK in each date bucket. Click a cell to view its jobs."
+                drillDownSqlId={SQL_MAP.GET_JOBS_DELIVERED_OK_DETAIL}
                 fileSlug="jobs-delivered-ok"
+                showFinancialsInDrillDown
                 showFinancialToggles
                 sqlId={SQL_MAP.GET_JOBS_DELIVERED_OK_BY_CATEGORY_RANGE_SPLIT}
                 title="Jobs Delivered (OK)"
@@ -63,7 +67,8 @@ export const JobsSummarySection = () => (
 
         <TabsContent value="transactions">
             <CategoryRangeMatrixSection
-                description="Job status changes across all standard date buckets, split warranty vs out-of-warranty"
+                description="Job status changes across all standard date buckets, split warranty vs out-of-warranty. Click a cell to view its jobs."
+                drillDownSqlId={SQL_MAP.GET_JOB_TRANSACTIONS_DETAIL}
                 fileSlug="job-transactions"
                 matrixDescription="Transaction type vs. standard date buckets. Ranges overlap (e.g. Today is included in This Week, Q1, and YTD), so the Total row sums each bucket down its column (across transaction types), not across buckets. A transaction type with no transactions in any bucket is not listed."
                 rowLabel="Transaction Type"

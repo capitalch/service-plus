@@ -167,7 +167,7 @@ export function useDeliveredJobActions() {
             <>
                 {undoPendingJob && (
                     <Dialog open onOpenChange={open => { if (!open) setUndoPendingJob(null); }}>
-                        <DialogContent className="max-w-sm bg-white dark:bg-zinc-950 border-(--cl-border)">
+                        <DialogContent className="sm:max-w-sm bg-white dark:bg-zinc-950 border-(--cl-border)">
                             <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2 text-red-600">
                                     <AlertTriangle className="h-4 w-4 text-amber-600" />

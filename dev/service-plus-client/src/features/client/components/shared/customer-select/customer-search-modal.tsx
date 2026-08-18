@@ -117,7 +117,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
             {/* showCloseButton=false — we render our own at the modal top-right */}
             <DialogContent
                 showCloseButton={false}
-                className="max-w-2xl max-h-[90vh] gap-0 p-0 overflow-hidden shadow-2xl flex flex-col"
+                className="sm:max-w-2xl max-h-[90vh] gap-0 p-0 overflow-hidden shadow-2xl flex flex-col"
             >
 
                 {/* ── Close button — top-right corner of the whole modal ─────── */}

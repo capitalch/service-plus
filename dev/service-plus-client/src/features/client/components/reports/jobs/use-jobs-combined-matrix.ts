@@ -1,6 +1,6 @@
 import { SQL_MAP } from "@/constants/sql-map";
 
-import type { CategoryBucketFieldType, CategoryRangeRowType, CategorySplitType } from "../common/use-category-range-matrix";
+import type { CategoryBucketFieldType, CategoryBucketRangeType, CategoryRangeRowType, CategorySplitType } from "../common/use-category-range-matrix";
 import { CATEGORY_BUCKET_COLUMNS, useCategoryRangeMatrix } from "../common/use-category-range-matrix";
 import { useFiscalSetting } from "../common/use-fiscal-setting";
 
@@ -18,6 +18,7 @@ export type JobStageKeyType = typeof JOB_STAGES[number]["key"];
 export type StageCellsType = Record<CategoryBucketFieldType, CategorySplitType>;
 
 export type JobsCombinedMatrixType = {
+    bucketRanges: Record<CategoryBucketFieldType, CategoryBucketRangeType>;
     categories: string[];
     error:      Error | null;
     loading:    boolean;
@@ -84,6 +85,8 @@ export const useJobsCombinedMatrix = (): JobsCombinedMatrixType => {
     }
 
     return {
+        // Date math only, identical across all three source queries — any one will do.
+        bucketRanges: received.bucketRanges,
         categories,
         error:   received.error ?? repaired.error ?? delivered.error,
         loading: received.loading || repaired.loading || delivered.loading,

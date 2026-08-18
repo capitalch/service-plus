@@ -129,7 +129,7 @@ export const JobPipelineCellDialog = ({ cell, onClose }: Props) => {
 
     return (
         <Dialog onOpenChange={v => { if (!v) onClose(); }} open={open}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Timer className="h-4 w-4 text-orange-600" />
@@ -141,7 +141,7 @@ export const JobPipelineCellDialog = ({ cell, onClose }: Props) => {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="max-h-[60vh] overflow-y-auto">
+                <div>
                     {loading && <ReportLoading lines={3} />}
                     {!loading && error && <ReportError message={error} />}
                     {!loading && !error && rows.length === 0 && <ReportEmpty message="No jobs in this cell." />}
@@ -152,6 +152,7 @@ export const JobPipelineCellDialog = ({ cell, onClose }: Props) => {
                             </div>
                             <ReportTable
                                 columns={COLUMNS}
+                                maxHeight="60vh"
                                 rowKey={r => r.id}
                                 rows={rows}
                                 stickyHeader={false}

@@ -4,6 +4,7 @@ import * as React from "react"
 import { Popover as PopoverPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { usePortalContainer } from "@/features/client/components/layout/client-layout"
 
 function Popover({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />
@@ -24,8 +25,10 @@ function PopoverContent({
   onWheel,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+  // See DialogPortal in dialog.tsx — same .client-theme CSS-variable scoping issue.
+  const themeRoot = usePortalContainer()
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={themeRoot ?? undefined}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}

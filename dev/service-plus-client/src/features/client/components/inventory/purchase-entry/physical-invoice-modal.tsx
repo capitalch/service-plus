@@ -80,7 +80,7 @@ export function PhysicalInvoiceModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={open => { if (!open && !submitting) onClose(); }}>
-            <DialogContent aria-describedby={undefined} className="max-w-lg !bg-white !text-zinc-900 border-zinc-200">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-lg !bg-white !text-zinc-900 border-zinc-200">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-base">
                         <ShieldAlert className="h-5 w-5 shrink-0 text-amber-600" />

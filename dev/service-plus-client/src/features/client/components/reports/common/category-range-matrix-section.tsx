@@ -3,6 +3,10 @@ import { toast } from "sonner";
 
 import { MESSAGES } from "@/constants/messages";
 
+import { cn } from "@/lib/utils";
+
+import { CategoryRangeCellDialog } from "./category-range-cell-dialog";
+import type { CategoryRangeCellType } from "./category-range-cell-dialog";
 import { ChartCard } from "./chart-card";
 import { formatWarrantySplit } from "./formatters";
 import { ReportError } from "./report-error";
@@ -21,11 +25,15 @@ import { WarrantySplitCell } from "./warranty-split-cell";
 
 type Props = {
     description: string;
+    /** Enables click-to-drill-down on non-empty cells when provided (sql_id of a
+     * *_DETAIL query taking { category_name, from, to }). */
+    drillDownSqlId?: string;
     fileSlug: string;
     financialCaveat?: string;
     matrixDescription?: string;
     rowLabel?: string;
     rowOrder?: string[];
+    showFinancialsInDrillDown?: boolean;
     showFinancialToggles?: boolean;
     sqlId: string;
     title: string;
@@ -48,11 +56,12 @@ function sumSplit(rows: CategoryRangeRowType[], field: keyof CategoryRangeRowTyp
     );
 }
 
-export const CategoryRangeMatrixSection = ({ description, fileSlug, financialCaveat, matrixDescription, rowLabel = "Category", rowOrder, showFinancialToggles = false, sqlId, title }: Props) => {
+export const CategoryRangeMatrixSection = ({ description, drillDownSqlId, fileSlug, financialCaveat, matrixDescription, rowLabel = "Category", rowOrder, showFinancialsInDrillDown = false, showFinancialToggles = false, sqlId, title }: Props) => {
     const { fyStartMonth, isReady } = useFiscalSetting();
     const [showSplit, setShowSplit]     = useState(false);
     const [showRevenue, setShowRevenue] = useState(false);
     const [showProfit, setShowProfit]   = useState(false);
+    const [cell, setCell] = useState<CategoryRangeCellType | null>(null);
 
     const matrix = useCategoryRangeMatrix(sqlId, fyStartMonth, isReady, rowOrder);
 
@@ -66,7 +75,31 @@ export const CategoryRangeMatrixSection = ({ description, fileSlug, financialCav
         },
         ...CATEGORY_BUCKET_COLUMNS.map<ReportColumnType<CategoryRangeRowType>>(b => ({
             align:  "right",
-            cell:   r => <WarrantySplitCell showProfit={showProfit} showRevenue={showRevenue} showSplit={showSplit} split={r[b.field]} />,
+            cell:   r => {
+                const split = r[b.field];
+                const total = split.warranty_count + split.oow_count;
+                const range = matrix.bucketRanges[b.field];
+                const clickable = !!drillDownSqlId && total > 0 && !!range;
+                return (
+                    <button
+                        className={cn("w-full", clickable && "cursor-pointer rounded hover:ring-2 hover:ring-(--cl-accent) hover:ring-inset")}
+                        disabled={!clickable}
+                        type="button"
+                        onClick={clickable ? () => setCell({
+                            bucketLabel:   b.label,
+                            categoryValue: r.category,
+                            from:          range.from,
+                            reportTitle:   title,
+                            rowLabel,
+                            showFinancials: showFinancialsInDrillDown,
+                            sqlId:         drillDownSqlId!,
+                            to:            range.to,
+                        }) : undefined}
+                    >
+                        <WarrantySplitCell showProfit={showProfit} showRevenue={showRevenue} showSplit={showSplit} split={split} />
+                    </button>
+                );
+            },
             footer: rows => <WarrantySplitCell bold showProfit={showProfit} showRevenue={showRevenue} showSplit={showSplit} split={sumSplit(rows, b.field)} />,
             header: b.label,
             id:     b.field,
@@ -213,6 +246,8 @@ export const CategoryRangeMatrixSection = ({ description, fileSlug, financialCav
                     )
                 }
             </ChartCard>
+
+            {drillDownSqlId && <CategoryRangeCellDialog cell={cell} onClose={() => setCell(null)} />}
         </ReportSection>
     );
 };

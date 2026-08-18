@@ -117,7 +117,7 @@ export const WarrantyJobDetailDialog = ({ jobId, jobNo, onClose }: Props) => {
 
     return (
         <Dialog onOpenChange={v => { if (!v) onClose(); }} open={open}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <ShieldCheck className="h-4 w-4 text-violet-600" />
@@ -129,13 +129,14 @@ export const WarrantyJobDetailDialog = ({ jobId, jobNo, onClose }: Props) => {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="max-h-[60vh] overflow-y-auto">
+                <div>
                     {loading && <ReportLoading lines={3} />}
                     {!loading && error && <ReportError message={error} />}
                     {!loading && !error && rows.length === 0 && <ReportEmpty message="No parts consumed for this job." />}
                     {!loading && !error && rows.length > 0 && (
                         <ReportTable
                             columns={COLUMNS}
+                            maxHeight="60vh"
                             rowKey={r => r.line_id}
                             rows={rows}
                             showFooter

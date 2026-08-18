@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { cn } from "@/lib/utils";
 
 import { ChartCard } from "../common/chart-card";
 import { formatNumber } from "../common/formatters";
@@ -16,6 +18,8 @@ import { exportReportXlsx } from "../common/xlsx-export";
 import type { EventTrackingRowType } from "../common/use-event-tracking-matrix";
 import { useEventTrackingMatrix } from "../common/use-event-tracking-matrix";
 import { useFiscalSetting } from "../common/use-fiscal-setting";
+import { EventTrackingCellDialog } from "./event-tracking-cell-dialog";
+import type { EventTrackingCellType } from "./event-tracking-cell-dialog";
 
 const TITLE = "Event Tracking";
 const DESCRIPTION = "Job lifecycle event counts across standard fiscal date ranges.";
@@ -41,6 +45,8 @@ export const EventTrackingSection = () => {
 
     const matrix = useEventTrackingMatrix(SQL_MAP.GET_EVENT_TRACKING_COUNTS, fyStartMonth, isReady);
 
+    const [cell, setCell] = useState<EventTrackingCellType | null>(null);
+
     const columns: ReportColumnType<EventTrackingRowType>[] = [
         {
             header: "Event",
@@ -50,7 +56,29 @@ export const EventTrackingSection = () => {
         },
         ...BUCKET_COLUMNS.map<ReportColumnType<EventTrackingRowType>>(b => ({
             align:  "right",
-            cell:   r => formatNumber(r[b.field]),
+            cell:   r => {
+                const count = r[b.field];
+                if (count === 0) return formatNumber(count);
+                const range = matrix.bucketRanges[b.field];
+                return (
+                    <button
+                        className={cn(
+                            "cursor-pointer font-semibold text-(--cl-accent-text) hover:underline",
+                            !range && "pointer-events-none",
+                        )}
+                        disabled={!range}
+                        type="button"
+                        onClick={() => range && setCell({
+                            bucketLabel: b.header,
+                            eventName:   r.eventName,
+                            from:        range.from,
+                            to:          range.to,
+                        })}
+                    >
+                        {formatNumber(count)}
+                    </button>
+                );
+            },
             footer: rows => formatNumber(rows.reduce((s, r) => s + r[b.field], 0)),
             header: b.header,
             id:     b.field,
@@ -115,7 +143,7 @@ export const EventTrackingSection = () => {
 
             {matrix.error && <ReportError onRetry={matrix.refetch} />}
 
-            <ChartCard description="Received, Status Change, Finalize, and Deliver — Return/Cancel/Disposed are not tracked">
+            <ChartCard description="Received, Status Change, Finalize, and Deliver — Return/Cancel/Disposed are not tracked. Click a count to view its jobs.">
                 {matrix.loading
                     ? <ReportLoading lines={4} />
                     : (
@@ -129,6 +157,8 @@ export const EventTrackingSection = () => {
                     )
                 }
             </ChartCard>
+
+            <EventTrackingCellDialog cell={cell} onClose={() => setCell(null)} />
         </ReportSection>
     );
 };

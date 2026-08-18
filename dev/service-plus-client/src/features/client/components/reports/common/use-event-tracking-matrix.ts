@@ -20,7 +20,8 @@ export type EventTrackingRowType = {
 };
 
 type EventCountRowType = { count: number; event_name: string };
-type BucketFieldType = keyof Omit<EventTrackingRowType, "eventName">;
+export type BucketFieldType = keyof Omit<EventTrackingRowType, "eventName">;
+export type BucketRangeType = { from: string; to: string };
 
 // Fixed row order — Return/Cancel/Disposed are intentionally not tracked as events
 // (see plans/plan.md §2), so they never appear here.
@@ -80,5 +81,11 @@ export function useEventTrackingMatrix(sqlId: string, fyStartMonth: number, enab
         queries.forEach(q => q.refetch());
     }
 
-    return { error, loading, refetch, rows };
+    // Per-bucket date bounds, keyed by field — lets a drill-down dialog re-query
+    // the exact same range a clicked cell's count came from.
+    const bucketRanges = Object.fromEntries(
+        ranges.map(r => [r.field, { from: formatIsoDate(r.range.from), to: formatIsoDate(r.range.to) }]),
+    ) as Record<BucketFieldType, BucketRangeType>;
+
+    return { bucketRanges, error, loading, refetch, rows };
 }

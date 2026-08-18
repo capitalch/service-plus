@@ -2,7 +2,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { MESSAGES } from "@/constants/messages";
+import { SQL_MAP } from "@/constants/sql-map";
+import { cn } from "@/lib/utils";
 
+import { CategoryRangeCellDialog } from "../common/category-range-cell-dialog";
+import type { CategoryRangeCellType } from "../common/category-range-cell-dialog";
 import { ChartCard } from "../common/chart-card";
 import { formatInr, formatWarrantySplit } from "../common/formatters";
 import { ReportError } from "../common/report-error";
@@ -20,6 +24,14 @@ import { WarrantySplitCell } from "../common/warranty-split-cell";
 import { JOB_STAGES, stageCells, stageTotals, useJobsCombinedMatrix } from "./use-jobs-combined-matrix";
 import type { JobStageKeyType } from "./use-jobs-combined-matrix";
 
+// reportTitle matches each stage's standalone tab title exactly (Jobs Received,
+// Jobs Repaired (OK), Jobs Delivered (OK)) — see JOB_STAGES label above.
+const STAGE_DETAIL: Record<JobStageKeyType, { reportTitle: string; showFinancials: boolean; sqlId: string }> = {
+    delivered: { reportTitle: "Jobs Delivered (OK)", showFinancials: true,  sqlId: SQL_MAP.GET_JOBS_DELIVERED_OK_DETAIL },
+    received:  { reportTitle: "Jobs Received",        showFinancials: false, sqlId: SQL_MAP.GET_JOBS_RECEIVED_DETAIL },
+    repaired:  { reportTitle: "Jobs Repaired (OK)",    showFinancials: false, sqlId: SQL_MAP.GET_JOBS_REPAIRED_OK_DETAIL },
+};
+
 type CombinedRowType = {
     category:       string;
     cells:          Record<string, CategorySplitType>;
@@ -36,6 +48,7 @@ export const JobsCombinedSection = () => {
     const [showSplit, setShowSplit]     = useState(false);
     const [showRevenue, setShowRevenue] = useState(false);
     const [showProfit, setShowProfit]   = useState(false);
+    const [cell, setCell] = useState<CategoryRangeCellType | null>(null);
 
     const categoryRows: CombinedRowType[] = matrix.categories.flatMap(category =>
         JOB_STAGES.map((stage, idx) => ({
@@ -84,15 +97,40 @@ export const JobsCombinedSection = () => {
         },
         ...CATEGORY_BUCKET_COLUMNS.map<ReportColumnType<CombinedRowType>>(b => ({
             align: "right",
-            cell:  r => (
-                <WarrantySplitCell
-                    bold={r.isTotal}
-                    showProfit={showProfit && r.stage === "delivered"}
-                    showRevenue={showRevenue && r.stage === "delivered"}
-                    showSplit={showSplit}
-                    split={r.cells[b.field]}
-                />
-            ),
+            cell:  r => {
+                const split = r.cells[b.field];
+                const total = split.warranty_count + split.oow_count;
+                const range = matrix.bucketRanges[b.field];
+                const clickable = !r.isTotal && total > 0 && !!range;
+                return (
+                    <button
+                        className={cn("w-full", clickable && "cursor-pointer rounded hover:ring-2 hover:ring-(--cl-accent) hover:ring-inset")}
+                        disabled={!clickable}
+                        type="button"
+                        onClick={clickable ? () => {
+                            const detail = STAGE_DETAIL[r.stage];
+                            setCell({
+                                bucketLabel:   b.label,
+                                categoryValue: r.category,
+                                from:          range.from,
+                                reportTitle:   detail.reportTitle,
+                                rowLabel:      "Category",
+                                showFinancials: detail.showFinancials,
+                                sqlId:         detail.sqlId,
+                                to:            range.to,
+                            });
+                        } : undefined}
+                    >
+                        <WarrantySplitCell
+                            bold={r.isTotal}
+                            showProfit={showProfit && r.stage === "delivered"}
+                            showRevenue={showRevenue && r.stage === "delivered"}
+                            showSplit={showSplit}
+                            split={split}
+                        />
+                    </button>
+                );
+            },
             header:   b.label,
             id:       b.field,
             sortable: false,
@@ -189,7 +227,7 @@ export const JobsCombinedSection = () => {
                 onExportPdf={handlePdfExport}
                 onPrint={() => window.print()}
                 onRefresh={matrix.refetch}
-                subtitle="Jobs received, repaired (OK) and delivered (OK) side by side, with warranty split, revenue and profit"
+                subtitle="Jobs received, repaired (OK) and delivered (OK) side by side, with warranty split, revenue and profit. Click a cell to view its jobs."
                 title="Combined Jobs Summary"
             />
 
@@ -238,6 +276,8 @@ export const JobsCombinedSection = () => {
                     )
                 }
             </ChartCard>
+
+            <CategoryRangeCellDialog cell={cell} onClose={() => setCell(null)} />
         </ReportSection>
     );
 };

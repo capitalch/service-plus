@@ -63,6 +63,15 @@ const HelpContext = createContext<HelpContextType>({ helpOpen: false, openHelp: 
 
 export const useHelp = () => useContext(HelpContext);
 
+// Radix portal-based primitives (Dialog, Popover, Select, DropdownMenu, AlertDialog)
+// mount to document.body by default — outside the .client-theme div below, so the
+// --cl-* CSS custom properties it scopes (bg/text/border tokens) don't cascade into
+// them, leaving anything using those tokens transparent/uncolored. Portal-using ui/
+// primitives read this to target .client-theme itself as their mount container instead.
+const PortalContainerContext = createContext<HTMLDivElement | null>(null);
+
+export const usePortalContainer = () => useContext(PortalContainerContext);
+
 function sectionFromPath(pathname: string): Section {
     if (pathname.startsWith('/client/admin'))          return 'admin';
     if (pathname.startsWith('/client/configurations')) return 'configurations';
@@ -119,6 +128,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         const stored = localStorage.getItem('client-theme');
         return stored ? stored === 'dark' : false;
     });
+    const [themeRoot, setThemeRoot]         = useState<HTMLDivElement | null>(null);
 
     useEffect(() => {
         setSelected(SECTION_DEFAULTS[activeSection]);
@@ -240,7 +250,8 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         <LayoutContext.Provider value={{ explorerOpen, toggleExplorer }}>
         <HelpContext.Provider value={{ helpOpen, openHelp, closeHelp }}>
         <ClientSelectionContext.Provider value={{ onSelect, selected, selectedGroup }}>
-            <div className="client-theme relative h-full bg-(--cl-bg) text-(--cl-text)" data-theme={isDark ? 'dark' : 'light'}>
+        <PortalContainerContext.Provider value={themeRoot}>
+            <div ref={setThemeRoot} className="client-theme relative h-full bg-(--cl-bg) text-(--cl-text)" data-theme={isDark ? 'dark' : 'light'}>
                 <BuBranchDivisionGate />
                 <ClientTopNav activeSection={activeSection} />
                 <ClientActivityBar activeSection={activeSection} />
@@ -299,6 +310,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                 />
                 <HelpFab />
             </div>
+        </PortalContainerContext.Provider>
         </ClientSelectionContext.Provider>
         </HelpContext.Provider>
         </LayoutContext.Provider>

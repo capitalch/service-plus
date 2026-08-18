@@ -2,6 +2,7 @@ import * as React from "react"
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { usePortalContainer } from "@/features/client/components/layout/client-layout"
 import { CheckIcon, ChevronRightIcon } from "lucide-react"
 
 function DropdownMenu({
@@ -11,10 +12,13 @@ function DropdownMenu({
 }
 
 function DropdownMenuPortal({
+  container,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
+  // See DialogPortal in dialog.tsx — same .client-theme CSS-variable scoping issue.
+  const themeRoot = usePortalContainer()
   return (
-    <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
+    <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" container={container ?? themeRoot ?? undefined} {...props} />
   )
 }
 
@@ -35,8 +39,10 @@ function DropdownMenuContent({
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+  // See DialogPortal in dialog.tsx — same .client-theme CSS-variable scoping issue.
+  const themeRoot = usePortalContainer()
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={themeRoot ?? undefined}>
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}

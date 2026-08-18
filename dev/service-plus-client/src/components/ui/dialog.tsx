@@ -5,6 +5,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { usePortalContainer } from "@/features/client/components/layout/client-layout"
 import { XIcon } from "lucide-react"
 
 function Dialog({
@@ -20,9 +21,14 @@ function DialogTrigger({
 }
 
 function DialogPortal({
+  container,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+  // Radix portals to document.body by default, which sits outside the .client-theme
+  // div that scopes the --cl-* CSS custom properties — mounting there instead keeps
+  // those tokens (and any theme-dependent styling) working inside the dialog.
+  const themeRoot = usePortalContainer()
+  return <DialogPrimitive.Portal data-slot="dialog-portal" container={container ?? themeRoot ?? undefined} {...props} />
 }
 
 function DialogClose({
