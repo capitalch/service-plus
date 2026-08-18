@@ -33,6 +33,7 @@ export type ProfitCellType = {
 type CellJobType = {
     id: number;
     job_no: string;
+    division_code: string | null;
     delivery_date: string;
     customer_name: string;
     brand_name: string | null;
@@ -62,11 +63,20 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
     const columns: ReportColumnType<CellJobType>[] = [
         { header: "Delivery Date", id: "delivery_date", value: r => r.delivery_date, width: "110px" },
         {
-            cell:   r => <span className="font-mono text-xs font-semibold text-(--cl-accent) hover:underline">{r.job_no}</span>,
+            cell:   r => (
+                <div className="flex flex-col gap-0.5">
+                    <span className="font-mono text-xs font-semibold text-(--cl-accent) hover:underline">{r.job_no}</span>
+                    {r.division_code && (
+                        <span className="text-[9px] font-medium uppercase tracking-tight text-indigo-600 dark:text-indigo-400">
+                            {r.division_code}
+                        </span>
+                    )}
+                </div>
+            ),
             header: "Job No",
             id:     "job_no",
             value:  r => r.job_no,
-            width:  "110px",
+            width:  "120px",
         },
         { header: "Customer",      id: "customer",      value: r => r.customer_name },
         {
@@ -151,8 +161,13 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
         <Dialog onOpenChange={v => { if (!v) onClose(); }} open={open}>
             {/* Hidden (not unmounted) while the nested Job Final Info modal is open — a
                 fixed-position dialog narrower than this one would otherwise leave this
-                dialog's edges visibly peeking out from behind it. */}
-            <DialogContent className={cn("sm:max-w-5xl", finalInfoJobId != null && "invisible")}>
+                dialog's edges visibly peeking out from behind it. Content and Overlay
+                are hidden separately since DialogContent's className only reaches the
+                content box, not its own Overlay. */}
+            <DialogContent
+                className={cn("sm:max-w-5xl", finalInfoJobId != null && "invisible")}
+                overlayClassName={cn(finalInfoJobId != null && "invisible")}
+            >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-green-600" />
@@ -164,7 +179,7 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div>
+                <div className="min-w-0">
                     {loading && <ReportLoading lines={3} />}
                     {!loading && error && <ReportError message={error} />}
                     {!loading && !error && rows.length === 0 && <ReportEmpty message="No delivered jobs in this month." />}

@@ -70,9 +70,17 @@ export function JobFinalInfoModal({ jobId, onClose }: Props) {
         return () => { cancelled = true; };
     }, [dbName, schema, jobId]);
 
-    if (loading || error || !job) {
-        return (
-            <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
+    const division = job?.division_id ? (availableDivisions.find(d => d.id === job.division_id) ?? null) : null;
+    const showLoadingState = loading || error || !job;
+
+    // A single Dialog instance whose content swaps between the loading/error
+    // placeholder and the real panel — two separate <Dialog> trees swapped via
+    // an early return would each mount/unmount their own Radix Portal, and the
+    // outgoing one's exit animation can still be in the DOM while the incoming
+    // one mounts, showing as two overlapping modal boxes for a frame.
+    return (
+        <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
+            {showLoadingState ? (
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>Job Final Info</DialogTitle>
@@ -88,28 +96,22 @@ export function JobFinalInfoModal({ jobId, onClose }: Props) {
                         )}
                     </div>
                 </DialogContent>
-            </Dialog>
-        );
-    }
-
-    const division = job.division_id ? (availableDivisions.find(d => d.id === job.division_id) ?? null) : null;
-
-    return (
-        <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
-            <DialogContent className="max-h-[92vh] w-full max-w-[40rem] overflow-hidden border-0 bg-white p-0 shadow-none ring-0 sm:max-w-[40rem]" showCloseButton={false}>
-                <DialogTitle className="sr-only">Job Final Info — #{job.job_no}</DialogTitle>
-                <JobChargesReadonlyPanel
-                    amount={job.amount}
-                    charges={charges}
-                    forceIgst={job.is_igst ?? false}
-                    isGst={isGstDivision(division)}
-                    isWarranty={job.job_type_code === "UNDER_WARRANTY"}
-                    jobNo={job.job_no}
-                    maxWidthClassName="max-w-[40rem]"
-                    parts={parts}
-                    onClose={onClose}
-                />
-            </DialogContent>
+            ) : (
+                <DialogContent className="max-h-[92vh] w-full max-w-[40rem] overflow-hidden border-0 bg-white p-0 shadow-none ring-0 sm:max-w-[40rem]" showCloseButton={false}>
+                    <DialogTitle className="sr-only">Job Final Info — #{job.job_no}</DialogTitle>
+                    <JobChargesReadonlyPanel
+                        amount={job.amount}
+                        charges={charges}
+                        forceIgst={job.is_igst ?? false}
+                        isGst={isGstDivision(division)}
+                        isWarranty={job.job_type_code === "UNDER_WARRANTY"}
+                        jobNo={job.job_no}
+                        maxWidthClassName="max-w-[40rem]"
+                        parts={parts}
+                        onClose={onClose}
+                    />
+                </DialogContent>
+            )}
         </Dialog>
     );
 }

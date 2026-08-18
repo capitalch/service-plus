@@ -385,6 +385,8 @@ class ReportsAuditSql:
             select
                 'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, 'Received'::text as status_label,
                 cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+                (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
+                d.code as division_code,
                 COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
                 COALESCE(ji.aggregate, 0) as total_charges,
                 COALESCE(ji.aggregate, 0) - COALESCE(parts.parts_cost, 0) - COALESCE(charges.charges_cost, 0) as profit
@@ -393,6 +395,7 @@ class ReportsAuditSql:
             left join product_brand_model pbm on pbm.id = j.product_brand_model_id
             left join brand b on b.id = pbm.brand_id
             left join product p on p.id = pbm.product_id
+            left join division d on d.id = j.division_id
             left join job_invoice ji on ji.job_id = j.id
             left join (
                 select job_id, SUM(cost_price * qty) as parts_cost from job_part_used group by job_id
@@ -408,6 +411,8 @@ class ReportsAuditSql:
             select
                 't-' || jt.id as row_key, j.id, j.job_no, jt.transaction_date as event_date, js.name as status_label,
                 cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+                (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
+                d.code as division_code,
                 COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
                 COALESCE(ji.aggregate, 0) as total_charges,
                 COALESCE(ji.aggregate, 0) - COALESCE(parts.parts_cost, 0) - COALESCE(charges.charges_cost, 0) as profit
@@ -418,6 +423,7 @@ class ReportsAuditSql:
             left join product_brand_model pbm on pbm.id = j.product_brand_model_id
             left join brand b on b.id = pbm.brand_id
             left join product p on p.id = pbm.product_id
+            left join division d on d.id = j.division_id
             left join job_invoice ji on ji.job_id = j.id
             left join (
                 select job_id, SUM(cost_price * qty) as parts_cost from job_part_used group by job_id
@@ -1037,6 +1043,7 @@ class ReportsAuditSql:
         SELECT
             j.id                                                   AS id,
             j.job_no                                               AS job_no,
+            d.code                                                 AS division_code,
             j.delivery_date                                        AS delivery_date,
             cc.full_name                                           AS customer_name,
             b.name                                                 AS brand_name,
@@ -1056,6 +1063,7 @@ class ReportsAuditSql:
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand       b  ON b.id  = pbm.brand_id
         LEFT JOIN product     p  ON p.id  = pbm.product_id
+        LEFT JOIN division    d  ON d.id  = j.division_id
         LEFT JOIN job_invoice ji ON ji.job_id = j.id
         LEFT JOIN (
             SELECT job_id, SUM(cost_price * qty) AS parts_cost FROM job_part_used GROUP BY job_id

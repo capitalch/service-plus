@@ -4,6 +4,7 @@ import { History } from "lucide-react";
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -43,6 +44,8 @@ type CellJobType = {
     brand_name:    string | null;
     model_name:    string | null;
     product_name:  string | null;
+    is_warranty:   boolean;
+    division_code: string | null;
     total_cost:    number;
     total_charges: number;
     profit:        number;
@@ -67,11 +70,20 @@ export const EventTrackingCellDialog = ({ cell, onClose }: Props) => {
     const columns: ReportColumnType<CellJobType>[] = [
         { header: "Event Date", id: "event_date", value: r => r.event_date, width: "110px" },
         {
-            cell:   r => <span className="font-mono text-xs font-semibold text-(--cl-accent) hover:underline">{r.job_no}</span>,
+            cell:   r => (
+                <div className="flex flex-col gap-0.5">
+                    <span className="font-mono text-xs font-semibold text-(--cl-accent) hover:underline">{r.job_no}</span>
+                    {r.division_code && (
+                        <span className="text-[9px] font-medium uppercase tracking-tight text-indigo-600 dark:text-indigo-400">
+                            {r.division_code}
+                        </span>
+                    )}
+                </div>
+            ),
             header: "Job No",
             id:     "job_no",
             value:  r => r.job_no,
-            width:  "110px",
+            width:  "120px",
         },
         {
             cell:   r => <span className="text-(--cl-text-muted)">{r.status_label}</span>,
@@ -93,6 +105,15 @@ export const EventTrackingCellDialog = ({ cell, onClose }: Props) => {
             header: "Device",
             id:     "device",
             value:  r => `${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""}`,
+        },
+        {
+            cell:   r => r.is_warranty
+                ? <Badge className="border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-50" variant="outline">Warranty</Badge>
+                : <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50" variant="outline">OOW</Badge>,
+            header: "Type",
+            id:     "warranty",
+            value:  r => r.is_warranty ? "Warranty" : "OOW",
+            width:  "100px",
         },
         ...(showCosts ? [
             {
@@ -165,8 +186,13 @@ export const EventTrackingCellDialog = ({ cell, onClose }: Props) => {
         <Dialog onOpenChange={v => { if (!v) onClose(); }} open={open}>
             {/* Hidden (not unmounted) while the nested Job Final Info modal is open — a
                 fixed-position dialog narrower than this one would otherwise leave this
-                dialog's edges visibly peeking out from behind it. */}
-            <DialogContent className={cn("sm:max-w-3xl", finalInfoJobId != null && "invisible")}>
+                dialog's edges visibly peeking out from behind it. Content and Overlay
+                are hidden separately since DialogContent's className only reaches the
+                content box, not its own Overlay. */}
+            <DialogContent
+                className={cn("sm:max-w-4xl", finalInfoJobId != null && "invisible")}
+                overlayClassName={cn(finalInfoJobId != null && "invisible")}
+            >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <History className="h-4 w-4 text-orange-600" />
@@ -178,7 +204,7 @@ export const EventTrackingCellDialog = ({ cell, onClose }: Props) => {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div>
+                <div className="min-w-0">
                     {loading && <ReportLoading lines={3} />}
                     {!loading && error && <ReportError message={error} />}
                     {!loading && !error && rows.length === 0 && <ReportEmpty message="No events in this range." />}

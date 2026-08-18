@@ -167,8 +167,13 @@ export const CategoryRangeCellDialog = ({ cell, onClose }: Props) => {
         <Dialog onOpenChange={v => { if (!v) onClose(); }} open={open}>
             {/* Hidden (not unmounted) while the nested Job Final Info modal is open — a
                 fixed-position dialog narrower than this one would otherwise leave this
-                dialog's edges visibly peeking out from behind it. */}
-            <DialogContent className={cn("sm:max-w-3xl", finalInfoJobId != null && "invisible")}>
+                dialog's edges visibly peeking out from behind it. Content and Overlay
+                are hidden separately since DialogContent's className only reaches the
+                content box, not its own Overlay. */}
+            <DialogContent
+                className={cn("sm:max-w-3xl", finalInfoJobId != null && "invisible")}
+                overlayClassName={cn(finalInfoJobId != null && "invisible")}
+            >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <LayoutGrid className="h-4 w-4 text-blue-600" />
@@ -180,7 +185,7 @@ export const CategoryRangeCellDialog = ({ cell, onClose }: Props) => {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div>
+                <div className="min-w-0">
                     {loading && <ReportLoading lines={3} />}
                     {!loading && error && <ReportError message={error} />}
                     {!loading && !error && rows.length === 0 && <ReportEmpty message="No jobs in this range." />}
