@@ -10,6 +10,7 @@ type Props = {
     icon?: ComponentType<{ className?: string }>;
     label: string;
     loading?: boolean;
+    onClick?: () => void;
     subValue?: string;
     value: string;
 };
@@ -21,6 +22,7 @@ export const KpiCard = ({
     icon: Icon,
     label,
     loading = false,
+    onClick,
     subValue,
     value,
 }: Props) => {
@@ -28,7 +30,18 @@ export const KpiCard = ({
     const trendDn = delta != null && delta < 0;
 
     return (
-        <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-4 shadow-sm">
+        <div
+            className={cn(
+                "rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-4 shadow-sm",
+                onClick && "cursor-pointer transition-colors hover:bg-(--cl-hover)",
+            )}
+            role={onClick ? "button" : undefined}
+            tabIndex={onClick ? 0 : undefined}
+            onClick={onClick}
+            onKeyDown={onClick ? (e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); }
+            } : undefined}
+        >
             <div className="flex items-start justify-between gap-2">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted)">
                     {label}

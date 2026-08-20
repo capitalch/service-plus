@@ -22,6 +22,17 @@ import { useGenericQuery } from "../common/use-generic-query";
 import { DashboardMonthlyChart } from "./dashboard-monthly-chart";
 import { DashboardRecentJobs } from "./dashboard-recent-jobs";
 import { DashboardAlertsPanel } from "./dashboard-alerts-panel";
+import { DashboardJobsListDialog } from "./dashboard-jobs-list-dialog";
+import { DashboardOverdueDetailDialog } from "./dashboard-overdue-detail-dialog";
+import { DashboardRevenueDetailDialog } from "./dashboard-revenue-detail-dialog";
+import { OpenJobsByProductDialog } from "./open-jobs-by-product-dialog";
+
+type JobsListModalType = {
+    description?: string;
+    sqlArgs: Record<string, unknown>;
+    sqlId: string;
+    title: string;
+};
 
 type RangeOptionType = { key: RangeKeyType; label: string };
 
@@ -38,6 +49,8 @@ const RANGE_OPTIONS: RangeOptionType[] = [
 type DashboardKpiRowType = {
     jobs_delivered: number;
     jobs_open: number;
+    jobs_open_oow: number;
+    jobs_open_warranty: number;
     jobs_overdue: number;
     jobs_received: number;
     jobs_received_oow: number;
@@ -51,6 +64,10 @@ const RECENT_LIMIT = 8;
 export const DashboardSection = () => {
     const { fyStartMonth, isReady } = useFiscalSetting();
     const [rangeIndex, setRangeIndex] = useState(0);
+    const [openJobsByProductOpen, setOpenJobsByProductOpen] = useState(false);
+    const [revenueDetailOpen, setRevenueDetailOpen] = useState(false);
+    const [overdueDetailOpen, setOverdueDetailOpen] = useState(false);
+    const [jobsListModal, setJobsListModal] = useState<JobsListModalType | null>(null);
     const selectedRange = RANGE_OPTIONS[rangeIndex];
 
     const todayRange  = useMemo(() => getRange(selectedRange.key, new Date(), fyStartMonth), [selectedRange.key, fyStartMonth]);
@@ -164,6 +181,10 @@ export const DashboardSection = () => {
         ? `${selectedRange.label}: ${todayArgs.from}`
         : `${selectedRange.label}: ${todayArgs.from} – ${todayArgs.to}`;
 
+    const rangeDescription = todayArgs.from === todayArgs.to
+        ? todayArgs.from
+        : `${todayArgs.from} – ${todayArgs.to}`;
+
     return (
         <ReportSection>
             <ReportToolbar
@@ -180,24 +201,39 @@ export const DashboardSection = () => {
                     label={`Jobs Received (${selectedRange.label})`}
                     subValue={kpis ? `W ${formatNumber(kpis.jobs_received_warranty)} / OOW ${formatNumber(kpis.jobs_received_oow)}` : undefined}
                     value={formatNumber(kpis?.jobs_received ?? 0)}
+                    onClick={() => setJobsListModal({
+                        description: `Jobs received ${rangeDescription}.`,
+                        sqlArgs:     { ...todayArgs, is_warranty: null },
+                        sqlId:       SQL_MAP.GET_DASHBOARD_JOBS_RECEIVED_LIST,
+                        title:       `Jobs Received (${selectedRange.label})`,
+                    })}
                 />
                 <KpiCard
                     accentClassName="text-emerald-500"
                     icon={Wrench}
                     label={`Jobs Delivered (${selectedRange.label})`}
                     value={formatNumber(kpis?.jobs_delivered ?? 0)}
+                    onClick={() => setJobsListModal({
+                        description: `Jobs delivered ${rangeDescription}.`,
+                        sqlArgs:     todayArgs,
+                        sqlId:       SQL_MAP.GET_DASHBOARD_JOBS_DELIVERED_LIST,
+                        title:       `Jobs Delivered (${selectedRange.label})`,
+                    })}
                 />
                 <KpiCard
                     accentClassName="text-emerald-500"
                     icon={IndianRupee}
                     label={`Revenue (${selectedRange.label})`}
                     value={formatInr(kpis?.revenue ?? 0)}
+                    onClick={() => setRevenueDetailOpen(true)}
                 />
                 <KpiCard
                     accentClassName="text-(--cl-accent-text)"
                     icon={Activity}
                     label="Open Jobs"
+                    subValue={kpis ? `W ${formatNumber(kpis.jobs_open_warranty)} / OOW ${formatNumber(kpis.jobs_open_oow)}` : undefined}
                     value={formatNumber(kpis?.jobs_open ?? 0)}
+                    onClick={() => setOpenJobsByProductOpen(true)}
                 />
             </KpiGrid>
 
@@ -208,18 +244,31 @@ export const DashboardSection = () => {
                     label="Overdue Jobs"
                     subValue={`> ${OVERDUE_DAYS} days`}
                     value={formatNumber(kpis?.jobs_overdue ?? 0)}
+                    onClick={() => setOverdueDetailOpen(true)}
                 />
                 <KpiCard
                     accentClassName="text-orange-500"
                     icon={ShieldCheck}
                     label={`Warranty Jobs (${selectedRange.label})`}
                     value={formatNumber(kpis?.jobs_received_warranty ?? 0)}
+                    onClick={() => setJobsListModal({
+                        description: `Warranty jobs received ${rangeDescription}.`,
+                        sqlArgs:     { ...todayArgs, is_warranty: true },
+                        sqlId:       SQL_MAP.GET_DASHBOARD_JOBS_RECEIVED_LIST,
+                        title:       `Warranty Jobs (${selectedRange.label})`,
+                    })}
                 />
                 <KpiCard
                     accentClassName="text-emerald-500"
                     icon={Package}
                     label={`Out-of-Warranty (${selectedRange.label})`}
                     value={formatNumber(kpis?.jobs_received_oow ?? 0)}
+                    onClick={() => setJobsListModal({
+                        description: `Out-of-warranty jobs received ${rangeDescription}.`,
+                        sqlArgs:     { ...todayArgs, is_warranty: false },
+                        sqlId:       SQL_MAP.GET_DASHBOARD_JOBS_RECEIVED_LIST,
+                        title:       `Out-of-Warranty Jobs (${selectedRange.label})`,
+                    })}
                 />
                 <KpiCard
                     accentClassName="text-amber-500"
@@ -227,6 +276,7 @@ export const DashboardSection = () => {
                     label="Alerts"
                     value={formatNumber(overdueQ.data.length)}
                     subValue="Overdue queue"
+                    onClick={() => setOverdueDetailOpen(true)}
                 />
             </KpiGrid>
 
@@ -257,6 +307,29 @@ export const DashboardSection = () => {
                     : <DashboardRecentJobs jobs={recentQ.data} />
                 }
             </ChartCard>
+
+            <OpenJobsByProductDialog
+                open={openJobsByProductOpen}
+                onClose={() => setOpenJobsByProductOpen(false)}
+            />
+            <DashboardRevenueDetailDialog
+                open={revenueDetailOpen}
+                sqlArgs={todayArgs}
+                onClose={() => setRevenueDetailOpen(false)}
+            />
+            <DashboardOverdueDetailDialog
+                open={overdueDetailOpen}
+                overdueDays={OVERDUE_DAYS}
+                onClose={() => setOverdueDetailOpen(false)}
+            />
+            <DashboardJobsListDialog
+                description={jobsListModal?.description}
+                open={jobsListModal != null}
+                sqlArgs={jobsListModal?.sqlArgs}
+                sqlId={jobsListModal?.sqlId ?? ""}
+                title={jobsListModal?.title ?? ""}
+                onClose={() => setJobsListModal(null)}
+            />
         </ReportSection>
     );
 };

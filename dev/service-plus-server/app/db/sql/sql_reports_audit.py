@@ -34,6 +34,14 @@ class ReportsAuditSql:
             ) AS jobs_open,
             COUNT(DISTINCT j.id) FILTER (
                 WHERE j.is_closed = false
+                  AND j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
+            ) AS jobs_open_warranty,
+            COUNT(DISTINCT j.id) FILTER (
+                WHERE j.is_closed = false
+                  AND j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
+            ) AS jobs_open_oow,
+            COUNT(DISTINCT j.id) FILTER (
+                WHERE j.is_closed = false
                   AND j.job_date < (CURRENT_DATE - INTERVAL '7 days')
             ) AS jobs_overdue,
             COALESCE(SUM(ji.amount) FILTER (
@@ -41,6 +49,24 @@ class ReportsAuditSql:
             ), 0) AS revenue
         FROM job j
         LEFT JOIN job_invoice ji ON ji.job_id = j.id
+    """
+
+    GET_DASHBOARD_OPEN_JOBS_BY_PRODUCT = """
+        SELECT
+            COALESCE(p.name, 'Unknown') AS product_name,
+            COUNT(*) FILTER (
+                WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
+            ) AS warranty_count,
+            COUNT(*) FILTER (
+                WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
+            ) AS oow_count,
+            COUNT(*) AS total_count
+        FROM job j
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN product             p   ON p.id   = pbm.product_id
+        WHERE j.is_closed = false
+        GROUP BY p.name
+        ORDER BY total_count DESC
     """
 
     GET_DASHBOARD_MONTHLY_INTAKE = """
@@ -104,6 +130,82 @@ class ReportsAuditSql:
           AND j.job_date < (CURRENT_DATE - (table "p_overdue_days") * INTERVAL '1 day')
         ORDER BY j.job_date ASC, j.id ASC
         LIMIT (table "p_limit")
+    """
+
+    GET_DASHBOARD_JOBS_RECEIVED_LIST = """
+        with
+            "p_from" as (values(%(from)s::date)),
+            "p_to"   as (values(%(to)s::date))
+        SELECT
+            j.id, j.job_no, j.job_date,
+            cc.full_name              AS customer_name,
+            p.name                    AS product_name,
+            b.name                    AS brand_name,
+            pbm.model_name            AS model_name,
+            js.code                   AS status_code,
+            js.name                   AS status_name,
+            t.name                    AS technician_name,
+            (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS is_warranty
+        FROM job j
+        JOIN customer_contact         cc  ON cc.id  = j.customer_contact_id
+        JOIN job_status               js  ON js.id  = j.job_status_id
+        LEFT JOIN technician          t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand               b   ON b.id   = pbm.brand_id
+        LEFT JOIN product             p   ON p.id   = pbm.product_id
+        WHERE j.job_date BETWEEN (table "p_from") AND (table "p_to")
+          AND (
+              %(is_warranty)s::boolean IS NULL
+              OR (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) = %(is_warranty)s::boolean
+          )
+        ORDER BY j.job_date DESC, j.id DESC
+    """
+
+    GET_DASHBOARD_JOBS_DELIVERED_LIST = """
+        with
+            "p_from" as (values(%(from)s::date)),
+            "p_to"   as (values(%(to)s::date))
+        SELECT
+            j.id, j.job_no, j.job_date,
+            cc.full_name              AS customer_name,
+            p.name                    AS product_name,
+            b.name                    AS brand_name,
+            pbm.model_name            AS model_name,
+            js.code                   AS status_code,
+            js.name                   AS status_name,
+            t.name                    AS technician_name,
+            (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS is_warranty
+        FROM job j
+        JOIN customer_contact         cc  ON cc.id  = j.customer_contact_id
+        JOIN job_status               js  ON js.id  = j.job_status_id
+        LEFT JOIN technician          t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand               b   ON b.id   = pbm.brand_id
+        LEFT JOIN product             p   ON p.id   = pbm.product_id
+        WHERE j.delivery_date BETWEEN (table "p_from") AND (table "p_to")
+          AND j.is_closed = true
+        ORDER BY j.delivery_date DESC, j.id DESC
+    """
+
+    GET_DASHBOARD_REVENUE_DETAIL = """
+        with
+            "p_from" as (values(%(from)s::date)),
+            "p_to"   as (values(%(to)s::date))
+        SELECT
+            ji.id AS invoice_id,
+            j.job_no,
+            ji.invoice_date,
+            ji.amount,
+            cc.full_name              AS customer_name,
+            p.name                    AS product_name,
+            (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS is_warranty
+        FROM job_invoice ji
+        JOIN job                      j   ON j.id   = ji.job_id
+        JOIN customer_contact         cc  ON cc.id  = j.customer_contact_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN product             p   ON p.id   = pbm.product_id
+        WHERE ji.invoice_date BETWEEN (table "p_from") AND (table "p_to")
+        ORDER BY ji.invoice_date DESC, j.id DESC
     """
 
     GET_DASHBOARD_STATUS_MIX = """

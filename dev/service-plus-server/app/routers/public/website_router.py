@@ -1,5 +1,6 @@
 """
-Public, read-only REST API for the marketing website (service-plus-web).
+Public REST API for the company's marketing websites: service-plus-web (the
+Service+ product site) and kush-infotech-web (the parent company site).
 
 Endpoints:
     GET /api/public/companies    - Dropdown list of companies (BUs across active clients)
@@ -10,6 +11,7 @@ Endpoints:
     GET /api/public/parts        - Paginated spare-parts catalogue for a (company, branch)
     GET /api/public/parts/{id}   - Single catalogue part, with its full photo gallery
     POST /api/public/part-orders - Submit a spare-parts order request (no payment, §7)
+    POST /api/public/contact     - kush-infotech-web contact-form submission (email only, no DB row)
 
 Every route here is guarded by require_website_key (X-Website-Key header) and
 per-IP rate limiting. No amounts and no internal ids are ever returned — see
@@ -18,6 +20,7 @@ spare-parts routes are the one exception to "no amounts": `price` is the
 catalogue price being browsed, not an internal accounting figure — see
 plans/plan-parts-web.md §5.
 """
+import html
 from dataclasses import dataclass
 from typing import Callable
 
@@ -26,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.core.dependencies import require_website_key
 from app.core.email import send_email
 from app.core.rate_limit import rate_limit
@@ -115,6 +119,19 @@ class PartOrderIn(BaseModel):
 
 class PartOrderOut(BaseModel):
     order_id: int
+    status: str
+
+
+class ContactMessageIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    email: str = Field(min_length=1, max_length=200, pattern=r"^.+@.+\..+$")
+    phone: str | None = Field(default=None, max_length=30)
+    company: str | None = Field(default=None, max_length=200)
+    reason: str | None = Field(default=None, max_length=100)
+    message: str = Field(min_length=1, max_length=5000)
+
+
+class ContactMessageOut(BaseModel):
     status: str
 
 
@@ -603,3 +620,132 @@ async def submit_part_order(payload: PartOrderIn) -> PartOrderOut:
     await _notify_staff_of_order(db_name, schema, target, branches, order_id, total_amount)
 
     return PartOrderOut(order_id=order_id, status="NEW")
+
+
+# ─── kush-infotech-web contact form ────────────────────────────────────────────
+
+
+def _build_contact_email_text(payload: ContactMessageIn) -> str:
+    """Plain-text fallback — the whole message for clients that don't render HTML."""
+    return "\n".join(
+        [
+            f"Name: {payload.name}",
+            f"Email: {payload.email}",
+            f"Mobile / WhatsApp: {payload.phone or '—'}",
+            f"Company: {payload.company or '—'}",
+            f"Reason: {payload.reason or '—'}",
+            "",
+            payload.message,
+            "",
+            "—",
+            "Sent from the kush-infotech-web contact form. Reply to this email to respond directly.",
+        ]
+    )
+
+
+def _build_contact_email_html(payload: ContactMessageIn) -> str:
+    """Branded HTML notification — table-based layout (email-client safe, no
+    flexbox/grid), inline styles only (many clients strip <style> blocks)."""
+    esc = html.escape
+    message_html = esc(payload.message).replace("\n", "<br>")
+
+    def field_row(label: str, value: str | None, link: str | None = None) -> str:
+        display = esc(value) if value else "—"
+        if value and link:
+            display = f'<a href="{esc(link)}" style="color:#2563eb;text-decoration:none;">{display}</a>'
+        return f"""
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #e5e9f2;color:#64748b;font-size:13px;width:140px;vertical-align:top;">{label}</td>
+          <td style="padding:10px 0;border-bottom:1px solid #e5e9f2;color:#0f172a;font-size:14px;font-weight:600;vertical-align:top;">{display}</td>
+        </tr>"""
+
+    rows = "".join(
+        [
+            field_row("Name", payload.name),
+            field_row("Email", payload.email, link=f"mailto:{payload.email}"),
+            field_row("Mobile / WhatsApp", payload.phone),
+            field_row("Company", payload.company),
+            field_row("Reason", payload.reason),
+        ]
+    )
+
+    return f"""\
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f6fb;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+            <tr>
+              <td style="background:#2563eb;padding:24px 32px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="width:32px;height:32px;background:#ffffff;border-radius:8px;text-align:center;vertical-align:middle;font-size:15px;font-weight:700;color:#2563eb;">K</td>
+                    <td style="padding-left:10px;color:#ffffff;font-size:16px;font-weight:600;">Kush Infotech</td>
+                  </tr>
+                </table>
+                <div style="color:#dbeafe;font-size:13px;margin-top:12px;">New website inquiry</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 32px 8px 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  {rows}
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px 28px 32px;">
+                <div style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Message</div>
+                <div style="background:#eff6ff;border-left:3px solid #2563eb;border-radius:6px;padding:14px 16px;color:#0f172a;font-size:14px;line-height:1.6;">{message_html}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px 24px 32px;border-top:1px solid #e5e9f2;">
+                <div style="color:#94a3b8;font-size:12px;">Sent from the kush-infotech-web contact form. Reply to this email to respond directly to {esc(payload.name)}.</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>"""
+
+
+@router.post(
+    "/contact",
+    response_model=ContactMessageOut,
+    dependencies=[Depends(rate_limit("contact", limit=5, window_seconds=60))],
+)
+async def submit_contact_message(payload: ContactMessageIn) -> ContactMessageOut:
+    """
+    kush-infotech-web contact-form submission — no DB row, the email *is* the
+    submission. Unlike `_notify_staff_of_order` (which swallows email failures
+    because the order is already durably saved), a `send_email` failure here
+    must surface as a real error — otherwise the caller sees "success" while
+    the message is silently lost.
+    """
+    if not settings.contact_notify_email:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Contact form is not configured yet. Please email us directly.",
+        )
+
+    try:
+        await send_email(
+            to=settings.contact_notify_email,
+            subject=f"New Query from Service+ — {payload.name}",
+            body=_build_contact_email_text(payload),
+            html_body=_build_contact_email_html(payload),
+            reply_to=payload.email,
+        )
+    except Exception as mail_err:  # pylint: disable=broad-except
+        logger.warning("Failed to send contact-form email: %s", mail_err)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Something went wrong sending your message. Please try again.",
+        ) from mail_err
+
+    return ContactMessageOut(status="ok")

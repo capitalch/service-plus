@@ -4,7 +4,7 @@ import { ReportTable } from "../common/report-table";
 import type { ReportColumnType } from "../common/report-table";
 import { formatDateShort } from "../common/formatters";
 
-type JobRowType = {
+export type JobRowType = {
     brand_name: string | null;
     customer_name: string;
     id: number;
@@ -20,6 +20,7 @@ type JobRowType = {
 
 type Props = {
     jobs: JobRowType[];
+    showRowIndex?: boolean;
 };
 
 const COLUMNS: ReportColumnType<JobRowType>[] = [
@@ -86,13 +87,14 @@ const COLUMNS: ReportColumnType<JobRowType>[] = [
     },
 ];
 
-export const DashboardRecentJobs = ({ jobs }: Props) => {
+export const DashboardRecentJobs = ({ jobs, showRowIndex = false }: Props) => {
     return (
         <ReportTable
             columns={COLUMNS}
             emptyMessage="No recent jobs."
             rowKey={r => r.id}
             rows={jobs}
+            showRowIndex={showRowIndex}
             stickyHeader={false}
         />
     );

@@ -23,3 +23,10 @@ class EmailSettings(BaseSettings):
     smtp_user: str = Field(
         default="admin@kushinfotech.in", description="SMTP login username"
     )
+    contact_notify_email: str | None = Field(
+        default=None,
+        description="""Recipient for kush-infotech-web contact-form submissions
+            (POST /api/public/contact). Optional — kept unset-safe so a missing
+            .env value can't crash Settings() at import time; the endpoint itself
+            returns 503 when this is unset.""",
+    )

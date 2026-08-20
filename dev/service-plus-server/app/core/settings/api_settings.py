@@ -32,8 +32,11 @@ class ApiSettings(BaseSettings):
             "http://localhost:3000",
             "http://localhost:3002",
             "http://localhost:3003",
+            "http://localhost:3004",
             "https://serviceplus.kushinfotech.in",
             "https://serviceplus.capital-chowringhee.com",
+            "https://kushinfotech.in",
+            "https://www.kushinfotech.in",
         ],
         description="Allowed CORS origins. Set to the real client domain(s) in production.",
     )
