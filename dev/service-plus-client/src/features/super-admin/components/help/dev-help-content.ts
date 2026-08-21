@@ -624,7 +624,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
             { type: "bullets", items: [
                 "Each dialog takes { cell, onClose } — cell is null when closed, a populated object when a matrix cell was clicked; the parent owns the state (useState<CellType | null>(null)).",
                 "sqlId for the job-list query is either hardcoded (EventTrackingCellDialog always calls GET_EVENT_TRACKING_JOBS) or passed in per caller (CategoryRangeCellDialog takes cell.sqlId, so CategoryRangeMatrixSection's drillDownSqlId prop and Jobs Combined's per-stage STAGE_DETAIL map both resolve to one of GET_JOBS_RECEIVED_DETAIL / GET_JOBS_REPAIRED_OK_DETAIL / GET_JOBS_DELIVERED_OK_DETAIL / GET_JOB_TRANSACTIONS_DETAIL).",
-                "showFinancials / showCosts (dialog-specific prop name) gates the Cost/Sale/Profit columns — only wired on where the underlying jobs are already costed and invoiced (Delivered-related queries, Finalize/Deliver events).",
+                "showFinancials / showCosts (dialog-specific prop name) gates the Cost/Sale/Profit columns — only wired on where the underlying jobs are already costed (Delivered-related queries, Finalize/Deliver events). The figures come from the job's own job_part_used / job_additional_charge lines (sale = pre-GST selling total), never from job_invoice — a Finalize event fires before the job is invoiced, so an invoice-based profit would report every just-finalized job at a loss of its full cost.",
                 "Clicking a row in the job list opens JobFinalInfoModal(jobId) for the full per-job breakdown — every one of these dialogs nests it the same way.",
             ]},
             { type: "heading", text: "The invisible-while-nested trick — and the Overlay it doesn't cover" },

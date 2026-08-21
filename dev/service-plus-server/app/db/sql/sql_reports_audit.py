@@ -484,7 +484,25 @@ class ReportsAuditSql:
         with
             "p_from"       as (values(%(from)s::date)),
             "p_to"         as (values(%(to)s::date)),
-            "p_event_name" as (values(%(event_name)s::text))
+            "p_event_name" as (values(%(event_name)s::text)),
+            -- Cost/Sale/Profit come from the job's own finalized lines, never from
+            -- job_invoice: a Finalize event happens before the job is invoiced, so
+            -- an invoice-based figure would report every just-finalized job at a
+            -- loss of its full cost. Sale is the pre-GST selling total (what
+            -- job_invoice.aggregate later becomes), so these match the Job Final
+            -- Info panel this drill-down opens on row click.
+            parts as (
+                select job_id,
+                       SUM(cost_price * qty)    as parts_cost,
+                       SUM(selling_price * qty) as parts_sale
+                from job_part_used group by job_id
+            ),
+            charges as (
+                select job_id,
+                       SUM(cost_price * qty)    as charges_cost,
+                       SUM(selling_price * qty) as charges_sale
+                from job_additional_charge group by job_id
+            )
         (
             select
                 'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, cur_js.name as status_label,
@@ -492,8 +510,9 @@ class ReportsAuditSql:
                 (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
                 d.code as division_code,
                 COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
-                COALESCE(ji.aggregate, 0) as total_charges,
-                COALESCE(ji.aggregate, 0) - COALESCE(parts.parts_cost, 0) - COALESCE(charges.charges_cost, 0) as profit
+                COALESCE(parts.parts_sale, 0) + COALESCE(charges.charges_sale, 0) as total_charges,
+                COALESCE(parts.parts_sale, 0) + COALESCE(charges.charges_sale, 0)
+                  - COALESCE(parts.parts_cost, 0) - COALESCE(charges.charges_cost, 0) as profit
             from job j
             left join job_status cur_js on cur_js.id = j.job_status_id
             left join customer_contact cc on cc.id = j.customer_contact_id
@@ -501,13 +520,8 @@ class ReportsAuditSql:
             left join brand b on b.id = pbm.brand_id
             left join product p on p.id = pbm.product_id
             left join division d on d.id = j.division_id
-            left join job_invoice ji on ji.job_id = j.id
-            left join (
-                select job_id, SUM(cost_price * qty) as parts_cost from job_part_used group by job_id
-            ) parts on parts.job_id = j.id
-            left join (
-                select job_id, SUM(cost_price * qty) as charges_cost from job_additional_charge group by job_id
-            ) charges on charges.job_id = j.id
+            left join parts   on parts.job_id   = j.id
+            left join charges on charges.job_id = j.id
             where (table "p_event_name") = 'Received'
               and j.job_date between (table "p_from") and (table "p_to")
         )
@@ -519,8 +533,9 @@ class ReportsAuditSql:
                 (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
                 d.code as division_code,
                 COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
-                COALESCE(ji.aggregate, 0) as total_charges,
-                COALESCE(ji.aggregate, 0) - COALESCE(parts.parts_cost, 0) - COALESCE(charges.charges_cost, 0) as profit
+                COALESCE(parts.parts_sale, 0) + COALESCE(charges.charges_sale, 0) as total_charges,
+                COALESCE(parts.parts_sale, 0) + COALESCE(charges.charges_sale, 0)
+                  - COALESCE(parts.parts_cost, 0) - COALESCE(charges.charges_cost, 0) as profit
             from job_transaction jt
             join job j on j.id = jt.job_id
             join job_status js on js.id = jt.status_id
@@ -529,13 +544,8 @@ class ReportsAuditSql:
             left join brand b on b.id = pbm.brand_id
             left join product p on p.id = pbm.product_id
             left join division d on d.id = j.division_id
-            left join job_invoice ji on ji.job_id = j.id
-            left join (
-                select job_id, SUM(cost_price * qty) as parts_cost from job_part_used group by job_id
-            ) parts on parts.job_id = j.id
-            left join (
-                select job_id, SUM(cost_price * qty) as charges_cost from job_additional_charge group by job_id
-            ) charges on charges.job_id = j.id
+            left join parts   on parts.job_id   = j.id
+            left join charges on charges.job_id = j.id
             where (table "p_event_name") <> 'Received'
               and jt.transaction_date between (table "p_from") and (table "p_to")
               and (
