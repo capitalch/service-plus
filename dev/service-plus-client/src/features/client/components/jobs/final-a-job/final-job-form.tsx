@@ -26,16 +26,24 @@ import {
 import { fmtCurrency, thClass, tdClass, calculateLinePricing } from "./final-a-job-helpers";
 import { ChargeNameCombobox } from "./charge-name-combobox";
 import { isValidGstin, normalizeGstin } from "@/lib/gstin";
-import { allocateFloored, pickResidualKey, type FloorAllocItem } from "@/lib/back-calc";
+import { allocateFloored, pickResidualKey, snapInclToWholeRupee, type FloorAllocItem } from "@/lib/back-calc";
 import { isValidMobile } from "@/lib/mobile";
 
 // ─── Apply-target helpers (only used in this view) ───────────────────────────
 
-// Labour charges are the last-resort lever during Apply: they are only adjusted
-// once parts and every non-labour charge have been exhausted (in both the
-// increase and decrease directions). Matches "labour"/"labor", case-insensitive.
 function isLabourCharge(c: EditableChargeLine): boolean {
     return /lab(ou)?r/i.test(c.charge_name);
+}
+
+function isServiceCharge(c: EditableChargeLine): boolean {
+    return /service\s*charge/i.test(c.charge_name);
+}
+
+// Labour and Service Charge are both held back as the last-resort lever during
+// Apply: they are only adjusted once parts and every other Additional Charge
+// have been exhausted (in both the increase and decrease directions).
+function isLastResortCharge(c: EditableChargeLine): boolean {
+    return isLabourCharge(c) || isServiceCharge(c);
 }
 
 function scaleCharges(
@@ -61,8 +69,14 @@ function scaleCharges(
         const gstRate = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
         const multiplier = 1 + gstRate / 100;
         const spg = (finalIncl.get(c._key) ?? 0) / qty;
-        const sp = parseFloat((gstRate > 0 ? spg / multiplier : spg).toFixed(2));
-        const saleGst = parseFloat((sp * multiplier).toFixed(2));
+        let sp: number, saleGst: number;
+        if (pinned.has(c._key)) {
+            // Already floored to ₹0 by allocateFloored — leave as-is, don't nudge above the floor.
+            sp = parseFloat((gstRate > 0 ? spg / multiplier : spg).toFixed(2));
+            saleGst = parseFloat((sp * multiplier).toFixed(2));
+        } else {
+            ({ sp, incl: saleGst } = snapInclToWholeRupee(spg, 0, multiplier));
+        }
         runningTotal += saleGst * qty;
         patch.set(c._key, { selling_price: sp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
     });
@@ -113,9 +127,15 @@ function scaleParts(
         const multiplier = 1 + gstRate / 100;
         const floor = allowBelowCost ? 0 : (parseFloat(l.cost_price) || 0);
         const spg = (finalIncl.get(l._key) ?? 0) / l.qty;
-        const sp = gstRate > 0 ? spg / multiplier : spg;
-        const finalSp = parseFloat(Math.max(sp, floor).toFixed(2));
-        const saleGst = parseFloat((finalSp * multiplier).toFixed(2));
+        let finalSp: number, saleGst: number;
+        if (pinned.has(l._key)) {
+            // Already floored at cost (or ₹0) by allocateFloored — leave as-is, don't nudge above the floor.
+            const sp = gstRate > 0 ? spg / multiplier : spg;
+            finalSp = parseFloat(Math.max(sp, floor).toFixed(2));
+            saleGst = parseFloat((finalSp * multiplier).toFixed(2));
+        } else {
+            ({ sp: finalSp, incl: saleGst } = snapInclToWholeRupee(spg, floor, multiplier));
+        }
         runningTotal += saleGst * l.qty;
         patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
     });
@@ -140,7 +160,7 @@ function computeBackCalc(
     partLines: EditablePartLine[],
     chargeLines: EditableChargeLine[],
     isGst: boolean,
-): { newPartLines?: EditablePartLine[]; newChargeLines?: EditableChargeLine[]; wentBelowCost?: boolean; touchedLabour?: boolean } {
+): { newPartLines?: EditablePartLine[]; newChargeLines?: EditableChargeLine[]; wentBelowCost?: boolean; touchedLastResort?: boolean } {
     const total = (parts: EditablePartLine[], charges: EditableChargeLine[]) =>
         parts.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0) +
         charges.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
@@ -148,10 +168,10 @@ function computeBackCalc(
     const diff = target - total(partLines, chargeLines);
     if (Math.abs(diff) < 0.005) return {};
 
-    const activeParts      = partLines.filter(l => l.part_id !== null);
-    const activeCharges    = chargeLines.filter(c => c.charge_name.trim() !== "");
-    const nonLabourCharges = activeCharges.filter(c => !isLabourCharge(c));
-    const labourCharges    = activeCharges.filter(c => isLabourCharge(c));
+    const activeParts          = partLines.filter(l => l.part_id !== null);
+    const activeCharges        = chargeLines.filter(c => c.charge_name.trim() !== "");
+    const nonLastResortCharges = activeCharges.filter(c => !isLastResortCharge(c));
+    const lastResortCharges    = activeCharges.filter(c => isLastResortCharge(c));
 
     let newPartLines: EditablePartLine[] | undefined;
     let newChargeLines: EditableChargeLine[] | undefined;
@@ -170,24 +190,26 @@ function computeBackCalc(
         }
     }
 
-    // Step 2: absorb the remainder in NON-LABOUR Additional Charges, down to zero.
-    // Labour charges are held at their current value here.
-    if (nonLabourCharges.length > 0) {
-        const curNonLabourAmt = total([], nonLabourCharges);
-        const newNonLabourAmt = curNonLabourAmt + remainingDiff;
-        if (newNonLabourAmt >= 0) {
-            newChargeLines = scaleCharges(curCharges(), nonLabourCharges, newNonLabourAmt, isGst);
+    // Step 2: absorb the remainder in Additional Charges other than Labour/Service
+    // Charge, down to zero. Labour and Service Charge are held at their current
+    // value here.
+    if (nonLastResortCharges.length > 0) {
+        const curNonLastResortAmt = total([], nonLastResortCharges);
+        const newNonLastResortAmt = curNonLastResortAmt + remainingDiff;
+        if (newNonLastResortAmt >= 0) {
+            newChargeLines = scaleCharges(curCharges(), nonLastResortCharges, newNonLastResortAmt, isGst);
             return { newPartLines, newChargeLines };
         }
-        // Non-labour charges alone can't absorb the rest — zero them out (leaving
-        // labour untouched) and carry the shortfall onto parts in step 3.
+        // Non-last-resort charges alone can't absorb the rest — zero them out
+        // (leaving Labour/Service Charge untouched) and carry the shortfall onto
+        // parts in step 3.
         newChargeLines = curCharges().map(c =>
-            (c.charge_name.trim() && !isLabourCharge(c)) ? { ...c, selling_price: "0", sale_pr_gst: "0" } : c);
+            (c.charge_name.trim() && !isLastResortCharge(c)) ? { ...c, selling_price: "0", sale_pr_gst: "0" } : c);
         remainingDiff = target - total(curParts(), curCharges());
     }
 
-    // Step 3: parts at cost and non-labour charges at zero still don't reach the
-    // target — let part selling prices drop below cost price (at a loss).
+    // Step 3: parts at cost and non-last-resort charges at zero still don't reach
+    // the target — let part selling prices drop below cost price (at a loss).
     if (Math.abs(remainingDiff) >= 0.005 && activeParts.length > 0) {
         const basisParts = curParts();
         const basisActiveParts = basisParts.filter(l => l.part_id !== null);
@@ -200,13 +222,14 @@ function computeBackCalc(
         }
     }
 
-    // Step 4: everything else is exhausted — adjust LABOUR charges as the last
-    // resort (down to zero, or up when there is nothing else to increase).
-    if (Math.abs(remainingDiff) >= 0.005 && labourCharges.length > 0) {
-        const curLabourAmt = total([], labourCharges);
-        const newLabourAmt = Math.max(0, curLabourAmt + remainingDiff);
-        newChargeLines = scaleCharges(curCharges(), labourCharges, newLabourAmt, isGst);
-        return { newPartLines, newChargeLines, wentBelowCost, touchedLabour: true };
+    // Step 4: everything else is exhausted — adjust Labour and Service Charge
+    // together as the last resort (down to zero, or up when there is nothing
+    // else to increase).
+    if (Math.abs(remainingDiff) >= 0.005 && lastResortCharges.length > 0) {
+        const curLastResortAmt = total([], lastResortCharges);
+        const newLastResortAmt = Math.max(0, curLastResortAmt + remainingDiff);
+        newChargeLines = scaleCharges(curCharges(), lastResortCharges, newLastResortAmt, isGst);
+        return { newPartLines, newChargeLines, wentBelowCost, touchedLastResort: true };
     }
 
     return { newPartLines, newChargeLines, wentBelowCost };

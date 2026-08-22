@@ -56,3 +56,16 @@ export function pickResidualKey(items: { key: string; qty: number }[], pinned: S
     if (nonPinned.length) return nonPinned[nonPinned.length - 1].key;
     return items[items.length - 1].key;
 }
+
+/**
+ * Rounds an ideal GST-inclusive unit price to the nearest whole rupee (never
+ * below floor), then derives the excl-GST price by simple division. This is a
+ * straight round-to-nearest — no search — so the derived excl-GST price can be
+ * off from `incl / multiplier` by a paisa or two once re-multiplied; that's the
+ * accepted trade-off for a clean whole-rupee line amount.
+ */
+export function snapInclToWholeRupee(idealIncl: number, floor: number, multiplier: number): { sp: number; incl: number } {
+    const whole = Math.max(Math.round(idealIncl), Math.ceil(floor * multiplier));
+    const sp = parseFloat(Math.max(whole / multiplier, floor).toFixed(2));
+    return { sp, incl: whole };
+}
