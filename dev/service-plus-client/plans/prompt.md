@@ -1,2 +1,15 @@
-# Modifications needed
-- Reports > Event Tracking: Finalize: Drill Down should correctly show the total profit for the job. At present it gives wrong figures.
+# Whatsapp implementation further
+- I have activated whatsapp business API messaging for my meta account succesfully at meta systems, I have valid whatsapp phone number id and access token. These two are only required to send whatsapp message through api which I already checked through a pilot project, and it is working as expected.
+- Please create appropriate section in .env.example for whatsapp credentials and create the placeholder keys. I will provide the values in .env file.
+- I want to itegrate whatsapp from scratch in service plus server without disturbing current codebase, it should be a new addition. If required remove the earlier implementation at server.
+- I want to integrate whatsapp as follows at present:
+    - For completed OK with finalized jobs only
+        - When user opens customemr Connect screen at client, all ready and final jobs are visible to user. All rows with 0 messages sent are already selected. Success or failure message count > 0 are not selected.
+        - User can select additional rows if desired
+        - User clicks Send messages button
+        - Proper repaired OK messages are sent through server whatsapp api. Server selects appropriate whatsapp template to send the message.
+        - Success or failure of message is tracked through webhooks, which needs to be implemented at server. Success count or failure counts are recorded in database. Please implement appropriate webhooks and give me specifications, such that I can configure them in Meta "Configure Webhooks" section in meta business whatsapp website.
+        - The user is shown appropriate permanent notification on screen(Not time based) and customer connect screen is refreshed to show proper success or failure attempts.
+    - Other implementations of whatsapp will follow next, once this implementation is successfully done. At present I only want the above implementation
+- Please suggest the best way to implement above. Do not make any chnages to current implementation for now. I will review and approve.
+- Write your approach to plans/plan.md

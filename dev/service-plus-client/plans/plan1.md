@@ -16,7 +16,7 @@ webhooks. **Every other WhatsApp flow is deleted** from client and server.
 |---|---|
 | Platform | WhatsApp Cloud API, direct with Meta. No BSP. Code already calls `graph.facebook.com`. |
 | Sender | One shared `phone_number_id` for all tenants, permanently. |
-| Webhook → tenant | Central `whatsapp_message` outbox in the **control DB**, keyed on `wamid`. |
+| Webhook → tenant | Self-describing callback via `biz_opaque_callback_data`; a minimal routing table **only if** Meta doesn't echo it for templates (§Phase 2). Fan-out rejected. |
 | "Success" means | **Delivered** (per webhook), not API-accepted. |
 | Grouping | One message per **customer**, may cover several jobs. |
 | Template | `job_completed_ready_for_pickup_v1`, category **Utility**. The only template. |
@@ -51,20 +51,92 @@ server   app/whatsapp/                      (new package, Phase 3)
 
 ## Phase 0 — Meta side, no code
 
-1. **Permanent token.** Business Settings → Users → System Users → Add → assign the app
-   with Full control → Generate new token → scopes `whatsapp_business_messaging` +
-   `whatsapp_business_management` → expiry **Never**.
-   *The token on the WhatsApp → API Setup page expires in 24 hours — do not use it.*
-2. **Subscribe the WABA to the app:**
-   ```bash
-   curl -X POST "https://graph.facebook.com/v20.0/<WABA_ID>/subscribed_apps" \
-     -H "Authorization: Bearer <ACCESS_TOKEN>"
-   ```
-   ✅ `GET /<WABA_ID>/subscribed_apps` lists your app.
-   *Without this, sends work and no callback ever arrives.*
-3. **Submit the template** (text below). Approval takes minutes to a day — do it first.
-4. **Grab the App Secret:** App Settings → Basic.
-5. **Invent a verify token** (any strong random string).
+Meta nests four objects, and the credentials come from four different levels of it.
+That, not the steps, is what makes this phase confusing:
+
+```
+Business Portfolio  (business.facebook.com)
+├── Meta App        (developers.facebook.com/apps)   App ID + App Secret
+│     └── WhatsApp product                            ← webhook URL configured HERE
+├── WABA                                              WABA ID
+│     ├── Phone number → Phone Number ID
+│     └── Message templates                           ← templates live HERE, not on the App
+└── System User                                       ← the permanent token
+```
+
+Because App and WABA are separate objects, pointing the App at a webhook URL does **not**
+make the WABA emit events to it — hence step 5.
+
+| # | Get | Where | Fills |
+|---|---|---|---|
+| 1 | Permanent access token | Business Settings → Users → **System Users** | `WHATSAPP_ACCESS_TOKEN` |
+| 2 | Phone Number ID + WABA ID | App → WhatsApp → **API Setup** | `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_WABA_ID` |
+| 3 | App Secret | App → **App Settings → Basic** | `WHATSAPP_APP_SECRET` |
+| 4 | Verify token | **you invent it** — `openssl rand -hex 32` | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` |
+| 5 | WABA→App subscription | `curl` below | — |
+| 6 | Approved template | WhatsApp Manager → **Message templates** | — |
+
+**1. Token.** Add a System User → **assign two assets: the App *and* the WABA**, both
+Full control → Generate new token → select the App → expiry **Never** → scopes
+`whatsapp_business_messaging` + `whatsapp_business_management`. Shown once; copy it.
+*The token on the API Setup page expires in 24 hours — do not use it.* Assigning the App
+but forgetting the WABA yields a valid token that is powerless over your WABA — the
+errors look like a bad token.
+
+**2. IDs.** Phone Number ID is a long numeric string, **not** the phone number.
+
+**3. App Secret** is used only locally, to verify `X-Hub-Signature-256` on inbound
+webhooks. Never sent to Meta.
+
+**4. Verify token vs App Secret** — the pair that confuses everyone:
+
+| | Verify token | App Secret |
+|---|---|---|
+| Created by | You | Meta |
+| Used | Once, at webhook setup | Every inbound webhook |
+| Proves | You own the endpoint | The request came from Meta |
+
+**5. Subscribe the WABA to the App:**
+```bash
+curl -X POST "https://graph.facebook.com/v20.0/<WABA_ID>/subscribed_apps" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+Do it now — it links WABA to App and does not depend on the callback URL, which is not
+set until Phase 4. **Without it, sends work and no callback ever arrives**, silently.
+
+**7. Echo test — decides Phase 2.** Send one template message with
+`biz_opaque_callback_data` set to a sentinel, and check whether the status callback echoes
+it back in `statuses[]`. If yes, no routing table is ever needed. Do this as soon as the
+template is approved and a webhook endpoint can receive anything at all — it is 15 minutes
+and it removes or confirms a whole phase of work.
+
+**6. Template.** Text in the template section below. Sample values are **mandatory**, and
+an approved template **cannot be edited** — a change means `_v2` and another wait. Get
+the `₹`-inside-`amount_payable` detail right first time. Variables must use **named**
+placeholders (`{{customer_name}}`), not `{{1}}` — Meta rejects positional ones outright.
+Submit early: usually minutes, up to a day.
+
+### Verify before writing any code
+
+```bash
+# Token really is permanent → expires_at must be 0
+curl -s "https://graph.facebook.com/v20.0/debug_token?input_token=<TOKEN>&access_token=<TOKEN>"
+
+# WABA subscribed → your app appears in data[]
+curl -s "https://graph.facebook.com/v20.0/<WABA_ID>/subscribed_apps" \
+  -H "Authorization: Bearer <TOKEN>"
+
+# Template live → status: APPROVED
+curl -s "https://graph.facebook.com/v20.0/<WABA_ID>/message_templates?name=job_completed_ready_for_pickup_v1" \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+`expires_at: 0` is the only proof you got a permanent token — the two token types look
+identical as strings.
+
+*Meta renames these UI sections often (Business Manager → Business Portfolio, WhatsApp
+Manager nav has moved more than once). The hierarchy and the API calls are stable; if a
+label doesn't match, the object is still at the same place in the nest.*
 
 ---
 
@@ -92,34 +164,85 @@ Provider (BSP)", which is wrong.
 
 ---
 
-## Phase 2 — Outbox table (control DB, `public` schema)
+## Phase 2 — Tenant routing for the callback
+
+### The problem, stated once
+
+A status callback carries a `wamid` and nothing else — no job, customer, branch, BU or
+tenant database. **Whatever is not recorded at send time is unrecoverable at callback
+time.** With many tenant DBs, there are only two workable answers.
+
+**Fan-out is not one of them.** It is this codebase's existing pattern for anonymous
+callers (`app/services/public_directory.py:71-104`), but `whatsapp_notifications` has no
+index — and there is no GIN index anywhere in the repo, all 70 are btree. So each probe
+is a **sequential scan of `job`, per BU schema, per tenant DB, per callback**, with Meta
+sending 2–3 callbacks per message. Rejected on cost.
+
+### 2a. First, test `biz_opaque_callback_data` — it may delete this phase
+
+Meta's send API accepts an arbitrary string echoed back in the status webhook. The
+status-webhook reference lists it verbatim: *"String assigned by the business to the
+`biz_opaque_callback_data` property in the send message request."* Limit **512
+characters**.
+
+Set it to `db_name|schema|job_id,job_id,…` and the callback arrives already knowing its
+tenant and its jobs. **No table, no index, no lookup.**
+
+**Verify before relying on it.** Meta's changelog describes the field as added *"to
+free-form messages"*, and it is not listed as a top-level parameter on either the
+messages reference or the newer Message API page — so template support is
+**undocumented, not confirmed**. Today's `{{1}}` rejection is a fresh reminder that
+Meta's behaviour and its docs diverge.
+
+> **The test (~15 min, do it in Phase 0):** send one template message with
+> `biz_opaque_callback_data` set to a known sentinel, log the raw webhook body, and check
+> whether `statuses[]` echoes it. That one result picks 2a or 2b.
+
+If echoed → nothing else in this phase is needed. Cap jobs-per-message so the string
+stays under 512 (~40 ids is comfortable); split a larger customer group into two messages.
+Assert the cap in a unit test, not at runtime.
+
+### 2b. Fallback only — a minimal routing table (control DB `service_plus_client`)
 
 ```sql
-CREATE TABLE whatsapp_message (
-    id                  bigserial PRIMARY KEY,
-    wamid               text UNIQUE,
-    db_name             text        NOT NULL,
-    schema_name         text        NOT NULL,
-    branch_id           bigint      NOT NULL,
-    phone_number_id     text        NOT NULL,
-    event_type          text        NOT NULL,
-    template_name       text        NOT NULL,
-    customer_contact_id bigint      NOT NULL,
-    job_ids             bigint[]    NOT NULL,
-    to_mobile           text        NOT NULL,
-    status              text        NOT NULL DEFAULT 'PENDING',
-    error_code          text,
-    error_message       text,
-    accepted_at         timestamptz,
-    delivered_at        timestamptz,
-    read_at             timestamptz,
-    failed_at           timestamptz,
-    created_at          timestamptz NOT NULL DEFAULT now(),
-    updated_at          timestamptz NOT NULL DEFAULT now()
+CREATE TABLE IF NOT EXISTS whatsapp_message_route (
+    wamid       text PRIMARY KEY,
+    db_name     text        NOT NULL,
+    schema_name text        NOT NULL,
+    job_ids     bigint[]    NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX ix_whatsapp_message_wamid  ON whatsapp_message (wamid);
-CREATE INDEX ix_whatsapp_message_tenant ON whatsapp_message (db_name, schema_name, branch_id);
 ```
+
+Five columns, one job: turn a wamid into a tenant and a job list. An earlier draft of this
+plan specified an 18-column audit outbox; those other columns existed for a send history
+that is **not wanted** — current state per job is enough. Prune rows older than ~30 days;
+a callback for a pruned row is ignored.
+
+**Creating it — note there is no migration system in this repo.** No alembic, no version
+table; tenant DDL is a generated string replayed at provisioning
+(`app/db/tools/extract_schema.py`), and the control DB is assumed to pre-exist. Nothing
+creates `service_plus_client` or its single existing table `public.client`. So:
+`exec_sql_dml(db_name=None, schema="public", …)` with `CREATE TABLE IF NOT EXISTS` from
+the lifespan startup in `app/main.py:46-53` — a new pattern for this repo — and update
+`app/db/schema_dumps/service_plus_client.sql` **by hand**, since no code reads or syncs it.
+
+### 2c. Fix the counter race — required either way
+
+`build_notification_update_args` (`app/notifications/whatsapp_helpers.py:41-48`) reads
+counters into Python and `jsonb_set`s the whole event object back. It is **already racy**;
+once a webhook writes the same key concurrently with a send, updates clobber each other.
+Increment SQL-side:
+
+```sql
+UPDATE job SET whatsapp_notifications = jsonb_set(
+    COALESCE(whatsapp_notifications, '{}'::jsonb),
+    '{JOB_COMPLETION,success_count}',
+    to_jsonb(COALESCE((whatsapp_notifications->'JOB_COMPLETION'->>'success_count')::int, 0) + 1)
+) WHERE id = %(job_id)s
+```
+
+### Status ladder
 
 Status ladder — **never move backwards** (Meta reorders and retries):
 `PENDING(0) < ACCEPTED(1) < SENT(2) < DELIVERED(3) < READ(4)`, `FAILED(9)` terminal.
@@ -151,9 +274,12 @@ Written in two places, not one: `sender.py` records the **attempt** (`attempt_co
 success.
 
 The client type already matches — `customer-connect-schema.ts` →
-`WhatsappCompletionState`. Add `attempt_count` and `last_wamid` to it.
+`WhatsappCompletionState`. Add `attempt_count` and `last_wamid` to it. Note the grid only
+understands `SENT`/`FAILED` today (`customer-connect-grid.tsx:23`), so `DELIVERED`/`READ`
+render as nothing until Phase 6 updates it — safe, but silently useless.
 
-✅ Insert/lookup/settle unit-tested against the control DB.
+✅ The echo test has picked 2a or 2b.
+✅ Concurrent send + callback for one job leaves both counters intact.
 
 ---
 
@@ -171,7 +297,9 @@ The client type already matches — `customer-connect-schema.ts` →
 
 ## Phase 3 — Send path (`app/whatsapp/`)
 
-New package: `client.py`, `templates.py`, `mobile.py`, `outbox.py`, `sender.py`.
+New package: `client.py`, `templates.py`, `mobile.py`, `sender.py` — plus `routing.py`
+only under Phase 2b (the fallback table); under 2a the routing lives in the callback data
+and needs no module.
 Move the existing logic across under Cloud-API naming, minus everything document-related.
 
 `TemplateSpec` — gains a text header, **loses `has_document`** (no PDF template exists
@@ -191,15 +319,46 @@ class TemplateSpec:
 only — **`upload_media()` is deleted** along with the document-header branch inside
 `send_template`.
 
+`send_template` emits **two** components, header and body. The template uses **named**
+parameters (§template), so every entry carries a `parameter_name` — order is no longer
+what binds a value to a slot:
+
+```jsonc
+"components": [
+  { "type": "header", "parameters": [
+      { "type": "text", "parameter_name": "business_unit",  "text": "Kush Electronics" }
+  ]},
+  { "type": "body", "parameters": [
+      { "type": "text", "parameter_name": "customer_name",  "text": "Ramesh Kumar" },
+      { "type": "text", "parameter_name": "job_no",         "text": "JOB-2026-00412" },
+      { "type": "text", "parameter_name": "device",         "text": "Samsung / Refrigerator" },
+      { "type": "text", "parameter_name": "branch_name",    "text": "Salt Lake" },
+      { "type": "text", "parameter_name": "amount_payable", "text": "₹2,450.00" },
+      { "type": "text", "parameter_name": "branch_contact", "text": "033-4000-1234" }
+  ]}
+]
+```
+
+The existing `send_template` builds a single positional body array from
+`TemplateSpec.params`. It must now build one array per component **and** attach
+`parameter_name` to each entry. A named template rejects positional parameters and
+vice-versa — the two cannot be mixed.
+
 Send sequence:
 
 1. Re-filter server-side — never trust the client's selection (`COMPLETED_OK`,
    `is_final`, correct branch).
 2. Group by `customer_contact_id`.
-3. **Insert the outbox row first** (`PENDING`), then POST.
-4. On 200 → store `wamid`, set `ACCEPTED`, bump `attempt_count` on each job.
-   On error → `FAILED` + `fail_count`, keeping the permanent/transient classification.
+3. Set **`biz_opaque_callback_data`** on the send to `db_name|schema|job_ids` (§Phase 2a).
+   Under 2b, insert the `whatsapp_message_route` row *before* the POST instead.
+4. On 200 → **persist the `wamid`** on each job (`last_wamid`), set `ACCEPTED`, bump
+   `attempt_count`. On error → `FAILED` + `fail_count`, keeping the permanent/transient
+   classification.
 5. Return per-customer *dispatch* results — not delivery.
+
+`whatsapp_client.py:35,118` already captures the wamid as
+`WhatsappSendResult.provider_message_id` and **nothing reads it** — it is logged and
+dropped. Persisting it is the single change that makes delivery tracking possible.
 
 Keep `asyncio.Semaphore(5)`.
 
@@ -208,13 +367,13 @@ reaches Meta:
 
 | Slot | Rule |
 |---|---|
-| Header `{{1}}` BU name | Truncate to fit the 60-char header (~40 usable). Cut at a word boundary. |
-| `{{2}}` job numbers | Join up to 3, then `"…and N more"`. Single line. |
-| `{{3}}` device | One job → device string; more than one → `"N items"`. Single line. |
-| `{{5}}` amount | `SUM(amount) == 0` → the literal string **`"No charge"`**; otherwise `"₹2,450.00"` — symbol included in the value, not in the template. |
+| `business_unit` (header) | Truncate to fit the 60-char header (~40 usable). Cut at a word boundary. |
+| `job_no` | Join up to 3, then `"…and N more"`. Single line. |
+| `device` | One job → device string; more than one → `"N items"`. Single line. |
+| `amount_payable` | `SUM(amount) == 0` → the literal string **`"No charge"`**; otherwise `"₹2,450.00"` — symbol included in the value, not in the template. |
 | all | Strip newlines/tabs, collapse 4+ spaces — Meta rejects the send otherwise. |
 
-✅ Real send → outbox row shows `ACCEPTED` with a `wamid`.
+✅ Real send → the job's `whatsapp_notifications` shows `ACCEPTED` with a `last_wamid`.
 ✅ A zero-amount job renders "No charge", not "₹0.00".
 
 ---
@@ -246,7 +405,12 @@ Must be public HTTPS with a valid cert — use a tunnel for local dev.
 2. Parse **all** of `entry[].changes[].value.statuses[]` (Meta batches them). Ignore
    `changes[]` whose `field` isn't `messages`. Tolerate `value.messages[]` — inbound
    replies will arrive; log and drop, don't crash.
-3. Look up `wamid` in the outbox → gives `db_name`, `schema_name`, `job_ids`.
+3. **Resolve the tenant** — under 2a, decode `statuses[].biz_opaque_callback_data` into
+   `db_name`, `schema`, `job_ids`; under 2b, look the `wamid` up in
+   `whatsapp_message_route`. Never fan out across tenant DBs (§Phase 2 — unindexed jsonb
+   means a seq scan of `job` per schema per tenant, on every callback).
+   Under 2a the routing data is attacker-controlled *only if* step 1 is skipped — the
+   HMAC check is what makes it trustworthy, so it is not optional.
 4. Apply the status ladder; fan the outcome out to every job in `job_ids`.
 5. **Always return 200 fast**, even on unknown `wamid` — a 500 buys an infinite retry
    loop. Log and move on.
@@ -405,7 +569,7 @@ rows where status and flag have drifted apart.
 |---|---|
 | `app/routers/notifications/whatsapp_router.py` | The whole PDF REST endpoint |
 | `app/notifications/whatsapp_client.py` | Superseded by `app/whatsapp/client.py` |
-| `app/notifications/whatsapp_helpers.py` | Superseded by `app/whatsapp/mobile.py` + outbox |
+| `app/notifications/whatsapp_helpers.py` | Superseded by `app/whatsapp/mobile.py`; its racy counter builder is replaced per §2c |
 | `app/notifications/whatsapp_templates.py` | Superseded by `app/whatsapp/templates.py` |
 | `app/graphql/resolvers/jobs/whatsapp.py` | Rewritten inside `app/whatsapp/sender.py` |
 
@@ -443,22 +607,29 @@ WhatsApp Manager → Account tools → Message templates → Create template.
 - **Language:** plain **English** (`en`). If you submit as English (US) it approves as
   `en_US` and every send fails — `templates.py` hardcodes `en`.
 
-**Header** (type: Text):
+> **Named parameters, not positional.** Meta rejects `{{1}}`-style placeholders with:
+> *"Variable parameters must be lowercase characters, underscores and numbers with two
+> sets of curly brackets."* Every variable below is a **name** — lowercase letters,
+> digits and underscores only. A template is either all-named or all-positional; it
+> cannot mix, and the choice cannot be changed after approval.
+
+**Header** (type: Text) — one variable, the **Business Unit name**.
+Paste exactly as shown:
 ```
-Service Update from {{1}}
+Service Update from {{business_unit}}
 ```
 
-**Body:**
+**Body** — six variables. Paste exactly as shown:
 ```
-Hello {{1}},
+Hello {{customer_name}},
 
 Your service request is complete and your device is ready for collection.
 
-Job No: {{2}}
-Device: {{3}}
-Branch: {{4}}
-Amount Payable: {{5}}
-Branch Contact: {{6}}
+Job No: {{job_no}}
+Device: {{device}}
+Branch: {{branch_name}}
+Amount Payable: {{amount_payable}}
+Branch Contact: {{branch_contact}}
 
 Please carry a copy of your job sheet when collecting the device.
 ```
@@ -471,29 +642,35 @@ Thank you for choosing us.
 **Buttons:** none. Phone/URL buttons are static per template, so one button can't carry
 each branch's number.
 
-| Slot | Value | Sample |
-|---|---|---|
-| Header `{{1}}` | BU name — `security.bu.name` | Kush Electronics |
-| Body `{{1}}` | Customer name | Ramesh Kumar |
-| Body `{{2}}` | Job number(s) | JOB-2026-00412 |
-| Body `{{3}}` | Device details | Samsung / Refrigerator / RT28B |
-| Body `{{4}}` | Branch name | Salt Lake |
-| Body `{{5}}` | Amount **including ₹**, or `"No charge"` when zero | ₹2,450.00 |
-| Body `{{6}}` | Branch phone | 033-4000-1234 |
+| Component | Parameter name | Value | Sample |
+|---|---|---|---|
+| Header | `business_unit` | BU name — `security.bu.name` | Kush Electronics |
+| Body | `customer_name` | Customer name | Ramesh Kumar |
+| Body | `job_no` | Job number(s) | JOB-2026-00412 |
+| Body | `device` | Device details | Samsung / Refrigerator / RT28B |
+| Body | `branch_name` | Branch name | Salt Lake |
+| Body | `amount_payable` | Amount **including ₹**, or `"No charge"` when zero | ₹2,450.00 |
+| Body | `branch_contact` | Branch phone | 033-4000-1234 |
 
-The currency symbol lives **inside** `{{5}}`, not in the template text — otherwise a
-zero-amount job renders `₹No charge`.
+Names are per-component, so the header's `business_unit` and the body's six are
+independent sets. Meta requires a sample value for each.
+
+The currency symbol lives **inside** `amount_payable`, not in the template text —
+otherwise a zero-amount job renders `₹No charge`.
 
 **Rules that will break sends if ignored:**
 
+- The send payload needs **two component objects** — one `header`, one `body`, each with
+  its own `parameters` array (§Phase 3). Flattening all seven into the body array sends
+  the BU name where the customer name belongs and shifts every other slot by one.
 - Variable values must be **single-line** — no newlines, tabs, or 4+ consecutive spaces.
 - Header is 60 chars total; the prefix eats 20, leaving ~40 for the BU name.
 - Body ≤ 1024 chars after substitution; footer ≤ 60.
 - Don't start or end the body with a variable.
 
 **Multi-job message** (one customer, several jobs):
-- `{{2}}` — join up to 3, then `"…and 2 more"`.
-- `{{3}}` — one job → device string; more than one → `"3 items"`.
+- `job_no` — join up to 3, then `"…and 2 more"`.
+- `device` — one job → device string; more than one → `"3 items"`.
 
 ---
 
@@ -511,5 +688,12 @@ zero-amount job renders `₹No charge`.
   and receipt sends outright. Bringing any of them back later means rebuilding the
   document path — `upload_media`, the document header, the PDF blob helpers and the REST
   endpoint — not flipping a flag. Confirm none is in active use before deleting.
+- **There is no migration system.** No alembic, no version table. Tenant DDL is a
+  generated string replayed at provisioning; the control DB is assumed to pre-exist and
+  `schema_dumps/service_plus_client.sql` is orphaned documentation no code reads. Any
+  control-DB table is hand-applied and the dump is hand-maintained.
+- **No third-party id is stored anywhere in this codebase.** Trace-plus keeps a local
+  boolean, not the voucher id; the file server keeps a URL. Persisting a `wamid` invents
+  a convention rather than following one — worth naming it consistently from the start.
 - **ESLint is broken repo-wide** (`typescript-eslint` 8.67 vs TypeScript 7.0.2). Verify
   with `tsc --noEmit`.
