@@ -83,6 +83,47 @@ def accounts_posting_progress_resolver(data: Any, info: Any, **kwargs: Any) -> A
     return data
 
 
+@subscription.source("whatsappDeliveryStatus")
+async def whatsapp_delivery_status_generator(
+    obj: Any,
+    info: Any,
+    db_name: str,
+) -> AsyncGenerator:
+    """
+    Subscription source for WhatsApp completion-message delivery outcomes.
+
+    Published by the webhook receiver (app/routers/webhooks/whatsapp_webhook_router.py)
+    each time a status callback settles a job's outcome — replaces polling on the
+    Customer Connect screen (plans/plan1.md Phase 6 §3). db_name-scoped, not job_id- or
+    branch-scoped: any given tenant runs at most a handful of concurrent Customer
+    Connect sessions, so the client filtering incoming events by its own dispatched
+    job_ids (same pattern accountsPostingProgress uses for branchId) is simpler than
+    threading a per-request job_id list into the subscription variables.
+
+    Args:
+        db_name: Client database name to filter events to
+
+    Yields:
+        {db_name, job_id, status, error} payloads
+    """
+    event_name = "whatsapp_delivery_status"
+    try:
+        logger.info(f"New subscription to {event_name} (db_name: {db_name})")
+        async for data in pubsub.subscribe(event_name):
+            if data.get("db_name") == db_name:
+                yield data
+    except Exception as e:
+        logger.error(f"Error in whatsappDeliveryStatus subscription: {str(e)}")
+    finally:
+        logger.info(f"Subscription to {event_name} ended (db_name: {db_name})")
+
+
+@subscription.field("whatsappDeliveryStatus")
+def whatsapp_delivery_status_resolver(data: Any, info: Any, **kwargs: Any) -> Any:
+    """Return the delivery-status payload yielded by the generator as-is (Generic scalar)."""
+    return data
+
+
 # @subscription.field("serviceOrderUpdated")
 # async def service_order_updated_resolver(service_order: Any, info: Any) -> Any:
 #     """

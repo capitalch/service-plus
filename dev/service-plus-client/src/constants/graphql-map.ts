@@ -209,6 +209,11 @@ export const GRAPHQL_MAP = {
             accountsPostingProgress(db_name: $db_name, branchId: $branchId)
         }
     `,
+    whatsappDeliveryStatus: gql`
+        subscription WhatsappDeliveryStatus($db_name: String!) {
+            whatsappDeliveryStatus(db_name: $db_name)
+        }
+    `,
     superAdminClientsData: gql`
         query SuperAdminClientsData {
             superAdminClientsData

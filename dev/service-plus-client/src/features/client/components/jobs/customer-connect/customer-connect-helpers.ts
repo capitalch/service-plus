@@ -11,6 +11,16 @@ export function getCompletionState(row: CustomerConnectJobRow): WhatsappCompleti
     return row.whatsapp_notifications?.JOB_COMPLETION ?? null;
 }
 
+// Any prior attempt unselects the row, including one still pending an outcome —
+// attempt_count is set synchronously at send time (before success/fail is known),
+// so a row just sent but not yet settled still counts as "attempted" and won't
+// revert to checked on a refresh. A resend must be a deliberate click, not just
+// "never succeeded".
+export function hasAnyPriorAttempt(row: CustomerConnectJobRow): boolean {
+    const state = getCompletionState(row);
+    return (state?.attempt_count ?? 0) > 0;
+}
+
 export type GroupableJobRow = Pick<CustomerConnectJobRow, "id" | "job_no" | "amount" | "customer_contact_id" | "customer_name" | "mobile">;
 
 // Groups by customer_contact_id — one WhatsApp message per customer, never one

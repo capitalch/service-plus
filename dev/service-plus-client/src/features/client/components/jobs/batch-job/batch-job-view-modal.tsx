@@ -5,10 +5,6 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import type { JobDetailType } from "../../../types/job";
 import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
-import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
-import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
-import { MESSAGES } from "@/constants/messages";
-import { isValidMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectAvailableDivisions } from "@/store/context-slice";
 
@@ -22,12 +18,10 @@ type Props = {
     loading: boolean;
     onClose: () => void;
     onPrintBatch: (jobs: JobDetailType[]) => void;
-    onSendWhatsapp: (jobs: JobDetailType[]) => void;
-    sendingWhatsapp?: boolean;
     onFileCountChange?: (jobId: number, count: number) => void;
 };
 
-export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onPrintBatch, onSendWhatsapp, sendingWhatsapp, onFileCountChange }: Props) => {
+export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onPrintBatch, onFileCountChange }: Props) => {
     const [attachJobId, setAttachJobId] = useState<number | null>(null);
     const [attachJobNo, setAttachJobNo] = useState("");
     const divisions    = useAppSelector(selectAvailableDivisions);
@@ -170,17 +164,6 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                         >
                             <Printer className="h-3.5 w-3.5" />
                             Print All ({jobs.length})
-                        </Button>
-                        <Button
-                            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                            disabled={loading || jobs.length === 0 || !WHATSAPP_FEATURE_ENABLED || !isValidMobile(jobs[0]?.mobile) || !!sendingWhatsapp}
-                            title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : jobs.length > 0 && !isValidMobile(jobs[0]?.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
-                            onClick={() => onSendWhatsapp(jobs)}
-                        >
-                            {sendingWhatsapp
-                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                : <WhatsAppIcon className="h-3.5 w-3.5" />}
-                            Whatsapp ({jobs.length})
                         </Button>
                     </DialogFooter>
                 </DialogContent>

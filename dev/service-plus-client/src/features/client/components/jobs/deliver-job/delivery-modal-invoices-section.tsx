@@ -1,12 +1,8 @@
 import { Loader2, Printer, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
-import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
-import { MESSAGES } from "@/constants/messages";
-import { isValidMobile } from "@/lib/mobile";
 
 type Props = {
     jobs:                     JobDeliveryFullDetail[];
@@ -14,11 +10,9 @@ type Props = {
     loadingPdfJobId?:         number | null;
     deletingInvoiceJobId?:    number | null;
     regeneratingInvoiceJobId?: number | null;
-    isSendingWhatsapp?:       (jobId: number) => boolean;
     onPrintInvoice?:          (job: JobDeliveryFullDetail) => void;
     onDeleteInvoice?:         (job: JobDeliveryFullDetail) => void;
     onRegenerateInvoice?:     (job: JobDeliveryFullDetail) => void;
-    onSendWhatsapp?:          (job: JobDeliveryFullDetail) => void;
 };
 
 function computeTaxSummary(job: JobDeliveryFullDetail) {
@@ -66,7 +60,7 @@ function TaxSummaryRow({ tax, jobAmount }: { tax: ReturnType<typeof computeTaxSu
     );
 }
 
-export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loadingPdfJobId, deletingInvoiceJobId, regeneratingInvoiceJobId, isSendingWhatsapp, onPrintInvoice, onDeleteInvoice, onRegenerateInvoice, onSendWhatsapp }: Props) {
+export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loadingPdfJobId, deletingInvoiceJobId, regeneratingInvoiceJobId, onPrintInvoice, onDeleteInvoice, onRegenerateInvoice }: Props) {
     return (
         <div className="space-y-3">
             {jobs.map(job => {
@@ -111,22 +105,6 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loading
                                     >
                                         <Printer className="h-3.5 w-3.5 text-slate-600" />
                                         Print
-                                    </Button>
-                                )}
-                                {invoiceable && job.invoice_id && onSendWhatsapp && (
-                                    <Button
-                                        className="h-8 gap-1 px-2 text-sm text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 disabled:opacity-40 disabled:cursor-not-allowed"
-                                        disabled={!!isSendingWhatsapp?.(job.id) || !WHATSAPP_FEATURE_ENABLED || !isValidMobile(job.mobile)}
-                                        size="sm"
-                                        title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : !isValidMobile(job.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
-                                        variant="ghost"
-                                        onClick={() => onSendWhatsapp(job)}
-                                    >
-                                        {isSendingWhatsapp?.(job.id)
-                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                            : <WhatsAppIcon className="h-3.5 w-3.5" />
-                                        }
-                                        Whatsapp
                                     </Button>
                                 )}
                                 {invoiceable && job.invoice_id && onDeleteInvoice && (

@@ -37,6 +37,7 @@ class ApiSettings(BaseSettings):
             "https://serviceplus.capital-chowringhee.com",
             "https://kushinfotech.in",
             "https://www.kushinfotech.in",
+            "wow-wildness-ravioli.ngrok-free.dev",
         ],
         description="Allowed CORS origins. Set to the real client domain(s) in production.",
     )

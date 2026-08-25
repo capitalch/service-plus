@@ -3,6 +3,7 @@ import {
     AlertTriangle, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, Eye, Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
 import { PAGE_SIZE, getCompletionState, isRowSelectable } from "./customer-connect-helpers";
@@ -15,24 +16,58 @@ function fmtCurrency(v: number | null | undefined): string {
     return v == null ? "—" : `₹${Number(v).toFixed(2)}`;
 }
 
-function MsgsSentBadge({ row }: { row: CustomerConnectJobRow }) {
+function fmtLastTry(iso: string): string {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    let hours = d.getHours();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(hours)}:${pad(d.getMinutes())} ${ampm}`;
+}
+
+const DELIVERY_BADGE_STYLES: Record<string, string> = {
+    ACCEPTED:  "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    SENT:      "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
+    DELIVERED: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+    READ:      "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+    FAILED:    "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
+};
+
+function WhatsappStatusCell({ row }: { row: CustomerConnectJobRow }) {
     const state = getCompletionState(row);
     if (!state || (state.success_count === 0 && state.fail_count === 0)) {
-        return <span className="text-xs text-(--cl-text-muted)">—</span>;
+        return <span className="text-sm text-(--cl-text-muted)">—</span>;
     }
-    const failed = state.last_status === "FAILED" && state.fail_count > 0;
     return (
-        <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold text-(--cl-text)">
-                {state.success_count} sent{state.last_sent_at ? ` · ${new Date(state.last_sent_at).toLocaleDateString()}` : ""}
-            </span>
-            {failed && (
+        <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
                 <span
-                    className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950/40 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400"
-                    title={`${state.fail_count} failed attempt${state.fail_count !== 1 ? "s" : ""}${state.last_error ? ` — ${state.last_error}` : ""}`}
+                    className="inline-flex items-center gap-1 rounded-full bg-[#25D366]/15 px-2 py-0.5 text-xs font-bold text-[#128C7E] dark:text-[#25D366]"
+                    title={`${state.success_count} successful attempt${state.success_count !== 1 ? "s" : ""}`}
                 >
-                    <AlertTriangle className="h-3 w-3 text-amber-600" />
-                    {state.fail_count}
+                    ✓ {state.success_count}
+                </span>
+                {state.fail_count > 0 && (
+                    <span
+                        className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-0.5 text-xs font-bold text-red-700 dark:text-red-400"
+                        title={`${state.fail_count} failed attempt${state.fail_count !== 1 ? "s" : ""}${state.last_error ? ` — ${state.last_error}` : ""}`}
+                    >
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        {state.fail_count}
+                    </span>
+                )}
+            </div>
+            {state.last_sent_at && (
+                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                    Last try: {fmtLastTry(state.last_sent_at)}
+                </span>
+            )}
+            {state.last_status && (
+                <span
+                    className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-bold ${DELIVERY_BADGE_STYLES[state.last_status] ?? ""}`}
+                    title={state.last_error ?? undefined}
+                >
+                    {state.last_status}
                 </span>
             )}
         </div>
@@ -112,7 +147,7 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
             <div ref={scrollWrapperRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
                 {loading ? (
                     <table className="min-w-full border-collapse">
-                        <thead><tr>{["", "#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Amount", "Msgs Sent", "Actions"].map(h => <th key={h} className={thClass}>{h}</th>)}</tr></thead>
+                        <thead><tr>{["", "#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Amount", "Whatsapp", "Actions"].map(h => <th key={h} className={thClass}>{h}</th>)}</tr></thead>
                         <tbody>{Array.from({ length: 8 }).map((_, i) => (<tr key={i} className="animate-pulse">{Array.from({ length: 12 }).map((__, j) => (<td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-(--cl-border)" /></td>))}</tr>))}</tbody>
                     </table>
                 ) : rows.length === 0 ? (
@@ -143,7 +178,12 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
                                 <th className={thClass}>Job Type</th>
                                 <th className={thClass}>Status</th>
                                 <th className={`${thClass} text-right`}>Amount</th>
-                                <th className={thClass}>Msgs Sent</th>
+                                <th className={thClass}>
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <WhatsAppIcon className="h-3.5 w-3.5" />
+                                        Whatsapp
+                                    </span>
+                                </th>
                                 <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                             </tr>
                         </thead>
@@ -184,10 +224,10 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
                                         <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                                         <td className={`${tdClass} whitespace-nowrap`}>{row.job_date}</td>
                                         <td className={tdClass}>
-                                            <div className="flex items-center justify-between gap-1.5 font-mono font-semibold text-(--cl-accent)">
-                                                <span>#{row.job_no}</span>
+                                            <div className="flex flex-col items-start gap-1">
+                                                <span className="font-mono font-semibold text-(--cl-accent)">{row.job_no}</span>
                                                 {row.alternate_job_no && (
-                                                    <span className="shrink-0 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {row.alternate_job_no}</span>
+                                                    <span className="w-fit text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {row.alternate_job_no}</span>
                                                 )}
                                             </div>
                                         </td>
@@ -197,7 +237,7 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
                                         <td className={tdClass}><JobTypeBadge code={row.job_type_code} name={row.job_type_name} /></td>
                                         <td className={tdClass}><StatusBadge code={row.job_status_code} name={row.job_status_name} /></td>
                                         <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.amount)}</td>
-                                        <td className={tdClass}><MsgsSentBadge row={row} /></td>
+                                        <td className={tdClass}><WhatsappStatusCell row={row} /></td>
                                         <td
                                             className={`${tdClass} sticky right-0 z-10 ${
                                                 selectedRowId === row.id

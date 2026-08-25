@@ -4,15 +4,11 @@ import {
     Loader2, Paperclip, Eye, Printer, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
-import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import type { BatchJobQuickInfoRow } from "@/features/client/types/job";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
-import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
-import { isValidMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema, selectCurrentBranch, selectAvailableDivisions } from "@/store/context-slice";
@@ -23,14 +19,12 @@ type Props = {
     onEdit?: (batchNo: number) => void;
     onView?: (batchNo: number) => void;
     onPrint?: (batchNo: number) => void;
-    onWhatsapp?: (batchNo: number) => void;
-    isSendingWhatsapp?: (batchNo: number) => boolean;
     refreshTrigger?: number;
 };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, onWhatsapp, isSendingWhatsapp, refreshTrigger }: Props) {
+export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, refreshTrigger }: Props) {
     const dbName    = useAppSelector(selectDbName);
     const schema    = useAppSelector(selectSchema);
     const branch    = useAppSelector(selectCurrentBranch);
@@ -234,19 +228,6 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, on
                         >
                             <Printer className="h-3.5 w-3.5 mr-1.5" />
                             Print
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            className="h-7 px-3 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                            disabled={!WHATSAPP_FEATURE_ENABLED || !isValidMobile(rows[0].mobile) || (isSendingWhatsapp?.(batchNo) ?? false)}
-                            title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : !isValidMobile(rows[0].mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
-                            onClick={() => onWhatsapp?.(batchNo)}
-                        >
-                            {isSendingWhatsapp?.(batchNo)
-                                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                : <WhatsAppIcon className="h-3.5 w-3.5 mr-1.5" />}
-                            Whatsapp
                         </Button>
                         {/* <Button
                             type="button" size="sm"

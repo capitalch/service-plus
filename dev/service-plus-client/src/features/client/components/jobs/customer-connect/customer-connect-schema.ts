@@ -1,8 +1,10 @@
 export type WhatsappCompletionState = {
+    attempt_count: number;
     success_count: number;
     fail_count:    number;
+    last_wamid:    string | null;
     last_sent_at:  string | null;
-    last_status:   "SENT" | "FAILED" | null;
+    last_status:   "ACCEPTED" | "SENT" | "DELIVERED" | "READ" | "FAILED" | null;
     last_error:    string | null;
 };
 

@@ -1,11 +1,19 @@
 # To Do
+- Whatsapp
+	- Status info
+		- Ngrok implement
+		- Record with customer the field isWhatsapp
+		- Test from front end
+		- Update db from status info
+		- Check if updated to front end
+		- After deployment: Ready status whatsapp to customer
 							- Migration tool
 								- creation
 - Service plus web
-	- Job Query
-		- Company selection: include branch also in web job query
-	- Spare parts
-		- Sale and images
+					- Job Query
+						- Company selection: include branch also in web job query
+					- Spare parts
+						- Sale and images
 						- Opening stock does not save
 						- app settings: no_of_job_receipts per print and single page print
 - Release

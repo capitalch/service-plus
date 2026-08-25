@@ -1867,8 +1867,12 @@ class JobsSql:
                  j.delivery_date, j.remarks
     """
 
-    # ── WhatsApp Notifications (plans/plan-whatsapp.md §4d/§4e) ────────────────
+    # ── WhatsApp Notifications (plans/plan1.md) ─────────────────────────────────
 
+    # Server-side re-filter for sendWhatsappCompletion — never trusts the client's
+    # selection. Also the source of the template's 7 inputs (plans/plan1.md Step 2):
+    # branch name/phone come from the join here; BU name is looked up once per
+    # request via GET_BU_NAME_BY_CODE below, not joined per job.
     GET_JOBS_FOR_WHATSAPP_COMPLETION = """
         SELECT
             j.id AS job_id,
@@ -1877,49 +1881,166 @@ class JobsSql:
             j.customer_contact_id,
             j.whatsapp_notifications,
             c.full_name AS customer_name,
-            c.mobile
+            c.mobile,
+            b.name AS branch_name,
+            b.phone AS branch_phone,
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(brd.name, ''), NULLIF(pbm.model_name, ''))) AS device_details
         FROM job j
         JOIN customer_contact c ON c.id = j.customer_contact_id
+        JOIN job_status js ON js.id = j.job_status_id
+        JOIN branch b ON b.id = j.branch_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand   brd ON brd.id = pbm.brand_id
+        LEFT JOIN product p   ON p.id = pbm.product_id
         WHERE j.id = ANY(%(job_ids)s)
           AND j.branch_id = %(branch_id)s
           AND j.is_final = true
+          AND js.code = 'COMPLETED_OK'
     """
 
-    GET_JOBS_FOR_WHATSAPP_SEND = """
-        SELECT
-            j.id AS job_id,
-            j.job_no,
-            j.amount,
-            j.branch_id,
-            j.customer_contact_id,
-            j.whatsapp_notifications,
-            c.full_name AS customer_name,
-            c.mobile,
-            b.name AS branch_name,
-            jp.receipt_no,
-            jp.payment_mode
-        FROM job j
-        JOIN customer_contact c ON c.id = j.customer_contact_id
-        JOIN branch b ON b.id = j.branch_id
-        LEFT JOIN LATERAL (
-            SELECT receipt_no, payment_mode
-            FROM job_payment
-            WHERE job_payment.job_id = j.id
-            ORDER BY created_at DESC
-            LIMIT 1
-        ) jp ON true
-        WHERE j.id = ANY(%(job_ids)s)
+    # BU (business unit) display name for the template header — one row per request,
+    # cached by the caller, never joined per job (plans/plan1.md Step 2).
+    GET_BU_NAME_BY_CODE = """
+        SELECT name FROM security.bu WHERE LOWER(code) = LOWER(%(schema)s)
     """
 
-    SET_JOB_WHATSAPP_NOTIFICATION = """
+    # Two write sites, not one (plans/plan1.md Phase 2c / Step 1) — sender.py records
+    # the attempt at send time; the webhook settles the outcome later. Both are SQL-side
+    # atomic increments (jsonb_set on the current row), replacing the old
+    # build_notification_update_args, which read counters into Python and wrote the
+    # whole event object back — racy against a concurrent webhook write on the same job.
+
+    # `JOB_COMPLETION` is built as its own isolated object (single-level jsonb_set calls
+    # only) and attached to whatsapp_notifications with one single-level jsonb_set at the
+    # end — NOT one long multi-level path chain. jsonb_set cannot auto-vivify a path more
+    # than one level deep: `jsonb_set('{}', '{JOB_COMPLETION,attempt_count}', ..., true)`
+    # silently no-ops instead of creating JOB_COMPLETION, because "all earlier steps in
+    # path must exist" and a single jsonb_set call cannot create both JOB_COMPLETION and
+    # attempt_count in the same step. Confirmed empirically (2026-08-25) — the previous
+    # single-chain version left whatsapp_notifications at '{}' forever on every job's
+    # first-ever send. The `jsonb_typeof(...) = 'object'` guard also makes this
+    # self-healing against any legacy/corrupted non-object JOB_COMPLETION value (e.g. an
+    # array) instead of erroring — reads use chained -> / ->> (return NULL on a type
+    # mismatch), never #>> path arrays (which raise "path element ... is not an integer"
+    # when a path segment can't be resolved against the actual runtime type).
+    SET_JOB_WHATSAPP_ATTEMPT = """
         UPDATE job
         SET whatsapp_notifications = jsonb_set(
             COALESCE(whatsapp_notifications, '{}'::jsonb),
-            %(event_path)s::text[],
-            %(event_json)s::jsonb,
+            '{JOB_COMPLETION}',
+            jsonb_set(
+                jsonb_set(
+                    jsonb_set(
+                        jsonb_set(
+                            jsonb_set(
+                                jsonb_set(
+                                    CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
+                                         THEN whatsapp_notifications -> 'JOB_COMPLETION'
+                                         ELSE '{}'::jsonb END,
+                                    '{attempt_count}',
+                                    to_jsonb(
+                                        COALESCE(
+                                            CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
+                                                 THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'attempt_count')::int
+                                                 ELSE NULL END,
+                                            0
+                                        ) + 1
+                                    ),
+                                    true
+                                ),
+                                '{last_wamid}',
+                                CASE WHEN %(wamid)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(wamid)s::text) END,
+                                true
+                            ),
+                            '{last_status}', to_jsonb(%(status)s::text), true
+                        ),
+                        '{last_sent_at}', to_jsonb(%(sent_at)s::text), true
+                    ),
+                    '{last_error}',
+                    CASE WHEN %(error)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(error)s::text) END,
+                    true
+                ),
+                '{fail_count}',
+                to_jsonb(
+                    COALESCE(
+                        CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
+                             THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'fail_count')::int
+                             ELSE NULL END,
+                        0
+                    ) + CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END
+                ),
+                true
+            ),
             true
         )
         WHERE id = %(job_id)s
+    """
+
+    # Status ladder is enforced right in the WHERE clause — never move backwards, and
+    # never lose a concurrent write: PENDING(0) < ACCEPTED(1) < SENT(2) < DELIVERED(3)
+    # < READ(4), FAILED(9) terminal. success_count/fail_count only increment on the
+    # exact transition into DELIVERED/FAILED, not on every ladder advance (so a later
+    # READ callback doesn't double-count a success already recorded at DELIVERED).
+    # Also gated on wamid matching last_wamid: a resend gets a new wamid, and without
+    # this check a late/duplicate callback for a PRIOR wamid (e.g. its own terminal
+    # FAILED) could still land after the resend and clobber its success, since FAILED
+    # outranks everything on the ladder alone.
+    SET_JOB_WHATSAPP_OUTCOME = """
+        UPDATE job
+        SET whatsapp_notifications = jsonb_set(
+            COALESCE(whatsapp_notifications, '{}'::jsonb),
+            '{JOB_COMPLETION}',
+            jsonb_set(
+                jsonb_set(
+                    jsonb_set(
+                        jsonb_set(
+                            CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
+                                 THEN whatsapp_notifications -> 'JOB_COMPLETION'
+                                 ELSE '{}'::jsonb END,
+                            '{last_status}', to_jsonb(%(status)s::text), true
+                        ),
+                        '{last_error}',
+                        CASE WHEN %(error)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(error)s::text) END,
+                        true
+                    ),
+                    '{success_count}',
+                    to_jsonb(
+                        COALESCE(
+                            CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
+                                 THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'success_count')::int
+                                 ELSE NULL END,
+                            0
+                        ) + CASE WHEN %(status)s = 'DELIVERED' THEN 1 ELSE 0 END
+                    ),
+                    true
+                ),
+                '{fail_count}',
+                to_jsonb(
+                    COALESCE(
+                        CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
+                             THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'fail_count')::int
+                             ELSE NULL END,
+                        0
+                    ) + CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END
+                ),
+                true
+            ),
+            true
+        )
+        WHERE id = %(job_id)s
+          AND (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'last_wamid') = %(wamid)s
+          AND %(new_rank)s > COALESCE(
+                CASE (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'last_status')
+                    WHEN 'PENDING'   THEN 0
+                    WHEN 'ACCEPTED'  THEN 1
+                    WHEN 'SENT'      THEN 2
+                    WHEN 'DELIVERED' THEN 3
+                    WHEN 'READ'      THEN 4
+                    WHEN 'FAILED'    THEN 9
+                END,
+                -1
+          )
+        RETURNING id
     """
 
     # ── Customer Connect — eligible jobs for the completion message (§5e) ──────
@@ -1935,9 +2056,8 @@ class JobsSql:
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_status       js ON js.id = j.job_status_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.is_final  = true
-          AND j.is_closed = false
-          AND js.code NOT IN ('CANCELLED', 'DISPOSED')
+          AND j.is_final = true
+          AND js.code    = 'COMPLETED_OK'
           AND ((table "p_search") = ''
            OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -1974,9 +2094,8 @@ class JobsSql:
         LEFT JOIN brand       b  ON b.id = pbm.brand_id
         LEFT JOIN product     p  ON p.id = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.is_final  = true
-          AND j.is_closed = false
-          AND js.code NOT IN ('CANCELLED', 'DISPOSED')
+          AND j.is_final = true
+          AND js.code    = 'COMPLETED_OK'
           AND ((table "p_search") = ''
            OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -1996,9 +2115,8 @@ class JobsSql:
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_status       js ON js.id = j.job_status_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.is_final  = true
-          AND j.is_closed = false
-          AND js.code NOT IN ('CANCELLED', 'DISPOSED')
+          AND j.is_final = true
+          AND js.code    = 'COMPLETED_OK'
           AND ((table "p_search") = ''
            OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'

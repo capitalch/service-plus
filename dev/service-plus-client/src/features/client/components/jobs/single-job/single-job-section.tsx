@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, Eye,
     Loader2, MoreHorizontal, Paperclip, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
-import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
-import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -43,9 +41,7 @@ import type { DocumentSequenceRow } from "@/features/client/types/sales";
 import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { NewSingleJobForm } from "./new-single-job-form";
 import { JobAttachDialog } from "./job-attach-dialog";
-import { getJobSheetBlobUrl, getJobSheetPdfBlob } from "../job-sheet-pdf";
-import { useWhatsappSend } from "../use-whatsapp-send";
-import { isValidMobile } from "@/lib/mobile";
+import { getJobSheetBlobUrl } from "../job-sheet-pdf";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -115,8 +111,6 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const [showPdfModal, setShowPdfModal] = useState(false);
     const [printCopies, setPrintCopies] = useState(noOfJobSheetsPerPrint);
     const pendingPrintRef = useRef<{ job: JobDetailType; division: DivisionContextType | null; branchCode?: string } | null>(null);
-
-    const { isSendingWhatsapp, sendWhatsapp } = useWhatsappSend();
 
     // Attach Files dialog
     const [attachJobId,  setAttachJobId]  = useState<number | null>(null);
@@ -499,37 +493,6 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         }
     };
 
-    const handleSendWhatsapp = async (job: JobControlRow) => {
-        if (!dbName || !schema || !isValidMobile(job.mobile)) return;
-        try {
-            const res = await apolloClient.query<GenericQueryData<JobDetailType>>({
-                fetchPolicy: "network-only",
-                query: GRAPHQL_MAP.genericQuery,
-                variables: {
-                    db_name: dbName,
-                    schema,
-                    value: graphQlUtils.buildGenericQueryValue({
-                        sqlId: SQL_MAP.GET_JOB_DETAIL,
-                        sqlArgs: { id: job.id },
-                    }),
-                },
-            });
-            const details = res.data?.genericQuery?.[0];
-            if (!details) {
-                toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED);
-                return;
-            }
-            const jobDivision = availableDivisions.find(d => d.id === details.division_id) ?? currentDivision;
-            const pdf = getJobSheetPdfBlob(details, jobDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint, { clientName, buName: currentBu?.name ?? null, trackJobUrl, termsAndConditions: jobTermsAndConditions });
-            await sendWhatsapp(job.id, job.mobile, {
-                dbName, schema, jobIds: [job.id], eventType: "JOB_CREATION",
-                pdf, filename: `Job-Sheet_${details.job_no}.pdf`,
-            });
-        } catch {
-            toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED);
-        }
-    };
-
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     return (
@@ -616,8 +579,6 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                         onEditJob={(j: JobControlRow) => handleEditJob(j)}
                         onPrintPdf={(j: JobControlRow) => void handlePrintPdf(j)}
                         onAttachFiles={(jobNo: string, jobId: number) => { setAttachJobId(jobId); setAttachJobNo(jobNo); setAttachMode("attach"); }}
-                        onWhatsapp={(j: JobControlRow) => void handleSendWhatsapp(j)}
-                        isSendingWhatsapp={isSendingWhatsapp}
                         refreshTrigger={quickInfoKey}
                         />
                     </FormProvider>
@@ -815,17 +776,6 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                                 >
                                                                     <Printer className="h-4 w-4 text-slate-600" />
                                                                     <span>Print PDF</span>
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem
-                                                                    className="flex items-center gap-2 cursor-pointer text-emerald-600 focus:bg-emerald-500/10 focus:text-emerald-700 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-                                                                    disabled={!WHATSAPP_FEATURE_ENABLED || !isValidMobile(job.mobile) || isSendingWhatsapp(job.id)}
-                                                                    title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : !isValidMobile(job.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
-                                                                    onClick={() => void handleSendWhatsapp(job)}
-                                                                >
-                                                                    {isSendingWhatsapp(job.id)
-                                                                        ? <Loader2 className="h-4 w-4 animate-spin" />
-                                                                        : <WhatsAppIcon className="h-4 w-4" />}
-                                                                    <span>Whatsapp</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-violet-500 focus:bg-violet-500/10 focus:text-violet-600 font-semibold"

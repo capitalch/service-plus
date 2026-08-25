@@ -43,7 +43,6 @@ import { DeliveryModalJobsTable } from "./delivery-modal-jobs-table";
 import { DeliveryModalInvoicesSection } from "./delivery-modal-invoices-section";
 import { DeliveryModalReceiptsSection } from "./delivery-modal-receipts-section";
 import { AddReceiptModal } from "./add-receipt-modal";
-import { useWhatsappSend } from "../use-whatsapp-send";
 import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -253,7 +252,6 @@ export function DeliveryModal({
     const [deletingInvoiceJobId,        setDeletingInvoiceJobId]        = useState<number | null>(null);
     const [confirmDeleteJob,            setConfirmDeleteJob]            = useState<JobDeliveryFullDetail | null>(null);
     const [regeneratingInvoiceJobId,    setRegeneratingInvoiceJobId]    = useState<number | null>(null);
-    const { isSendingWhatsapp, sendWhatsapp } = useWhatsappSend();
     const [confirmRegenerateJob,        setConfirmRegenerateJob]        = useState<JobDeliveryFullDetail | null>(null);
     const [receiptJob,                  setReceiptJob]                  = useState<JobDeliveryFullDetail | null>(null);
     const [showReceiptModal,            setShowReceiptModal]            = useState(false);
@@ -762,52 +760,6 @@ export function DeliveryModal({
         }
     }
 
-    // ── Per-job Invoice → WhatsApp ────────────────────────────────────────────
-
-    async function handleSendWhatsappInvoice(job: JobDeliveryFullDetail) {
-        if (!dbName || !schema || !job.invoice_id) return;
-        try {
-            const res = await apolloClient.query<GenericQueryData<JobInvoiceFullRow>>({
-                fetchPolicy: "network-only",
-                query:       GRAPHQL_MAP.genericQuery,
-                variables: {
-                    db_name: dbName, schema,
-                    value: graphQlUtils.buildGenericQueryValue({
-                        sqlId:   SQL_MAP.GET_JOB_INVOICE_BY_JOB,
-                        sqlArgs: { job_id: job.id },
-                    }),
-                },
-            });
-            const invoice = res.data?.genericQuery?.[0];
-            if (!invoice) { toast.error("Invoice data not found."); return; }
-            const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
-
-            const partHsnByCode = new Map((job.parts   ?? []).map(p => [p.part_code,    p.hsn_code ?? null]));
-            const partHsnByName = new Map((job.parts   ?? []).map(p => [p.part_name,    p.hsn_code ?? null]));
-            const chrgHsnByName = new Map((job.charges ?? []).map(c => [c.charge_name,  c.hsn_code ?? null]));
-            const patchedInvoice = {
-                ...invoice,
-                lines: invoice.lines.map(l => ({
-                    ...l,
-                    hsn_code: l.hsn_code !== null
-                        ? l.hsn_code
-                        : (l.part_code != null ? partHsnByCode.get(l.part_code) : undefined)
-                            ?? partHsnByName.get(l.description)
-                            ?? chrgHsnByName.get(l.description)
-                            ?? null,
-                })),
-            };
-
-            const doc = buildInvoicePdf(job, patchedInvoice, division, branchName, undefined, noOfJobInvoicesPerPrint);
-            await sendWhatsapp(job.id, job.mobile, {
-                dbName, schema, jobIds: [job.id], eventType: "JOB_DELIVERY",
-                pdf: doc.output("blob"), filename: `invoice-${job.job_no}.pdf`,
-            });
-        } catch {
-            toast.error("Failed to generate invoice PDF.");
-        }
-    }
-
     // ── Per-job Receipt PDF ───────────────────────────────────────────────────
 
     function handlePrintReceiptPdf(job: JobDeliveryFullDetail) {
@@ -1063,11 +1015,9 @@ export function DeliveryModal({
                                     loadingPdfJobId={loadingPdfJobId}
                                     deletingInvoiceJobId={deletingInvoiceJobId}
                                     regeneratingInvoiceJobId={regeneratingInvoiceJobId}
-                                    isSendingWhatsapp={isSendingWhatsapp}
                                     onPrintInvoice={job => void handlePrintInvoicePdf(job)}
                                     onDeleteInvoice={job => void handleDeleteInvoice(job)}
                                     onRegenerateInvoice={job => void handleRegenerateInvoice(job)}
-                                    onSendWhatsapp={job => void handleSendWhatsappInvoice(job)}
                                 />
                             </StepSection>
 

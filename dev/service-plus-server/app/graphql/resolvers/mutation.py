@@ -53,7 +53,7 @@ from app.graphql.resolvers.jobs.mutations import (
     resolve_update_job_helper,
     resolve_update_opening_job_helper,
 )
-from app.graphql.resolvers.jobs.whatsapp import (
+from app.whatsapp.sender import (
     resolve_send_whatsapp_completion_helper,
 )
 from app.graphql.resolvers.sales_accounts.mutations import (

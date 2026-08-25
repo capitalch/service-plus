@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     DollarSign, Eye, Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
-import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
-import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -39,8 +37,6 @@ import { receiptFormSchema, type ReceiptFormValues, getReceiptDefaultValues } fr
 import { buildReceiptPdf } from "@/features/client/components/jobs/deliver-job/deliver-job-pdf";
 import type { JobDetailType } from "@/features/client/types/job";
 import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
-import { useWhatsappSend } from "../use-whatsapp-send";
-import { isValidMobile } from "@/lib/mobile";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -120,7 +116,6 @@ export const ReceiptsSection = () => {
     // Inputs of the currently previewed receipt, kept so the copy count can be changed in-place.
     const lastReceiptRef = useRef<{ job: Parameters<typeof buildReceiptPdf>[0]; division: Parameters<typeof buildReceiptPdf>[1] } | null>(null);
     const [pdfLoading, setPdfLoading] = useState<number | null>(null); // row.id being loaded
-    const { isSendingWhatsapp, sendWhatsapp } = useWhatsappSend();
     const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollRef    = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
@@ -259,42 +254,6 @@ export const ReceiptsSection = () => {
         }
     }
 
-    async function handleSendWhatsapp(row: { id: number; job_id: number; job_no: string | number; mobile: string }) {
-        if (!dbName || !schema || !isValidMobile(row.mobile)) return;
-        try {
-            const [jobRes, paymentsRes] = await Promise.all([
-                apolloClient.query<GenericQueryDataType<JobDetailType>>({
-                    fetchPolicy: "network-only",
-                    query:       GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName, schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DETAIL, sqlArgs: { id: row.job_id } }),
-                    },
-                }),
-                apolloClient.query<GenericQueryDataType<{ id: number; receipt_no: string | null; payment_date: string; payment_mode: string; amount: number; reference_no: string | null; remarks: string | null }>>({
-                    fetchPolicy: "network-only",
-                    query:       GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName, schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_PAYMENTS_BY_JOB, sqlArgs: { job_id: row.job_id } }),
-                    },
-                }),
-            ]);
-            const job = jobRes.data?.genericQuery?.[0];
-            const payments = (paymentsRes.data?.genericQuery ?? []).filter(p => p.id === row.id);
-            if (!job) { toast.error("Failed to load job details."); return; }
-            const division = availableDivisions.find(d => d.id === (job as unknown as { division_id: number | null }).division_id) ?? null;
-            const receiptJob = { ...job, customer_name: job.customer_name ?? "", payments };
-            const doc = buildReceiptPdf(receiptJob, division, noOfReceipts);
-            await sendWhatsapp(row.id, row.mobile, {
-                dbName, schema, jobIds: [row.job_id], eventType: "JOB_RECEIPT",
-                pdf: doc.output("blob"), filename: `receipt-${row.job_no}.pdf`,
-            });
-        } catch {
-            toast.error("Failed to generate receipt PDF.");
-        }
-    }
-
     function handleReceiptCopiesChange(n: number) {
         setPrintCopies(n);
         const ctx = lastReceiptRef.current;
@@ -308,7 +267,6 @@ export const ReceiptsSection = () => {
         if (!dbName || !schema) return;
         const isEdit = !!selectedReceipt?.id;
         try {
-            let paymentId: number | null = null;
             if (isEdit) {
                 await apolloClient.mutate({
                     mutation:  GRAPHQL_MAP.genericUpdate,
@@ -329,9 +287,8 @@ export const ReceiptsSection = () => {
                         }),
                     },
                 });
-                paymentId = selectedReceipt!.id;
             } else {
-                const res = await apolloClient.mutate<{ createJobPayment: number }>({
+                await apolloClient.mutate<{ createJobPayment: number }>({
                     mutation:  GRAPHQL_MAP.createJobPayment,
                     variables: {
                         db_name: dbName,
@@ -349,35 +306,8 @@ export const ReceiptsSection = () => {
                         }),
                     },
                 });
-                paymentId = res.data?.createJobPayment ?? null;
             }
-            // A deliberate follow-up click, not an automatic silent send — sending
-            // is always a staff decision (plan-whatsapp.md §5d).
-            const jobId = values.job_id;
-            toast.success(
-                isEdit ? MESSAGES.SUCCESS_RECEIPT_UPDATED : MESSAGES.SUCCESS_RECEIPT_CREATED,
-                !isEdit && paymentId && WHATSAPP_FEATURE_ENABLED
-                    ? {
-                        action: {
-                            label: "Send WhatsApp",
-                            onClick: () => {
-                                void apolloClient.query<GenericQueryDataType<JobDetailType>>({
-                                    fetchPolicy: "network-only",
-                                    query:       GRAPHQL_MAP.genericQuery,
-                                    variables: {
-                                        db_name: dbName, schema,
-                                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DETAIL, sqlArgs: { id: jobId } }),
-                                    },
-                                }).then(res => {
-                                    const job = res.data?.genericQuery?.[0];
-                                    if (!job) { toast.error("Failed to load job details."); return; }
-                                    void handleSendWhatsapp({ id: paymentId!, job_id: jobId, job_no: job.job_no, mobile: job.mobile });
-                                });
-                            },
-                        },
-                    }
-                    : undefined,
-            );
+            toast.success(isEdit ? MESSAGES.SUCCESS_RECEIPT_UPDATED : MESSAGES.SUCCESS_RECEIPT_CREATED);
             form.reset(getReceiptDefaultValues());
             setIsDialogOpen(false);
             if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
@@ -649,17 +579,6 @@ export const ReceiptsSection = () => {
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => void handleShowPdf(row)}>
                                                         <Printer className="mr-2 h-3.5 w-3.5 text-slate-600" /> Print Receipt
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        className="text-emerald-600 focus:text-emerald-700"
-                                                        disabled={!WHATSAPP_FEATURE_ENABLED || !isValidMobile(row.mobile) || isSendingWhatsapp(row.id)}
-                                                        title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : !isValidMobile(row.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
-                                                        onClick={() => void handleSendWhatsapp(row)}
-                                                    >
-                                                        {isSendingWhatsapp(row.id)
-                                                            ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                                                            : <WhatsAppIcon className="mr-2 h-3.5 w-3.5" />}
-                                                        Whatsapp
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem

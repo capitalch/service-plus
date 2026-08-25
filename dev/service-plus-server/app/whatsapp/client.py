@@ -1,17 +1,17 @@
-"""Async client for the WhatsApp Cloud API (Meta) BSP.
+"""Async client for the WhatsApp Cloud API — direct with Meta, no BSP.
 
-One BSP means there's no need for a provider-registry abstraction — swapping to a
-different BSP later means editing this one file, not redesigning a dispatch layer.
+Sends only. No document/media upload — the three PDF-carrying flows (creation,
+delivery, receipt) are deleted along with their document template branch; the one
+surviving template (JOB_COMPLETION) is text-only.
 """
 
-import os
 from dataclasses import dataclass
 
 import httpx
 
 from app.config import settings
 from app.logger import logger
-from app.notifications.whatsapp_templates import TemplateSpec
+from app.whatsapp.templates import TemplateSpec
 
 # Meta error codes that mean "don't bother retrying, the number or template itself
 # is bad" — used only to shape the toast/error text, since there is no retry queue.
@@ -20,7 +20,7 @@ _PERMANENT_ERROR_PREFIXES = ("132",)
 
 
 class WhatsappApiError(Exception):
-    """Raised when a call to the BSP fails outright (e.g. media upload)."""
+    """Raised when a call to the Cloud API fails outright."""
 
     def __init__(self, message: str, error_code: str | None = None):
         super().__init__(message)
@@ -45,55 +45,40 @@ def _is_permanent(error_code: str | None) -> bool:
 
 
 def _auth_headers() -> dict[str, str]:
-    token = os.environ.get(settings.whatsapp_access_token_env, "")
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {settings.whatsapp_access_token}"}
 
 
 def _api_base() -> str:
     return f"{settings.whatsapp_base_url}/{settings.whatsapp_api_version}/{settings.whatsapp_phone_number_id}"
 
 
-async def upload_media(pdf_bytes: bytes, filename: str) -> str:
-    """POST to the BSP's media endpoint, return the resulting media id."""
-    url = f"{_api_base()}/media"
-    data = {"messaging_product": "whatsapp", "type": "application/pdf"}
-    files = {"file": (filename, pdf_bytes, "application/pdf")}
-
-    logger.info("Whatsapp upload_media → %s (filename=%s, %d bytes)", url, filename, len(pdf_bytes))
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(url, headers=_auth_headers(), data=data, files=files)
-            resp.raise_for_status()
-            media_id = resp.json()["id"]
-            logger.info("Whatsapp upload_media succeeded: media_id=%s", media_id)
-            return media_id
-    except httpx.HTTPStatusError as e:
-        error = e.response.json().get("error", {}) if e.response.content else {}
-        logger.error("Whatsapp upload_media failed %d: %s", e.response.status_code, error)
-        raise WhatsappApiError(
-            error.get("message", "WhatsApp media upload failed"), str(error.get("code", ""))
-        ) from e
-    except httpx.TimeoutException as e:
-        logger.error("Whatsapp upload_media timed out: %s", e)
-        raise WhatsappApiError("WhatsApp media upload timed out") from e
-    except httpx.ConnectError as e:
-        logger.error("Whatsapp upload_media unreachable: %s", e)
-        raise WhatsappApiError("WhatsApp BSP unreachable") from e
-
-
 async def send_template(
-    to: str, template: TemplateSpec, params: list[str], media_id: str | None
+    to: str,
+    template: TemplateSpec,
+    header_values: list[str],
+    body_values: list[str],
+    biz_opaque_callback_data: str,
 ) -> WhatsappSendResult:
-    """POST a template message; media_id fills the document header when template.has_document."""
+    """POST a named-parameter template message with two components (header, body) —
+    a named template rejects positional parameters and vice-versa, so every parameter
+    entry carries `parameter_name`, and order no longer binds a value to a slot."""
     url = f"{_api_base()}/messages"
-    components = []
-    if template.has_document:
-        components.append(
-            {"type": "header", "parameters": [{"type": "document", "document": {"id": media_id}}]}
-        )
-    components.append(
-        {"type": "body", "parameters": [{"type": "text", "text": p} for p in params]}
-    )
+    components = [
+        {
+            "type": "header",
+            "parameters": [
+                {"type": "text", "parameter_name": name, "text": value}
+                for name, value in zip(template.header_params, header_values)
+            ],
+        },
+        {
+            "type": "body",
+            "parameters": [
+                {"type": "text", "parameter_name": name, "text": value}
+                for name, value in zip(template.body_params, body_values)
+            ],
+        },
+    ]
     payload = {
         "messaging_product": "whatsapp",
         "to": to,
@@ -103,6 +88,7 @@ async def send_template(
             "language": {"code": template.language},
             "components": components,
         },
+        "biz_opaque_callback_data": biz_opaque_callback_data,
     }
 
     logger.info("Whatsapp send_template → %s (template=%s, to=%s)", url, template.name, to)
@@ -147,6 +133,6 @@ async def send_template(
             ok=False,
             provider_message_id=None,
             error_code=None,
-            error_message="WhatsApp BSP unreachable",
+            error_message="WhatsApp Cloud API unreachable",
             permanent=False,
         )

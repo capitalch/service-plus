@@ -4,8 +4,6 @@ import {
     Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Loader2, MoreHorizontal, Paperclip, Pencil, Printer, RefreshCw, Save, Search, Trash2, X, Eye,
 } from "lucide-react";
-import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
-import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -37,9 +35,7 @@ import { BatchJobViewModal } from "./batch-job-view-modal";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { batchJobFormSchema, type BatchJobFormValues, getBatchJobDefaultValues } from "./batch-job-schema";
-import { getBatchJobSheetBlobUrl, getBatchJobSheetPdfBlob } from "../job-sheet-pdf";
-import { useWhatsappSend } from "../use-whatsapp-send";
-import { isValidMobile } from "@/lib/mobile";
+import { getBatchJobSheetBlobUrl } from "../job-sheet-pdf";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { deleteJobFiles } from "@/lib/image-service";
 
@@ -136,8 +132,6 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
     const [showPdfModal,  setShowPdfModal]  = useState(false);
     const [printCopies,   setPrintCopies]   = useState(noOfJobSheetsPerPrint);
     const pendingPrintRef = useRef<{ jobs: JobDetailType[]; division: ReturnType<typeof availableDivisions.find>; branchCode?: string } | null>(null);
-
-    const { isSendingWhatsapp, sendWhatsapp } = useWhatsappSend();
 
     // Post-save file attachment
     const [postSaveJobs,    setPostSaveJobs]    = useState<PostSaveJob[] | null>(null);
@@ -484,19 +478,6 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
         setShowPdfModal(true);
     };
 
-    const handleSendWhatsappBatch = async (batchJobs: JobDetailType[], batchNo: number) => {
-        const firstJob = batchJobs[0];
-        if (!dbName || !schema || !firstJob) return;
-        const batchDivision = firstJob.division_id
-            ? (availableDivisions.find(d => d.id === firstJob.division_id) ?? currentDivision)
-            : currentDivision;
-        const pdf = getBatchJobSheetPdfBlob(batchJobs, batchDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint, { clientName, buName: currentBu?.name ?? null, trackJobUrl, termsAndConditions: jobTermsAndConditions });
-        await sendWhatsapp(batchNo, firstJob.mobile, {
-            dbName, schema, jobIds: batchJobs.map(j => j.id), eventType: "JOB_CREATION",
-            pdf, filename: `Batch-Job-Sheet_${firstJob.job_no}.pdf`,
-        });
-    };
-
 
     const groupedBatches = jobs.reduce<BatchGroup[]>((acc, job) => {
         let group = acc.find(g => g.batch_no === job.batch_no);
@@ -608,21 +589,6 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                                 toast.error("Failed to load batch for printing");
                             });
                         }}
-                        onWhatsapp={(batchNo) => {
-                            if (!dbName || !schema) return;
-                            void apolloClient.query<GenericQueryData<JobDetailType>>({
-                                fetchPolicy: "network-only",
-                                query: GRAPHQL_MAP.genericQuery,
-                                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCH_DETAIL, sqlArgs: { batch_no: batchNo } }) },
-                            }).then(res => {
-                                const detailJobs = res.data?.genericQuery ?? [];
-                                if (detailJobs.length > 0) void handleSendWhatsappBatch(detailJobs, batchNo);
-                                else toast.error("No jobs found in batch");
-                            }).catch(() => {
-                                toast.error("Failed to load batch for sending");
-                            });
-                        }}
-                        isSendingWhatsapp={isSendingWhatsapp}
                     />
 
                     <FormProvider {...form}>
@@ -717,18 +683,6 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                                                         handlePrintBatch(detailJobs);
                                                     });
                                                 }}
-                                                onWhatsapp={() => {
-                                                    if (!dbName || !schema) return;
-                                                    void apolloClient.query<GenericQueryData<JobDetailType>>({
-                                                        fetchPolicy: "network-only",
-                                                        query: GRAPHQL_MAP.genericQuery,
-                                                        variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCH_DETAIL, sqlArgs: { batch_no: batch.batch_no } }) },
-                                                    }).then(res => {
-                                                        const detailJobs = res.data?.genericQuery ?? [];
-                                                        if (detailJobs.length > 0) void handleSendWhatsappBatch(detailJobs, batch.batch_no);
-                                                    });
-                                                }}
-                                                sendingWhatsapp={isSendingWhatsapp(batch.batch_no)}
                                                 onDelete={() => { setDeleteBatchNo(batch.batch_no); setDeleteJobCount(batch.job_count); }}
                                                 onAttachJob={(jobId, jobNo) => { setAttachJobId(jobId); setAttachJobNo(jobNo); }}
                                                 onDeleteJob={(jobId, jobNo, _batchNo, jobCount) => { setDeleteJobId(jobId); setDeleteJobNo(jobNo); setDeleteJobCount(jobCount); }}
@@ -885,10 +839,6 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
             onPrintBatch={(detailJobs) => {
                 handlePrintBatch(detailJobs);
             }}
-            onSendWhatsapp={(detailJobs) => {
-                if (viewBatchNo !== null) void handleSendWhatsappBatch(detailJobs, viewBatchNo);
-            }}
-            sendingWhatsapp={viewBatchNo !== null && isSendingWhatsapp(viewBatchNo)}
             onFileCountChange={(jobId, count) => {
                 setViewJobs(prev => prev.map(j => j.id === jobId ? { ...j, file_count: count } : j));
                 setRefreshTrigger(k => k + 1);
@@ -929,14 +879,12 @@ type BatchGroupRowProps = {
     onEdit: () => void;
     onView: () => void;
     onPrint: () => void;
-    onWhatsapp: () => void;
-    sendingWhatsapp: boolean;
     onDelete: () => void;
     onAttachJob: (jobId: number, jobNo: string) => void;
     onDeleteJob: (jobId: number, jobNo: string, batchNo: number, jobCount: number) => void;
 };
 
-function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onWhatsapp, sendingWhatsapp, onDelete, onAttachJob, onDeleteJob }: BatchGroupRowProps) {
+function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onDelete, onAttachJob, onDeleteJob }: BatchGroupRowProps) {
     const batchDivision    = batch.division_id ? availableDivisions.find(d => d.id === batch.division_id) : null;
     const isBatchDeletable = batch.jobs.every(j => j.transaction_count <= 1);
     return (
@@ -976,17 +924,6 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onW
                                 <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-indigo-500 focus:bg-indigo-500/10 focus:text-indigo-600" onClick={onPrint}>
                                     <Printer className="h-4 w-4 text-slate-600" />
                                     <span>Print PDF</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    className="flex items-center gap-2 cursor-pointer text-emerald-600 focus:bg-emerald-500/10 focus:text-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                                    disabled={!WHATSAPP_FEATURE_ENABLED || !isValidMobile(batch.mobile) || sendingWhatsapp}
-                                    title={!WHATSAPP_FEATURE_ENABLED ? MESSAGES.INFO_WHATSAPP_COMING_SOON : !isValidMobile(batch.mobile) ? MESSAGES.INFO_WHATSAPP_NO_MOBILE : undefined}
-                                    onClick={onWhatsapp}
-                                >
-                                    {sendingWhatsapp
-                                        ? <Loader2 className="h-4 w-4 animate-spin" />
-                                        : <WhatsAppIcon className="h-4 w-4" />}
-                                    <span>Whatsapp</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600" onClick={onEdit}>
                                     <Pencil className="h-4 w-4 text-blue-600" />

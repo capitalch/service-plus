@@ -3,8 +3,6 @@ import {
     AlertTriangle, ArrowLeft, CheckCheck, CheckCircle2,
     Eye, Loader2, Plus, Radius, RefreshCw, RotateCcw, Trash2, XCircle,
 } from "lucide-react";
-import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
-import { WHATSAPP_FEATURE_ENABLED } from "@/lib/whatsapp-service";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -27,7 +25,6 @@ import { fmtCurrency, thClass, tdClass, calculateLinePricing } from "./final-a-j
 import { ChargeNameCombobox } from "./charge-name-combobox";
 import { isValidGstin, normalizeGstin } from "@/lib/gstin";
 import { allocateFloored, pickResidualKey, snapInclToWholeRupee, type FloorAllocItem } from "@/lib/back-calc";
-import { isValidMobile } from "@/lib/mobile";
 
 // ─── Apply-target helpers (only used in this view) ───────────────────────────
 
@@ -242,7 +239,6 @@ export type FinalJobFormProps = {
     selectedRow: FinalJobRow;
     receivedTotal: number;
     submitting: boolean;
-    sendingWhatsapp: boolean;
     loadingDetail: boolean;
     selectedDivisionId: number | null;
     division: DivisionContextType | null;
@@ -271,7 +267,6 @@ export type FinalJobFormProps = {
 
     onBack: () => void;
     onSave: () => Promise<void>;
-    onSendWhatsapp: () => Promise<void>;
     onRefresh: () => Promise<void>;
     onReset: () => void;
     onAddPart: () => void;
@@ -289,12 +284,12 @@ export type FinalJobFormProps = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FinalJobForm({
-    selectedJob, selectedRow, receivedTotal, submitting, sendingWhatsapp, loadingDetail,
+    selectedJob, selectedRow, receivedTotal, submitting, loadingDetail,
     selectedDivisionId, isGst, availableDivisions, brands, additionalChargeOptions,
     partLines, chargeLines, deletedPartIds, forceIgst, backCalcTarget, showPartsInInvoice, gstin,
     defaultHsnForServiceCharge, viewJobId,
     setForceIgst, setGstin, setBackCalcTarget, setShowPartsInInvoice, setChargeLines, setPartLines, setViewJobId,
-    onBack, onSave, onSendWhatsapp, onRefresh, onReset, onAddPart, onRemovePart, onUpdatePart, onCostChange, onPartSelect,
+    onBack, onSave, onRefresh, onReset, onAddPart, onRemovePart, onUpdatePart, onCostChange, onPartSelect,
     onAddCharge, onRemoveCharge, onUpdateCharge, onPatchCharge, onDivisionChange,
 }: FinalJobFormProps) {
     const isWarranty = selectedRow.job_type_code === "UNDER_WARRANTY";
@@ -453,26 +448,6 @@ export function FinalJobForm({
                             : <CheckCheck className="h-3.5 w-3.5" />
                         }
                         Save &amp; Mark Final
-                    </Button>
-                    <Button
-                        className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
-                        disabled={sendingWhatsapp || !WHATSAPP_FEATURE_ENABLED || !selectedJob.is_final || !isValidMobile(selectedJob.mobile)}
-                        title={
-                            !WHATSAPP_FEATURE_ENABLED
-                                ? MESSAGES.INFO_WHATSAPP_COMING_SOON
-                                : !selectedJob.is_final
-                                    ? "Finalize the job first"
-                                    : !isValidMobile(selectedJob.mobile)
-                                        ? MESSAGES.INFO_WHATSAPP_NO_MOBILE
-                                        : undefined
-                        }
-                        onClick={() => void onSendWhatsapp()}
-                    >
-                        {sendingWhatsapp
-                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            : <WhatsAppIcon className="h-3.5 w-3.5" />
-                        }
-                        Whatsapp
                     </Button>
                 </div>
 
