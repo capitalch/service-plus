@@ -94,8 +94,8 @@ async def whatsapp_delivery_status_generator(
 
     Published by the webhook receiver (app/routers/webhooks/whatsapp_webhook_router.py)
     each time a status callback settles a job's outcome — replaces polling on the
-    Customer Connect screen (plans/plan1.md Phase 6 §3). db_name-scoped, not job_id- or
-    branch-scoped: any given tenant runs at most a handful of concurrent Customer
+    Customer Connect screen. db_name-scoped, not job_id- or branch-scoped: any given
+    tenant runs at most a handful of concurrent Customer
     Connect sessions, so the client filtering incoming events by its own dispatched
     job_ids (same pattern accountsPostingProgress uses for branchId) is simpler than
     threading a per-request job_id list into the subscription variables.

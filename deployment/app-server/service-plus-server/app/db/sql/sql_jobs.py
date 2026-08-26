@@ -1867,12 +1867,12 @@ class JobsSql:
                  j.delivery_date, j.remarks
     """
 
-    # ── WhatsApp Notifications (plans/plan1.md) ─────────────────────────────────
+    # ── WhatsApp Notifications ───────────────────────────────────────────────────
 
     # Server-side re-filter for sendWhatsappCompletion — never trusts the client's
-    # selection. Also the source of the template's 7 inputs (plans/plan1.md Step 2):
-    # branch name/phone come from the join here; BU name is looked up once per
-    # request via GET_BU_NAME_BY_CODE below, not joined per job.
+    # selection. Also the source of the template's 7 inputs: branch name/phone come
+    # from the join here; BU name is looked up once per request via
+    # GET_BU_NAME_BY_CODE below, not joined per job.
     GET_JOBS_FOR_WHATSAPP_COMPLETION = """
         SELECT
             j.id AS job_id,
@@ -1899,16 +1899,16 @@ class JobsSql:
     """
 
     # BU (business unit) display name for the template header — one row per request,
-    # cached by the caller, never joined per job (plans/plan1.md Step 2).
+    # cached by the caller, never joined per job.
     GET_BU_NAME_BY_CODE = """
         SELECT name FROM security.bu WHERE LOWER(code) = LOWER(%(schema)s)
     """
 
-    # Two write sites, not one (plans/plan1.md Phase 2c / Step 1) — sender.py records
-    # the attempt at send time; the webhook settles the outcome later. Both are SQL-side
-    # atomic increments (jsonb_set on the current row), replacing the old
-    # build_notification_update_args, which read counters into Python and wrote the
-    # whole event object back — racy against a concurrent webhook write on the same job.
+    # Two write sites, not one — sender.py records the attempt at send time; the
+    # webhook settles the outcome later. Both are SQL-side atomic increments
+    # (jsonb_set on the current row), replacing the old build_notification_update_args,
+    # which read counters into Python and wrote the whole event object back — racy
+    # against a concurrent webhook write on the same job.
 
     # `JOB_COMPLETION` is built as its own isolated object (single-level jsonb_set calls
     # only) and attached to whatsapp_notifications with one single-level jsonb_set at the

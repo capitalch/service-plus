@@ -1,15 +1,9 @@
-# Whatsapp implementation further
-- I have activated whatsapp business API messaging for my meta account succesfully at meta systems, I have valid whatsapp phone number id and access token. These two are only required to send whatsapp message through api which I already checked through a pilot project, and it is working as expected.
-- Please create appropriate section in .env.example for whatsapp credentials and create the placeholder keys. I will provide the values in .env file.
-- I want to itegrate whatsapp from scratch in service plus server without disturbing current codebase, it should be a new addition. If required remove the earlier implementation at server.
-- I want to integrate whatsapp as follows at present:
-    - For completed OK with finalized jobs only
-        - When user opens customemr Connect screen at client, all ready and final jobs are visible to user. All rows with 0 messages sent are already selected. Success or failure message count > 0 are not selected.
-        - User can select additional rows if desired
-        - User clicks Send messages button
-        - Proper repaired OK messages are sent through server whatsapp api. Server selects appropriate whatsapp template to send the message.
-        - Success or failure of message is tracked through webhooks, which needs to be implemented at server. Success count or failure counts are recorded in database. Please implement appropriate webhooks and give me specifications, such that I can configure them in Meta "Configure Webhooks" section in meta business whatsapp website.
-        - The user is shown appropriate permanent notification on screen(Not time based) and customer connect screen is refreshed to show proper success or failure attempts.
-    - Other implementations of whatsapp will follow next, once this implementation is successfully done. At present I only want the above implementation
-- Please suggest the best way to implement above. Do not make any chnages to current implementation for now. I will review and approve.
-- Write your approach to plans/plan.md
+# Whatsapp implementation for delivering the receipt of job to customer
+- At present when a customer gives a job for repairs, a manual job slip is issued to customer.
+- Can we issue the job slip on whatsapp instead of printing. This will also save paper.
+- There can be whatsapp button which will send the job receipt in whatsapp. This button with proper whatsapp icon should appear in all the places where job slip can be printed. Also this button should be available on the modal window which shows the pdf of job slip.
+- When a message for job received is sent to customer its success, failure should be recorded in whatsapp_notifications colum of job table, without disturbing other data in the column.
+- Also we should be able to resend the job slip on whatsapp. But there is no count of succes and fail in the columnof job table. There must be some indication in job view and jobs grid if whatsapp job receipt is sent.
+- This facility should be available for batch jobs also.
+- Create anoverall design with meta message template to get approved. Do you suggest that the message should be conclusive in itself or attach the job slip pdf with it, or both. Consider security, privacy and what will be easier for customer to use. We also have a link for customer to enquire the job status. Should we send the job slip on whatsapp and the job status link also.
+- Write your approach to plans/plan.md. Do not implement now.
