@@ -12,7 +12,7 @@ from psycopg.types.datetime import DateLoader, TimestampLoader, TimestamptzLoade
 from psycopg.types.numeric import FloatLoader
 from app.config import settings
 from app.db.sql.sql_base import SqlStore
-from app.core.exceptions import AppMessages, DatabaseException
+from app.core.exceptions import AppMessages, DatabaseException, ServicePlusException
 from app.logger import logger
 
 from app.db.connection.pool_manager import pool_manager
@@ -92,6 +92,10 @@ async def _open_db_connection(  # pylint: disable=too-many-arguments,too-many-po
         logger.error("%s: %s", AppMessages.DATABASE_CONNECTION_FAILED, e)
         raise DatabaseException(AppMessages.DATABASE_CONNECTION_FAILED) from e
     except DatabaseException:
+        if not autocommit and conn and not conn.closed:
+            await conn.rollback()
+        raise
+    except ServicePlusException:
         if not autocommit and conn and not conn.closed:
             await conn.rollback()
         raise

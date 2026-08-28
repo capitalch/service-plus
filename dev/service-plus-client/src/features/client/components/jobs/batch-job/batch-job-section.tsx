@@ -197,7 +197,9 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     batch_no: editBatchNo,
                     sharedData: {
                         branch_id:             branchId,
-                        division_id:           values.division_id ?? defaultDivisionId,
+                        division_id:           availableDivisions.length === 1
+                            ? availableDivisions[0].id
+                            : (values.division_id ?? defaultDivisionId),
                         batch_date:            values.batch_date,
                         customer_contact_id:   values.customer_id,
                         job_receive_manner_id: values.receive_manner_id,
@@ -224,7 +226,9 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 const payload = encodeURIComponent(JSON.stringify({
                     sharedData: {
                         branch_id:             branchId,
-                        division_id:           values.division_id ?? defaultDivisionId,
+                        division_id:           availableDivisions.length === 1
+                            ? availableDivisions[0].id
+                            : (values.division_id ?? defaultDivisionId),
                         batch_date:            values.batch_date,
                         customer_contact_id:   values.customer_id,
                         job_receive_manner_id: values.receive_manner_id,

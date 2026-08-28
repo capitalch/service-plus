@@ -302,7 +302,9 @@ export const OpeningJobSection = () => {
                     id:                       editJob.id,
                     alternate_job_no:         values.alternate_job_no.trim(),
                     is_opening_job:           true,
-                    division_id:              values.division_id ?? defaultDivisionId,
+                    division_id:              availableDivisions.length === 1
+                        ? availableDivisions[0].id
+                        : (values.division_id ?? defaultDivisionId),
                     job_date:                 values.job_date,
                     purchase_date:            values.purchase_date?.trim() || null,
                     customer_contact_id:      values.customer_id,
@@ -344,7 +346,9 @@ export const OpeningJobSection = () => {
                         branch_id:                branchId,
                         alternate_job_no:         values.alternate_job_no.trim(),
                         is_opening_job:           true,
-                        division_id:              values.division_id ?? defaultDivisionId,
+                        division_id:              availableDivisions.length === 1
+                            ? availableDivisions[0].id
+                            : (values.division_id ?? defaultDivisionId),
                         job_date:                 values.job_date,
                         purchase_date:            values.purchase_date?.trim() || null,
                         customer_contact_id:      values.customer_id,

@@ -97,9 +97,6 @@ export const DocumentSequenceSection = () => {
         try {
             let rows: SequenceRow[];
             if (tab === 'branch') {
-                const sqlId = availableDivisions.length > 1
-                    ? SQL_MAP.GET_BRANCH_ONLY_DOCUMENT_SEQUENCES
-                    : SQL_MAP.GET_DOCUMENT_SEQUENCES;
                 const res = await apolloClient.query<GenericQueryData<SequenceRow>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
@@ -108,7 +105,7 @@ export const DocumentSequenceSection = () => {
                         schema,
                         value: graphQlUtils.buildGenericQueryValue({
                             sqlArgs: { branch_id: branchId },
-                            sqlId,
+                            sqlId: SQL_MAP.GET_BRANCH_ONLY_DOCUMENT_SEQUENCES,
                         }),
                     },
                 });
@@ -217,7 +214,7 @@ export const DocumentSequenceSection = () => {
             </div>
 
             {/* Tabs — Branch + per division (when divisions exist) */}
-            {availableDivisions.length > 1 && (
+            {availableDivisions.length >= 1 && (
                 <div className="flex gap-1 border-b border-(--cl-border) pb-0">
                     <button
                         type="button"

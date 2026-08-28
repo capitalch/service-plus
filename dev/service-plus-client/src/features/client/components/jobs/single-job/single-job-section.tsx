@@ -195,7 +195,9 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                 });
                 toast.success(MESSAGES.SUCCESS_JOB_UPDATED);
             } else {
-                const divisionId = values.division_id ?? defaultDivisionId;
+                const divisionId = availableDivisions.length === 1
+                    ? availableDivisions[0].id
+                    : (values.division_id ?? defaultDivisionId);
                 const receivedStatusId = jobStatuses.find(s => s.code === "RECEIVED")?.id ?? null;
                 const sqlObject = {
                     tableName:         "job",
