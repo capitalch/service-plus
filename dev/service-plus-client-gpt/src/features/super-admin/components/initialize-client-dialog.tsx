@@ -1,0 +1,568 @@
+import { useEffect, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, Loader2, PartyPopper } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { MESSAGES } from "@/constants/messages";
+import { SQL_MAP } from "@/constants/sql-map";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
+import { useDebounce } from "@/hooks/use-debounce";
+import { apolloClient } from "@/lib/apollo-client";
+import { graphQlUtils } from "@/lib/graphql-utils";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
+import type { ClientType } from "@/features/super-admin/types/index";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type CheckDbQueryDataType = {
+	genericQuery: { exists: boolean }[] | null;
+};
+
+type CreateAdminResultType = {
+	createAdminUser: { email_sent: boolean; id: number };
+};
+
+type InitializeClientDialogPropsType = {
+	client: ClientType;
+	onOpenChange: (open: boolean) => void;
+	onStep1Success?: () => void;
+	onSuccess: () => void;
+	open: boolean;
+};
+
+// Steps: 1=Create Database (includes security-schema seeding server-side), 2=Create Admin User
+type StepType = 1 | 2 | "success";
+
+// ─── Zod schemas ──────────────────────────────────────────────────────────────
+
+const step1Schema = z.object({
+	db_name: z
+		.string()
+		.min(1, MESSAGES.ERROR_DB_NAME_REQUIRED)
+		.regex(/^service_plus_[a-z0-9_]+$/, "Invalid format: must be service_plus_<code>"),
+});
+
+const step2Schema = z.object({
+	email: z.email({ message: MESSAGES.ERROR_EMAIL_INVALID }),
+	full_name: z.string().min(1, MESSAGES.ERROR_FULL_NAME_REQUIRED),
+	mobile: z
+		.string()
+		.transform((val) => normalizeMobile(val))
+		.refine((val) => val === "" || MOBILE_REGEX.test(val), { message: MESSAGES.ERROR_MOBILE_INVALID })
+		.optional(),
+	username: z
+		.string()
+		.min(1, MESSAGES.ERROR_ADMIN_USERNAME_REQUIRED)
+		.min(5, MESSAGES.ERROR_USERNAME_MIN_LENGTH)
+		.regex(/^[a-zA-Z0-9]+$/, MESSAGES.ERROR_USERNAME_INVALID_FORMAT),
+});
+
+type Step1FormType = z.infer<typeof step1Schema>;
+type Step2FormType = z.infer<typeof step2Schema>;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function FieldError({ message }: { message?: string }) {
+	return (
+		<AnimatePresence>
+			{message && (
+				<motion.p
+					animate={{ opacity: 1, y: 0 }}
+					className="text-xs text-red-500"
+					exit={{ opacity: 0, y: -4 }}
+					initial={{ opacity: 0, y: -4 }}
+				>
+					{message}
+				</motion.p>
+			)}
+		</AnimatePresence>
+	);
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export const InitializeClientDialog = ({
+	client,
+	onOpenChange,
+	onStep1Success,
+	onSuccess,
+	open,
+}: InitializeClientDialogPropsType) => {
+	const [checkingDb, setCheckingDb] = useState(false);
+	const [checkingUsername, setCheckingUsername] = useState(false);
+	const [createdDbName, setCreatedDbName] = useState("");
+	const [creatingAdmin, setCreatingAdmin] = useState(false);
+	const [creatingDb, setCreatingDb] = useState(false);
+	const [dbNameAvailable, setDbNameAvailable] = useState<boolean | null>(null);
+	const [step, setStep] = useState<StepType>(client?.db_name ? 2 : 1);
+	const [usernameTaken, setUsernameTaken] = useState<boolean | null>(null);
+
+	const step1Form = useForm<Step1FormType>({
+		defaultValues: { db_name: `service_plus_${client.code.toLowerCase()}` },
+		mode: "onChange",
+		resolver: zodResolver(step1Schema),
+	});
+
+	const step2Form = useForm<Step2FormType>({
+		defaultValues: { email: "", full_name: "", mobile: "", username: "" },
+		mode: "onChange",
+		resolver: zodResolver(step2Schema),
+	});
+
+	const dbNameValue = useWatch({ control: step1Form.control, name: "db_name" });
+	const usernameValue = useWatch({ control: step2Form.control, name: "username" });
+	const debouncedDbName = useDebounce(dbNameValue, FIELD_VALIDATION_DEBOUNCE_MS);
+	const debouncedUsername = useDebounce(usernameValue, FIELD_VALIDATION_DEBOUNCE_MS);
+
+	// Debounced DB name uniqueness check
+	useEffect(() => {
+		if (!debouncedDbName) return;
+		const { invalid } = step1Form.getFieldState("db_name");
+		if (invalid) {
+			setDbNameAvailable(null);
+			return;
+		}
+		setCheckingDb(true);
+		setDbNameAvailable(null);
+		apolloClient
+			.query<CheckDbQueryDataType>({
+				query: GRAPHQL_MAP.genericQuery,
+				variables: {
+					db_name: "",
+					schema: "public",
+					value: graphQlUtils.buildGenericQueryValue({
+						sqlArgs: { db_name: debouncedDbName },
+						sqlId: SQL_MAP.CHECK_DB_NAME_EXISTS,
+					}),
+				},
+			})
+			.then((res) => {
+				const exists = res.data?.genericQuery?.[0]?.exists ?? false;
+				setDbNameAvailable(!exists);
+				if (exists) {
+					step1Form.setError("db_name", {
+						message: MESSAGES.ERROR_DB_NAME_EXISTS,
+						type: "manual",
+					});
+				} else {
+					step1Form.clearErrors("db_name");
+				}
+			})
+			.finally(() => {
+				setCheckingDb(false);
+			});
+	}, [debouncedDbName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	// Debounced username uniqueness check
+	useEffect(() => {
+		if (!debouncedUsername) {
+			setUsernameTaken(null);
+			return;
+		}
+		const { invalid } = step2Form.getFieldState("username");
+		if (invalid) {
+			setUsernameTaken(null);
+			return;
+		}
+		const activeDb = createdDbName || client.db_name || "";
+		if (!activeDb) return;
+		setCheckingUsername(true);
+		apolloClient
+			.query<CheckDbQueryDataType>({
+				fetchPolicy: "network-only",
+				query: GRAPHQL_MAP.genericQuery,
+				variables: {
+					db_name: activeDb,
+					schema: "security",
+					value: graphQlUtils.buildGenericQueryValue({
+						sqlArgs: { username: debouncedUsername },
+						sqlId: SQL_MAP.CHECK_ADMIN_USERNAME_EXISTS,
+					}),
+				},
+			})
+			.then((res) => {
+				const exists = res.data?.genericQuery?.[0]?.exists ?? false;
+				setUsernameTaken(exists);
+				if (exists) {
+					step2Form.setError("username", {
+						message: MESSAGES.ERROR_ADMIN_USERNAME_EXISTS,
+						type: "manual",
+					});
+				} else {
+					step2Form.clearErrors("username");
+				}
+			})
+			.finally(() => {
+				setCheckingUsername(false);
+			});
+	}, [debouncedUsername]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	// Reset state when dialog closes
+	useEffect(() => {
+		if (!open) {
+			setCheckingDb(false);
+			setCheckingUsername(false);
+			setCreatedDbName("");
+			setDbNameAvailable(null);
+			setStep(client?.db_name ? 2 : 1);
+			setUsernameTaken(null);
+			step1Form.reset({ db_name: `service_plus_${client.code.toLowerCase()}` });
+			step2Form.reset({ email: "", full_name: "", mobile: "", username: "" });
+		}
+	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	async function onStep1Submit(data: Step1FormType) {
+		setCreatingDb(true);
+		try {
+			const result = await apolloClient.mutate({
+				mutation: GRAPHQL_MAP.createServiceDb,
+				variables: {
+					db_name: "",
+					schema: "public",
+					value: encodeURIComponent(JSON.stringify({ client_id: client.id, new_db_name: data.db_name })),
+				},
+			});
+			if (result.error) {
+				toast.error(MESSAGES.ERROR_INITIALIZE_DB_FAILED);
+				return;
+			}
+			setCreatedDbName(data.db_name);
+			setStep(2);
+			toast.success(MESSAGES.SUCCESS_INITIALIZE_DB);
+			onStep1Success?.();
+		} catch {
+			toast.error(MESSAGES.ERROR_INITIALIZE_DB_FAILED);
+		} finally {
+			setCreatingDb(false);
+		}
+	}
+
+	async function onStep2Submit(data: Step2FormType) {
+		const activeDb = createdDbName || client.db_name || "";
+		setCreatingAdmin(true);
+		try {
+			const result = await apolloClient.mutate<CreateAdminResultType>({
+				mutation: GRAPHQL_MAP.createAdminUser,
+				variables: {
+					db_name: activeDb,
+					schema: "security",
+					value: encodeURIComponent(JSON.stringify({
+						client_id: client.id,
+						email: data.email,
+						full_name: data.full_name,
+						mobile: data.mobile || null,
+						username: data.username,
+					})),
+				},
+			});
+			if (result.error) {
+				toast.error(MESSAGES.ERROR_INITIALIZE_ADMIN_FAILED);
+				return;
+			}
+			const emailSent = result.data?.createAdminUser?.email_sent ?? false;
+			if (emailSent) {
+				toast.success(MESSAGES.SUCCESS_INITIALIZE_ADMIN);
+			} else {
+				toast.warning(MESSAGES.WARN_INITIALIZE_ADMIN_EMAIL_NOT_SENT);
+			}
+			setStep("success");
+		} catch {
+			toast.error(MESSAGES.ERROR_INITIALIZE_ADMIN_FAILED);
+		} finally {
+			setCreatingAdmin(false);
+		}
+	}
+
+	const step1Errors = step1Form.formState.errors;
+	const step2Errors = step2Form.formState.errors;
+
+	const step1Busy = checkingDb || creatingDb;
+	const step1SubmitDisabled = step1Busy || !dbNameAvailable || !!step1Errors.db_name;
+
+	const step2Busy = creatingAdmin;
+	const step2SubmitDisabled =
+		step2Busy ||
+		checkingUsername ||
+		usernameTaken === true ||
+		Object.keys(step2Errors).length > 0;
+
+	const dot1Done = step === 2 || step === "success";
+	const dot2Active = step === 2;
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="w-full gap-0 overflow-hidden p-0 sm:max-w-[480px]">
+				<DialogTitle className="sr-only">Initialize Client: {client.name}</DialogTitle>
+				<DialogDescription className="sr-only">
+					Set up the database and admin user for {client.name}.
+				</DialogDescription>
+
+				{/* Stepper header – hidden on success screen */}
+				{step !== "success" && (
+					<div className="bg-gradient-to-br from-slate-800 to-slate-900 px-5 py-5 sm:px-7">
+						<p className="mb-4 text-sm font-semibold text-slate-300">
+							Initialize Client:{" "}
+							<span className="text-emerald-400">{client.name}</span>
+						</p>
+						<div className="flex items-center gap-3">
+							{/* Step 1 dot */}
+							<div className="flex flex-col items-center gap-1">
+								<div
+									className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+										dot1Done
+											? "bg-emerald-500 text-white"
+											: "bg-slate-600 text-slate-300"
+									}`}
+								>
+									{dot1Done ? <Check className="h-3.5 w-3.5" /> : "1"}
+								</div>
+								<span className="text-[10px] text-slate-400">Database</span>
+							</div>
+							{/* Connector 1→2 */}
+							<div
+								className={`h-0.5 flex-1 rounded ${
+									dot1Done ? "bg-emerald-500" : "bg-slate-600"
+								}`}
+							/>
+							{/* Step 2 dot */}
+							<div className="flex flex-col items-center gap-1">
+								<div
+									className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+										dot2Active
+											? "bg-emerald-500 text-white"
+											: "bg-slate-600 text-slate-300"
+									}`}
+								>
+									2
+								</div>
+								<span className="text-[10px] text-slate-400">Admin User</span>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* Step panels */}
+				<div className="p-5 sm:p-7">
+					<AnimatePresence mode="wait">
+						{/* ── Step 1: Create Database ── */}
+						{step === 1 && (
+							<motion.div
+								key="step1"
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0, y: -8 }}
+								initial={{ opacity: 0, y: 8 }}
+								transition={{ duration: 0.2 }}
+							>
+								<p className="mb-1 text-sm font-semibold text-slate-800">
+									Create Database
+								</p>
+								<p className="mb-4 text-xs text-slate-500">
+									A new PostgreSQL database will be created for this client.
+								</p>
+								<form
+									className="flex flex-col gap-4"
+									onSubmit={step1Form.handleSubmit(onStep1Submit)}
+								>
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="db_name">
+											Database Name{" "}
+											<span className="text-red-500">*</span>
+										</Label>
+										<div className="relative">
+											<Input
+												id="db_name"
+												placeholder="service_plus_..."
+												{...step1Form.register("db_name")}
+												className="w-full pr-8"
+												disabled={step1Busy}
+											/>
+											{checkingDb && (
+												<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+											)}
+											{!checkingDb && dbNameAvailable === true && (
+												<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+											)}
+										</div>
+										<FieldError message={step1Errors.db_name?.message} />
+									</div>
+									<div className="flex justify-end gap-2">
+										<Button
+											type="button"
+											variant="ghost"
+											onClick={() => onOpenChange(false)}
+										>
+											Cancel
+										</Button>
+										<Button
+											className="bg-emerald-600 text-white hover:bg-emerald-700"
+											disabled={step1SubmitDisabled}
+											type="submit"
+										>
+											{creatingDb ? "Creating..." : "Create Database"}
+										</Button>
+									</div>
+								</form>
+							</motion.div>
+						)}
+
+						{/* ── Step 2: Create Admin User ── */}
+						{step === 2 && (
+							<motion.div
+								key="step2"
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0, y: -8 }}
+								initial={{ opacity: 0, y: 8 }}
+								transition={{ duration: 0.2 }}
+							>
+								<p className="mb-1 text-sm font-semibold text-slate-800">
+									Create Admin User
+								</p>
+								{createdDbName ? (
+									<div className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+										Database{" "}
+										<span className="font-semibold">{createdDbName}</span>{" "}
+										created successfully. Now create the admin user.
+									</div>
+								) : (
+									<p className="mb-4 text-xs text-slate-500">
+										Create the first admin user for database{" "}
+										<span className="font-medium">{client.db_name}</span>.
+									</p>
+								)}
+								<form
+									className="flex flex-col gap-4"
+									onSubmit={step2Form.handleSubmit(onStep2Submit)}
+								>
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="full_name">
+											Full Name{" "}
+											<span className="text-red-500">*</span>
+										</Label>
+										<Input
+											id="full_name"
+											placeholder="e.g. John Smith"
+											{...step2Form.register("full_name")}
+											className="w-full"
+											disabled={step2Busy}
+										/>
+										<FieldError message={step2Errors.full_name?.message} />
+									</div>
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="username">
+											Username{" "}
+											<span className="text-red-500">*</span>
+										</Label>
+										<div className="relative">
+											<Input
+												id="username"
+												placeholder="e.g. johnsmith"
+												{...step2Form.register("username")}
+												className="w-full pr-8"
+												disabled={step2Busy}
+											/>
+											{checkingUsername && (
+												<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+											)}
+											{!checkingUsername && usernameTaken === false && !step2Errors.username && (
+												<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+											)}
+										</div>
+										<FieldError message={step2Errors.username?.message} />
+									</div>
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="email">
+											Email{" "}
+											<span className="text-red-500">*</span>
+										</Label>
+										<Input
+											id="email"
+											placeholder="admin@example.com"
+											type="email"
+											{...step2Form.register("email")}
+											className="w-full"
+											disabled={step2Busy}
+										/>
+										<FieldError message={step2Errors.email?.message} />
+									</div>
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="mobile">Mobile</Label>
+										<Input
+											id="mobile"
+											inputMode="numeric"
+											maxLength={15}
+											placeholder="+91 98765 43210"
+											type="tel"
+											{...step2Form.register("mobile", {
+												onChange: (e) => {
+													const digits = normalizeMobile(e.target.value).slice(0, 10);
+													step2Form.setValue("mobile", digits, { shouldValidate: true });
+												},
+											})}
+											className="w-full"
+											disabled={step2Busy}
+										/>
+										<FieldError message={step2Errors.mobile?.message} />
+									</div>
+									<div className="flex justify-end gap-2">
+										<Button
+											type="button"
+											variant="ghost"
+											onClick={() => onOpenChange(false)}
+										>
+											Cancel
+										</Button>
+										<Button
+											className="bg-emerald-600 text-white hover:bg-emerald-700"
+											disabled={step2SubmitDisabled}
+											type="submit"
+										>
+											{creatingAdmin ? "Creating..." : "Create Admin"}
+										</Button>
+									</div>
+								</form>
+							</motion.div>
+						)}
+
+						{/* ── Success screen ── */}
+						{step === "success" && (
+							<motion.div
+								key="success"
+								animate={{ opacity: 1, scale: 1 }}
+								className="flex flex-col items-center py-6 text-center"
+								initial={{ opacity: 0, scale: 0.95 }}
+								transition={{ duration: 0.25 }}
+							>
+								<div className="mb-4 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600">
+									<PartyPopper className="h-8 w-8 text-emerald-600" />
+								</div>
+								<h3 className="mb-2 text-lg font-bold text-slate-800">
+									Client Initialized!
+								</h3>
+								<p className="mb-6 text-sm text-slate-500">
+									Database and admin user have been set up. Login credentials have been emailed to the admin.
+								</p>
+								<Button
+									className="bg-emerald-600 text-white hover:bg-emerald-700"
+									onClick={() => {
+										onSuccess();
+										onOpenChange(false);
+									}}
+								>
+									Close
+								</Button>
+							</motion.div>
+						)}
+					</AnimatePresence>
+				</div>
+			</DialogContent>
+		</Dialog>
+	);
+};

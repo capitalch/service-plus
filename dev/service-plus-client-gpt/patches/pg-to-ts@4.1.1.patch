@@ -1,0 +1,41 @@
+diff --git a/dist/index.js b/dist/index.js
+index cc78a2dd120adb0305c8dac90e049e57b9e5bcb4..c2d5a162339ff88ea956919c4dff60702e99c2e0 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -48,6 +48,10 @@ var typescript_1 = require("./typescript");
+ var options_1 = __importDefault(require("./options"));
+ exports.Options = options_1.default;
+ var typescript_formatter_1 = require("typescript-formatter");
++// Patched: typescript-formatter's classic ts.* Language Service API is not
++// available under TypeScript 7, so format with prettier (resolved from the
++// consuming project's own node_modules) instead.
++var prettier_1 = require(require.resolve('prettier', { paths: [process.cwd()] }));
+ var schemaPostgres_1 = require("./schemaPostgres");
+ // eslint-disable-next-line @typescript-eslint/no-var-requires
+ var pkgVersion = require('../package.json').version;
+@@ -162,23 +166,10 @@ function typescriptOfSchema(dbIn, tables, excludedTables, inSchema, options) {
+                     output += enumTypes;
+                     output += interfaces;
+                     output += "\n\n  export interface TableTypes {".concat(typeMaps, "\n  }\n\n  export const tables = {\n    ").concat(tableMap, ",\n  }\n  ");
+-                    formatterOption = {
+-                        replace: false,
+-                        verify: false,
+-                        tsconfig: true,
+-                        tslint: true,
+-                        editorconfig: true,
+-                        tsfmt: true,
+-                        vscode: false,
+-                        tsconfigFile: null,
+-                        tslintFile: null,
+-                        vscodeFile: null,
+-                        tsfmtFile: null,
+-                    };
+-                    return [4 /*yield*/, (0, typescript_formatter_1.processString)('schema.ts', output, formatterOption)];
++                    return [4 /*yield*/, prettier_1.format(output, { parser: 'typescript' })];
+                 case 5:
+                     processedResult = _c.sent();
+-                    return [2 /*return*/, processedResult.dest.replace(/ {4}/g, '  ')];
++                    return [2 /*return*/, processedResult.replace(/ {4}/g, '  ')];
+             }
+         });
+     });

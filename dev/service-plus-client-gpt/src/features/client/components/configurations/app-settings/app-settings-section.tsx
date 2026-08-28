@@ -1,0 +1,301 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { AlertTriangleIcon, PencilIcon, RefreshCwIcon, SearchIcon, X } from "lucide-react";
+import { toast } from "sonner";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { SQL_MAP } from "@/constants/sql-map";
+import { apolloClient } from "@/lib/apollo-client";
+import { graphQlUtils } from "@/lib/graphql-utils";
+import { useAppSelector } from "@/store/hooks";
+import { selectDbName } from "@/features/auth/store/auth-slice";
+import { selectAvailableDivisions, selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
+import { EditAppSettingDialog } from "./edit-app-setting-dialog";
+import type { AppSettingRecord } from "@/features/client/types/app-setting";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type GenericQueryDataType<T> = { genericQuery: T[] | null };
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const rowVariants = {
+    hidden:  { opacity: 0, y: 6 },
+    visible: (i: number) => ({
+        opacity:    1,
+        transition: { delay: i * 0.04, duration: 0.22, ease: "easeOut" as const },
+        y:          0,
+    }),
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function displayValue(v: unknown): string {
+    if (v === null || v === undefined) return "—";
+    if (typeof v === "object") return JSON.stringify(v);
+    return String(v);
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export const AppSettingsSection = () => {
+    const dbName             = useAppSelector(selectDbName);
+    const schema             = useAppSelector(selectSchema);
+    const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
+
+    const isDefaultDivisionInactive = availableDivisions.length > 0
+        && !availableDivisions.some(d => d.id === defaultDivisionId);
+
+    const [editRecord,   setEditRecord]   = useState<AppSettingRecord | null>(null);
+    const [loading,      setLoading]      = useState(false);
+    const [records,      setRecords]      = useState<AppSettingRecord[]>([]);
+    const [search,       setSearch]       = useState("");
+    const [selectedId,   setSelectedId]   = useState<number | null>(null);
+
+    const loadData = useCallback(async () => {
+        if (!dbName || !schema) return;
+        setLoading(true);
+        try {
+            const res = await apolloClient.query<GenericQueryDataType<AppSettingRecord>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_APP_SETTINGS }),
+                },
+            });
+            setRecords(res.data?.genericQuery ?? []);
+        } catch {
+            toast.error("Failed to load app settings.");
+        } finally {
+            setLoading(false);
+        }
+    }, [dbName, schema]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+    const displayRecords = useMemo(() => {
+        if (!search.trim()) return records;
+        const q = search.toLowerCase();
+        return records.filter(r =>
+            r.setting_key.toLowerCase().includes(q) ||
+            displayValue(r.setting_value).toLowerCase().includes(q) ||
+            (r.description?.toLowerCase().includes(q) ?? false)
+        );
+    }, [records, search]);
+
+    const thClass = "text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)";
+
+    if (!schema) {
+        return (
+            <div className="flex items-center justify-center rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-20">
+                <div className="text-center">
+                    <p className="text-sm font-semibold text-(--cl-text)">No Business Unit</p>
+                    <p className="mt-2 text-xs text-(--cl-text-muted)">
+                        No business unit is assigned. Please contact your administrator.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <motion.div
+                animate={{ opacity: 1 }}
+                className="flex min-h-0 flex-1 flex-col gap-4"
+                initial={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+            >
+                {/* Header */}
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h1 className="text-xl font-bold text-(--cl-text)">App Settings</h1>
+                        <p className="mt-1 text-sm text-(--cl-text-muted)">
+                            System-wide configuration settings for this business unit.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            className="gap-1.5 border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) shadow-sm hover:bg-(--cl-surface-3)"
+                            disabled={loading}
+                            size="sm"
+                            variant="outline"
+                            onClick={loadData}
+                        >
+                            <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
+                            Refresh
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Search + count */}
+                <div className="flex items-center gap-3">
+                    <div className="relative flex-1">
+                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                        <Input
+                            className="h-8 pl-8 text-sm"
+                            disabled={loading}
+                            placeholder="Search settings…"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
+                                    type="button"
+                                    onClick={() => setSearch("")}
+                                >
+                                    <X className="h-2.5 w-2.5 text-muted-foreground" />
+                                </button>
+                            )}
+                    </div>
+                    {!loading && records.length > 0 && (
+                        <p className="shrink-0 text-xs text-(--cl-text-muted)">
+                            {displayRecords.length} of {records.length}
+                        </p>
+                    )}
+                </div>
+
+                {/* Warning: default_division_id points to inactive/missing division */}
+                {isDefaultDivisionInactive && (
+                    <Alert variant="warning" className="flex items-start gap-2 py-2.5">
+                        <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                        <AlertDescription className="text-xs text-yellow-800">
+                            <span className="font-semibold">default_division_id</span> is set to{" "}
+                            <span className="font-mono">{defaultDivisionId}</span>, which does not match any active
+                            division in this branch. The app will fall back to no default division until this is
+                            corrected.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* Table */}
+                {loading && records.length === 0 ? (
+                    <div className="flex flex-col gap-2">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="h-12 animate-pulse rounded-lg bg-(--cl-surface-2)" />
+                        ))}
+                    </div>
+                ) : records.length === 0 ? (
+                    <div className="rounded-xl border border-(--cl-border) bg-(--cl-surface-2) px-6 py-12 text-center text-sm text-(--cl-text-muted)">
+                        No settings found.
+                    </div>
+                ) : (
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-(--cl-border) bg-(--cl-surface-2) shadow-sm">
+                        <div className="overflow-x-auto overflow-y-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="sticky top-0 z-10 bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
+                                        <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
+                                        <TableHead className={`w-10 ${thClass}`}></TableHead>
+                                        <TableHead className={thClass}>Key</TableHead>
+                                        <TableHead className={thClass}>Value</TableHead>
+                                        <TableHead className={thClass}>Description</TableHead>
+                                        <TableHead className={thClass}>Editable</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {displayRecords.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={6}
+                                                className="px-6 py-10 text-center text-sm text-(--cl-text-muted)"
+                                            >
+                                                No results match &ldquo;{search}&rdquo;.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        displayRecords.map((record, idx) => {
+                                            const isSelected = selectedId === record.id;
+                                            const isWarnRow  = isDefaultDivisionInactive
+                                                && record.setting_key === "default_division_id";
+                                            return (
+                                            <motion.tr
+                                                animate="visible"
+                                                className={`cursor-pointer border-b border-(--cl-border) transition-colors last:border-b-0 ${
+                                                    isSelected
+                                                        ? "bg-(--cl-accent)/40 hover:bg-(--cl-accent)/45"
+                                                        : isWarnRow
+                                                            ? "bg-yellow-50/60 hover:bg-(--cl-surface-3) dark:bg-yellow-900/10"
+                                                            : "hover:bg-(--cl-surface-3)"
+                                                }`}
+                                                custom={idx}
+                                                initial="hidden"
+                                                key={record.id}
+                                                variants={rowVariants}
+                                                onClick={() => setSelectedId(record.id)}
+                                            >
+                                                <TableCell className="text-center text-xs text-(--cl-text-muted)">{idx + 1}</TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        className="h-7 w-7 text-(--cl-text-muted) hover:text-sky-600 disabled:opacity-30"
+                                                        disabled={!record.is_editable}
+                                                        size="icon"
+                                                        title="Edit"
+                                                        variant="ghost"
+                                                        onClick={() => { setSelectedId(record.id); setEditRecord(record); }}
+                                                    >
+                                                        <PencilIcon className="h-3.5 w-3.5 text-blue-600" />
+                                                    </Button>
+                                                </TableCell>
+                                                <TableCell className="font-mono text-sm font-medium text-(--cl-text)">{record.setting_key}</TableCell>
+                                                <TableCell className="font-mono text-sm text-(--cl-text-muted)">{displayValue(record.setting_value)}</TableCell>
+                                                <TableCell className="max-w-xs truncate text-sm text-(--cl-text-muted)">{record.description ?? "—"}</TableCell>
+                                                <TableCell>
+                                                    {record.is_editable ? (
+                                                        <Badge
+                                                            className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
+                                                            variant="outline"
+                                                        >
+                                                            <span className="mr-1 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                            Editable
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge
+                                                            className="border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-100"
+                                                            variant="outline"
+                                                        >
+                                                            Fixed
+                                                        </Badge>
+                                                    )}
+                                                </TableCell>
+                                            </motion.tr>
+                                            );
+                                        })
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                )}
+            </motion.div>
+
+            {/* Dialogs */}
+            {editRecord && (
+                <EditAppSettingDialog
+                    open={!!editRecord}
+                    record={editRecord}
+                    onOpenChange={(o) => { if (!o) setEditRecord(null); }}
+                    onSuccess={loadData}
+                />
+            )}
+        </>
+    );
+};

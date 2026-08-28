@@ -1,0 +1,84 @@
+import { useState, useCallback } from "react";
+import { ClientLayout, useClientSelection } from "../components/layout/client-layout";
+import { BatchJobSection } from "../components/jobs/batch-job/batch-job-section";
+import { DeliverJobSection } from "../components/jobs/deliver-job/deliver-job-section";
+import { JobControlSection } from "../components/jobs/job-control/job-control-section";
+import { OpeningJobSection } from "../components/jobs/opening-job/opening-job-section";
+import { PartUsedSection } from "../components/jobs/part-used/part-used-section";
+import { FinalAJobSection } from "../components/jobs/final-a-job/final-a-job-section";
+import { ReceiptsSection } from "../components/jobs/receipts/receipts-section";
+import { SingleJobSection } from "../components/jobs/single-job/single-job-section";
+import { JobPipelineSection } from "../components/jobs/job-pipeline/job-pipeline-section";
+import { AccountsPostingSection } from "../components/jobs/accounts-posting/accounts-posting-section";
+import { BatchWarrantySection } from "../components/jobs/batch-warranty-transactions/batch-warranty-section";
+import { CustomerConnectSection } from "../components/jobs/customer-connect/customer-connect-section";
+
+// ─── Coming Soon placeholder ──────────────────────────────────────────────────
+
+function ComingSoon({ label }: { label: string }) {
+    return (
+        <div className="flex flex-1 items-center justify-center rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-20">
+            <div className="text-center">
+                <p className="text-sm font-semibold text-(--cl-text)">{label}</p>
+                <p className="mt-2 text-xs text-(--cl-text-muted)">
+                    This jobs feature is coming soon.
+                </p>
+            </div>
+        </div>
+    );
+}
+
+// ─── Inner (needs layout context) ─────────────────────────────────────────────
+
+function JobsContent() {
+    const { selected, onSelect } = useClientSelection();
+    const [pendingBatchNo, setPendingBatchNo] = useState<number | null>(null);
+    const [forceSingleJobView, setForceSingleJobView] = useState(false);
+
+    const navigateToBatchEdit = useCallback((batchNo: number) => {
+        setPendingBatchNo(batchNo);
+        onSelect("Batch Jobs");
+    }, [onSelect]);
+
+    const returnToSingleJob = useCallback(() => {
+        setForceSingleJobView(true);
+        onSelect("Single Job");
+    }, [onSelect]);
+
+    switch (selected) {
+        case "Single Job":
+            return <SingleJobSection onNavigateToBatchEdit={navigateToBatchEdit} forceView={forceSingleJobView} onViewModeApplied={() => setForceSingleJobView(false)} />;
+        case "Batch Jobs":
+            return <BatchJobSection initialEditBatchNo={pendingBatchNo} onEditBatchNoApplied={() => setPendingBatchNo(null)} onReturnToSingleJob={returnToSingleJob} />;
+        case "Opening Jobs":
+            return <OpeningJobSection />;
+        case "Part Used (Job)":
+            return <PartUsedSection />;
+        case "Receipts":
+            return <ReceiptsSection />;
+        case "Job Pipeline":
+            return <JobPipelineSection />;
+        case "Final a Job":
+            return <FinalAJobSection />;
+        case "Deliver Job":
+            return <DeliverJobSection />;
+        case "Customer Connect":
+            return <CustomerConnectSection />;
+        case "Accounts Posting":
+            return <AccountsPostingSection />;
+        case "Job Control":
+            return <JobControlSection />;
+        case "Batch Warranty Jobs":
+            return <BatchWarrantySection />;
+        default:
+            return <ComingSoon label={selected || "Jobs"} />;
+    }
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export const ClientJobsPage = () => (
+    <ClientLayout>
+        <JobsContent />
+    </ClientLayout>
+);

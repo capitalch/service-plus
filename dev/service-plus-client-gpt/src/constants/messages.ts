@@ -1,0 +1,541 @@
+/**
+ * Centralized messages and error strings.
+ * Only error messages and success/notification messages belong here.
+ * All control display text (labels, placeholders, button text, etc.) is hardcoded in each component.
+ */
+
+export const MESSAGES = {
+  // Validation Errors - Required Fields
+  ERROR_CLIENT_REQUIRED: 'Please select a client',
+  ERROR_EMAIL_OR_USERNAME_REQUIRED: 'Email or username is required',
+  ERROR_EMAIL_REQUIRED: 'Email is required',
+  ERROR_PASSWORD_REQUIRED: 'Password is required',
+
+  // Validation Errors - Format
+  ERROR_EMAIL_INVALID: 'Please enter a valid email address',
+  ERROR_EMAIL_INVALID_FORMAT: 'Enter a valid email address',
+  ERROR_PASSWORD_LETTER_REQUIRED: 'Must contain at least one letter',
+  ERROR_PASSWORD_MIN_LENGTH: 'Password must be at least 6 characters',
+  ERROR_PASSWORD_NUMBER_REQUIRED: 'Must contain at least one number',
+  ERROR_USERNAME_INVALID_FORMAT: 'Username can only contain letters and numbers',
+  ERROR_USERNAME_MIN_LENGTH: 'Username must be at least 5 characters',
+
+  // Login Success/Error
+  ERROR_ACCOUNT_LOCKED: 'Your account has been locked. Please contact support.',
+  ERROR_INVALID_CREDENTIALS: 'Invalid username or password',
+  ERROR_LOGIN_FAILED: 'Login failed. Please check your credentials.',
+  ERROR_SESSION_EXPIRED: 'Your session has expired. Please login again.',
+  SUCCESS_GRAPHQL_TEST: 'GraphQL test query executed successfully.',
+  SUCCESS_LOGIN: 'Login successful! Redirecting...',
+
+  // Forgot Password Success/Error
+  CLIENTS_ERROR: 'Failed to load clients',
+  ERROR_EMAIL_NOT_FOUND: 'No account found with this email address',
+  ERROR_RESET_LINK_FAILED: 'Failed to send reset link. Please try again.',
+  SUCCESS_RESET_LINK_SENT: 'Password reset link has been sent to your email',
+
+  // Navigation
+  PAGE_NOT_FOUND: 'The page you are looking for does not exist.',
+
+  // Audit Logs
+  ERROR_AUDIT_EXPORT_FAILED:  'Failed to export audit log. Please try again.',
+  ERROR_AUDIT_LOAD_FAILED:    'Failed to load audit log entries. Please try again.',
+  ERROR_AUDIT_STATS_FAILED:   'Failed to load audit log statistics. Please try again.',
+
+  // Business Users
+  ERROR_BUSINESS_USER_ACTIVATE_FAILED: 'Failed to activate business user. Please try again.',
+  ERROR_BUSINESS_USER_BU_REQUIRED: 'Please select at least one business unit.',
+  ERROR_BUSINESS_USER_CREATE_FAILED: 'Failed to create business user. Please try again.',
+  ERROR_BUSINESS_USER_DEACTIVATE_FAILED: 'Failed to deactivate business user. Please try again.',
+  ERROR_BUSINESS_USER_DELETE_FAILED: 'Failed to delete business user. Please try again.',
+  ERROR_BUSINESS_USER_EMAIL_EXISTS: 'This email is already registered.',
+  ERROR_BUSINESS_USER_EMAIL_EXISTS_EDIT: 'This email is already used by another user.',
+  ERROR_BUSINESS_USER_LOAD_FAILED: 'Failed to load business users. Please try again.',
+  ERROR_BUSINESS_USER_MAIL_CREDENTIALS_FAILED: 'Failed to send the reset link. Please try again.',
+  ERROR_BUSINESS_USER_ROLE_REQUIRED: 'Please select a role.',
+  ERROR_BUSINESS_USER_UPDATE_FAILED: 'Failed to update business user. Please try again.',
+  ERROR_BUSINESS_USER_USERNAME_EXISTS: 'This username is already taken.',
+  ERROR_BUSINESS_USER_USERNAME_EXISTS_EDIT: 'This username is already used by another user.',
+  SUCCESS_BUSINESS_USER_ACTIVATED: 'Business user has been activated.',
+  SUCCESS_BUSINESS_USER_CREDENTIALS_MAILED: 'Password reset link sent to the user\'s email.',
+  WARN_BUSINESS_USER_BU_ROLE_ASSIGN_FAILED: 'User was created but business unit and role could not be assigned. Use the Associate BU & Role action.',
+  WARN_BUSINESS_USER_CREDENTIALS_MAIL_NOT_SENT: 'Reset link could not be emailed. Please check the user\'s email address.',
+  WARN_BUSINESS_USER_EMAIL_NOT_SENT: 'Business user created, but the setup email could not be sent. Use "Reset password and mail" to resend.',
+  SUCCESS_BUSINESS_USER_CREATED: 'Business user created. A password setup link has been emailed.',
+  SUCCESS_BUSINESS_USER_DEACTIVATED: 'Business user has been deactivated.',
+  SUCCESS_BUSINESS_USER_DELETED: 'Business user has been deleted.',
+  SUCCESS_BUSINESS_USER_UPDATED: 'Business user updated successfully.',
+  SUCCESS_BU_ROLE_ASSOCIATED: 'Business unit and role associations updated.',
+
+  // Business Units
+  ERROR_BU_ACTIVATE_FAILED: 'Failed to activate business unit. Please try again.',
+  ERROR_BU_CODE_EXISTS: 'This code is already in use.',
+  ERROR_BU_SCHEMA_DELETE_FAILED:   'Failed to drop business unit schema. Please try again.',
+  ERROR_BU_SCHEMA_NAME_MISMATCH:   'Schema name does not match. Please type the exact name.',
+  ERROR_ORPHAN_BU_DELETE_FAILED:   'Failed to delete orphaned schema. Please try again.',
+  ERROR_ORPHAN_BU_LOAD_FAILED:     'Failed to load orphaned schemas. Please try again.',
+  INFO_BU_SCHEMA_DROP_WARNING:     'This will permanently drop the schema and all its data from the database.',
+  SUCCESS_BU_SCHEMA_DELETED:       'Business unit and its schema have been permanently deleted.',
+  SUCCESS_ORPHAN_BU_DELETED:       'Orphaned schema has been permanently deleted.',
+  ERROR_BU_CODE_EXISTS_EDIT: 'This code is already used by another business unit.',
+  ERROR_BU_CREATE_FAILED: 'Failed to create business unit. Please try again.',
+  ERROR_BU_CREATE_SCHEMA_FAILED: 'Failed to create business unit. Please try again.',
+  ERROR_BU_NAME_EXISTS: 'This name is already in use.',
+  ERROR_BU_NAME_EXISTS_EDIT: 'This name is already used by another business unit.',
+  ERROR_BU_DEACTIVATE_FAILED: 'Failed to deactivate business unit. Please try again.',
+  ERROR_BU_DELETE_FAILED: 'Failed to delete business unit. Please try again.',
+  ERROR_BU_LOAD_FAILED: 'Failed to load business units. Please try again.',
+  ERROR_BU_SEED_FEED_FAILED: 'Failed to seed business unit data. Please try again.',
+  ERROR_BU_UPDATE_FAILED: 'Failed to update business unit. Please try again.',
+  SUCCESS_BU_ACTIVATED: 'Business unit has been activated.',
+  SUCCESS_BU_CREATED: 'Business unit created successfully.',
+  SUCCESS_BU_DEACTIVATED: 'Business unit has been deactivated.',
+  SUCCESS_BU_DELETED: 'Business unit has been deleted.',
+  SUCCESS_BU_UPDATED: 'Business unit updated successfully.',
+
+  // Branch CRUD
+  ERROR_BRANCH_CODE_EXISTS:        'This code is already in use.',
+  ERROR_BRANCH_CODE_EXISTS_EDIT:   'This code is already used by another branch.',
+  ERROR_BRANCH_CREATE_FAILED:      'Failed to create branch. Please try again.',
+  ERROR_BRANCH_DELETE_FAILED:      'Failed to delete branch. Please try again.',
+  ERROR_BRANCH_DELETE_HEAD_OFFICE: 'Head Office branch cannot be deleted.',
+  ERROR_BRANCH_DELETE_IN_USE:      'This branch cannot be deleted as it is referenced by existing records.',
+  ERROR_BRANCH_LOAD_FAILED:        'Failed to load branches. Please try again.',
+  ERROR_BRANCH_NAME_EXISTS:        'This name is already in use.',
+  ERROR_BRANCH_NAME_EXISTS_EDIT:   'This name is already used by another branch.',
+  ERROR_BRANCH_UPDATE_FAILED:      'Failed to update branch. Please try again.',
+  ERROR_STATES_LOAD_FAILED:        'Failed to load states. Please try again.',
+  SUCCESS_BRANCH_CREATED:          'Branch created successfully.',
+  SUCCESS_BRANCH_DELETED:          'Branch deleted successfully.',
+  SUCCESS_BRANCH_UPDATED:          'Branch updated successfully.',
+
+  // Division CRUD
+  ERROR_DIVISION_CREATE_FAILED:  'Failed to create division. Please try again.',
+  ERROR_DIVISION_DELETE_FAILED:  'Failed to delete division. Please try again.',
+  ERROR_DIVISION_DELETE_IN_USE:  'This division cannot be deleted as it is referenced by existing records.',
+  ERROR_DIVISION_LOAD_FAILED:    'Failed to load divisions. Please try again.',
+  ERROR_DIVISION_NAME_EXISTS:    'This name is already in use for this branch.',
+  ERROR_DIVISION_NAME_EXISTS_EDIT: 'This name is already used by another division in this branch.',
+  ERROR_DIVISION_CODE_EXISTS:    'This code is already in use for this branch.',
+  ERROR_DIVISION_CODE_EXISTS_EDIT: 'This code is already used by another division in this branch.',
+  ERROR_DIVISION_UPDATE_FAILED:  'Failed to update division. Please try again.',
+  ERROR_DIVISION_CHANGE_HAS_RECEIPTS: 'Division cannot be changed because one or more money receipts have already been issued against this job. Delete the receipts first to move the job to another division.',
+  ERROR_DIVISION_FORM_INVALID:   'Some fields need attention before this division can be saved. Check the highlighted tab.',
+  SUCCESS_DIVISION_CREATED:      'Division created successfully.',
+  SUCCESS_DIVISION_DELETED:      'Division deleted successfully.',
+  SUCCESS_DIVISION_UPDATED:      'Division updated successfully.',
+
+  // Financial Year CRUD
+  ERROR_FY_CREATE_FAILED: 'Failed to create financial year. Please try again.',
+  ERROR_FY_DATE_OVERLAP:  'Date range overlaps with an existing financial year.',
+  ERROR_FY_DELETE_FAILED: 'Failed to delete financial year. Please try again.',
+  ERROR_FY_ID_EXISTS:     'A financial year with this year already exists.',
+  ERROR_FY_LOAD_FAILED:   'Failed to load financial years. Please try again.',
+  ERROR_FY_UPDATE_FAILED: 'Failed to update financial year. Please try again.',
+  SUCCESS_FY_CREATED:     'Financial year created successfully.',
+  SUCCESS_FY_DELETED:     'Financial year deleted successfully.',
+  SUCCESS_FY_UPDATED:     'Financial year updated successfully.',
+
+  // State / Province CRUD
+  ERROR_STATE_CODE_EXISTS:      'This code is already in use.',
+  ERROR_STATE_CODE_EXISTS_EDIT: 'This code is already used by another state.',
+  ERROR_STATE_CREATE_FAILED:    'Failed to create state. Please try again.',
+  ERROR_STATE_DELETE_FAILED:    'Failed to delete state. Please try again.',
+  ERROR_STATE_DELETE_IN_USE:    'This state cannot be deleted as it is referenced by existing records.',
+  ERROR_STATE_LOAD_FAILED:      'Failed to load states. Please try again.',
+  ERROR_STATE_NAME_EXISTS:      'This name is already in use.',
+  ERROR_STATE_NAME_EXISTS_EDIT: 'This name is already used by another state.',
+  ERROR_STATE_UPDATE_FAILED:    'Failed to update state. Please try again.',
+  SUCCESS_STATE_CREATED:        'State created successfully.',
+  SUCCESS_STATE_DELETED:        'State deleted successfully.',
+  SUCCESS_STATE_UPDATED:        'State updated successfully.',
+
+  // Lookup tables (shared)
+  ERROR_LOOKUP_CODE_EXISTS:       'This code is already in use.',
+  ERROR_LOOKUP_CODE_EXISTS_EDIT:  'This code is already used by another record.',
+  ERROR_LOOKUP_DELETE_SYSTEM:     'System records cannot be deleted.',
+
+  // Vendor CRUD
+  ERROR_VENDOR_CREATE_FAILED:      'Failed to create vendor. Please try again.',
+  ERROR_VENDOR_DELETE_FAILED:      'Failed to delete vendor. Please try again.',
+  ERROR_VENDOR_DELETE_IN_USE:      'This vendor cannot be deleted as it is referenced by existing purchase invoices.',
+  ERROR_VENDOR_LOAD_FAILED:        'Failed to load vendors. Please try again.',
+  ERROR_VENDOR_NAME_EXISTS:        'This name is already in use.',
+  ERROR_VENDOR_NAME_EXISTS_EDIT:   'This name is already used by another vendor.',
+  ERROR_VENDOR_UPDATE_FAILED:      'Failed to update vendor. Please try again.',
+  SUCCESS_VENDOR_CREATED:          'Vendor created successfully.',
+  SUCCESS_VENDOR_DELETED:          'Vendor deleted successfully.',
+  SUCCESS_VENDOR_UPDATED:          'Vendor updated successfully.',
+
+  // Technician CRUD
+  ERROR_TECHNICIAN_CODE_EXISTS:      'This code is already in use for this branch.',
+  ERROR_TECHNICIAN_CODE_EXISTS_EDIT: 'This code is already used by another technician in this branch.',
+  ERROR_TECHNICIAN_CREATE_FAILED:    'Failed to create technician. Please try again.',
+  ERROR_TECHNICIAN_DELETE_FAILED:    'Failed to delete technician. Please try again.',
+  ERROR_TECHNICIAN_DELETE_IN_USE:    'This technician cannot be deleted as it is referenced by existing jobs.',
+  ERROR_TECHNICIAN_LOAD_FAILED:      'Failed to load technicians. Please try again.',
+  ERROR_TECHNICIAN_UPDATE_FAILED:    'Failed to update technician. Please try again.',
+  SUCCESS_TECHNICIAN_CREATED:        'Technician created successfully.',
+  SUCCESS_TECHNICIAN_DELETED:        'Technician deleted successfully.',
+  SUCCESS_TECHNICIAN_UPDATED:        'Technician updated successfully.',
+
+  // Part Location CRUD
+  ERROR_PART_LOCATION_CREATE_FAILED:      'Failed to create part location. Please try again.',
+  ERROR_PART_LOCATION_DELETE_FAILED:      'Failed to delete part location. Please try again.',
+  ERROR_PART_LOCATION_DELETE_IN_USE:      'This location cannot be deleted as it is referenced by existing records.',
+  ERROR_PART_LOCATION_EXISTS:             'This location already exists for this branch.',
+  ERROR_PART_LOCATION_EXISTS_EDIT:        'This location is already used by another record in this branch.',
+  ERROR_PART_LOCATION_LOAD_FAILED:        'Failed to load part locations. Please try again.',
+  ERROR_PART_LOCATION_UPDATE_FAILED:      'Failed to update part location. Please try again.',
+  SUCCESS_PART_LOCATION_CREATED:          'Part location created successfully.',
+  SUCCESS_PART_LOCATION_DELETED:          'Part location deleted successfully.',
+  SUCCESS_PART_LOCATION_UPDATED:          'Part location updated successfully.',
+
+  // Spare Parts Web CRUD
+  ERROR_SPARE_PART_WEB_CREATE_FAILED: 'Failed to create web part. Please try again.',
+  ERROR_SPARE_PART_WEB_DELETE_FAILED: 'Failed to delete web part. Please try again.',
+  ERROR_SPARE_PART_WEB_LOAD_FAILED:   'Failed to load web parts. Please try again.',
+  ERROR_SPARE_PART_WEB_UPDATE_FAILED: 'Failed to update web part. Please try again.',
+  SUCCESS_SPARE_PART_WEB_CREATED:     'Web part created successfully.',
+  SUCCESS_SPARE_PART_WEB_DELETED:     'Web part deleted successfully.',
+  SUCCESS_SPARE_PART_WEB_UPDATED:     'Web part updated successfully.',
+
+  // Part Finder
+  ERROR_PART_FINDER_LOAD_FAILED:               'Failed to load parts. Please try again.',
+  ERROR_PART_FINDER_STOCK_BY_LOCATION_FAILED:  'Failed to load stock by location. Please try again.',
+  ERROR_PART_FINDER_HISTORY_LOAD_FAILED:       'Failed to load location history. Please try again.',
+  // Set Part Location
+  SUCCESS_SET_PART_LOCATIONS:             'Part location(s) set successfully.',
+  ERROR_SET_PART_LOCATIONS_FAILED:        'Failed to set part locations. Please try again.',
+  ERROR_SET_PART_LOCATIONS_LOAD_FAILED:   'Failed to load stock data. Please try again.',
+  ERROR_SET_PART_LOCATION_PART_NOT_FOUND: 'Part not found in stock for this branch.',
+
+  // Customer CRUD
+  ERROR_CUSTOMER_CREATE_FAILED:      'Failed to create customer. Please try again.',
+  ERROR_CUSTOMER_DELETE_FAILED:      'Failed to delete customer. Please try again.',
+  ERROR_CUSTOMER_DELETE_IN_USE:      'This customer cannot be deleted as it is referenced by existing jobs or invoices.',
+  ERROR_CUSTOMER_LOAD_FAILED:        'Failed to load customers. Please try again.',
+  ERROR_CUSTOMER_TYPES_LOAD_FAILED:  'Failed to load customer types. Please try again.',
+  ERROR_CUSTOMER_UPDATE_FAILED:      'Failed to update customer. Please try again.',
+  SUCCESS_CUSTOMER_CREATED:          'Customer created successfully.',
+  SUCCESS_CUSTOMER_DELETED:          'Customer deleted successfully.',
+  SUCCESS_CUSTOMER_UPDATED:          'Customer updated successfully.',
+
+  // Roles
+  ERROR_ROLES_LOAD_FAILED: 'Failed to load roles. Please try again.',
+  ERROR_SEED_ROLES_FAILED: 'Failed to apply seed roles. Please try again.',
+  INFO_SEED_ROLES_ALREADY_EXISTS: 'Seed roles are already present in this client\'s database.',
+  SUCCESS_SEED_ROLES: 'Seed roles applied successfully.',
+  ERROR_SEED_ACCESS_RIGHTS_FAILED: 'Failed to apply seed access rights. Please try again.',
+  INFO_SEED_ACCESS_RIGHTS_ALREADY_EXISTS: 'Access rights are already present in this client\'s database.',
+  SUCCESS_SEED_ACCESS_RIGHTS: 'Access rights applied successfully.',
+
+  // Reset Password (self-service via link)
+  ERROR_RESET_PASSWORD_FAILED: 'Failed to reset password. Please try again.',
+  ERROR_RESET_PASSWORD_TOO_SHORT: 'Password must be at least 8 characters.',
+  ERROR_RESET_PASSWORDS_MISMATCH: 'Passwords do not match.',
+  ERROR_RESET_TOKEN_INVALID: 'This reset link is invalid or has expired (links are valid for 48 hours). Please request a new one.',
+  SUCCESS_RESET_PASSWORD: 'Password reset successfully. You can now log in.',
+
+  // Admin CRUD
+  ERROR_ADMIN_ACTIVATE_FAILED: 'Failed to activate admin user. Please try again.',
+  ERROR_ADMIN_DEACTIVATE_FAILED: 'Failed to deactivate admin user. Please try again.',
+  ERROR_ADMIN_MAIL_CREDENTIALS_FAILED: 'Failed to send credentials email. Please try again.',
+  ERROR_ADMIN_EMAIL_EXISTS: 'This email is already registered for this client.',
+  ERROR_ADMIN_EMAIL_EXISTS_EDIT: 'This email is already registered for another user.',
+  ERROR_ADMIN_USERNAME_EXISTS: 'This username is already taken for this client.',
+  ERROR_ADMIN_USERNAME_REQUIRED: 'Username is required.',
+  ERROR_MOBILE_INVALID: 'Enter a valid 10-digit mobile number.',
+  ERROR_ADMIN_UPDATE_FAILED: 'Failed to update admin user. Please try again.',
+  ERROR_CREATE_ADMIN_FAILED: 'Failed to create admin user. Please try again.',
+  SUCCESS_ADMIN_ACTIVATED: 'Admin user has been activated.',
+  SUCCESS_ADMIN_CREATED: 'Admin user created. A password setup link has been emailed.',
+  SUCCESS_ADMIN_CREDENTIALS_MAILED: 'Password reset link sent to the admin\'s email.',
+  WARN_ADMIN_CREDENTIALS_MAIL_NOT_SENT: 'Reset link could not be emailed. Please check the admin\'s email address.',
+  WARN_ADMIN_EMAIL_NOT_SENT: 'Admin user account was created, but the password setup email could not be sent. Use "Mail the Reset Password Link" to resend.',
+  SUCCESS_ADMIN_DEACTIVATED: 'Admin user has been deactivated.',
+  SUCCESS_ADMIN_UPDATED: 'Admin user updated successfully.',
+
+  // Client CRUD
+  ERROR_CLIENT_ADD_FAILED: 'Failed to add client. Please try again.',
+  ERROR_CLIENT_CODE_EXISTS: 'This code is already in use.',
+  ERROR_CLIENT_DELETE_FAILED: 'Failed to delete client. Please try again.',
+  ERROR_CLIENT_DELETE_HAS_DB: 'Cannot delete this client because a database is still attached. Please detach the database first using the Detach DB option, then delete the client.',
+  ERROR_CLIENT_DELETE_NOT_ALLOWED: 'Only disabled clients can be deleted.',
+  ERROR_CLIENT_DETACH_DB_FAILED: 'Failed to detach database. Please try again.',
+  ERROR_ORPHAN_DB_DELETE_FAILED: 'Failed to delete the database. Please try again.',
+  ERROR_ORPHAN_DB_NAME_MISMATCH: 'Database name does not match. Please type the exact name.',
+  INFO_CLIENT_DB_MANUAL_DELETE_ONLY: 'After detaching, the database will become an orphan. Orphan databases can be deleted from the Orphan Databases panel on this page.',
+  INFO_NO_ORPHAN_DATABASES: 'No orphan databases found on the server.',
+  SUCCESS_ORPHAN_DB_DELETED: 'Database has been permanently deleted from the server.',
+  ERROR_CLIENT_ACTIVATE_FAILED: 'Failed to activate client. Please try again.',
+  ERROR_CLIENT_ATTACH_DB_FAILED: 'Failed to attach database. Please try again.',
+  ERROR_CLIENT_DEACTIVATE_FAILED: 'Failed to deactivate client. Please try again.',
+  ERROR_CLIENT_NAME_EXISTS: 'This name is already in use.',
+  ERROR_CLIENT_NAME_MISMATCH: 'Client name does not match. Please type the exact name.',
+  ERROR_CLIENT_UPDATE_FAILED: 'Failed to update client. Please try again.',
+  SUCCESS_CLIENT_ADDED: 'Client added successfully.',
+  SUCCESS_CLIENT_ADDED_WITH_EMAIL: 'Client added. Welcome email sent.',
+  WARN_CLIENT_WELCOME_EMAIL_NOT_SENT: 'Client added, but the welcome email could not be sent.',
+  SUCCESS_CLIENT_DB_DETACHED: 'Database has been detached from the client.',
+  SUCCESS_CLIENT_DELETED: 'Client has been deleted.',
+  SUCCESS_CLIENT_ACTIVATED: 'Client has been activated.',
+  SUCCESS_CLIENT_DB_ATTACHED: 'Database has been attached to the client.',
+  SUCCESS_CLIENT_DEACTIVATED: 'Client has been deactivated.',
+  SUCCESS_CLIENT_UPDATED: 'Client updated successfully.',
+
+  // Client Initialize
+  ERROR_DB_NAME_EXISTS: 'This database name is already taken.',
+  ERROR_DB_NAME_REQUIRED: 'Database name is required.',
+  ERROR_FULL_NAME_REQUIRED: 'Full name is required.',
+  ERROR_INITIALIZE_ADMIN_FAILED: 'Failed to create admin user. Please try again.',
+  ERROR_INITIALIZE_DB_FAILED: 'Failed to create database. Please try again.',
+  SUCCESS_CLIENT_INITIALIZED: 'Client initialized successfully.',
+  SUCCESS_INITIALIZE_ADMIN: 'Admin user created. A password setup link has been emailed.',
+  WARN_INITIALIZE_ADMIN_EMAIL_NOT_SENT: 'Admin user account was created, but the password setup email could not be sent. Use "Mail the Reset Password Link" to resend.',
+  SUCCESS_INITIALIZE_DB: 'Database created successfully.',
+
+  // System Settings
+  ERROR_SETTINGS_LOAD_FAILED: 'Failed to load system settings. Please try again.',
+
+  // Usage & Health
+  ERROR_USAGE_HEALTH_LOAD_FAILED: 'Failed to load usage and health data. Please try again.',
+
+  // Test Email
+  ERROR_TEST_EMAIL_FAILED: 'Failed to send test email. Check SMTP configuration.',
+  SUCCESS_TEST_EMAIL_SENT: 'Test email sent successfully to capitalch@gmail.com.',
+
+  // BU / Branch Switcher
+  ERROR_BU_SWITCH_FAILED:     'Failed to switch business unit. Please try again.',
+  ERROR_BRANCH_SWITCH_FAILED: 'Failed to switch branch. Please try again.',
+  ERROR_BRANCHES_LOAD_FAILED: 'Failed to load branches. Please try again.',
+
+  // Network Errors
+  ERROR_CLIENTS_LOAD: 'Failed to load clients data.',
+  LOADING_CLIENTS: 'Loading clients…',
+  ERROR_DASHBOARD_LOAD: 'Failed to load dashboard data.',
+  ERROR_NETWORK: 'Network error. Please check your connection.',
+  ERROR_SERVER: 'Server error. Please try again later.',
+  ERROR_TIMEOUT: 'Request timeout. Please try again.',
+  ERROR_UNKNOWN: 'An unexpected error occurred. Please try again.',
+
+  // Document Sequences (Configurations)
+  ERROR_DOCUMENT_SEQUENCE_LOAD_FAILED:       'Failed to load document sequences. Please try again.',
+  ERROR_DOCUMENT_SEQUENCE_SAVE_FAILED:       'Failed to save document sequences. Please try again.',
+  SUCCESS_DOCUMENT_SEQUENCE_SAVED:           'Document sequences saved successfully.',
+  ERROR_DOC_SEQ_SINV_NOT_CONFIGURED:         'Sales Invoice document sequence is not configured or has no prefix. Set it up in Settings → Document Sequence.',
+  ERROR_DOC_SEQ_JOB_NOT_CONFIGURED:          'Job Sheet document sequence is not configured or has no prefix. Set it up in Settings → Document Sequence.',
+  ERROR_DOC_SEQ_SERVICE_INV_NOT_CONFIGURED:  'Service Invoice document sequence is not configured or has no prefix. Set it up in Settings → Document Sequence.',
+  ERROR_DOC_SEQ_RECEIPT_NOT_CONFIGURED:      'Money Receipt document sequence is not configured or has no prefix. Set it up in Settings → Document Sequence.',
+
+  // Inventory
+  ERROR_STOCK_OVERVIEW_LOAD_FAILED:    'Failed to load stock overview. Please try again.',
+  ERROR_CONSUMPTION_LOAD_FAILED:       'Failed to load consumption data. Please try again.',
+  // Part Used (Job)
+  ERROR_PART_USED_JOB_REQUIRED:        'Please select a job.',
+  ERROR_PART_USED_LINES_REQUIRED:      'Add at least one part line.',
+  ERROR_PART_USED_LOAD_FAILED:         'Failed to load parts used. Please try again.',
+  ERROR_PART_USED_SAVE_FAILED:         'Failed to save parts used. Please try again.',
+  ERROR_PART_USED_DELETE_FAILED:       'Failed to delete part usage record. Please try again.',
+  SUCCESS_PART_USED_SAVED:             'Parts usage saved successfully.',
+  SUCCESS_PART_USED_DELETED:           'Part usage record deleted.',
+  SUCCESS_PART_USED_UPDATED:           'Part usage updated successfully.',
+  ERROR_PART_USED_UPDATE_FAILED:       'Failed to update part usage. Please try again.',
+  // Purchase Entry
+  ERROR_PURCHASE_LOAD_FAILED:          'Failed to load purchase invoices. Please try again.',
+  ERROR_PURCHASE_CREATE_FAILED:        'Failed to create purchase invoice. Please try again.',
+  ERROR_PURCHASE_DELETE_FAILED:        'Failed to delete purchase invoice. Please try again.',
+  ERROR_PURCHASE_SUPPLIER_REQUIRED:    'Please select a supplier.',
+  ERROR_PURCHASE_INVOICE_NO_REQUIRED:  'Invoice number is required.',
+  ERROR_PURCHASE_DATE_REQUIRED:        'Invoice date is required.',
+  ERROR_PURCHASE_LINES_REQUIRED:       'At least one line item is required.',
+  ERROR_PURCHASE_INVOICE_EXISTS:       'This invoice number already exists for the selected supplier.',
+  ERROR_PURCHASE_LINE_FIELDS_REQUIRED: 'Please fill all mandatory line fields (Part, Qty, and HSN for taxable items).',
+  SUCCESS_PURCHASE_CREATED:            'Purchase invoice created successfully.',
+  SUCCESS_PURCHASE_UPDATED:            'Purchase invoice updated successfully.',
+  SUCCESS_PURCHASE_DELETED:            'Purchase invoice deleted successfully.',
+  ERROR_PURCHASE_PHYSICAL_CHECK_FAILED: 'Physical invoice values do not match. Please correct the mismatches before saving.',
+  ERROR_PURCHASE_UPDATE_FAILED:        'Failed to update purchase invoice. Please try again.',
+
+  // Sales Entry
+  ERROR_SALES_LOAD_FAILED:             'Failed to load sales invoices. Please try again.',
+  ERROR_SALES_CREATE_FAILED:           'Failed to create sales invoice. Please try again.',
+  ERROR_SALES_UPDATE_FAILED:           'Failed to update sales invoice. Please try again.',
+  ERROR_SALES_DELETE_FAILED:           'Failed to delete sales invoice. Please try again.',
+  ERROR_SALES_CUSTOMER_REQUIRED:       'Please select or enter a customer name.',
+  ERROR_SALES_INVOICE_DATE_REQUIRED:   'Invoice date is required.',
+  ERROR_SALES_LINES_REQUIRED:          'Please add at least one line item.',
+  ERROR_SALES_LINE_FIELDS_REQUIRED:    'Each line must have a part and quantity > 0.',
+  SUCCESS_SALES_CREATED:               'Sales invoice created successfully.',
+  SUCCESS_SALES_UPDATED:               'Sales invoice updated successfully.',
+  SUCCESS_SALES_DELETED:               'Sales invoice deleted successfully.',
+
+  // Stock Adjustment
+  ERROR_ADJUSTMENT_LOAD_FAILED:          'Failed to load stock adjustments. Please try again.',
+  ERROR_ADJUSTMENT_CREATE_FAILED:        'Failed to create stock adjustment. Please try again.',
+  ERROR_ADJUSTMENT_UPDATE_FAILED:        'Failed to update stock adjustment. Please try again.',
+  ERROR_ADJUSTMENT_DELETE_FAILED:        'Failed to delete stock adjustment. Please try again.',
+  ERROR_ADJUSTMENT_BRAND_REQUIRED:       'Please select a brand before saving.',
+  ERROR_ADJUSTMENT_DATE_REQUIRED:        'Adjustment date is required.',
+  ERROR_ADJUSTMENT_REASON_REQUIRED:      'Adjustment reason is required.',
+  ERROR_ADJUSTMENT_LINE_FIELDS_REQUIRED: 'Each line needs a part and quantity > 0.',
+  SUCCESS_ADJUSTMENT_CREATED:            'Stock adjustment created successfully.',
+  SUCCESS_ADJUSTMENT_UPDATED:            'Stock adjustment updated successfully.',
+  SUCCESS_ADJUSTMENT_DELETED:            'Stock adjustment deleted successfully.',
+
+  // Parts Import
+  ERROR_IMPORT_BRAND_REQUIRED:       'Please select a brand before uploading.',
+  ERROR_IMPORT_FAILED:               'Import failed. Please try again.',
+  ERROR_IMPORT_FILE_INVALID_TYPE:    'Invalid file type. Please upload a .csv, .xlsx, or .xls file.',
+  ERROR_IMPORT_FILE_REQUIRED:        'Please select a file to upload.',
+  ERROR_IMPORT_MAPPING_MANDATORY:    'Part Code and Part Name must be mapped before importing.',
+  ERROR_IMPORT_PARSE_ERROR:          'Failed to parse the file. Please check the file format.',
+  ERROR_IMPORT_UPLOAD_ERROR:         'Failed to upload file. Please try again.',
+  SUCCESS_IMPORT_COMPLETE:           'Import completed successfully.',
+
+  // Branch Transfer
+  ERROR_TRANSFER_LOAD_FAILED:          'Failed to load branch transfers. Please try again.',
+  ERROR_TRANSFER_CREATE_FAILED:        'Failed to create branch transfer. Please try again.',
+  ERROR_TRANSFER_UPDATE_FAILED:        'Failed to update branch transfer. Please try again.',
+  ERROR_TRANSFER_DELETE_FAILED:        'Failed to delete branch transfer. Please try again.',
+  ERROR_TRANSFER_BRAND_REQUIRED:       'Please select a brand before saving.',
+  ERROR_TRANSFER_DATE_REQUIRED:        'Transfer date is required.',
+  ERROR_TRANSFER_DESTINATION_REQUIRED: 'Destination branch is required.',
+  ERROR_TRANSFER_LINE_FIELDS_REQUIRED: 'Each line needs a part and quantity > 0.',
+  SUCCESS_TRANSFER_CREATED:            'Branch transfer created successfully.',
+  SUCCESS_TRANSFER_UPDATED:            'Branch transfer updated successfully.',
+  SUCCESS_TRANSFER_DELETED:            'Branch transfer deleted successfully.',
+
+  // Loan Entry
+  ERROR_LOAN_LOAD_FAILED:              'Failed to load loan entries. Please try again.',
+  ERROR_LOAN_CREATE_FAILED:            'Failed to create loan entry. Please try again.',
+  ERROR_LOAN_UPDATE_FAILED:            'Failed to update loan entry. Please try again.',
+  ERROR_LOAN_DELETE_FAILED:            'Failed to delete loan entry. Please try again.',
+  ERROR_LOAN_BRAND_REQUIRED:           'Please select a brand before saving.',
+  ERROR_LOAN_DATE_REQUIRED:            'Loan date is required.',
+  ERROR_LOAN_LINE_FIELDS_REQUIRED:     'Each line needs a part, recipient (Loan To) and quantity > 0.',
+  SUCCESS_LOAN_CREATED:                'Loan entry created successfully.',
+  SUCCESS_LOAN_UPDATED:                'Loan entry updated successfully.',
+  SUCCESS_LOAN_DELETED:                'Loan entry deleted successfully.',
+
+  // Stock Snapshot
+  ERROR_STOCK_SNAPSHOT_FAILED:       'Failed to generate stock snapshot. Please try again.',
+  ERROR_STOCK_SNAPSHOT_NO_DATA:      'No stock transactions found for the selected period.',
+  INFO_STOCK_SNAPSHOT_NO_SNAPSHOT:   'No snapshot recorded yet. Showing live transaction data.',
+  SUCCESS_STOCK_SNAPSHOT_GENERATED:  'Stock snapshot generated successfully.',
+  // Job Entry
+  ERROR_JOB_DETAIL_LOAD_FAILED:        'Failed to load job details. Please try again.',
+  ERROR_JOB_LOAD_FAILED:               'Failed to load jobs. Please try again.',
+  ERROR_JOB_CREATE_FAILED:             'Failed to create job. Please try again.',
+  ERROR_JOB_UPDATE_FAILED:             'Failed to update job. Please try again.',
+  ERROR_JOB_DELETE_FAILED:             'Failed to delete job. Please try again.',
+  INFO_JOB_DETAIL_LOADING:             'Fetching job details…',
+  ERROR_JOB_CUSTOMER_REQUIRED:         'Please select a customer.',
+  ERROR_JOB_TYPE_REQUIRED:             'Please select a job type.',
+  ERROR_JOB_RECEIVE_MANNER_REQUIRED:   'Please select a receive manner.',
+  ERROR_JOB_MODEL_REQUIRED:            'Please select a product / model.',
+  SUCCESS_JOB_CREATED:                 'Job created successfully.',
+  SUCCESS_JOB_UPDATED:                 'Job updated successfully.',
+  SUCCESS_JOB_DELETED:                 'Job deleted successfully.',
+  // Opening Job
+  ERROR_OPENING_JOB_NO_REQUIRED:       'Job No is required.',
+  ERROR_OPENING_JOB_LOAD_FAILED:       'Failed to load opening jobs. Please try again.',
+  ERROR_OPENING_JOB_CREATE_FAILED:     'Failed to save opening job. Please try again.',
+  ERROR_OPENING_JOB_DELETE_FAILED:     'Failed to delete opening job. Please try again.',
+  SUCCESS_OPENING_JOB_CREATED:         'Opening job saved successfully.',
+  SUCCESS_OPENING_JOB_UPDATED:         'Opening job updated successfully.',
+  SUCCESS_OPENING_JOB_DELETED:         'Opening job deleted successfully.',
+  // Job Receipts (Payments)
+  ERROR_RECEIPT_AMOUNT_REQUIRED:       'Amount must be greater than zero.',
+  ERROR_RECEIPT_CREATE_FAILED:         'Failed to create receipt. Please try again.',
+  ERROR_RECEIPT_DELETE_FAILED:         'Failed to delete receipt. Please try again.',
+  ERROR_RECEIPT_JOB_REQUIRED:          'Please select a job.',
+  ERROR_RECEIPT_OVERPAYMENT_FINAL:     'Amount exceeds the outstanding due for this final job. Overpayment is not allowed.',
+  WARN_EXCESS_PAYMENT_ACCOUNTING:      'This surplus is to be neutralised through the accounting system.',
+  ERROR_RECEIPT_LOAD_FAILED:           'Failed to load receipts. Please try again.',
+  ERROR_RECEIPT_PAYMENT_DATE_REQUIRED: 'Payment date is required.',
+  ERROR_RECEIPT_PAYMENT_MODE_REQUIRED: 'Payment mode is required.',
+  ERROR_RECEIPT_UPDATE_FAILED:         'Failed to update receipt. Please try again.',
+  ERROR_RECEIPT_DELETE_IS_POSTED:      'This receipt cannot be deleted as it is already posted.',
+  SUCCESS_RECEIPT_CREATED:             'Receipt created successfully.',
+  SUCCESS_RECEIPT_DELETED:             'Receipt deleted successfully.',
+  SUCCESS_RECEIPT_UPDATED:             'Receipt updated successfully.',
+  // Final a Job
+  ERROR_FINAL_JOBS_LOAD_FAILED:        'Failed to load final jobs. Please try again.',
+  ERROR_JOB_INVOICE_LOAD_FAILED:       'Failed to load job invoice. Please try again.',
+  ERROR_JOB_INVOICE_SAVE_FAILED:       'Failed to save job invoice. Please try again.',
+  ERROR_JOB_INVOICE_LINE_REQUIRED:     'Add at least one invoice line.',
+  SUCCESS_JOB_INVOICE_SAVED:           'Invoice saved and job marked as Final a Job.',
+  INFO_FINALIZED_JOB_NOT_EDITABLE_POSTED:         'This job cannot be edited because it is already posted to accounts.',
+  INFO_FINALIZED_JOB_NOT_EDITABLE_INVOICE_POSTED: 'This job cannot be edited because its invoice is already posted.',
+  ERROR_FINALIZED_JOB_REGEN_INVOICE_FAILED:       'Job saved, but failed to regenerate invoice. Please regenerate manually.',
+  WARN_JOB_INVOICE_NO_LINES:                      'no parts or charges — invoice skipped. Add at least one part or charge before invoicing.',
+  ERROR_JOB_INVOICE_REGEN_NO_LINES:               'Invoice cannot be regenerated: no parts or charges found.',
+  INFO_JOB_INVOICE_REGEN_SKIPPED_NO_LINES:        'Job saved. Invoice not regenerated — no parts or charges found.',
+  // Deliver Job
+  ERROR_DELIVERABLE_JOBS_LOAD_FAILED:  'Failed to load jobs for delivery. Please try again.',
+  ERROR_JOB_DELIVERY_DETAIL_FAILED:    'Failed to load job delivery details. Please try again.',
+  ERROR_JOB_DELIVER_FAILED:            'Failed to deliver job. Please try again.',
+  SUCCESS_JOB_DELIVERED:               'Job delivered and closed successfully.',
+  ERROR_JOB_INVOICE_DELETE_POSTED:     'This invoice cannot be deleted as it is already posted.',
+  ERROR_JOB_INVOICE_DELETE_FAILED:     'Failed to delete invoice. Please try again.',
+  ERROR_JOB_INVOICE_REGEN_POSTED:      'This invoice cannot be regenerated as it is already posted.',
+  ERROR_JOB_INVOICE_REGEN_FAILED:      'Failed to regenerate invoice. Please try again.',
+  PDF_RECEIPT_DISCLAIMER:              'Received the amounts stated above on the specified dates against their respective reference numbers. Cheque receipts are subject to realization.',
+  // WhatsApp Messaging — Customer Connect only
+  ERROR_WHATSAPP_SEND_FAILED:          'Failed to send WhatsApp message. Please try again.',
+  ERROR_WHATSAPP_JOBS_LOAD_FAILED:     'Failed to load jobs for Customer Connect. Please try again.',
+  INFO_WHATSAPP_NO_ELIGIBLE_JOBS:      'No jobs are eligible for the completion message.',
+  SUCCESS_WHATSAPP_SENT:               'WhatsApp message sent successfully.',
+  WARN_WHATSAPP_PARTIAL_SEND:          'Some WhatsApp messages could not be sent. Check the results for details.',
+  // Opening Stock
+  INFO_OPENING_STOCK_EXISTING_ENTRY:      '· Add more parts below',
+  ERROR_OPENING_STOCK_LOAD_FAILED:        'Failed to load opening stock. Please try again.',
+  ERROR_OPENING_STOCK_CREATE_FAILED:      'Failed to save opening stock. Please try again.',
+  ERROR_OPENING_STOCK_UPDATE_FAILED:      'Failed to update opening stock. Please try again.',
+  ERROR_OPENING_STOCK_DATE_REQUIRED:      'Entry date is required.',
+  ERROR_OPENING_STOCK_BRAND_REQUIRED:     'Please select a brand before saving.',
+  ERROR_OPENING_STOCK_LINE_FIELDS_REQUIRED: 'Each line needs a part and quantity > 0.',
+  ERROR_OPENING_STOCK_TXN_TYPE_MISSING:   'Opening Balance transaction type not found. Please check configuration.',
+  SUCCESS_OPENING_STOCK_CREATED:          'Opening stock saved successfully.',
+  SUCCESS_OPENING_STOCK_UPDATED:          'Opening stock updated successfully.',
+  SUCCESS_OPENING_STOCK_DELETED:          'Opening stock entry deleted successfully.',
+  ERROR_OPENING_STOCK_DELETE_FAILED:      'Failed to delete opening stock entry. Please try again.',
+
+  // Reports — General
+  ERROR_REPORTS_FETCH_FAILED:         'Unable to load report. Please retry.',
+  ERROR_REPORTS_EXPORT_FAILED:        'Failed to export the report.',
+  ERROR_REPORTS_CUSTOM_RANGE_INVALID: 'From date must be on or before To date.',
+  ERROR_REPORTS_RANGE_REQUIRED:       'Please select a date range.',
+  INFO_REPORTS_NO_DATA:               'No data for the selected range.',
+  INFO_REPORTS_PDF_PREPARING:         'Preparing PDF…',
+  SUCCESS_REPORTS_EXPORTED:           'Report exported successfully.',
+
+  // Reports — Dashboard
+  ERROR_DASHBOARD_KPIS_LOAD_FAILED:        'Failed to load dashboard KPIs. Please try again.',
+  ERROR_DASHBOARD_CHART_LOAD_FAILED:       'Failed to load dashboard chart data. Please try again.',
+  ERROR_DASHBOARD_RECENT_JOBS_LOAD_FAILED: 'Failed to load recent jobs. Please try again.',
+
+  // Reports — Warranty (Special)
+  ERROR_WARRANTY_REPORT_LOAD_FAILED:        'Failed to load warranty report. Please try again.',
+  ERROR_WARRANTY_DETAIL_LOAD_FAILED:        'Failed to load warranty job parts. Please try again.',
+  INFO_WARRANTY_NO_JOBS_IN_RANGE:           'No in-warranty jobs found for this range.',
+
+  // Post / Unpost (Admin) — Select All confirmation
+  CONFIRM_POST_UNPOST_SELECT_ALL_TITLE_POSTED:   'Mark all as Posted?',
+  CONFIRM_POST_UNPOST_SELECT_ALL_TITLE_UNPOSTED: 'Mark all as Unposted?',
+  CONFIRM_POST_UNPOST_SELECT_ALL_BODY:           'This will set {count} record{plural} on this page to {state}. The change is staged and applied only when you click Continue.',
+} as const;
+
+// Builds the Post/Unpost "Select All" confirmation title + description from central templates.
+export function getPostUnpostSelectAllConfirm(count: number, posted: boolean): { title: string; description: string } {
+  return {
+    title: posted
+      ? MESSAGES.CONFIRM_POST_UNPOST_SELECT_ALL_TITLE_POSTED
+      : MESSAGES.CONFIRM_POST_UNPOST_SELECT_ALL_TITLE_UNPOSTED,
+    description: MESSAGES.CONFIRM_POST_UNPOST_SELECT_ALL_BODY
+      .replace('{count}', String(count))
+      .replace('{plural}', count !== 1 ? 's' : '')
+      .replace('{state}', posted ? 'Posted' : 'Unposted'),
+  };
+}
