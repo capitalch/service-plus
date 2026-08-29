@@ -31,17 +31,21 @@ class ReportsAuditSql:
             ) AS jobs_delivered,
             COUNT(DISTINCT j.id) FILTER (
                 WHERE j.is_closed = false
+                  AND js.code NOT IN ('CANCELLED', 'COMPLETED_OK', 'RETURN')
             ) AS jobs_open,
             COUNT(DISTINCT j.id) FILTER (
                 WHERE j.is_closed = false
+                  AND js.code NOT IN ('CANCELLED', 'COMPLETED_OK', 'RETURN')
                   AND j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ) AS jobs_open_warranty,
             COUNT(DISTINCT j.id) FILTER (
                 WHERE j.is_closed = false
+                  AND js.code NOT IN ('CANCELLED', 'COMPLETED_OK', 'RETURN')
                   AND j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ) AS jobs_open_oow,
             COUNT(DISTINCT j.id) FILTER (
                 WHERE j.is_closed = false
+                  AND js.code NOT IN ('CANCELLED', 'COMPLETED_OK', 'RETURN')
                   AND j.job_date < (CURRENT_DATE - INTERVAL '7 days')
             ) AS jobs_overdue,
             COALESCE(SUM(ji.amount) FILTER (
@@ -49,6 +53,7 @@ class ReportsAuditSql:
             ), 0) AS revenue
         FROM job j
         LEFT JOIN job_invoice ji ON ji.job_id = j.id
+        LEFT JOIN job_status  js ON js.id     = j.job_status_id
     """
 
     GET_DASHBOARD_OPEN_JOBS_BY_PRODUCT = """
@@ -64,7 +69,9 @@ class ReportsAuditSql:
         FROM job j
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN product             p   ON p.id   = pbm.product_id
+        LEFT JOIN job_status           js ON js.id   = j.job_status_id
         WHERE j.is_closed = false
+          AND js.code NOT IN ('CANCELLED', 'COMPLETED_OK', 'RETURN')
         GROUP BY p.name
         ORDER BY total_count DESC
     """
@@ -127,6 +134,7 @@ class ReportsAuditSql:
         JOIN job_status               js  ON js.id  = j.job_status_id
         LEFT JOIN technician          t   ON t.id   = j.technician_id
         WHERE j.is_closed = false
+          AND js.code NOT IN ('CANCELLED', 'COMPLETED_OK', 'RETURN')
           AND j.job_date < (CURRENT_DATE - (table "p_overdue_days") * INTERVAL '1 day')
         ORDER BY j.job_date ASC, j.id ASC
         LIMIT (table "p_limit")
