@@ -5,11 +5,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectClientName, selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
+import { isValidMobile } from "@/lib/mobile";
 import { selectAvailableDivisions, selectCurrentBranch, selectCurrentBu, selectJobTermsAndConditions, selectNoOfJobInvoicesPerPrint, selectNoOfJobReceiptsPerPrint, selectNoOfJobSheetsPerPrint, selectSchema, selectTrackJobUrl } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType, JobTransactionRow } from "@/features/client/types/job";
@@ -18,6 +20,7 @@ import { buildInvoicePdf, buildReceiptPdf, buildDeliveryNotePdf } from "../deliv
 import { getJobSheetBlobUrl, getJobInfoBlobUrl } from "../job-sheet-pdf";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobFinalInfoModal } from "../final-a-job/job-final-info-modal";
+import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { STATUS_COLORS } from "./status-transitions";
 import { UndoTransactionDialog } from "./undo-transaction-dialog";
 
@@ -120,6 +123,8 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
     const trackJobUrl  = useAppSelector(selectTrackJobUrl);
     const jobTermsAndConditions = useAppSelector(selectJobTermsAndConditions);
 
+    const { sending: sendingJobIntake, send: sendJobIntake, ConfirmDialog: whatsappJobIntakeConfirmDialog } = useSendWhatsappJobIntake();
+
     const [job, setJob] = useState<JobDetailType | null>(null);
     const [transactions, setTransactions] = useState<JobTransactionRow[]>([]);
     const [parts,        setParts]        = useState<PartUsedRow[]>([]);
@@ -218,6 +223,13 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
         } finally {
             setUndoing(false);
         }
+    }
+
+    async function handleWhatsappJobIntake() {
+        if (!dbName || !schema || !job) return;
+        const branchId = currentBranch?.id ?? job.branch_id;
+        if (!branchId) return;
+        await sendJobIntake(dbName, schema, branchId, [jobId]);
     }
 
     function openPdf(url: string, title: string, copies: number, type: "sheet" | "invoice" | "receipt" | "info") {
@@ -469,6 +481,17 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                 >
                                     <FileText className="h-3 w-3 text-slate-600" />
                                     Job Info
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2.5 text-[11px] gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    disabled={sendingJobIntake || !isValidMobile(job.mobile)}
+                                    title={isValidMobile(job.mobile) ? "Send Job Intake Notice via WhatsApp" : "No valid mobile number on file"}
+                                    onClick={() => void handleWhatsappJobIntake()}
+                                >
+                                    {sendingJobIntake ? <Loader2 className="h-3 w-3 animate-spin" /> : <WhatsAppIcon className="h-3 w-3" />}
+                                    Whatsapp Job Intake
                                 </Button>
                                 <Button
                                     size="sm"
@@ -916,6 +939,8 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
             printCopies={pendingPrintRef.current?.type !== "info" ? printCopies : undefined}
             onPrintCopiesChange={pendingPrintRef.current?.type !== "info" ? handleCopiesChange : undefined}
         />
+
+        {whatsappJobIntakeConfirmDialog}
         </>
     );
 };

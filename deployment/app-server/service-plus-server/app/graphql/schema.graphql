@@ -43,6 +43,7 @@ type Mutation {
     undeliverJob(db_name: String!, schema: String, value: String!): Generic
     accountsPosting(db_name: String!, schema: String, value: String!): Generic
     sendWhatsappCompletion(db_name: String!, schema: String, value: String!): Generic
+    sendWhatsappJobIntake(db_name: String!, schema: String, value: String!): Generic
 }
 
 type Subscription {

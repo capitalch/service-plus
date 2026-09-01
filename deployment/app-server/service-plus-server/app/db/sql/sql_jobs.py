@@ -1898,6 +1898,33 @@ class JobsSql:
           AND js.code = 'COMPLETED_OK'
     """
 
+    # Server-side re-filter for sendWhatsappJobIntake — same shape as
+    # GET_JOBS_FOR_WHATSAPP_COMPLETION but WITHOUT the is_final/COMPLETED_OK filter:
+    # an intake notice fires right after creation, before the job is anywhere near
+    # final. Also selects j.batch_no, which the intake notice's reference_line and
+    # the job-intake status page both need (plans/plan-whatsapp.md, Step 5/4).
+    GET_JOBS_FOR_WHATSAPP_CREATION = """
+        SELECT
+            j.id AS job_id,
+            j.job_no,
+            j.batch_no,
+            j.customer_contact_id,
+            j.whatsapp_notifications,
+            c.full_name AS customer_name,
+            c.mobile,
+            b.name AS branch_name,
+            b.phone AS branch_phone,
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(brd.name, ''), NULLIF(pbm.model_name, ''))) AS device_details
+        FROM job j
+        JOIN customer_contact c ON c.id = j.customer_contact_id
+        JOIN branch b ON b.id = j.branch_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand   brd ON brd.id = pbm.brand_id
+        LEFT JOIN product p   ON p.id = pbm.product_id
+        WHERE j.id = ANY(%(job_ids)s)
+          AND j.branch_id = %(branch_id)s
+    """
+
     # BU (business unit) display name for the template header — one row per request,
     # cached by the caller, never joined per job.
     GET_BU_NAME_BY_CODE = """
@@ -1910,38 +1937,39 @@ class JobsSql:
     # which read counters into Python and wrote the whole event object back — racy
     # against a concurrent webhook write on the same job.
 
-    # `JOB_COMPLETION` is built as its own isolated object (single-level jsonb_set calls
-    # only) and attached to whatsapp_notifications with one single-level jsonb_set at the
-    # end — NOT one long multi-level path chain. jsonb_set cannot auto-vivify a path more
-    # than one level deep: `jsonb_set('{}', '{JOB_COMPLETION,attempt_count}', ..., true)`
-    # silently no-ops instead of creating JOB_COMPLETION, because "all earlier steps in
-    # path must exist" and a single jsonb_set call cannot create both JOB_COMPLETION and
+    # Each event (`JOB_COMPLETION`, `JOB_CREATION`, ... — keyed by %(event_key)s) is
+    # built as its own isolated object (single-level jsonb_set calls only) and attached
+    # to whatsapp_notifications with one single-level jsonb_set at the end — NOT one
+    # long multi-level path chain. jsonb_set cannot auto-vivify a path more than one
+    # level deep: `jsonb_set('{}', '{JOB_COMPLETION,attempt_count}', ..., true)` silently
+    # no-ops instead of creating JOB_COMPLETION, because "all earlier steps in path must
+    # exist" and a single jsonb_set call cannot create both the event key and
     # attempt_count in the same step. Confirmed empirically (2026-08-25) — the previous
     # single-chain version left whatsapp_notifications at '{}' forever on every job's
     # first-ever send. The `jsonb_typeof(...) = 'object'` guard also makes this
-    # self-healing against any legacy/corrupted non-object JOB_COMPLETION value (e.g. an
-    # array) instead of erroring — reads use chained -> / ->> (return NULL on a type
-    # mismatch), never #>> path arrays (which raise "path element ... is not an integer"
-    # when a path segment can't be resolved against the actual runtime type).
+    # self-healing against any legacy/corrupted non-object value under that event's key
+    # (e.g. an array) instead of erroring — reads use chained -> / ->> (return NULL on a
+    # type mismatch), never #>> path arrays (which raise "path element ... is not an
+    # integer" when a path segment can't be resolved against the actual runtime type).
     SET_JOB_WHATSAPP_ATTEMPT = """
         UPDATE job
         SET whatsapp_notifications = jsonb_set(
             COALESCE(whatsapp_notifications, '{}'::jsonb),
-            '{JOB_COMPLETION}',
+            ARRAY[%(event_key)s],
             jsonb_set(
                 jsonb_set(
                     jsonb_set(
                         jsonb_set(
                             jsonb_set(
                                 jsonb_set(
-                                    CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                                         THEN whatsapp_notifications -> 'JOB_COMPLETION'
+                                    CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                         THEN whatsapp_notifications -> %(event_key)s
                                          ELSE '{}'::jsonb END,
                                     '{attempt_count}',
                                     to_jsonb(
                                         COALESCE(
-                                            CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                                                 THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'attempt_count')::int
+                                            CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                                 THEN (whatsapp_notifications -> %(event_key)s ->> 'attempt_count')::int
                                                  ELSE NULL END,
                                             0
                                         ) + 1
@@ -1963,8 +1991,8 @@ class JobsSql:
                 '{fail_count}',
                 to_jsonb(
                     COALESCE(
-                        CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                             THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'fail_count')::int
+                        CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                             THEN (whatsapp_notifications -> %(event_key)s ->> 'fail_count')::int
                              ELSE NULL END,
                         0
                     ) + CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END
@@ -1989,13 +2017,13 @@ class JobsSql:
         UPDATE job
         SET whatsapp_notifications = jsonb_set(
             COALESCE(whatsapp_notifications, '{}'::jsonb),
-            '{JOB_COMPLETION}',
+            ARRAY[%(event_key)s],
             jsonb_set(
                 jsonb_set(
                     jsonb_set(
                         jsonb_set(
-                            CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                                 THEN whatsapp_notifications -> 'JOB_COMPLETION'
+                            CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                 THEN whatsapp_notifications -> %(event_key)s
                                  ELSE '{}'::jsonb END,
                             '{last_status}', to_jsonb(%(status)s::text), true
                         ),
@@ -2006,8 +2034,8 @@ class JobsSql:
                     '{success_count}',
                     to_jsonb(
                         COALESCE(
-                            CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                                 THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'success_count')::int
+                            CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                 THEN (whatsapp_notifications -> %(event_key)s ->> 'success_count')::int
                                  ELSE NULL END,
                             0
                         ) + CASE WHEN %(status)s = 'DELIVERED' THEN 1 ELSE 0 END
@@ -2017,8 +2045,8 @@ class JobsSql:
                 '{fail_count}',
                 to_jsonb(
                     COALESCE(
-                        CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                             THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'fail_count')::int
+                        CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                             THEN (whatsapp_notifications -> %(event_key)s ->> 'fail_count')::int
                              ELSE NULL END,
                         0
                     ) + CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END
@@ -2028,9 +2056,9 @@ class JobsSql:
             true
         )
         WHERE id = %(job_id)s
-          AND (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'last_wamid') = %(wamid)s
+          AND (whatsapp_notifications -> %(event_key)s ->> 'last_wamid') = %(wamid)s
           AND %(new_rank)s > COALESCE(
-                CASE (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'last_status')
+                CASE (whatsapp_notifications -> %(event_key)s ->> 'last_status')
                     WHEN 'PENDING'   THEN 0
                     WHEN 'ACCEPTED'  THEN 1
                     WHEN 'SENT'      THEN 2

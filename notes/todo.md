@@ -1,13 +1,19 @@
 # To Do
+- Menu proper arrangement
+- Fix location and style of refresh and search box in the screen
 - Whatsapp
-	- Status info
-		- Ngrok implement
-		- Record with customer the field isWhatsapp
-		- Test from front end
-		- Update db from status info
-		- Check if updated to front end
-		- After deployment: Ready status whatsapp to customer
-							- Migration tool
+						- Receive a job
+							- Modifications of status info
+								- Show price info
+								- show index no of row for batch jobs
+		- Modifications of job slip pdf
+							- Status info
+								- Ngrok implement
+								- Test from front end
+								- Update db from status info
+								- Check if updated to front end
+								- After deployment: Ready status whatsapp to customer
+								- Migration tool
 								- creation
 - Service plus web
 					- Job Query

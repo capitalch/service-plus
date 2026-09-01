@@ -69,6 +69,24 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # WhatsApp Job Intake — public status page + PDF
+    location /job-intake/ {
+        proxy_pass http://127.0.0.1:8000/job-intake/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # WhatsApp Job delivery
+    location /job-delivery/ {
+       proxy_pass http://127.0.0.1:8000/job-delivery/;
+       proxy_set_header Host $host;
+       proxy_set_header X-Real-IP $remote_addr;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     # GraphQL — WebSocket upgrade required for subscriptions
     location /graphql/ {
         proxy_pass http://127.0.0.1:8000/graphql/;

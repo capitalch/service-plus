@@ -337,11 +337,13 @@ export function CustomerConnectSection() {
         setSending(true);
         try {
             const jobIds = groups.flatMap(g => g.job_ids);
-            const sendResults = await sendWhatsappCompletion(dbName, schema, branchId, jobIds);
+            const { results: sendResults, disabled } = await sendWhatsappCompletion(dbName, schema, branchId, jobIds);
             setSendGroups(null);
             setResults(sendResults);
             const anyFailed = sendResults.some(r => r.status === "FAILED");
-            if (sendResults.length === 0) {
+            if (disabled) {
+                toast.warning(MESSAGES.WARN_WHATSAPP_EVENT_DISABLED);
+            } else if (sendResults.length === 0) {
                 toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
             } else {
                 // Toast is the immediate dispatch acknowledgment (still auto-dismissing —

@@ -20,6 +20,7 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -28,6 +29,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { saveCustomerGstin } from "@/lib/gstin";
+import { isValidMobile } from "@/lib/mobile";
 
 import { useAppSelector } from "@/store/hooks";
 import { selectClientName, selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
@@ -42,6 +44,7 @@ import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { NewSingleJobForm } from "./new-single-job-form";
 import { JobAttachDialog } from "./job-attach-dialog";
 import { getJobSheetBlobUrl } from "../job-sheet-pdf";
+import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -123,6 +126,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     // Form
     const [submitting, setSubmitting] = useState(false);
     const currentUser = useAppSelector(selectCurrentUser);
+    const { send: sendJobIntake, ConfirmDialog: whatsappJobIntakeConfirmDialog } = useSendWhatsappJobIntake();
 
     const form = useForm<SingleJobFormValues>({
         defaultValues: getSingleJobDefaultValues(defaultDivisionId),
@@ -223,11 +227,20 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                     },
                 };
                 const encoded  = encodeURIComponent(JSON.stringify(sqlObject));
-                await apolloClient.mutate({
+                const createRes = await apolloClient.mutate<{ createSingleJob: { job_id: number; job_no: string } | null }>({
                     mutation:  GRAPHQL_MAP.createSingleJob,
                     variables: { db_name: dbName, schema, value: encoded },
                 });
-                toast.success(MESSAGES.SUCCESS_JOB_CREATED);
+                const created = createRes.data?.createSingleJob;
+                toast.success(
+                    created?.job_no ? `${MESSAGES.SUCCESS_JOB_CREATED} (${created.job_no})` : MESSAGES.SUCCESS_JOB_CREATED,
+                    created && branchId ? {
+                        action: {
+                            label: "Whatsapp Job Intake",
+                            onClick: () => void sendJobIntake(dbName, schema, branchId, [created.job_id]),
+                        },
+                    } : undefined,
+                );
                 setQuickInfoKey(k => k + 1);
             }
             // GSTIN lives on the customer (single source of truth); persist any
@@ -787,6 +800,15 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                                     <span>Attach Files</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
+                                                                    className="flex items-center gap-2 cursor-pointer text-emerald-600 focus:bg-emerald-500/10 focus:text-emerald-700 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    disabled={!isValidMobile(job.mobile)}
+                                                                    title={!isValidMobile(job.mobile) ? "No valid mobile number on file" : undefined}
+                                                                    onClick={() => { if (dbName && schema && branchId) void sendJobIntake(dbName, schema, branchId, [job.id]); }}
+                                                                >
+                                                                    <WhatsAppIcon className="h-4 w-4" />
+                                                                    <span>Whatsapp Job Intake</span>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                                                                     disabled={job.transaction_count > 1}
                                                                     title={job.transaction_count > 1 ? "Cannot delete: job has activity" : undefined}
@@ -895,6 +917,8 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                     setPdfPreviewUrl(null);
                 }}
             />
+
+            {whatsappJobIntakeConfirmDialog}
         </motion.div>
     );
 };

@@ -1,14 +1,17 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon, Eye, Printer, Paperclip, FileText, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import type { JobControlRow } from "@/features/client/types/job";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { isValidMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema, selectCurrentBranch, selectAvailableDivisions } from "@/store/context-slice";
+import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 
 type QuickInfoCardProps = {
     onView?: (job: JobControlRow) => void;
@@ -28,6 +31,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
     const branch    = useAppSelector(selectCurrentBranch);
     const divisions = useAppSelector(selectAvailableDivisions);
     const branchId = branch?.id ?? null;
+    const { sending: sendingJobIntake, send: sendJobIntake, ConfirmDialog: whatsappJobIntakeConfirmDialog } = useSendWhatsappJobIntake();
 
     const [currentJob, setCurrentJob] = useState<JobControlRow | null>(null);
     const [latestJobId, setLatestJobId] = useState<number | null>(null);
@@ -186,6 +190,11 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
         }
     };
 
+    const handleWhatsappJobIntake = async () => {
+        if (!dbName || !schema || !branchId || !currentJob) return;
+        await sendJobIntake(dbName, schema, branchId, [currentJob.id]);
+    };
+
     const navigateToOldest = async () => {
         if (navLoading || isAtOldest) return;
         let offset = currentOffset + 20;
@@ -217,6 +226,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
     }
 
     return (
+        <>
         <div className="w-full rounded-xl border border-(--cl-border) bg-gradient-to-r from-(--cl-surface-2) to-(--cl-surface) shadow-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-3 gap-3">
                 {/* Left: job info — two rows */}
@@ -325,6 +335,17 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
                             <Paperclip className="h-3.5 w-3.5 mr-1.5" />
                             Attach
                         </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 px-3 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                            disabled={sendingJobIntake || !isValidMobile(currentJob.mobile)}
+                            title={isValidMobile(currentJob.mobile) ? "Send Job Intake Notice via WhatsApp" : "No valid mobile number on file"}
+                            onClick={() => void handleWhatsappJobIntake()}
+                        >
+                            {sendingJobIntake ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <WhatsAppIcon className="h-3.5 w-3.5 mr-1.5" />}
+                            Whatsapp Job Intake
+                        </Button>
                     </div>
 
                     <div className="h-6 w-px bg-(--cl-border) shrink-0" />
@@ -359,6 +380,8 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
                 </div>
             </div>
         </div>
+        {whatsappJobIntakeConfirmDialog}
+        </>
     );
 }
 

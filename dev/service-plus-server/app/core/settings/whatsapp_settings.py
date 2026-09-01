@@ -35,3 +35,17 @@ class WhatsappSettings(BaseSettings):
     whatsapp_webhook_verify_token: str = Field(
         default="", description="Verify token echoed back during webhook subscription setup"
     )
+    # Dedicated to signing customer-facing status-link tokens (app/whatsapp/token.py) —
+    # deliberately separate from whatsapp_app_secret (authenticates *Meta's* webhook
+    # calls) and from settings.secret_key (authenticates *logged-in staff*), since a
+    # customer-facing link token is a different trust boundary from both.
+    whatsapp_link_token_secret: str = Field(
+        default="", repr=False, description="HMAC secret for signing job-intake status-link tokens"
+    )
+    # A third, separate trust boundary from both secrets above: this one hashes
+    # short-lived, attempt-limited job-delivery confirmation codes (app/whatsapp/otp.py)
+    # rather than authenticating Meta or signing a long-lived customer link — deliberately
+    # its own secret so rotating one never affects the other two.
+    whatsapp_delivery_otp_secret: str = Field(
+        default="", repr=False, description="HMAC secret for hashing job-delivery confirmation codes"
+    )

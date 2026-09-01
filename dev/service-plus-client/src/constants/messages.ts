@@ -488,6 +488,7 @@ export const MESSAGES = {
   INFO_WHATSAPP_NO_ELIGIBLE_JOBS:      'No jobs are eligible for the completion message.',
   SUCCESS_WHATSAPP_SENT:               'WhatsApp message sent successfully.',
   WARN_WHATSAPP_PARTIAL_SEND:          'Some WhatsApp messages could not be sent. Check the results for details.',
+  WARN_WHATSAPP_EVENT_DISABLED:        'WhatsApp messages for this event are currently switched off in App Settings.',
   // Opening Stock
   INFO_OPENING_STOCK_EXISTING_ENTRY:      '· Add more parts below',
   ERROR_OPENING_STOCK_LOAD_FAILED:        'Failed to load opening stock. Please try again.',

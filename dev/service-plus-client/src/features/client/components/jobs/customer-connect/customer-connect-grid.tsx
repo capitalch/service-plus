@@ -1,12 +1,13 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import {
-    AlertTriangle, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, Eye, Loader2,
+    ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, Eye, Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
-import { PAGE_SIZE, getCompletionState, isRowSelectable } from "./customer-connect-helpers";
+import { WhatsappStatusCell } from "../whatsapp-status-cell";
+import { PAGE_SIZE, isRowSelectable } from "./customer-connect-helpers";
 import type { CustomerConnectJobRow } from "./customer-connect-schema";
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
@@ -14,64 +15,6 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 function fmtCurrency(v: number | null | undefined): string {
     return v == null ? "—" : `₹${Number(v).toFixed(2)}`;
-}
-
-function fmtLastTry(iso: string): string {
-    const d = new Date(iso);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    let hours = d.getHours();
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12 || 12;
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(hours)}:${pad(d.getMinutes())} ${ampm}`;
-}
-
-const DELIVERY_BADGE_STYLES: Record<string, string> = {
-    ACCEPTED:  "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-    SENT:      "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
-    DELIVERED: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-    READ:      "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-    FAILED:    "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
-};
-
-function WhatsappStatusCell({ row }: { row: CustomerConnectJobRow }) {
-    const state = getCompletionState(row);
-    if (!state || (state.success_count === 0 && state.fail_count === 0)) {
-        return <span className="text-sm text-(--cl-text-muted)">—</span>;
-    }
-    return (
-        <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-                <span
-                    className="inline-flex items-center gap-1 rounded-full bg-[#25D366]/15 px-2 py-0.5 text-xs font-bold text-[#128C7E] dark:text-[#25D366]"
-                    title={`${state.success_count} successful attempt${state.success_count !== 1 ? "s" : ""}`}
-                >
-                    ✓ {state.success_count}
-                </span>
-                {state.fail_count > 0 && (
-                    <span
-                        className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-0.5 text-xs font-bold text-red-700 dark:text-red-400"
-                        title={`${state.fail_count} failed attempt${state.fail_count !== 1 ? "s" : ""}${state.last_error ? ` — ${state.last_error}` : ""}`}
-                    >
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        {state.fail_count}
-                    </span>
-                )}
-            </div>
-            {state.last_sent_at && (
-                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                    Last try: {fmtLastTry(state.last_sent_at)}
-                </span>
-            )}
-            {state.last_status && (
-                <span
-                    className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-bold ${DELIVERY_BADGE_STYLES[state.last_status] ?? ""}`}
-                    title={state.last_error ?? undefined}
-                >
-                    {state.last_status}
-                </span>
-            )}
-        </div>
-    );
 }
 
 type Props = {
@@ -237,7 +180,7 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
                                         <td className={tdClass}><JobTypeBadge code={row.job_type_code} name={row.job_type_name} /></td>
                                         <td className={tdClass}><StatusBadge code={row.job_status_code} name={row.job_status_name} /></td>
                                         <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.amount)}</td>
-                                        <td className={tdClass}><WhatsappStatusCell row={row} /></td>
+                                        <td className={tdClass}><WhatsappStatusCell row={row} eventKey="JOB_COMPLETION" /></td>
                                         <td
                                             className={`${tdClass} sticky right-0 z-10 ${
                                                 selectedRowId === row.id

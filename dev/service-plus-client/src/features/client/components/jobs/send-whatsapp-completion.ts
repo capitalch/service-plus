@@ -14,7 +14,12 @@ export type WhatsappCompletionResult = {
 };
 
 type SendWhatsappCompletionData = {
-    sendWhatsappCompletion: { results: WhatsappCompletionResult[] } | null;
+    sendWhatsappCompletion: { results: WhatsappCompletionResult[]; disabled?: boolean } | null;
+};
+
+export type WhatsappCompletionSendOutcome = {
+    results:  WhatsappCompletionResult[];
+    disabled: boolean;
 };
 
 export async function sendWhatsappCompletion(
@@ -22,7 +27,7 @@ export async function sendWhatsappCompletion(
     schema: string,
     branchId: number,
     jobIds: number[],
-): Promise<WhatsappCompletionResult[]> {
+): Promise<WhatsappCompletionSendOutcome> {
     const res = await apolloClient.mutate<SendWhatsappCompletionData>({
         mutation: GRAPHQL_MAP.sendWhatsappCompletion,
         variables: {
@@ -31,5 +36,8 @@ export async function sendWhatsappCompletion(
             value: encodeObj({ branch_id: branchId, job_ids: jobIds }),
         },
     });
-    return res.data?.sendWhatsappCompletion?.results ?? [];
+    return {
+        results:  res.data?.sendWhatsappCompletion?.results ?? [],
+        disabled: res.data?.sendWhatsappCompletion?.disabled ?? false,
+    };
 }

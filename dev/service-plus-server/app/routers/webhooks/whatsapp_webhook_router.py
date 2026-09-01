@@ -96,14 +96,35 @@ async def _process_webhook_payload(payload: dict) -> None:
         await asyncio.gather(*tasks)
 
 
-def _decode_callback_data(callback_data: str) -> tuple[str, str, list[int]] | None:
-    """`db_name|schema|job_id,job_id,…` — locked format."""
+# Inverse of sender.py's `_EVENT_CODE_BY_KEY` — expands the abbreviated wire code
+# back to this codebase's full event-key vocabulary before it goes anywhere near
+# SQL, so `event_key` is always `JOB_COMPLETION`/`JOB_CREATION` from here on, never
+# the raw 2-letter code.
+_EVENT_KEY_BY_CODE = {"CC": "JOB_COMPLETION", "JC": "JOB_CREATION", "JD": "JOB_DELIVERY"}
+
+
+def _decode_callback_data(callback_data: str) -> tuple[str, str, str, list[int]] | None:
+    """`db_name|schema|event_code|job_id,job_id,…` (current format) or the legacy
+    3-part `db_name|schema|job_id,job_id,…` — any message already in flight when the
+    event code was added was sent without one, and is treated as `JOB_COMPLETION`
+    (the only event that existed before this format changed)."""
+    parts = callback_data.split("|")
     try:
-        db_name, schema, job_ids_raw = callback_data.split("|", 2)
+        if len(parts) == 4:
+            db_name, schema, event_code, job_ids_raw = parts
+            event_key = _EVENT_KEY_BY_CODE.get(event_code)
+            if event_key is None:
+                return None
+        elif len(parts) == 3:
+            db_name, schema, job_ids_raw = parts
+            event_key = "JOB_COMPLETION"
+        else:
+            return None
+
         job_ids = [int(j) for j in job_ids_raw.split(",") if j]
         if not db_name or not schema or not job_ids:
             return None
-        return db_name, schema, job_ids
+        return db_name, schema, event_key, job_ids
     except ValueError:
         return None
 
@@ -126,7 +147,7 @@ async def _apply_status_callback(msg_status: dict) -> None:
             callback_data,
         )
         return
-    db_name, schema, job_ids = decoded
+    db_name, schema, event_key, job_ids = decoded
 
     error_message = None
     if raw_status == "FAILED":
@@ -142,6 +163,7 @@ async def _apply_status_callback(msg_status: dict) -> None:
                 sql=SqlStore.SET_JOB_WHATSAPP_OUTCOME,
                 sql_args={
                     "job_id": job_id,
+                    "event_key": event_key,
                     "wamid": wamid,
                     "status": raw_status,
                     "error": error_message,

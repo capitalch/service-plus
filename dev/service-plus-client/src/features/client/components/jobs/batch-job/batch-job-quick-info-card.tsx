@@ -4,14 +4,17 @@ import {
     Loader2, Paperclip, Eye, Printer, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import type { BatchJobQuickInfoRow } from "@/features/client/types/job";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { isValidMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema, selectCurrentBranch, selectAvailableDivisions } from "@/store/context-slice";
+import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 
 type Props = {
     onAttach?: (jobs: { jobId: number; jobNo: string }[]) => void;
@@ -30,6 +33,7 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
     const branch    = useAppSelector(selectCurrentBranch);
     const divisions = useAppSelector(selectAvailableDivisions);
     const branchId  = branch?.id ?? null;
+    const { sending: sendingJobIntake, send: sendJobIntake, ConfirmDialog: whatsappJobIntakeConfirmDialog } = useSendWhatsappJobIntake();
 
     const [rows, setRows] = useState<BatchJobQuickInfoRow[]>([]);
     const [loading, setLoading] = useState(false);
@@ -92,6 +96,11 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
         void fetchBatchRef.current(0);
     }, [refreshTrigger]);
 
+    const handleWhatsappJobIntake = async () => {
+        if (!dbName || !schema || !branchId || rows.length === 0) return;
+        await sendJobIntake(dbName, schema, branchId, rows.map(r => r.job_id));
+    };
+
     if (loading || !isReady) {
         return (
             <div className="w-full rounded-xl border border-(--cl-border) bg-(--cl-surface-2) px-4 py-3 flex items-center gap-2 text-xs text-(--cl-text-muted)">
@@ -114,6 +123,7 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
     const customerName = rows[0].customer_name;
 
     return (
+        <>
         <div className="w-full rounded-xl border border-(--cl-border) bg-gradient-to-r from-(--cl-surface-2) to-(--cl-surface) shadow-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-3 gap-3">
                 {/* Left: batch info */}
@@ -229,6 +239,17 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
                             <Printer className="h-3.5 w-3.5 mr-1.5" />
                             Print
                         </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 px-3 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                            disabled={sendingJobIntake || !isValidMobile(rows[0]?.mobile)}
+                            title={isValidMobile(rows[0]?.mobile) ? "Send Job Intake Notice via WhatsApp" : "No valid mobile number on file"}
+                            onClick={() => void handleWhatsappJobIntake()}
+                        >
+                            {sendingJobIntake ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <WhatsAppIcon className="h-3.5 w-3.5 mr-1.5" />}
+                            Whatsapp Job Intake
+                        </Button>
                         {/* <Button
                             type="button" size="sm"
                             className="h-7 px-3 text-[11px] font-semibold bg-violet-500 hover:bg-violet-600 text-white"
@@ -271,6 +292,8 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
                 </div>
             </div>
         </div>
+        {whatsappJobIntakeConfirmDialog}
+        </>
     );
 }
 

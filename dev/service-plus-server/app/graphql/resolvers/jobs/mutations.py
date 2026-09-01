@@ -168,7 +168,7 @@ async def resolve_create_single_job_helper(
                 job_id, new_txn_id, txn_data["status_id"],
             )
 
-    return job_id
+    return {"job_id": job_id, "job_no": job_no}
 
 async def resolve_update_opening_job_helper(
     db_name: str, schema: str = "public", value: str = ""

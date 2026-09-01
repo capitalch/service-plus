@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { JobImageUpload } from "@/features/client/components/jobs/single-job/job-image-upload";
@@ -20,6 +21,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { saveCustomerGstin } from "@/lib/gstin";
+import { isValidMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectClientName, selectDbName, selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { selectAvailableDivisions, selectCurrentBranch, selectCurrentBu, selectCurrentDivision, selectDefaultDivisionId, selectJobTermsAndConditions, selectNoOfJobSheetsPerPrint, selectSchema, selectTrackJobUrl } from "@/store/context-slice";
@@ -36,6 +38,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { batchJobFormSchema, type BatchJobFormValues, getBatchJobDefaultValues } from "./batch-job-schema";
 import { getBatchJobSheetBlobUrl } from "../job-sheet-pdf";
+import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { deleteJobFiles } from "@/lib/image-service";
 
@@ -141,6 +144,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const [submitting, setSubmitting] = useState(false);
+    const { send: sendJobIntake, ConfirmDialog: whatsappJobIntakeConfirmDialog } = useSendWhatsappJobIntake();
 
     const form = useForm<BatchJobFormValues>({
         defaultValues: getBatchJobDefaultValues(defaultDivisionId),
@@ -259,7 +263,15 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 const jobNos  = data?.createJobBatch?.job_nos  ?? [];
 
                 await saveCustomerGstin({ customerId: values.customer_id, gstin: values.gstin, dbName, schema });
-                toast.success(`Batch #${batchNo} created with ${formRows.length} job${formRows.length !== 1 ? "s" : ""}`);
+                toast.success(
+                    `Batch #${batchNo} created with ${formRows.length} job${formRows.length !== 1 ? "s" : ""}`,
+                    branchId && jobIds.length > 0 ? {
+                        action: {
+                            label: "Whatsapp Job Intake",
+                            onClick: () => void sendJobIntake(dbName, schema, branchId, jobIds),
+                        },
+                    } : undefined,
+                );
                 setRefreshTrigger(t => t + 1);
                 form.reset(getBatchJobDefaultValues(defaultDivisionId));
 
@@ -690,6 +702,9 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                                                 onDelete={() => { setDeleteBatchNo(batch.batch_no); setDeleteJobCount(batch.job_count); }}
                                                 onAttachJob={(jobId, jobNo) => { setAttachJobId(jobId); setAttachJobNo(jobNo); }}
                                                 onDeleteJob={(jobId, jobNo, _batchNo, jobCount) => { setDeleteJobId(jobId); setDeleteJobNo(jobNo); setDeleteJobCount(jobCount); }}
+                                                onWhatsappJobIntake={() => {
+                                                    if (dbName && schema && branchId) void sendJobIntake(dbName, schema, branchId, batch.jobs.map(j => j.id));
+                                                }}
                                             />
                                         ))}
                                     </tbody>
@@ -869,6 +884,8 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 setPdfPreviewUrl(null);
             }}
         />
+
+        {whatsappJobIntakeConfirmDialog}
     </motion.div>
     );
 };
@@ -886,9 +903,10 @@ type BatchGroupRowProps = {
     onDelete: () => void;
     onAttachJob: (jobId: number, jobNo: string) => void;
     onDeleteJob: (jobId: number, jobNo: string, batchNo: number, jobCount: number) => void;
+    onWhatsappJobIntake: () => void;
 };
 
-function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onDelete, onAttachJob, onDeleteJob }: BatchGroupRowProps) {
+function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onDelete, onAttachJob, onDeleteJob, onWhatsappJobIntake }: BatchGroupRowProps) {
     const batchDivision    = batch.division_id ? availableDivisions.find(d => d.id === batch.division_id) : null;
     const isBatchDeletable = batch.jobs.every(j => j.transaction_count <= 1);
     return (
@@ -932,6 +950,15 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                                 <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600" onClick={onEdit}>
                                     <Pencil className="h-4 w-4 text-blue-600" />
                                     <span>Edit Batch</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    className="flex items-center gap-2 cursor-pointer text-emerald-600 focus:bg-emerald-500/10 focus:text-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    disabled={!isValidMobile(batch.mobile)}
+                                    title={!isValidMobile(batch.mobile) ? "No valid mobile number on file" : undefined}
+                                    onClick={onWhatsappJobIntake}
+                                >
+                                    <WhatsAppIcon className="h-4 w-4" />
+                                    <span>Whatsapp Job Intake</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 disabled:opacity-40 disabled:cursor-not-allowed"

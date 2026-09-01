@@ -1,8 +1,9 @@
 """Async client for the WhatsApp Cloud API — direct with Meta, no BSP.
 
 Sends only. No document/media upload — the three PDF-carrying flows (creation,
-delivery, receipt) are deleted along with their document template branch; the one
-surviving template (JOB_COMPLETION) is text-only.
+delivery, receipt) are deleted along with their document template branch. A
+template's buttons (e.g. JOB_CREATION's two URL buttons) are plain links back to
+this server, never a Meta-hosted document/media attachment.
 """
 
 from dataclasses import dataclass
@@ -58,10 +59,25 @@ async def send_template(
     header_values: list[str],
     body_values: list[str],
     biz_opaque_callback_data: str,
+    button_values: list[str] | None = None,
 ) -> WhatsappSendResult:
-    """POST a named-parameter template message with two components (header, body) —
-    a named template rejects positional parameters and vice-versa, so every parameter
-    entry carries `parameter_name`, and order no longer binds a value to a slot."""
+    """POST a template message: named-parameter header/body components, plus a
+    positional-parameter button component per dynamic-URL button.
+
+    Header/body use *named* parameters (`parameter_name` on every entry) — a named
+    component rejects positional parameters and vice-versa, so order alone no
+    longer binds a value to a slot there. Button URL parameters are the opposite:
+    confirmed empirically (2026-08-30) against a real send where a `{{token}}`-named
+    button variable was never substituted — Meta stored it as literal text and just
+    appended the sent value after it, producing a broken double-barrelled URL. Only
+    Meta's own positional `{{1}}` is recognized in a button's URL, so button
+    parameters are sent *without* `parameter_name`, regardless of how header/body
+    are named — the named/positional split is real, but it's per-component-type,
+    not template-wide.
+
+    `button_values` has one entry per `template.button_count`, in the same button
+    order (index 0, 1, ...) — omit (or pass an empty list) for a template with no
+    dynamic-URL buttons, like JOB_COMPLETION."""
     url = f"{_api_base()}/messages"
     components = [
         {
@@ -79,6 +95,15 @@ async def send_template(
             ],
         },
     ]
+    for index, value in enumerate(button_values or []):
+        components.append(
+            {
+                "type": "button",
+                "sub_type": "url",
+                "index": str(index),
+                "parameters": [{"type": "text", "text": value}],
+            }
+        )
     payload = {
         "messaging_product": "whatsapp",
         "to": to,

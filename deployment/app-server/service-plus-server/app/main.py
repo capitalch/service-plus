@@ -16,6 +16,7 @@ from app.logger import logger, configure_for_uvicorn
 from app.routers.auth.router import router as auth_router
 from app.routers.base_router import router as base_router
 from app.routers.media.image_router import router as image_router
+from app.routers.public.job_intake_router import router as job_intake_router
 from app.routers.public.website_router import router as website_router
 from app.routers.webhooks.whatsapp_webhook_router import router as whatsapp_webhook_router
 from app.scheduler import start_scheduler, stop_scheduler
@@ -78,6 +79,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(base_router)
 app.include_router(image_router)
+app.include_router(job_intake_router)
 app.include_router(website_router)
 app.include_router(whatsapp_webhook_router)
 

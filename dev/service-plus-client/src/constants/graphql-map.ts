@@ -204,6 +204,11 @@ export const GRAPHQL_MAP = {
             sendWhatsappCompletion(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    sendWhatsappJobIntake: gql`
+        mutation SendWhatsappJobIntake($db_name: String!, $schema: String, $value: String!) {
+            sendWhatsappJobIntake(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     accountsPostingProgress: gql`
         subscription AccountsPostingProgress($db_name: String!, $branchId: String!) {
             accountsPostingProgress(db_name: $db_name, branchId: $branchId)

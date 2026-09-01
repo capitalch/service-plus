@@ -51,6 +51,146 @@ class PublicSql:
           AND cc.mobile = (table "p_mobile")
     """
 
+    # ── Job Intake (public, WhatsApp status-link token) ─────────────────────────
+    # Not filtered by job status or is_closed — must keep working after delivery,
+    # unlike the other public job lookups above. Tenant identity comes from the
+    # signed token itself (app/whatsapp/token.py), not a company-code lookup, so
+    # this has no ambient WHERE clause beyond the job ids the token names.
+    # Every field below is either the customer's own data (mobile, address, problem
+    # reported) going back to that same customer on their own signed link, or
+    # routinely-public business info (branch phone/email/GSTIN) — same "customer's
+    # own copy" boundary the printed job slip already crosses at drop-off. Nothing
+    # from job_type/job_receive_manner/job_receive_condition or the job/customer
+    # columns here approaches internal-only territory (cost price, technician,
+    # diagnosis, payments/invoice lines) — that boundary is drawn at the
+    # client-side JobDetailType / buildJobInfoDoc's internal audit report, never
+    # exposed on this public route.
+    GET_JOB_INTAKE_STATUS = """
+        SELECT
+            j.job_no,
+            j.batch_no,
+            j.job_date,
+            j.alternate_job_no,
+            j.problem_reported,
+            j.remarks,
+            j.qty,
+            j.warranty_card_no,
+            j.purchase_date,
+            j.address_snapshot,
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(brd.name, ''), NULLIF(pbm.model_name, ''),
+                           NULLIF(j.serial_no, ''))) AS device,
+            js.name AS status,
+            js.code AS status_code,
+            j.is_final,
+            j.amount,
+            jt.name AS job_type_name,
+            jrm.name AS receive_manner_name,
+            jrc.name AS receive_condition_name,
+            b.name AS branch_name,
+            b.phone AS branch_phone,
+            b.email AS branch_email,
+            b.gstin AS branch_gstin,
+            TRIM(CONCAT_WS(', ', NULLIF(b.address_line1, ''), NULLIF(b.address_line2, ''),
+                           NULLIF(b.city, ''), NULLIF(st.name, ''), NULLIF(b.pincode, ''))) AS branch_address,
+            cc.full_name AS customer_name,
+            cc.mobile AS customer_mobile
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_status js ON js.id = j.job_status_id
+        JOIN job_type jt ON jt.id = j.job_type_id
+        JOIN job_receive_manner jrm ON jrm.id = j.job_receive_manner_id
+        LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
+        JOIN branch b ON b.id = j.branch_id
+        LEFT JOIN state st ON st.id = b.state_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand brd ON brd.id = pbm.brand_id
+        LEFT JOIN product p ON p.id = pbm.product_id
+        WHERE j.id = ANY(%(job_ids)s::bigint[])
+        ORDER BY j.job_no
+    """
+
+    # BU display name, resolved once per request against the tenant schema code —
+    # same lookup SqlStore.GET_BU_NAME_BY_CODE (sql_jobs.py) performs for the
+    # WhatsApp send itself; kept as its own public-safe constant per this module's
+    # docstring (never share a query object with the internal admin/GraphQL side).
+    GET_BU_NAME_BY_CODE = """
+        SELECT name FROM security.bu WHERE LOWER(code) = LOWER(%(schema)s)
+    """
+
+    # Generic per-key app_setting lookup — identical to SharedSql.GET_APP_SETTING_BY_KEY
+    # (sql_shared.py), duplicated here rather than imported so this public router never
+    # shares a query object with the internal admin/GraphQL side, same reasoning as
+    # GET_BU_NAME_BY_CODE above. Used to pull job_terms_and_conditions onto the job
+    # slip PDF — the same legal text already printed on the manual job sheet.
+    GET_APP_SETTING_BY_KEY = """
+        with "p_key" as (values(%(setting_key)s::text))
+        SELECT setting_value
+        FROM app_setting
+        WHERE setting_key = (table "p_key")
+    """
+
+    # ── Job Delivery (public, WhatsApp OTP-confirmed delivery) ──────────────────
+    # Tenant identity comes from the signed token itself (app/whatsapp/token.py),
+    # same as Job Intake above — no ambient WHERE clause beyond the job ids the
+    # token names. Not filtered by is_closed — must keep working after the job
+    # closes, same discipline as GET_JOB_INTAKE_STATUS. `batch_no` is each row's
+    # OWN value here, never a single shared value the way GET_JOB_INTAKE_STATUS
+    # treats it — one delivery can span jobs from several different intake
+    # batches, or individually-created jobs, all for one customer
+    # (plans/plan.md's "One delivery is not one intake batch").
+    GET_JOB_DELIVERY_STATUS = """
+        SELECT
+            j.job_no,
+            j.batch_no,
+            j.amount,
+            COALESCE((SELECT SUM(jp.amount) FROM job_payment jp WHERE jp.job_id = j.id), 0) AS paid_amount,
+            j.serial_no,
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(brd.name, ''), NULLIF(pbm.model_name, ''))) AS device,
+            b.name AS branch_name,
+            TRIM(CONCAT_WS(', ', NULLIF(b.address_line1, ''), NULLIF(b.address_line2, ''),
+                           NULLIF(b.city, ''), NULLIF(st.name, ''), NULLIF(b.pincode, ''))) AS branch_address,
+            cc.full_name AS customer_name
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN branch b ON b.id = j.branch_id
+        LEFT JOIN state st ON st.id = b.state_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand brd ON brd.id = pbm.brand_id
+        LEFT JOIN product p ON p.id = pbm.product_id
+        WHERE j.id = ANY(%(job_ids)s::bigint[])
+        ORDER BY j.job_no
+    """
+
+    # Line-item detail for the "Download Invoice" PDF — one row per invoice line,
+    # header fields repeated per line (same denormalized-rows shape this
+    # codebase already uses for other multi-row job detail queries). LEFT JOINs
+    # throughout, not JOIN: a job with no invoice yet (e.g. a zero-charge RETURN)
+    # must still appear, with null invoice/line fields, rather than silently
+    # vanish from the PDF.
+    GET_JOB_DELIVERY_INVOICE_DETAIL = """
+        SELECT
+            j.id AS job_id,
+            j.job_no,
+            ji.invoice_no,
+            ji.invoice_date,
+            ji.cgst_amount AS invoice_cgst,
+            ji.sgst_amount AS invoice_sgst,
+            ji.igst_amount AS invoice_igst,
+            ji.amount AS invoice_total,
+            jil.description,
+            jil.hsn_code,
+            jil.qty,
+            jil.price,
+            jil.gst_rate,
+            jil.amount AS line_amount,
+            COALESCE((SELECT SUM(jp.amount) FROM job_payment jp WHERE jp.job_id = j.id), 0) AS paid_amount
+        FROM job j
+        LEFT JOIN job_invoice ji ON ji.job_id = j.id
+        LEFT JOIN job_invoice_line jil ON jil.job_invoice_id = ji.id
+        WHERE j.id = ANY(%(job_ids)s::bigint[])
+        ORDER BY j.job_no, jil.id
+    """
+
     GET_PUBLIC_OPEN_JOBS_BY_MOBILE = """
         with
             "p_mobile" as (values(%(mobile)s::text))

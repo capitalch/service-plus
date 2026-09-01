@@ -55,6 +55,7 @@ from app.graphql.resolvers.jobs.mutations import (
 )
 from app.whatsapp.sender import (
     resolve_send_whatsapp_completion_helper,
+    send_job_creation_notice,
 )
 from app.graphql.resolvers.sales_accounts.mutations import (
     resolve_accounts_posting_helper,
@@ -428,3 +429,16 @@ async def resolve_send_whatsapp_completion(
     has none; Customer Connect's own right (plan-whatsapp.md §6) gates reaching
     this mutation via that screen's menu entry instead."""
     return await resolve_send_whatsapp_completion_helper(db_name, schema, value)
+
+
+@mutation.field("sendWhatsappJobIntake")
+@handle_graphql_errors("Error sending WhatsApp job intake notice")
+async def resolve_send_whatsapp_job_intake(
+    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Send the Job Intake Notice WhatsApp message, one per customer, at drop-off
+    time. Same `branch_id`/`job_ids` payload shape as sendWhatsappCompletion, and
+    the same precedent on access rights: no dedicated guard here — JOBS_CUSTOMER_CONNECT
+    already gates the client-side entry points that call this (plans/plan-whatsapp.md,
+    Step 5)."""
+    return await send_job_creation_notice(db_name, schema, value)

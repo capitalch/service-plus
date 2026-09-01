@@ -1898,6 +1898,33 @@ class JobsSql:
           AND js.code = 'COMPLETED_OK'
     """
 
+    # Server-side re-filter for sendWhatsappJobIntake — same shape as
+    # GET_JOBS_FOR_WHATSAPP_COMPLETION but WITHOUT the is_final/COMPLETED_OK filter:
+    # an intake notice fires right after creation, before the job is anywhere near
+    # final. Also selects j.batch_no, which the intake notice's reference_line and
+    # the job-intake status page both need (plans/plan-whatsapp.md, Step 5/4).
+    GET_JOBS_FOR_WHATSAPP_CREATION = """
+        SELECT
+            j.id AS job_id,
+            j.job_no,
+            j.batch_no,
+            j.customer_contact_id,
+            j.whatsapp_notifications,
+            c.full_name AS customer_name,
+            c.mobile,
+            b.name AS branch_name,
+            b.phone AS branch_phone,
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(brd.name, ''), NULLIF(pbm.model_name, ''))) AS device_details
+        FROM job j
+        JOIN customer_contact c ON c.id = j.customer_contact_id
+        JOIN branch b ON b.id = j.branch_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand   brd ON brd.id = pbm.brand_id
+        LEFT JOIN product p   ON p.id = pbm.product_id
+        WHERE j.id = ANY(%(job_ids)s)
+          AND j.branch_id = %(branch_id)s
+    """
+
     # BU (business unit) display name for the template header — one row per request,
     # cached by the caller, never joined per job.
     GET_BU_NAME_BY_CODE = """
@@ -1910,38 +1937,39 @@ class JobsSql:
     # which read counters into Python and wrote the whole event object back — racy
     # against a concurrent webhook write on the same job.
 
-    # `JOB_COMPLETION` is built as its own isolated object (single-level jsonb_set calls
-    # only) and attached to whatsapp_notifications with one single-level jsonb_set at the
-    # end — NOT one long multi-level path chain. jsonb_set cannot auto-vivify a path more
-    # than one level deep: `jsonb_set('{}', '{JOB_COMPLETION,attempt_count}', ..., true)`
-    # silently no-ops instead of creating JOB_COMPLETION, because "all earlier steps in
-    # path must exist" and a single jsonb_set call cannot create both JOB_COMPLETION and
+    # Each event (`JOB_COMPLETION`, `JOB_CREATION`, ... — keyed by %(event_key)s) is
+    # built as its own isolated object (single-level jsonb_set calls only) and attached
+    # to whatsapp_notifications with one single-level jsonb_set at the end — NOT one
+    # long multi-level path chain. jsonb_set cannot auto-vivify a path more than one
+    # level deep: `jsonb_set('{}', '{JOB_COMPLETION,attempt_count}', ..., true)` silently
+    # no-ops instead of creating JOB_COMPLETION, because "all earlier steps in path must
+    # exist" and a single jsonb_set call cannot create both the event key and
     # attempt_count in the same step. Confirmed empirically (2026-08-25) — the previous
     # single-chain version left whatsapp_notifications at '{}' forever on every job's
     # first-ever send. The `jsonb_typeof(...) = 'object'` guard also makes this
-    # self-healing against any legacy/corrupted non-object JOB_COMPLETION value (e.g. an
-    # array) instead of erroring — reads use chained -> / ->> (return NULL on a type
-    # mismatch), never #>> path arrays (which raise "path element ... is not an integer"
-    # when a path segment can't be resolved against the actual runtime type).
+    # self-healing against any legacy/corrupted non-object value under that event's key
+    # (e.g. an array) instead of erroring — reads use chained -> / ->> (return NULL on a
+    # type mismatch), never #>> path arrays (which raise "path element ... is not an
+    # integer" when a path segment can't be resolved against the actual runtime type).
     SET_JOB_WHATSAPP_ATTEMPT = """
         UPDATE job
         SET whatsapp_notifications = jsonb_set(
             COALESCE(whatsapp_notifications, '{}'::jsonb),
-            '{JOB_COMPLETION}',
+            ARRAY[%(event_key)s],
             jsonb_set(
                 jsonb_set(
                     jsonb_set(
                         jsonb_set(
                             jsonb_set(
                                 jsonb_set(
-                                    CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                                         THEN whatsapp_notifications -> 'JOB_COMPLETION'
+                                    CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                         THEN whatsapp_notifications -> %(event_key)s
                                          ELSE '{}'::jsonb END,
                                     '{attempt_count}',
                                     to_jsonb(
                                         COALESCE(
-                                            CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                                                 THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'attempt_count')::int
+                                            CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                                 THEN (whatsapp_notifications -> %(event_key)s ->> 'attempt_count')::int
                                                  ELSE NULL END,
                                             0
                                         ) + 1
@@ -1963,8 +1991,8 @@ class JobsSql:
                 '{fail_count}',
                 to_jsonb(
                     COALESCE(
-                        CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                             THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'fail_count')::int
+                        CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                             THEN (whatsapp_notifications -> %(event_key)s ->> 'fail_count')::int
                              ELSE NULL END,
                         0
                     ) + CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END
@@ -1989,13 +2017,13 @@ class JobsSql:
         UPDATE job
         SET whatsapp_notifications = jsonb_set(
             COALESCE(whatsapp_notifications, '{}'::jsonb),
-            '{JOB_COMPLETION}',
+            ARRAY[%(event_key)s],
             jsonb_set(
                 jsonb_set(
                     jsonb_set(
                         jsonb_set(
-                            CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                                 THEN whatsapp_notifications -> 'JOB_COMPLETION'
+                            CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                 THEN whatsapp_notifications -> %(event_key)s
                                  ELSE '{}'::jsonb END,
                             '{last_status}', to_jsonb(%(status)s::text), true
                         ),
@@ -2006,8 +2034,8 @@ class JobsSql:
                     '{success_count}',
                     to_jsonb(
                         COALESCE(
-                            CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                                 THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'success_count')::int
+                            CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                 THEN (whatsapp_notifications -> %(event_key)s ->> 'success_count')::int
                                  ELSE NULL END,
                             0
                         ) + CASE WHEN %(status)s = 'DELIVERED' THEN 1 ELSE 0 END
@@ -2017,8 +2045,8 @@ class JobsSql:
                 '{fail_count}',
                 to_jsonb(
                     COALESCE(
-                        CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_COMPLETION') = 'object'
-                             THEN (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'fail_count')::int
+                        CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                             THEN (whatsapp_notifications -> %(event_key)s ->> 'fail_count')::int
                              ELSE NULL END,
                         0
                     ) + CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END
@@ -2028,9 +2056,9 @@ class JobsSql:
             true
         )
         WHERE id = %(job_id)s
-          AND (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'last_wamid') = %(wamid)s
+          AND (whatsapp_notifications -> %(event_key)s ->> 'last_wamid') = %(wamid)s
           AND %(new_rank)s > COALESCE(
-                CASE (whatsapp_notifications -> 'JOB_COMPLETION' ->> 'last_status')
+                CASE (whatsapp_notifications -> %(event_key)s ->> 'last_status')
                     WHEN 'PENDING'   THEN 0
                     WHEN 'ACCEPTED'  THEN 1
                     WHEN 'SENT'      THEN 2
@@ -2041,6 +2069,138 @@ class JobsSql:
                 -1
           )
         RETURNING id
+    """
+
+    # ── Job Delivery (paperless, OTP-confirmed) — plans/plan.md ────────────────
+    # Server-side re-filter for sendWhatsappJobDelivery — never trusts the
+    # client's selection. `branch_id` is a required, cross-checked argument here
+    # exactly like GET_JOBS_FOR_WHATSAPP_COMPLETION/_CREATION above — job_ids
+    # alone must never be treated as proof the caller is authorized for those
+    # jobs' branch. Filtered on the *delivered* statuses, not COMPLETED_OK — this
+    # fires once Deliver Job has actually finished, mirroring delivery-modal.tsx's
+    # own `isDelivered` gate. Not filtered on job_type/RETURN vs repair: a
+    # RETURN-origin job reaching DELIVERED_OK/_NOT_OK is handed back exactly the
+    # same way a repaired one is, and belongs on this same rail.
+    GET_JOBS_FOR_WHATSAPP_DELIVERY = """
+        SELECT
+            j.id AS job_id,
+            j.job_no,
+            j.customer_contact_id,
+            j.whatsapp_notifications,
+            j.amount,
+            COALESCE((SELECT SUM(jp.amount) FROM job_payment jp WHERE jp.job_id = j.id), 0) AS paid_amount,
+            c.full_name AS customer_name,
+            c.mobile,
+            b.name AS branch_name,
+            b.phone AS branch_phone
+        FROM job j
+        JOIN customer_contact c ON c.id = j.customer_contact_id
+        JOIN job_status js ON js.id = j.job_status_id
+        JOIN branch b ON b.id = j.branch_id
+        WHERE j.id = ANY(%(job_ids)s)
+          AND j.branch_id = %(branch_id)s
+          AND js.code IN ('DELIVERED_OK', 'DELIVERED_NOT_OK')
+    """
+
+    # Writes otp_hash/otp_expires_at and resets otp_attempt_count to 0 under the
+    # JOB_DELIVERY key. Unlike SET_JOB_DELIVERY_CONFIRMATION below, this always
+    # runs as part of an actual WhatsApp send attempt — but still can't assume
+    # JOB_DELIVERY already exists (this write happens *before* the shared
+    # SET_JOB_WHATSAPP_ATTEMPT call that would otherwise create it), so it uses
+    # the same defensive jsonb_typeof guard the other event-keyed writes do.
+    SET_JOB_DELIVERY_OTP = """
+        UPDATE job
+        SET whatsapp_notifications = jsonb_set(
+            COALESCE(whatsapp_notifications, '{}'::jsonb),
+            '{JOB_DELIVERY}',
+            jsonb_set(
+                jsonb_set(
+                    jsonb_set(
+                        CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_DELIVERY') = 'object'
+                             THEN whatsapp_notifications -> 'JOB_DELIVERY'
+                             ELSE '{}'::jsonb END,
+                        '{otp_hash}', to_jsonb(%(otp_hash)s::text), true
+                    ),
+                    '{otp_expires_at}', to_jsonb(%(otp_expires_at)s::text), true
+                ),
+                '{otp_attempt_count}', to_jsonb(0), true
+            ),
+            true
+        )
+        WHERE id = %(job_id)s
+    """
+
+    # Read-only — plain `->`/`->>` return NULL on a missing JOB_DELIVERY key or
+    # missing field, never an error, so this is safe even for a job that's never
+    # had a delivery OTP at all (e.g. about to go straight to manual-override).
+    GET_JOB_DELIVERY_OTP = """
+        SELECT
+            id,
+            whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_hash' AS otp_hash,
+            whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_expires_at' AS otp_expires_at,
+            COALESCE((whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_attempt_count')::int, 0) AS otp_attempt_count
+        FROM job
+        WHERE id = ANY(%(job_ids)s::bigint[])
+    """
+
+    # Safe as a direct two-level path (unlike SET_JOB_DELIVERY_OTP above) because
+    # this is only ever called after a real otp_hash comparison already found a
+    # JOB_DELIVERY object to compare against — the object is guaranteed to exist
+    # by the time a wrong-code attempt can happen at all.
+    INCREMENT_JOB_DELIVERY_OTP_ATTEMPT = """
+        UPDATE job
+        SET whatsapp_notifications = jsonb_set(
+            whatsapp_notifications,
+            '{JOB_DELIVERY,otp_attempt_count}',
+            to_jsonb(COALESCE((whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_attempt_count')::int, 0) + 1),
+            true
+        )
+        WHERE id = %(job_id)s
+    """
+
+    # Unlike the increment above, this CANNOT assume JOB_DELIVERY already
+    # exists: the manual-override path can be the very first write ever for this
+    # event on a job that was never sent a WhatsApp message at all (no mobile on
+    # file). Same defensive jsonb_typeof guard as SET_JOB_DELIVERY_OTP for that
+    # reason. No status ladder, no wamid match — confirming twice, or confirming
+    # after an earlier attempt of the other kind, just overwrites all three
+    # fields; there's nothing here to protect since none of it is a counter.
+    SET_JOB_DELIVERY_CONFIRMATION = """
+        UPDATE job
+        SET whatsapp_notifications = jsonb_set(
+            COALESCE(whatsapp_notifications, '{}'::jsonb),
+            '{JOB_DELIVERY}',
+            jsonb_set(
+                jsonb_set(
+                    jsonb_set(
+                        CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_DELIVERY') = 'object'
+                             THEN whatsapp_notifications -> 'JOB_DELIVERY'
+                             ELSE '{}'::jsonb END,
+                        '{confirmed_at}', to_jsonb(%(confirmed_at)s::text), true
+                    ),
+                    '{confirmation_method}', to_jsonb(%(confirmation_method)s::text), true
+                ),
+                '{confirmed_by_staff_id}', to_jsonb(%(staff_id)s::text), true
+            ),
+            true
+        )
+        WHERE id = %(job_id)s
+    """
+
+    # Feeds the client's "Verify Code" affordance (plans/plan.md, Step 4) — a
+    # single boolean per job, computed server-side, so the client can offer
+    # re-entry into an unexpired code without ever seeing the hash or the raw
+    # expiry timestamp itself.
+    GET_JOB_DELIVERY_OTP_PENDING = """
+        SELECT
+            id,
+            (
+                whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_hash' IS NOT NULL
+                AND (whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_expires_at')::timestamptz > now()
+                AND whatsapp_notifications -> 'JOB_DELIVERY' ->> 'confirmed_at' IS NULL
+            ) AS otp_pending
+        FROM job
+        WHERE id = ANY(%(job_ids)s::bigint[])
     """
 
     # ── Customer Connect — eligible jobs for the completion message (§5e) ──────
