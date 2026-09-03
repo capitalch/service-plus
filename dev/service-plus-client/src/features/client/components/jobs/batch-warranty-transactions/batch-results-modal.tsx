@@ -2,6 +2,7 @@ import { CheckCircle2, FileText, MinusCircle, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { WhatsappDeliveryControl } from "@/features/client/components/jobs/whatsapp-delivery-control";
 import type { ExecResult } from "./batch-execute";
 import { TRANSACTION_LABEL } from "./transaction-eligibility";
 
@@ -19,11 +20,25 @@ type Props = {
     canPrintDeliveryNote:  boolean;
     onPrintDeliveryNote:   () => void;
     onClose:               () => void;
+    // Whatsapp Delivery — plans/plan.md, Step 4. This is Batch
+    // Warranty Jobs' independent second entry point for the same delivery
+    // send/verify flow Deliver Job's delivery-modal.tsx already has; `null`
+    // deliveredJobIds/customer fields (nothing delivered this run, or no
+    // dbName/schema/branchId in scope yet) simply hide the control below.
+    dbName:                string | null;
+    schema:                string | null;
+    branchId:              number | null;
+    deliveredJobIds:       number[];
+    customerMobile:        string | null;
+    customerLabel:         string | null;
 };
 
 // Always shown — even on 100% success — so a partial failure across N jobs
 // x M transactions is never silent.
-export function BatchResultsModal({ results, canPrintDeliveryNote, onPrintDeliveryNote, onClose }: Props) {
+export function BatchResultsModal({
+    results, canPrintDeliveryNote, onPrintDeliveryNote, onClose,
+    dbName, schema, branchId, deliveredJobIds, customerMobile, customerLabel,
+}: Props) {
     const succeeded = results.filter(r => r.status === "success").length;
     const skipped   = results.filter(r => r.status === "skipped").length;
     const failed    = results.filter(r => r.status === "failed").length;
@@ -80,6 +95,16 @@ export function BatchResultsModal({ results, canPrintDeliveryNote, onPrintDelive
                         <FileText className="mr-1.5 h-3.5 w-3.5 text-slate-600" />
                         Job Delivery Note
                     </Button>
+                    {deliveredJobIds.length > 0 && customerMobile !== null && customerLabel !== null && (
+                        <WhatsappDeliveryControl
+                            dbName={dbName}
+                            schema={schema}
+                            branchId={branchId}
+                            jobIds={deliveredJobIds}
+                            mobile={customerMobile}
+                            customerLabel={customerLabel}
+                        />
+                    )}
                     <Button onClick={onClose}>Done</Button>
                 </DialogFooter>
             </DialogContent>

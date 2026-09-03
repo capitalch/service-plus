@@ -100,7 +100,20 @@ async def _process_webhook_payload(payload: dict) -> None:
 # back to this codebase's full event-key vocabulary before it goes anywhere near
 # SQL, so `event_key` is always `JOB_COMPLETION`/`JOB_CREATION` from here on, never
 # the raw 2-letter code.
-_EVENT_KEY_BY_CODE = {"CC": "JOB_COMPLETION", "JC": "JOB_CREATION", "JD": "JOB_DELIVERY"}
+#
+# "MR" (JOB_MONEY_RECEIPT) decodes here purely so this doesn't log a spurious
+# "cannot resolve tenant" warning for every money-receipt status callback —
+# SET_JOB_WHATSAPP_OUTCOME below is never actually applied for this event:
+# `JOB_MONEY_RECEIPT`'s value is a jsonb array (plans/plan.md, Data model),
+# and that query's WHERE clause extracts `last_wamid` via `->>`, which is
+# NULL against an array, so it never matches and the row is silently
+# ignored — same "duplicate/out-of-order" log path as any other no-op,
+# verified by reading SET_JOB_WHATSAPP_OUTCOME's own WHERE clause, not
+# assumed. This event deliberately has no live confirmation state to show
+# (SET_JOB_MONEY_RECEIPT_WHATSAPP_ATTEMPT's own docstring) — its
+# attempt/fail counts only ever reflect the initial send, never advance to
+# DELIVERED/READ.
+_EVENT_KEY_BY_CODE = {"CC": "JOB_COMPLETION", "JC": "JOB_CREATION", "JD": "JOB_DELIVERY", "MR": "JOB_MONEY_RECEIPT"}
 
 
 def _decode_callback_data(callback_data: str) -> tuple[str, str, str, list[int]] | None:

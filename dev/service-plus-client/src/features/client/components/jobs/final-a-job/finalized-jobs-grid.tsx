@@ -180,17 +180,15 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                     {/* Job No + badges */}
                                     <td className={tdClass}>
                                         <div className="flex flex-col gap-0.5">
-                                            <div className="flex items-center justify-between gap-1.5 font-mono font-semibold text-(--cl-accent)">
-                                                <span>
-                                                    #{row.job_no}
-                                                    {row.is_opening_job && (
-                                                        <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
-                                                    )}
-                                                </span>
-                                                {row.alternate_job_no && (
-                                                    <span className="shrink-0 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {row.alternate_job_no}</span>
+                                            <span className="font-mono font-semibold text-(--cl-accent)">
+                                                #{row.job_no}
+                                                {row.is_opening_job && (
+                                                    <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
                                                 )}
-                                            </div>
+                                            </span>
+                                            {row.alternate_job_no && (
+                                                <span className="w-fit text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {row.alternate_job_no}</span>
+                                            )}
                                             {row.is_posted && (
                                                 <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded px-1 py-0.5 w-fit">
                                                     <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />

@@ -39,6 +39,7 @@ import { MESSAGES } from "@/constants/messages";
 import { buildInvoicePdf, buildPackedInvoicePdf, buildReceiptPdf, buildDeliveryNotePdf } from "./deliver-job-pdf";
 import { useAppSelector } from "@/store/hooks";
 import { selectNoOfJobInvoicesPerPrint, selectNoOfJobReceiptsPerPrint } from "@/store/context-slice";
+import { WhatsappDeliveryControl } from "@/features/client/components/jobs/whatsapp-delivery-control";
 import { DeliveryModalJobsTable } from "./delivery-modal-jobs-table";
 import { DeliveryModalInvoicesSection } from "./delivery-modal-invoices-section";
 import { DeliveryModalReceiptsSection } from "./delivery-modal-receipts-section";
@@ -145,8 +146,20 @@ function buildInvoiceLines(
         const taxable = Math.round(c.selling_price * c.qty * 100) / 100;
         const rate    = isGst ? c.gst_rate : 0;
         const { cgst, sgst, igst } = computeTax(taxable, rate);
+        // Ref no / description ride along on the same "show detail" checkbox
+        // that gates itemized vs. combined lines — gated on showDetail
+        // directly (not just "we're in the itemized branch") since that
+        // branch can still be reached with showDetail false when
+        // showPartsSetting is unset.
+        const extras = [
+            c.ref_no?.trim()      ? `Ref: ${c.ref_no.trim()}` : null,
+            c.description?.trim() || null,
+        ].filter((v): v is string => !!v).join(", ");
+        const description = showDetail && extras
+            ? `${c.charge_name} (${extras})`
+            : c.charge_name;
         return {
-            description: c.charge_name,
+            description,
             part_code:   null,
             hsn_code:    c.hsn_code || null,
             qty:         c.qty,
@@ -1148,6 +1161,18 @@ export function DeliveryModal({
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Whatsapp Delivery */}
+                                    {isDelivered && firstJob && (
+                                        <WhatsappDeliveryControl
+                                            dbName={dbName}
+                                            schema={schema}
+                                            branchId={branchId}
+                                            jobIds={jobDetails.map(j => j.id)}
+                                            mobile={firstJob.mobile}
+                                            customerLabel={`${firstJob.customer_name} — ${jobDetails.map(j => j.job_no).join(", ")}`}
+                                        />
+                                    )}
                                 </div>
                             </div>
 

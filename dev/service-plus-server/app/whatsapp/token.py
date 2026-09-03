@@ -81,3 +81,47 @@ def verify(token: str) -> tuple[str, str, list[int]] | None:
         return None
 
     return db_name, schema, job_ids
+
+
+def sign_receipt(db_name: str, schema: str, job_id: int, payment_id: int, ttl_days: int = 730) -> str:
+    """Same shape as `sign`, for a single `job_payment` row instead of a list of
+    job ids — a Money Receipt WhatsApp download link needs to identify one
+    specific payment, not just its job (a job can have several receipts). Same
+    `ttl_days=730` reasoning as `sign`: a receipt is as durable a record as a job
+    slip, not a login session."""
+    exp = int(time.time()) + ttl_days * 86400
+    payload = f"{db_name}|{schema}|{job_id}|{payment_id}|{exp}"
+    payload_b64 = _b64url(payload.encode("utf-8"))
+    signature_b64 = _b64url(_signature(settings.whatsapp_link_token_secret.encode("utf-8"), payload_b64))
+    return f"{payload_b64}.{signature_b64}"
+
+
+def verify_receipt(token: str) -> tuple[str, str, int, int] | None:
+    """Decode and verify a receipt-link token. Returns `(db_name, schema, job_id,
+    payment_id)`, or `None` on any failure — tampered, malformed, or expired —
+    never raises, same discipline as `verify`."""
+    try:
+        payload_b64, signature_b64 = token.split(".", 1)
+        given_signature = _b64url_decode(signature_b64)
+    except ValueError:
+        return None
+
+    expected_signature = _signature(settings.whatsapp_link_token_secret.encode("utf-8"), payload_b64)
+    if not hmac.compare_digest(expected_signature, given_signature):
+        return None
+
+    try:
+        payload = _b64url_decode(payload_b64).decode("utf-8")
+        db_name, schema, job_id_raw, payment_id_raw, exp_raw = payload.split("|", 4)
+        job_id = int(job_id_raw)
+        payment_id = int(payment_id_raw)
+        exp = int(exp_raw)
+    except (ValueError, UnicodeDecodeError):
+        return None
+
+    if not db_name or not schema:
+        return None
+    if time.time() > exp:
+        return None
+
+    return db_name, schema, job_id, payment_id

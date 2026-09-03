@@ -77,6 +77,7 @@ function buildLines(
     parts: ProformaPartRow[],
     charges: ProformaChargeRow[],
     isIgst: boolean,
+    showDetail: boolean,
 ): ProformaLine[] {
     const lines: ProformaLine[] = [];
 
@@ -111,8 +112,18 @@ function buildLines(
         const igst      = isIgst ? aggregate * gstRate / 100 : 0;
         const cgst      = !isIgst ? aggregate * (gstRate / 2) / 100 : 0;
         const sgst      = cgst;
+        // Same "Show part / charge details in invoice" checkbox gates this
+        // concatenation as the real invoice's buildInvoiceLines() does —
+        // see delivery-modal.tsx.
+        const extras = [
+            c.ref_no?.trim()      ? `Ref: ${c.ref_no.trim()}` : null,
+            c.description?.trim() || null,
+        ].filter((v): v is string => !!v).join(", ");
+        const description = showDetail && extras
+            ? `${c.charge_name} (${extras})`
+            : c.charge_name;
         lines.push({
-            description: c.charge_name,
+            description,
             part_code:   null,
             hsn_code:    c.hsn_code,
             qty,
@@ -144,7 +155,8 @@ function buildProformaDoc(
 
     const isGstDivision = !!division?.gstin;
     const isIgst        = job.is_igst;
-    const lines         = buildLines(parts, charges, isIgst);
+    const showDetail    = job.to_show_parts_in_job_invoice ?? true;
+    const lines         = buildLines(parts, charges, isIgst, showDetail);
     const hasGst        = isGstDivision && lines.some(l => l.gst_rate > 0);
 
     doc.setProperties({

@@ -1614,7 +1614,7 @@ class JobsSql:
             "p_offset"    as (values(%(offset)s::int))
         SELECT j.id, j.job_no, j.alternate_job_no, j.is_opening_job, j.job_date, j.purchase_date, j.amount, j.last_transaction_id,
                j.division_id, j.batch_no, j.serial_no,
-               TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+               TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)) AS device_details,
                cc.full_name  AS customer_name, cc.gstin AS customer_gstin, cc.mobile,
                js.name       AS job_status_name,
                js.code       AS job_status_code,
@@ -1841,7 +1841,7 @@ class JobsSql:
                 SELECT json_agg(json_build_object(
                     'id', jac.id, 'charge_name', jac.charge_name, 'qty', jac.qty,
                     'selling_price', jac.selling_price, 'gst_rate', jac.gst_rate,
-                    'hsn_code', jac.hsn_code, 'description', jac.description
+                    'hsn_code', jac.hsn_code, 'description', jac.description, 'ref_no', jac.ref_no
                 ) ORDER BY jac.id)
                 FROM job_additional_charge jac WHERE jac.job_id = j.id
             ), '[]'::json) AS charges
@@ -2102,6 +2102,101 @@ class JobsSql:
           AND js.code IN ('DELIVERED_OK', 'DELIVERED_NOT_OK')
     """
 
+    # ── Money Receipt (single job_payment row) — plans/plan.md ──────────────────
+    # Server-side lookup for sendWhatsappMoneyReceipt — never trusts the
+    # client's payment_id alone, same branch_id cross-check discipline as
+    # GET_JOBS_FOR_WHATSAPP_CREATION/_DELIVERY above. One row in, one row out:
+    # a money receipt send is never grouped/chunked the way the other three
+    # events are, since it always belongs to exactly one job/customer.
+    GET_JOB_PAYMENT_FOR_WHATSAPP_SEND = """
+        SELECT
+            jp.id AS payment_id,
+            jp.receipt_no,
+            jp.payment_date,
+            jp.payment_mode,
+            jp.amount,
+            j.id AS job_id,
+            j.job_no,
+            j.customer_contact_id,
+            cc.full_name AS customer_name,
+            cc.mobile,
+            b.name AS branch_name,
+            b.phone AS branch_phone
+        FROM job_payment jp
+        JOIN job j ON j.id = jp.job_id
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN branch b ON b.id = j.branch_id
+        WHERE jp.id = %(payment_id)s
+          AND j.branch_id = %(branch_id)s
+    """
+
+    # `JOB_MONEY_RECEIPT`'s value is a jsonb ARRAY (one element per payment_id),
+    # not the flat object SET_JOB_WHATSAPP_ATTEMPT/_OUTCOME assume — a job can
+    # have several receipts, each needing its own independent attempt ladder
+    # (plans/plan.md, Data model). Postgres has no single builtin for "upsert
+    # into a jsonb array by key," so this finds the element whose payment_id
+    # matches and replaces it in place; if none matches, appends a new one —
+    # one atomic UPDATE either way, never a read-modify-write from application
+    # code (two receipts on the same job sent close together must not race and
+    # drop an array entry). Deliberately has no _OUTCOME counterpart: this
+    # event has "no live badge, no confirmation state to show" by design
+    # (plans/plan.md's Workflow) — success_count/last_status only ever reflect
+    # this initial send attempt (ACCEPTED/FAILED), never advance to
+    # DELIVERED/READ. The webhook (whatsapp_webhook_router.py) still resolves
+    # this event's code to JOB_MONEY_RECEIPT for logging purposes, but its
+    # generic SET_JOB_WHATSAPP_OUTCOME call safely no-ops against this array
+    # shape (its WHERE clause's `->> 'last_wamid'` extraction is NULL for an
+    # array, so the row simply never matches) — verified, not assumed.
+    SET_JOB_MONEY_RECEIPT_WHATSAPP_ATTEMPT = """
+        UPDATE job
+        SET whatsapp_notifications = jsonb_set(
+            COALESCE(whatsapp_notifications, '{}'::jsonb),
+            '{JOB_MONEY_RECEIPT}',
+            (
+                SELECT CASE
+                    WHEN COUNT(*) FILTER (WHERE elem ->> 'payment_id' = %(payment_id)s::text) > 0
+                    THEN jsonb_agg(
+                        CASE WHEN elem ->> 'payment_id' = %(payment_id)s::text THEN
+                            jsonb_build_object(
+                                'payment_id', (elem ->> 'payment_id')::bigint,
+                                'attempt_count', COALESCE((elem ->> 'attempt_count')::int, 0) + 1,
+                                'success_count', COALESCE((elem ->> 'success_count')::int, 0),
+                                'fail_count',
+                                    COALESCE((elem ->> 'fail_count')::int, 0)
+                                    + CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END,
+                                'last_wamid',
+                                    CASE WHEN %(wamid)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(wamid)s::text) END,
+                                'last_status', to_jsonb(%(status)s::text),
+                                'last_sent_at', to_jsonb(%(sent_at)s::text),
+                                'last_error',
+                                    CASE WHEN %(error)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(error)s::text) END
+                            )
+                        ELSE elem END
+                    )
+                    ELSE
+                        COALESCE(jsonb_agg(elem), '[]'::jsonb) || jsonb_build_array(jsonb_build_object(
+                            'payment_id', %(payment_id)s::bigint,
+                            'attempt_count', 1,
+                            'success_count', 0,
+                            'fail_count', CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END,
+                            'last_wamid',
+                                CASE WHEN %(wamid)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(wamid)s::text) END,
+                            'last_status', to_jsonb(%(status)s::text),
+                            'last_sent_at', to_jsonb(%(sent_at)s::text),
+                            'last_error',
+                                CASE WHEN %(error)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(error)s::text) END
+                        ))
+                END
+                FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_MONEY_RECEIPT') = 'array'
+                         THEN whatsapp_notifications -> 'JOB_MONEY_RECEIPT' ELSE '[]'::jsonb END
+                ) elem
+            ),
+            true
+        )
+        WHERE id = %(job_id)s
+    """
+
     # Writes otp_hash/otp_expires_at and resets otp_attempt_count to 0 under the
     # JOB_DELIVERY key. Unlike SET_JOB_DELIVERY_CONFIRMATION below, this always
     # runs as part of an actual WhatsApp send attempt — but still can't assume
@@ -2283,4 +2378,147 @@ class JobsSql:
            OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY j.job_date DESC, j.id DESC
+    """
+
+    # ── Customer Connect — WhatsApp message logs (Job Intake / Job Delivery tabs) ──
+    # Read-only history, never a send target: takes %(event_key)s as a bind param
+    # (JOB_CREATION or JOB_DELIVERY) rather than being forked per event, same
+    # convention SET_JOB_WHATSAPP_ATTEMPT/_OUTCOME already use. Scoped to jobs
+    # where that event actually has an attempt on record — jsonb_typeof(...) =
+    # 'object' is false for both a missing key and a non-object value, so a job
+    # that's never had this event fires simply isn't a log entry — this is a
+    # message log, not a job browser. Sorted by last_sent_at, not job_date, since
+    # "most recently messaged" is what a log reader wants first.
+    #
+    # JOB_DELIVERY additionally requires confirmed_at IS NOT NULL — "delivery
+    # was done" means the customer actually confirmed the code (or staff
+    # recorded a manual override), not merely that a message was sent and
+    # might still be sitting unconfirmed. JOB_CREATION has no confirmation
+    # step at all, so this extra clause is skipped for it (event_key check
+    # short-circuits before the confirmed_at lookup even applies).
+
+    GET_WHATSAPP_EVENT_LOG_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_event_key" as (values(%(event_key)s::text)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_status       js ON js.id = j.job_status_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND jsonb_typeof(j.whatsapp_notifications -> (table "p_event_key")) = 'object'
+          AND ((table "p_event_key") != 'JOB_DELIVERY'
+           OR  (j.whatsapp_notifications -> 'JOB_DELIVERY' ->> 'confirmed_at') IS NOT NULL)
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_WHATSAPP_EVENT_LOG_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_event_key" as (values(%(event_key)s::text)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            j.id,
+            j.job_no,
+            j.alternate_job_no,
+            j.job_date,
+            j.amount,
+            j.whatsapp_notifications,
+            cc.id        AS customer_contact_id,
+            cc.full_name AS customer_name,
+            cc.mobile,
+            jt.name      AS job_type_name,
+            jt.code      AS job_type_code,
+            js.name      AS job_status_name,
+            js.code      AS job_status_code,
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(b.name, ''), NULLIF(pbm.model_name, ''))) AS device_details
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type         jt ON jt.id = j.job_type_id
+        JOIN job_status       js ON js.id = j.job_status_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand       b  ON b.id = pbm.brand_id
+        LEFT JOIN product     p  ON p.id = pbm.product_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND jsonb_typeof(j.whatsapp_notifications -> (table "p_event_key")) = 'object'
+          AND ((table "p_event_key") != 'JOB_DELIVERY'
+           OR  (j.whatsapp_notifications -> 'JOB_DELIVERY' ->> 'confirmed_at') IS NOT NULL)
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY (j.whatsapp_notifications -> (table "p_event_key") ->> 'last_sent_at')::timestamptz DESC NULLS LAST, j.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    # ── Customer Connect — WhatsApp message log (Money Receipt tab) ─────────────
+    # Sibling to GET_WHATSAPP_EVENT_LOG_COUNT/_PAGED above, not a reuse — that
+    # pair assumes whatsapp_notifications -> event_key is a flat ladder object
+    # (one row per job); JOB_MONEY_RECEIPT's value is an array (a job can have
+    # several receipts, each independently sent), so this is one row **per
+    # receipt send**, produced via a lateral join over that array rather than
+    # a per-job jsonb_typeof(...) = 'object' filter. No confirmed_at carve-out
+    # (unlike JOB_DELIVERY above) — this event has no confirmation step.
+    GET_JOB_MONEY_RECEIPT_WHATSAPP_LOG_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        CROSS JOIN LATERAL jsonb_array_elements(j.whatsapp_notifications -> 'JOB_MONEY_RECEIPT') AS log_entry
+        JOIN job_payment jp ON jp.id = (log_entry ->> 'payment_id')::bigint
+        WHERE j.branch_id = (table "p_branch_id")
+          AND jsonb_typeof(j.whatsapp_notifications -> 'JOB_MONEY_RECEIPT') = 'array'
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.receipt_no, ''))       LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_JOB_MONEY_RECEIPT_WHATSAPP_LOG_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            jp.id AS payment_id,
+            j.id AS job_id,
+            j.job_no,
+            j.alternate_job_no,
+            jp.receipt_no,
+            jp.payment_date,
+            jp.payment_mode,
+            jp.amount,
+            cc.id        AS customer_contact_id,
+            cc.full_name AS customer_name,
+            cc.mobile,
+            log_entry    AS whatsapp_state
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        CROSS JOIN LATERAL jsonb_array_elements(j.whatsapp_notifications -> 'JOB_MONEY_RECEIPT') AS log_entry
+        JOIN job_payment jp ON jp.id = (log_entry ->> 'payment_id')::bigint
+        WHERE j.branch_id = (table "p_branch_id")
+          AND jsonb_typeof(j.whatsapp_notifications -> 'JOB_MONEY_RECEIPT') = 'array'
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.receipt_no, ''))       LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY (log_entry ->> 'last_sent_at')::timestamptz DESC NULLS LAST, jp.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
     """

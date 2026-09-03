@@ -21,7 +21,7 @@ from typing import NoReturn
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
@@ -223,8 +223,7 @@ def _build_delivery_note_pdf(data: _DeliveryData) -> bytes:
     items_table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, 0), _BRAND_BLUE),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("BACKGROUND", (0, 0), (-1, 0), _SLATE_100),
                 ("GRID", (0, 0), (-1, -1), 0.6, _BORDER),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, _SLATE_100]),
@@ -262,29 +261,123 @@ def _build_delivery_note_pdf(data: _DeliveryData) -> bytes:
 
 
 # ─── Invoice ────────────────────────────────────────────────────────────────────
+# Deliberately redesigned (was a plain per-job bullet list) to match the manual,
+# staff-triggered Tax Invoice/receipt format field-for-field — deliver-job-pdf.ts's
+# drawInvoiceContent (jsPDF+autoTable), the exact same document staff already hand
+# customers in person — so a customer who downloads this from WhatsApp sees the
+# identical layout: division letterhead, Customer Details/Shipping Address,
+# Items table with Part/HSN sub-lines and a Disc/Aggregate/Tax/Amount breakdown,
+# Receipts/Debits alongside a Cgst/Sgst/Igst summary box, and an amount-in-words
+# footer line. Reimplemented fresh in reportlab from whitelisted public fields,
+# not a port of the client's TS — same "don't share code across languages/apps"
+# reasoning job_intake_router.py's docstring already gives for job-sheet-pdf.ts.
+
+_INK = colors.HexColor("#141414")
+_GRAY_700 = colors.HexColor("#3c3c3c")
+_GRAY_500 = colors.HexColor("#646464")
+_GRAY_400 = colors.HexColor("#8c8c8c")
+_BOX_BORDER = colors.HexColor("#c8c8c8")
+_BOX_FILL = colors.HexColor("#fcfcfc")
+
+_RECEIPT_DISCLAIMER = (
+    "Received the amounts stated above on the specified dates against their respective "
+    "reference numbers. Cheque receipts are subject to realization."
+)
+
+_ONES = [
+    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+    "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen",
+]
+_TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+
+
+def _num_to_words(n: int) -> str:
+    if n == 0:
+        return ""
+    if n < 20:
+        return _ONES[n] + " "
+    if n < 100:
+        return _TENS[n // 10] + (" " + _ONES[n % 10] if n % 10 else "") + " "
+    if n < 1000:
+        return _ONES[n // 100] + " Hundred " + _num_to_words(n % 100)
+    if n < 100000:
+        return _num_to_words(n // 1000) + "Thousand " + _num_to_words(n % 1000)
+    if n < 10000000:
+        return _num_to_words(n // 100000) + "Lakh " + _num_to_words(n % 100000)
+    return _num_to_words(n // 10000000) + "Crore " + _num_to_words(n % 10000000)
+
+
+def _amount_in_words(amount: float) -> str:
+    """Ported from the client's own deliver-job-pdf.ts amountInWords — same Indian
+    numbering (Lakh/Crore) grouping, so the two documents never disagree on how a
+    total reads in words."""
+    rounded = round(amount)
+    paise = round((amount - rounded) * 100)
+    result = _num_to_words(rounded).strip() + " Rupees"
+    if paise > 0:
+        result += " and " + _num_to_words(paise).strip() + " Paise"
+    return result + " Only."
+
+
+def _fmt2(value: float | None) -> str:
+    """Plain 2-decimal, comma-grouped amount — no currency prefix, matching the
+    manual PDF's own fmtAmt (the surrounding labels/headings already say Rupees)."""
+    if value is None:
+        return "0.00"
+    return f"{value:,.2f}"
 
 
 @dataclass(frozen=True)
 class _InvoiceLine:
     description: str | None
+    part_code: str | None
     hsn_code: str | None
     qty: float | None
     price: float | None
+    aggregate: float | None
     gst_rate: float | None
+    tax_amount: float | None  # this line's own cgst+sgst+igst
     line_amount: float | None
+
+
+@dataclass(frozen=True)
+class _InvoicePayment:
+    payment_date: str
+    payment_mode: str
+    reference_no: str | None
+    remarks: str | None
+    amount: float
 
 
 @dataclass(frozen=True)
 class _InvoiceJob:
     job_no: str
+    device: str | None
+    serial_no: str | None
+    branch_name: str
+    division_code: str | None
+    division_name: str | None
+    division_address: str | None
+    division_phone: str | None
+    division_email: str | None
+    division_gstin: str | None
+    division_web_site: str | None
+    division_gst_state_code: str | None
+    customer_name: str
+    customer_mobile: str | None
+    customer_gstin: str | None
+    customer_email: str | None
+    customer_address: str | None
     invoice_no: str | None
     invoice_date: str | None
-    invoice_cgst: float
-    invoice_sgst: float
-    invoice_igst: float
-    invoice_total: float | None
+    aggregate: float
+    cgst: float
+    sgst: float
+    igst: float
+    total: float | None
     paid_amount: float
     lines: list[_InvoiceLine]
+    payments: list[_InvoicePayment]
 
 
 @dataclass(frozen=True)
@@ -312,6 +405,23 @@ async def _load_invoice_data(token: str) -> _InvoiceData | None:
     )
     bu_name = bu_rows[0]["name"] if bu_rows else schema
 
+    payment_rows = await exec_sql_query(
+        db_name=db_name, schema=schema, sql=PublicSql.GET_JOB_DELIVERY_PAYMENTS,
+        sql_args={"job_ids": job_ids},
+    )
+    payments_by_job: dict[int, list[_InvoicePayment]] = {}
+    for p in payment_rows:
+        pdate = p["payment_date"]
+        payments_by_job.setdefault(p["job_id"], []).append(
+            _InvoicePayment(
+                payment_date=pdate.isoformat() if hasattr(pdate, "isoformat") else str(pdate),
+                payment_mode=p["payment_mode"],
+                reference_no=p["reference_no"],
+                remarks=p["remarks"],
+                amount=float(p["amount"]),
+            )
+        )
+
     order: list[int] = []
     headers: dict[int, dict] = {}
     lines_by_job: dict[int, list[_InvoiceLine]] = {}
@@ -325,25 +435,49 @@ async def _load_invoice_data(token: str) -> _InvoiceData | None:
             lines_by_job[job_id].append(
                 _InvoiceLine(
                     description=r["description"],
+                    part_code=r["part_code"],
                     hsn_code=r["hsn_code"],
                     qty=float(r["qty"]) if r["qty"] is not None else None,
                     price=float(r["price"]) if r["price"] is not None else None,
+                    aggregate=float(r["line_aggregate"]) if r["line_aggregate"] is not None else None,
                     gst_rate=float(r["gst_rate"]) if r["gst_rate"] is not None else None,
+                    tax_amount=float((r["line_cgst"] or 0) + (r["line_sgst"] or 0) + (r["line_igst"] or 0)),
                     line_amount=float(r["line_amount"]) if r["line_amount"] is not None else None,
                 )
             )
 
+    def _fmt_date(d: object) -> str | None:
+        return f"{d.day}/{d.month}/{d.year}" if d is not None else None  # type: ignore[attr-defined]
+
     jobs = [
         _InvoiceJob(
             job_no=headers[jid]["job_no"],
+            device=headers[jid]["device"] or None,
+            serial_no=headers[jid]["serial_no"],
+            branch_name=headers[jid]["branch_name"],
+            division_code=headers[jid]["division_code"],
+            division_name=headers[jid]["division_name"],
+            division_address=headers[jid]["division_address"] or None,
+            division_phone=headers[jid]["division_phone"],
+            division_email=headers[jid]["division_email"],
+            division_gstin=headers[jid]["division_gstin"],
+            division_web_site=headers[jid]["division_web_site"],
+            division_gst_state_code=headers[jid]["division_gst_state_code"],
+            customer_name=headers[jid]["customer_name"],
+            customer_mobile=headers[jid]["customer_mobile"],
+            customer_gstin=headers[jid]["customer_gstin"],
+            customer_email=headers[jid]["customer_email"],
+            customer_address=headers[jid]["customer_address"] or None,
             invoice_no=headers[jid]["invoice_no"],
-            invoice_date=headers[jid]["invoice_date"].strftime("%d %b %Y") if headers[jid]["invoice_date"] else None,
-            invoice_cgst=float(headers[jid]["invoice_cgst"] or 0),
-            invoice_sgst=float(headers[jid]["invoice_sgst"] or 0),
-            invoice_igst=float(headers[jid]["invoice_igst"] or 0),
-            invoice_total=float(headers[jid]["invoice_total"]) if headers[jid]["invoice_total"] is not None else None,
+            invoice_date=_fmt_date(headers[jid]["invoice_date"]),
+            aggregate=float(headers[jid]["invoice_aggregate"] or 0),
+            cgst=float(headers[jid]["invoice_cgst"] or 0),
+            sgst=float(headers[jid]["invoice_sgst"] or 0),
+            igst=float(headers[jid]["invoice_igst"] or 0),
+            total=float(headers[jid]["invoice_total"]) if headers[jid]["invoice_total"] is not None else None,
             paid_amount=float(headers[jid]["paid_amount"] or 0),
             lines=lines_by_job[jid],
+            payments=payments_by_job.get(jid, []),
         )
         for jid in order
     ]
@@ -351,130 +485,269 @@ async def _load_invoice_data(token: str) -> _InvoiceData | None:
 
 
 def _build_invoice_pdf(data: _InvoiceData) -> bytes:
-    """The formal line-item bill — parts/service charges with GST rate/HSN each,
-    per job, plus a grand total across the whole delivery. A job with no
-    invoice yet (LEFT JOIN in GET_JOB_DELIVERY_INVOICE_DETAIL) still gets a
-    section, just with no line items and "No charge" in place of a total —
-    never silently dropped. Reimplemented fresh in reportlab from whitelisted
-    public fields, not a port of the client's jsPDF buildInvoicePdf/
-    buildPackedInvoicePdf, same reasoning job_intake_router.py's docstring
-    already gives for job-sheet-pdf.ts."""
+    """The formal Tax Invoice/receipt — one full letterhead block per job (division
+    branding, Customer Details/Shipping Address, itemized GST breakdown, Receipts/
+    Debits + summary box, amount in words), same as the manual staff-triggered PDF.
+    A job with no invoice yet (LEFT JOIN in GET_JOB_DELIVERY_INVOICE_DETAIL) still
+    gets a section, just with no line items and "No charge" in place of a total —
+    never silently dropped."""
     esc = html.escape
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(
-        buffer, pagesize=A4, topMargin=18 * mm, bottomMargin=18 * mm, leftMargin=20 * mm, rightMargin=20 * mm,
+        buffer, pagesize=A4, topMargin=14 * mm, bottomMargin=14 * mm, leftMargin=16 * mm, rightMargin=16 * mm,
         title=f"Invoice — {data.bu_name}",
     )
 
-    bu_style = ParagraphStyle(
-        "BU", fontName="Helvetica-Bold", fontSize=18, leading=22, alignment=TA_CENTER,
-        textColor=_BRAND_BLUE_DARK, spaceAfter=2,
-    )
-    subtitle_style = ParagraphStyle(
-        "Subtitle", fontName="Helvetica", fontSize=10, leading=13, alignment=TA_CENTER, textColor=_SLATE_500,
-        spaceBefore=6,
-    )
-    job_title_style = ParagraphStyle("JobTitle", fontName="Helvetica-Bold", fontSize=10.5, leading=14, textColor=_BRAND_BLUE_DARK)
-    job_meta_style = ParagraphStyle("JobMeta", fontName="Helvetica", fontSize=9, leading=13, textColor=_SLATE_500)
-    cell_style = ParagraphStyle("Cell", fontName="Helvetica", fontSize=9, leading=12)
+    company_name_style = ParagraphStyle("CompanyName", fontName="Helvetica-Bold", fontSize=13, leading=16, textColor=_INK)
+    company_info_style = ParagraphStyle("CompanyInfo", fontName="Helvetica", fontSize=8, leading=10.5, textColor=_GRAY_700)
+    company_gstin_style = ParagraphStyle("CompanyGstin", fontName="Helvetica-Bold", fontSize=8, leading=10.5, textColor=_GRAY_700)
+    invoice_title_style = ParagraphStyle("InvoiceTitle", fontName="Helvetica-Bold", fontSize=13, leading=16, textColor=_INK)
+    invoice_meta_style = ParagraphStyle("InvoiceMeta", fontName="Helvetica", fontSize=8, leading=10.5, textColor=_GRAY_700)
+    page_no_style = ParagraphStyle("PageNo", fontName="Helvetica", fontSize=8, leading=10, alignment=TA_RIGHT, textColor=_GRAY_400)
+    section_label_style = ParagraphStyle("SectionLabel", fontName="Helvetica-Bold", fontSize=8.5, leading=11, textColor=_GRAY_700)
+    cust_name_style = ParagraphStyle("CustName", fontName="Helvetica-Bold", fontSize=9.5, leading=12, textColor=_INK)
+    cust_detail_style = ParagraphStyle("CustDetail", fontName="Helvetica", fontSize=8.5, leading=11, textColor=_GRAY_700)
+    cell_style = ParagraphStyle("Cell", fontName="Helvetica", fontSize=8, leading=10.5, textColor=colors.HexColor("#1e1e1e"))
+    cell_sub_style = ParagraphStyle("CellSub", parent=cell_style, fontSize=7, textColor=_GRAY_500)
     cell_bold_style = ParagraphStyle("CellBold", parent=cell_style, fontName="Helvetica-Bold")
-    summary_style = ParagraphStyle("Summary", fontName="Helvetica", fontSize=9.5, leading=13, alignment=TA_CENTER, textColor=colors.HexColor("#1e293b"))
-    footer_style = ParagraphStyle("Footer", fontName="Helvetica", fontSize=8, leading=11, alignment=TA_CENTER, textColor=_SLATE_500)
+    cell_right_style = ParagraphStyle("CellRight", parent=cell_style, alignment=TA_RIGHT)
+    cell_right_bold_style = ParagraphStyle("CellRightBold", parent=cell_bold_style, alignment=TA_RIGHT)
+    no_receipts_style = ParagraphStyle("NoReceipts", fontName="Helvetica-Oblique", fontSize=8, leading=10, textColor=_GRAY_400)
+    disclaimer_style = ParagraphStyle("Disclaimer", fontName="Helvetica-Oblique", fontSize=7.5, leading=9.5, textColor=_GRAY_700)
+    summary_style = ParagraphStyle("SummaryRow", fontName="Helvetica", fontSize=8.5, leading=12, textColor=_INK)
+    summary_bold_style = ParagraphStyle("SummaryRowBold", parent=summary_style, fontName="Helvetica-Bold", fontSize=9)
+    summary_val_style = ParagraphStyle("SummaryVal", parent=summary_style, alignment=TA_RIGHT)
+    summary_val_bold_style = ParagraphStyle("SummaryValBold", parent=summary_bold_style, alignment=TA_RIGHT)
+    sig_style = ParagraphStyle("Sig", fontName="Helvetica-Oblique", fontSize=8.5, leading=11, textColor=_INK)
+    words_style = ParagraphStyle("Words", fontName="Helvetica-Bold", fontSize=8.5, leading=11, alignment=TA_RIGHT, textColor=_INK)
+    grand_total_style = ParagraphStyle("GrandTotal", fontName="Helvetica-Bold", fontSize=10, leading=14, alignment=TA_CENTER, textColor=_INK)
+    footer_style = ParagraphStyle("Footer", fontName="Helvetica", fontSize=8, leading=11, alignment=TA_CENTER, textColor=_GRAY_500)
 
-    elements: list = [
-        Paragraph(esc(data.bu_name), bu_style),
-        Paragraph("INVOICE", subtitle_style),
-        Spacer(1, 16),
-    ]
+    half_w = doc.width / 2 - 3
 
+    elements: list = []
     grand_total = 0.0
-    grand_paid = 0.0
 
-    for job in data.jobs:
+    for job_idx, job in enumerate(data.jobs):
         block: list = []
-        title = f"Job No: {job.job_no}"
-        if job.invoice_no:
-            title += f"  —  Invoice No: {job.invoice_no}"
-        if job.invoice_date:
-            title += f" ({job.invoice_date})"
-        block.append(Paragraph(esc(title), job_title_style))
-        block.append(Spacer(1, 6))
+        block.append(Paragraph("Page 1 of 1", page_no_style))
 
-        if job.lines:
-            table_data = [
-                [
-                    Paragraph("Description", cell_bold_style),
-                    Paragraph("HSN", cell_bold_style),
-                    Paragraph("Qty", cell_bold_style),
-                    Paragraph("Price", cell_bold_style),
-                    Paragraph("GST%", cell_bold_style),
-                    Paragraph("Amount", cell_bold_style),
-                ]
-            ]
-            for line in job.lines:
-                table_data.append(
-                    [
-                        Paragraph(esc(line.description or "—"), cell_style),
-                        Paragraph(esc(line.hsn_code or "—"), cell_style),
-                        Paragraph(f"{line.qty:g}" if line.qty is not None else "—", cell_style),
-                        Paragraph(_format_amount(line.price) if line.price is not None else "—", cell_style),
-                        Paragraph(f"{line.gst_rate:g}%" if line.gst_rate is not None else "—", cell_style),
-                        Paragraph(_format_amount(line.line_amount) if line.line_amount is not None else "—", cell_style),
-                    ]
-                )
-            lines_table = Table(table_data, colWidths=[None, 55, 35, 65, 45, 65])
-            lines_table.setStyle(
-                TableStyle(
-                    [
-                        ("BACKGROUND", (0, 0), (-1, 0), _BRAND_BLUE),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                        ("GRID", (0, 0), (-1, -1), 0.6, _BORDER),
-                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, _SLATE_100]),
-                        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                        ("TOPPADDING", (0, 0), (-1, -1), 5),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                    ]
-                )
-            )
-            block.append(lines_table)
-        else:
-            block.append(Paragraph(esc("No invoice line items on file."), job_meta_style))
-
-        job_total = job.invoice_total if job.invoice_total is not None else 0.0
-        job_balance = job_total - job.paid_amount
-        block.append(Spacer(1, 6))
-        block.append(
-            Paragraph(
-                f"CGST: {_format_amount(job.invoice_cgst)} · SGST: {_format_amount(job.invoice_sgst)} · "
-                f"IGST: {_format_amount(job.invoice_igst)} · <b>Total: {_format_amount(job_total)}</b> · "
-                f"Paid: {_format_amount(job.paid_amount)} · <b>Balance: {_format_amount(job_balance)}</b>",
-                job_meta_style,
-            )
+        # ── Header: Division/company (left) | Tax Invoice title (right) ─────────
+        left_cell: list = [Paragraph(esc(job.division_name or data.bu_name), company_name_style)]
+        info_line = "&nbsp;&nbsp;&nbsp;".join(
+            esc(p) for p in [
+                f"Branch: {job.branch_name}" if job.branch_name else None,
+                job.division_code,
+                job.division_web_site,
+            ] if p
         )
-        block.append(Spacer(1, 10))
-        block.append(HRFlowable(width="100%", thickness=0.5, color=_BORDER))
-        block.append(Spacer(1, 10))
-        elements.append(KeepTogether(block))
+        if info_line:
+            left_cell.append(Paragraph(info_line, company_info_style))
+        if job.division_gstin:
+            left_cell.append(Paragraph(f"GSTIN: {esc(job.division_gstin)}", company_gstin_style))
+        addr_line = "&nbsp;&nbsp;&nbsp;".join(
+            esc(p) for p in [
+                job.division_address,
+                f"State: {job.division_gst_state_code}" if job.division_gst_state_code else None,
+                f"Ph: {job.division_phone}" if job.division_phone else None,
+                f"Email: {job.division_email}" if job.division_email else None,
+            ] if p
+        )
+        if addr_line:
+            left_cell.append(Paragraph(addr_line, company_info_style))
 
+        invoice_title = "Tax Invoice" if job.division_gstin else "Invoice"
+        right_cell: list = [Paragraph(invoice_title, invoice_title_style)]
+        inv_no = esc(job.invoice_no) if job.invoice_no else "—"
+        inv_date = esc(job.invoice_date) if job.invoice_date else "—"
+        right_cell.append(Paragraph(f"Invoice #: <b>{inv_no}</b>&nbsp;&nbsp;&nbsp;Date: {inv_date}", invoice_meta_style))
+        right_cell.append(Paragraph(f"Type: Service&nbsp;&nbsp;&nbsp;Job #: {esc(job.job_no)}", invoice_meta_style))
+        if job.device:
+            right_cell.append(Paragraph(esc(job.device), invoice_meta_style))
+        if job.serial_no:
+            right_cell.append(Paragraph(f"Serial No: {esc(job.serial_no)}", invoice_meta_style))
+
+        header_table = Table([[left_cell, right_cell]], colWidths=[half_w, half_w])
+        header_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        block += [header_table, Spacer(1, 5), HRFlowable(width="100%", thickness=0.6, color=_BOX_BORDER), Spacer(1, 6)]
+
+        # ── Customer Details (left) | Shipping Address (right) ──────────────────
+        addr_bits = [job.customer_address] if job.customer_address else []
+        if job.customer_mobile:
+            addr_bits.append(f"Ph: {job.customer_mobile}")
+        if job.customer_email:
+            addr_bits.append(f"Email: {job.customer_email}")
+        full_addr_line = ", ".join(esc(b) for b in addr_bits) if addr_bits else None
+
+        cust_left: list = [Paragraph("Customer Details", section_label_style), Paragraph(esc(job.customer_name), cust_name_style)]
+        if full_addr_line:
+            cust_left.append(Paragraph(full_addr_line, cust_detail_style))
+        if job.customer_gstin:
+            cust_left.append(Paragraph(f"GSTIN: {esc(job.customer_gstin)}", cust_detail_style))
+
+        ship_right: list = [Paragraph("Shipping Address", section_label_style), Paragraph(esc(job.customer_name), cust_name_style)]
+        if full_addr_line:
+            ship_right.append(Paragraph(full_addr_line, cust_detail_style))
+
+        cust_table = Table([[cust_left, ship_right]], colWidths=[half_w, half_w])
+        cust_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        block += [cust_table, Spacer(1, 8)]
+
+        # ── Items table ───────────────────────────────────────────────────────
+        if job.lines:
+            total_qty = sum(l.qty or 0 for l in job.lines)
+            total_aggregate = sum(l.aggregate or 0 for l in job.lines)
+            total_tax = sum(l.tax_amount or 0 for l in job.lines)
+            total_amount = sum(l.line_amount or 0 for l in job.lines)
+
+            items_head = [
+                Paragraph("#", cell_bold_style), Paragraph("Items", cell_bold_style),
+                Paragraph("Qty", cell_right_bold_style), Paragraph("Price", cell_right_bold_style),
+                Paragraph("Disc", cell_right_bold_style), Paragraph("Aggregate", cell_right_bold_style),
+                Paragraph("Tax amount (%)", cell_right_bold_style), Paragraph("Amount", cell_right_bold_style),
+            ]
+            items_rows = [items_head]
+            for idx, line in enumerate(job.lines, start=1):
+                sub_bits = [f"Part: {line.part_code}" if line.part_code else None, f"HSN: {line.hsn_code}" if line.hsn_code else None]
+                sub_line = "  ".join(esc(b) for b in sub_bits if b)
+                item_cell = [Paragraph(esc(line.description or "—"), cell_style)]
+                if sub_line:
+                    item_cell.append(Paragraph(sub_line, cell_sub_style))
+                items_rows.append([
+                    Paragraph(str(idx), cell_style),
+                    item_cell,
+                    Paragraph(_fmt2(line.qty), cell_right_style),
+                    Paragraph(_fmt2(line.price), cell_right_style),
+                    Paragraph("0.00", cell_right_style),
+                    Paragraph(_fmt2(line.aggregate), cell_right_style),
+                    Paragraph(f"{_fmt2(line.tax_amount)} ({_fmt2(line.gst_rate)})", cell_right_style),
+                    Paragraph(_fmt2(line.line_amount), cell_right_style),
+                ])
+            items_rows.append([
+                "", Paragraph("Total", cell_bold_style),
+                Paragraph(_fmt2(total_qty), cell_right_bold_style), "",
+                Paragraph("0.00", cell_right_bold_style),
+                Paragraph(_fmt2(total_aggregate), cell_right_bold_style),
+                Paragraph(_fmt2(total_tax), cell_right_bold_style),
+                Paragraph(_fmt2(total_amount), cell_right_bold_style),
+            ])
+            items_table = Table(items_rows, colWidths=[16, None, 34, 46, 32, 50, 66, 50], repeatRows=1)
+            items_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.white),
+                ("BACKGROUND", (0, -1), (-1, -1), _BOX_FILL),
+                ("GRID", (0, 0), (-1, -1), 0.5, _BOX_BORDER),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            block.append(items_table)
+        else:
+            block.append(Paragraph("No invoice line items on file.", no_receipts_style))
+
+        block.append(Spacer(1, 8))
+
+        # ── Receipts / Debits (left) | Summary box (right) ──────────────────────
+        summary_rows: list = []
+        job_total = job.total if job.total is not None else 0.0
+        for label, value, bold in [
+            ("Aggregate amount:", job.aggregate, True),
+            ("Cgst:", job.cgst, False),
+            ("Sgst:", job.sgst, False),
+            ("Igst:", job.igst, False),
+            ("Calculated amount:", job.aggregate + job.cgst + job.sgst + job.igst, False),
+            ("Invoice amount:", job_total, True),
+        ]:
+            lbl_style = summary_bold_style if bold else summary_style
+            val_style = summary_val_bold_style if bold else summary_val_style
+            summary_rows.append([Paragraph(label, lbl_style), Paragraph(_fmt2(value), val_style)])
+        summary_table = Table(summary_rows, colWidths=[None, 62])
+        summary_table.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.6, _BOX_BORDER),
+            ("BACKGROUND", (0, 0), (-1, -1), _BOX_FILL),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 2.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+        ]))
+
+        summary_w = 175
+        receipts_w = doc.width - summary_w - 8
+
+        if job.payments:
+            pay_head = [
+                Paragraph("#", cell_bold_style), Paragraph("Date", cell_bold_style), Paragraph("Mode", cell_bold_style),
+                Paragraph("Ref No", cell_bold_style), Paragraph("Remarks", cell_bold_style),
+                Paragraph("Amount", cell_right_bold_style), Paragraph("Status", cell_bold_style),
+            ]
+            pay_rows = [pay_head]
+            for idx, p in enumerate(job.payments, start=1):
+                pay_rows.append([
+                    Paragraph(str(idx), cell_style), Paragraph(esc(p.payment_date), cell_style),
+                    Paragraph(esc(p.payment_mode), cell_style), Paragraph(esc(p.reference_no or "—"), cell_style),
+                    Paragraph(esc(p.remarks or "—"), cell_style), Paragraph(_fmt2(p.amount), cell_right_style),
+                    Paragraph("Paid", cell_style),
+                ])
+            receipts_table = Table(pay_rows, colWidths=[14, 44, 36, 36, None, 44, 40], repeatRows=1)
+            receipts_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.5, _BOX_BORDER),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4), ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]))
+            receipts_block: list = [
+                Paragraph("Receipts / Debits", section_label_style), Spacer(1, 3), receipts_table,
+                Spacer(1, 4), Paragraph(_RECEIPT_DISCLAIMER, disclaimer_style),
+            ]
+        else:
+            receipts_block = [
+                Paragraph("Receipts / Debits", section_label_style), Spacer(1, 3),
+                Paragraph("No receipts recorded.", no_receipts_style),
+            ]
+
+        rs_table = Table([[receipts_block, summary_table]], colWidths=[receipts_w, summary_w])
+        rs_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (0, -1), 8),
+            ("RIGHTPADDING", (1, 0), (1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        block += [rs_table, Spacer(1, 12)]
+
+        # ── Footer: authorised signatory (left) + amount in words (right) ───────
+        footer_row = Table(
+            [[Paragraph("Authorised signatory", sig_style), Paragraph(_amount_in_words(job_total), words_style)]],
+            colWidths=[half_w, half_w],
+        )
+        footer_row.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        block.append(footer_row)
+
+        if job_idx < len(data.jobs) - 1:
+            block += [Spacer(1, 14), HRFlowable(width="100%", thickness=1, color=_INK), Spacer(1, 14)]
+
+        elements.append(KeepTogether(block))
         grand_total += job_total
-        grand_paid += job.paid_amount
 
     if len(data.jobs) > 1:
-        elements.append(
-            Paragraph(
-                f"Grand Total: {_format_amount(grand_total)}  —  "
-                f"Paid: {_format_amount(grand_paid)}  —  "
-                f"Balance: {_format_amount(grand_total - grand_paid)}",
-                summary_style,
-            )
-        )
-        elements.append(Spacer(1, 14))
+        elements += [Spacer(1, 10), Paragraph(f"Grand Total (all jobs): {_fmt2(grand_total)}", grand_total_style)]
 
     generated_at = datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M UTC")
     elements += [
+        Spacer(1, 14),
         Paragraph("Please retain this invoice for your reference.", footer_style),
         Paragraph(f"This is a system-generated document — generated {generated_at}.", footer_style),
     ]

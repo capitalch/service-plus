@@ -328,6 +328,16 @@ export function BatchWarrantySection() {
                     canPrintDeliveryNote={deliveredJobIds.size > 0}
                     onPrintDeliveryNote={handlePrintDeliveryNote}
                     onClose={handleResultsClose}
+                    dbName={dbName}
+                    schema={schema}
+                    branchId={branchId}
+                    deliveredJobIds={[...deliveredJobIds]}
+                    customerMobile={selectedJobs.find(j => deliveredJobIds.has(j.id))?.mobile ?? null}
+                    customerLabel={(() => {
+                        const delivered = selectedJobs.filter(j => deliveredJobIds.has(j.id));
+                        if (delivered.length === 0) return null;
+                        return `${delivered[0].customer_name ?? ""} — ${delivered.map(j => j.job_no).join(", ")}`;
+                    })()}
                 />
             )}
 

@@ -407,12 +407,10 @@ export const PartUsedSection = () => {
                                                     <td className={`${tdClass} min-w-[180px]`}>
                                                         {row.isFirstInGroup ? (
                                                             <div className="flex flex-col gap-0.5">
-                                                                <div className="flex items-center justify-between gap-1.5">
-                                                                    <span className="font-mono font-bold text-(--cl-accent)">{row.job_no}</span>
-                                                                    {row.alternate_job_no && (
-                                                                        <span className="shrink-0 font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {row.alternate_job_no}</span>
-                                                                    )}
-                                                                </div>
+                                                                <span className="font-mono font-bold text-(--cl-accent)">{row.job_no}</span>
+                                                                {row.alternate_job_no && (
+                                                                    <span className="w-fit font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {row.alternate_job_no}</span>
+                                                                )}
                                                                 <JobTypeBadge code={row.job_type_code} name={row.job_type_name} className="w-fit" />
                                                                 <div className="flex items-center gap-1 flex-wrap">
                                                                     <StatusBadge code={row.job_status_code} name={row.job_status_name} />

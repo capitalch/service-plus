@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -25,6 +26,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { currentFinancialYearRange } from "@/lib/utils";
+import { isValidMobile } from "@/lib/mobile";
 import { selectAvailableDivisions, selectCurrentBranch, selectNoOfJobReceiptsPerPrint, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobReceiptDetailType, JobReceiptListRowType } from "@/features/client/types/receipt";
@@ -37,6 +39,7 @@ import { receiptFormSchema, type ReceiptFormValues, getReceiptDefaultValues } fr
 import { buildReceiptPdf } from "@/features/client/components/jobs/deliver-job/deliver-job-pdf";
 import type { JobDetailType } from "@/features/client/types/job";
 import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
+import { useSendWhatsappMoneyReceipt } from "./use-send-whatsapp-money-receipt";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,6 +86,10 @@ export const ReceiptsSection = () => {
     const availableDivisions = useAppSelector(selectAvailableDivisions);
     const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
     const noOfReceipts       = useAppSelector(selectNoOfJobReceiptsPerPrint);
+
+    const {
+        sending: sendingWhatsappReceipt, send: sendWhatsappReceipt, ConfirmDialog: whatsappReceiptConfirmDialog,
+    } = useSendWhatsappMoneyReceipt();
 
     const { from: fromDate, to: toDate } = currentFinancialYearRange();
     const [search,      setSearch]      = useState("");
@@ -252,6 +259,11 @@ export const ReceiptsSection = () => {
         } finally {
             setPdfLoading(null);
         }
+    }
+
+    async function handleSendReceiptWhatsapp(row: JobReceiptListRowType) {
+        if (!dbName || !schema || !branchId) return;
+        await sendWhatsappReceipt(dbName, schema, branchId, row.id);
     }
 
     function handleReceiptCopiesChange(n: number) {
@@ -481,20 +493,18 @@ export const ReceiptsSection = () => {
                                         </td>
                                         <td className={tdClass}>
                                             <div className="flex flex-col gap-0.5">
-                                                <div className="flex items-center justify-between gap-1.5 font-mono font-semibold text-(--cl-accent)">
-                                                    <span>
-                                                        {row.job_no}
-                                                        {row.is_closed && (
-                                                            <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
-                                                        )}
-                                                        {row.is_opening_job && (
-                                                            <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
-                                                        )}
-                                                    </span>
-                                                    {row.alternate_job_no && (
-                                                        <span className="shrink-0 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {row.alternate_job_no}</span>
+                                                <span className="font-mono font-semibold text-(--cl-accent)">
+                                                    {row.job_no}
+                                                    {row.is_closed && (
+                                                        <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                     )}
-                                                </div>
+                                                    {row.is_opening_job && (
+                                                        <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
+                                                    )}
+                                                </span>
+                                                {row.alternate_job_no && (
+                                                    <span className="w-fit text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">Alt: {row.alternate_job_no}</span>
+                                                )}
                                                 {row.batch_no != null && (
                                                     <span className="text-[10px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{row.batch_no}</span>
                                                 )}
@@ -579,6 +589,13 @@ export const ReceiptsSection = () => {
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => void handleShowPdf(row)}>
                                                         <Printer className="mr-2 h-3.5 w-3.5 text-slate-600" /> Print Receipt
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        disabled={!isValidMobile(row.mobile) || sendingWhatsappReceipt}
+                                                        title={isValidMobile(row.mobile) ? undefined : "No valid mobile number on file"}
+                                                        onClick={() => void handleSendReceiptWhatsapp(row)}
+                                                    >
+                                                        <WhatsAppIcon className="mr-2 h-3.5 w-3.5" /> Send Receipt via WhatsApp
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem
@@ -740,6 +757,9 @@ export const ReceiptsSection = () => {
             {viewJobId !== null && (
                 <JobDetailsModal jobId={viewJobId} onClose={() => setViewJobId(null)} />
             )}
+
+            {/* Send Receipt via WhatsApp — confirm dialog */}
+            {whatsappReceiptConfirmDialog}
         </motion.div>
     );
 };

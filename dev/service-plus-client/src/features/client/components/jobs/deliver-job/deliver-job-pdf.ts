@@ -536,7 +536,7 @@ export function buildPackedInvoicePdf(
     return doc;
 }
 
-// ── Delivery Note / Certificate PDF (A5) ─────────────────────────────────────
+// ── Delivery Note PDF (A5) ────────────────────────────────────────────────────
 
 export type DeliveryNoteJobInfo = {
     customer_contact_id?:    number | null;
@@ -614,7 +614,7 @@ function drawDeliveryNoteHeader(
     // ── Title ─────────────────────────────────────────────────────────────────
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("DELIVERY CERTIFICATE", midX, y, { align: "center" });
+    doc.text("DELIVERY NOTE", midX, y, { align: "center" });
     y += 4.5;
     doc.setFont("helvetica", "italic");
     doc.setFontSize(8.5);
@@ -643,7 +643,7 @@ function drawDeliveryNoteContent(
     const midX  = pageW / 2;
     let y = drawDeliveryNoteHeader(
         doc, division, branchName,
-        "This certifies that the customer has received the serviced item described below.",
+        "This confirms that the customer has received the serviced item described below.",
     );
 
     // ── Info box ──────────────────────────────────────────────────────────────
@@ -820,7 +820,7 @@ function drawDeliveryNoteContent(
 }
 
 // Multiple jobs for the same customer, delivered together — one page listing
-// every job as a line item instead of a separate certificate per job, so a
+// every job as a line item instead of a separate delivery note per job, so a
 // combined pickup only consumes one sheet of stationery.
 function drawCombinedDeliveryNoteContent(
     doc: jsPDF,
@@ -835,7 +835,7 @@ function drawCombinedDeliveryNoteContent(
     const first = jobs[0];
     let y = drawDeliveryNoteHeader(
         doc, division, branchName,
-        `This certifies that the customer has received the ${jobs.length} serviced items described below.`,
+        `This confirms that the customer has received the ${jobs.length} serviced items described below.`,
     );
 
     // ── Info box ──────────────────────────────────────────────────────────────

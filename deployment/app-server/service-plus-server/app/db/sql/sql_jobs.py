@@ -1614,7 +1614,7 @@ class JobsSql:
             "p_offset"    as (values(%(offset)s::int))
         SELECT j.id, j.job_no, j.alternate_job_no, j.is_opening_job, j.job_date, j.purchase_date, j.amount, j.last_transaction_id,
                j.division_id, j.batch_no, j.serial_no,
-               TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+               TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)) AS device_details,
                cc.full_name  AS customer_name, cc.gstin AS customer_gstin, cc.mobile,
                js.name       AS job_status_name,
                js.code       AS job_status_code,
@@ -1841,7 +1841,7 @@ class JobsSql:
                 SELECT json_agg(json_build_object(
                     'id', jac.id, 'charge_name', jac.charge_name, 'qty', jac.qty,
                     'selling_price', jac.selling_price, 'gst_rate', jac.gst_rate,
-                    'hsn_code', jac.hsn_code, 'description', jac.description
+                    'hsn_code', jac.hsn_code, 'description', jac.description, 'ref_no', jac.ref_no
                 ) ORDER BY jac.id)
                 FROM job_additional_charge jac WHERE jac.job_id = j.id
             ), '[]'::json) AS charges
@@ -2071,6 +2071,138 @@ class JobsSql:
         RETURNING id
     """
 
+    # ── Job Delivery (paperless, OTP-confirmed) — plans/plan.md ────────────────
+    # Server-side re-filter for sendWhatsappJobDelivery — never trusts the
+    # client's selection. `branch_id` is a required, cross-checked argument here
+    # exactly like GET_JOBS_FOR_WHATSAPP_COMPLETION/_CREATION above — job_ids
+    # alone must never be treated as proof the caller is authorized for those
+    # jobs' branch. Filtered on the *delivered* statuses, not COMPLETED_OK — this
+    # fires once Deliver Job has actually finished, mirroring delivery-modal.tsx's
+    # own `isDelivered` gate. Not filtered on job_type/RETURN vs repair: a
+    # RETURN-origin job reaching DELIVERED_OK/_NOT_OK is handed back exactly the
+    # same way a repaired one is, and belongs on this same rail.
+    GET_JOBS_FOR_WHATSAPP_DELIVERY = """
+        SELECT
+            j.id AS job_id,
+            j.job_no,
+            j.customer_contact_id,
+            j.whatsapp_notifications,
+            j.amount,
+            COALESCE((SELECT SUM(jp.amount) FROM job_payment jp WHERE jp.job_id = j.id), 0) AS paid_amount,
+            c.full_name AS customer_name,
+            c.mobile,
+            b.name AS branch_name,
+            b.phone AS branch_phone
+        FROM job j
+        JOIN customer_contact c ON c.id = j.customer_contact_id
+        JOIN job_status js ON js.id = j.job_status_id
+        JOIN branch b ON b.id = j.branch_id
+        WHERE j.id = ANY(%(job_ids)s)
+          AND j.branch_id = %(branch_id)s
+          AND js.code IN ('DELIVERED_OK', 'DELIVERED_NOT_OK')
+    """
+
+    # Writes otp_hash/otp_expires_at and resets otp_attempt_count to 0 under the
+    # JOB_DELIVERY key. Unlike SET_JOB_DELIVERY_CONFIRMATION below, this always
+    # runs as part of an actual WhatsApp send attempt — but still can't assume
+    # JOB_DELIVERY already exists (this write happens *before* the shared
+    # SET_JOB_WHATSAPP_ATTEMPT call that would otherwise create it), so it uses
+    # the same defensive jsonb_typeof guard the other event-keyed writes do.
+    SET_JOB_DELIVERY_OTP = """
+        UPDATE job
+        SET whatsapp_notifications = jsonb_set(
+            COALESCE(whatsapp_notifications, '{}'::jsonb),
+            '{JOB_DELIVERY}',
+            jsonb_set(
+                jsonb_set(
+                    jsonb_set(
+                        CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_DELIVERY') = 'object'
+                             THEN whatsapp_notifications -> 'JOB_DELIVERY'
+                             ELSE '{}'::jsonb END,
+                        '{otp_hash}', to_jsonb(%(otp_hash)s::text), true
+                    ),
+                    '{otp_expires_at}', to_jsonb(%(otp_expires_at)s::text), true
+                ),
+                '{otp_attempt_count}', to_jsonb(0), true
+            ),
+            true
+        )
+        WHERE id = %(job_id)s
+    """
+
+    # Read-only — plain `->`/`->>` return NULL on a missing JOB_DELIVERY key or
+    # missing field, never an error, so this is safe even for a job that's never
+    # had a delivery OTP at all (e.g. about to go straight to manual-override).
+    GET_JOB_DELIVERY_OTP = """
+        SELECT
+            id,
+            whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_hash' AS otp_hash,
+            whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_expires_at' AS otp_expires_at,
+            COALESCE((whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_attempt_count')::int, 0) AS otp_attempt_count
+        FROM job
+        WHERE id = ANY(%(job_ids)s::bigint[])
+    """
+
+    # Safe as a direct two-level path (unlike SET_JOB_DELIVERY_OTP above) because
+    # this is only ever called after a real otp_hash comparison already found a
+    # JOB_DELIVERY object to compare against — the object is guaranteed to exist
+    # by the time a wrong-code attempt can happen at all.
+    INCREMENT_JOB_DELIVERY_OTP_ATTEMPT = """
+        UPDATE job
+        SET whatsapp_notifications = jsonb_set(
+            whatsapp_notifications,
+            '{JOB_DELIVERY,otp_attempt_count}',
+            to_jsonb(COALESCE((whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_attempt_count')::int, 0) + 1),
+            true
+        )
+        WHERE id = %(job_id)s
+    """
+
+    # Unlike the increment above, this CANNOT assume JOB_DELIVERY already
+    # exists: the manual-override path can be the very first write ever for this
+    # event on a job that was never sent a WhatsApp message at all (no mobile on
+    # file). Same defensive jsonb_typeof guard as SET_JOB_DELIVERY_OTP for that
+    # reason. No status ladder, no wamid match — confirming twice, or confirming
+    # after an earlier attempt of the other kind, just overwrites all three
+    # fields; there's nothing here to protect since none of it is a counter.
+    SET_JOB_DELIVERY_CONFIRMATION = """
+        UPDATE job
+        SET whatsapp_notifications = jsonb_set(
+            COALESCE(whatsapp_notifications, '{}'::jsonb),
+            '{JOB_DELIVERY}',
+            jsonb_set(
+                jsonb_set(
+                    jsonb_set(
+                        CASE WHEN jsonb_typeof(whatsapp_notifications -> 'JOB_DELIVERY') = 'object'
+                             THEN whatsapp_notifications -> 'JOB_DELIVERY'
+                             ELSE '{}'::jsonb END,
+                        '{confirmed_at}', to_jsonb(%(confirmed_at)s::text), true
+                    ),
+                    '{confirmation_method}', to_jsonb(%(confirmation_method)s::text), true
+                ),
+                '{confirmed_by_staff_id}', to_jsonb(%(staff_id)s::text), true
+            ),
+            true
+        )
+        WHERE id = %(job_id)s
+    """
+
+    # Feeds the client's "Verify Code" affordance (plans/plan.md, Step 4) — a
+    # single boolean per job, computed server-side, so the client can offer
+    # re-entry into an unexpired code without ever seeing the hash or the raw
+    # expiry timestamp itself.
+    GET_JOB_DELIVERY_OTP_PENDING = """
+        SELECT
+            id,
+            (
+                whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_hash' IS NOT NULL
+                AND (whatsapp_notifications -> 'JOB_DELIVERY' ->> 'otp_expires_at')::timestamptz > now()
+                AND whatsapp_notifications -> 'JOB_DELIVERY' ->> 'confirmed_at' IS NULL
+            ) AS otp_pending
+        FROM job
+        WHERE id = ANY(%(job_ids)s::bigint[])
+    """
+
     # ── Customer Connect — eligible jobs for the completion message (§5e) ──────
     # Eligibility mirrors sendWhatsappCompletion's own re-filter: is_final=true,
     # is_closed=false, status not cancelled/disposed (plan §1/§2b).
@@ -2151,4 +2283,84 @@ class JobsSql:
            OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY j.job_date DESC, j.id DESC
+    """
+
+    # ── Customer Connect — WhatsApp message logs (Job Intake / Job Delivery tabs) ──
+    # Read-only history, never a send target: takes %(event_key)s as a bind param
+    # (JOB_CREATION or JOB_DELIVERY) rather than being forked per event, same
+    # convention SET_JOB_WHATSAPP_ATTEMPT/_OUTCOME already use. Scoped to jobs
+    # where that event actually has an attempt on record — jsonb_typeof(...) =
+    # 'object' is false for both a missing key and a non-object value, so a job
+    # that's never had this event fires simply isn't a log entry — this is a
+    # message log, not a job browser. Sorted by last_sent_at, not job_date, since
+    # "most recently messaged" is what a log reader wants first.
+    #
+    # JOB_DELIVERY additionally requires confirmed_at IS NOT NULL — "delivery
+    # was done" means the customer actually confirmed the code (or staff
+    # recorded a manual override), not merely that a message was sent and
+    # might still be sitting unconfirmed. JOB_CREATION has no confirmation
+    # step at all, so this extra clause is skipped for it (event_key check
+    # short-circuits before the confirmed_at lookup even applies).
+
+    GET_WHATSAPP_EVENT_LOG_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_event_key" as (values(%(event_key)s::text)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_status       js ON js.id = j.job_status_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND jsonb_typeof(j.whatsapp_notifications -> (table "p_event_key")) = 'object'
+          AND ((table "p_event_key") != 'JOB_DELIVERY'
+           OR  (j.whatsapp_notifications -> 'JOB_DELIVERY' ->> 'confirmed_at') IS NOT NULL)
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_WHATSAPP_EVENT_LOG_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_event_key" as (values(%(event_key)s::text)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            j.id,
+            j.job_no,
+            j.alternate_job_no,
+            j.job_date,
+            j.amount,
+            j.whatsapp_notifications,
+            cc.id        AS customer_contact_id,
+            cc.full_name AS customer_name,
+            cc.mobile,
+            jt.name      AS job_type_name,
+            jt.code      AS job_type_code,
+            js.name      AS job_status_name,
+            js.code      AS job_status_code,
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(b.name, ''), NULLIF(pbm.model_name, ''))) AS device_details
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type         jt ON jt.id = j.job_type_id
+        JOIN job_status       js ON js.id = j.job_status_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand       b  ON b.id = pbm.brand_id
+        LEFT JOIN product     p  ON p.id = pbm.product_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND jsonb_typeof(j.whatsapp_notifications -> (table "p_event_key")) = 'object'
+          AND ((table "p_event_key") != 'JOB_DELIVERY'
+           OR  (j.whatsapp_notifications -> 'JOB_DELIVERY' ->> 'confirmed_at') IS NOT NULL)
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY (j.whatsapp_notifications -> (table "p_event_key") ->> 'last_sent_at')::timestamptz DESC NULLS LAST, j.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
     """

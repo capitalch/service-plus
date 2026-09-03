@@ -4,6 +4,7 @@ type Query {
     auditLogStats(from_date: String, to_date: String): Generic
     genericBatchQuery(db_name: String!, items: [String!]!): Generic
     genericQuery(db_name: String!, schema: String, value: String!): Generic
+    getJobDeliveryOtpPending(db_name: String!, schema: String, value: String!): Generic
     superAdminClientsData: Generic
     superAdminDashboardStats: Generic
     systemSettings: Generic
@@ -44,6 +45,9 @@ type Mutation {
     accountsPosting(db_name: String!, schema: String, value: String!): Generic
     sendWhatsappCompletion(db_name: String!, schema: String, value: String!): Generic
     sendWhatsappJobIntake(db_name: String!, schema: String, value: String!): Generic
+    sendWhatsappJobDelivery(db_name: String!, schema: String, value: String!): Generic
+    verifyJobDeliveryOtp(db_name: String!, schema: String, value: String!): Generic
+    setJobDeliveryManualConfirmation(db_name: String!, schema: String, value: String!): Generic
 }
 
 type Subscription {

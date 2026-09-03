@@ -180,7 +180,7 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
                                         <td className={tdClass}><JobTypeBadge code={row.job_type_code} name={row.job_type_name} /></td>
                                         <td className={tdClass}><StatusBadge code={row.job_status_code} name={row.job_status_name} /></td>
                                         <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.amount)}</td>
-                                        <td className={tdClass}><WhatsappStatusCell row={row} eventKey="JOB_COMPLETION" /></td>
+                                        <td className={tdClass}><WhatsappStatusCell state={row.whatsapp_notifications?.JOB_COMPLETION ?? null} /></td>
                                         <td
                                             className={`${tdClass} sticky right-0 z-10 ${
                                                 selectedRowId === row.id

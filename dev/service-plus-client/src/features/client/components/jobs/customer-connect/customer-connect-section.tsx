@@ -21,6 +21,8 @@ import { sendWhatsappCompletion, type WhatsappCompletionResult } from "../send-w
 import { CustomerConnectGrid } from "./customer-connect-grid";
 import { SendMessagesModal } from "./send-messages-modal";
 import { SendResultsDialog } from "./send-results-dialog";
+import { WhatsappLogSection } from "./whatsapp-log-section";
+import { MoneyReceiptLogSection } from "./money-receipt-log-section";
 import { PAGE_SIZE, getCompletionState, groupRowsByCustomer, hasAnyPriorAttempt, isRowSelectable, type GroupableJobRow } from "./customer-connect-helpers";
 import type { CustomerConnectJobRow, CustomerGroup, WhatsappCompletionState } from "./customer-connect-schema";
 
@@ -50,7 +52,19 @@ type DispatchBanner = {
     failedCount:     number;
 };
 
+type ActiveTab = "completion" | "intake" | "delivery" | "moneyReceipt";
+
 export function CustomerConnectSection() {
+    const [activeTab, setActiveTab] = useState<ActiveTab>("completion");
+    // Job Intake / Job Delivery / Money Receipt own their row/loading state
+    // internally (whatsapp-log-section.tsx / money-receipt-log-section.tsx)
+    // — only the count is lifted up here, so it can sit next to "Customer
+    // Connect" in one shared subtitle line instead of each tab rendering its
+    // own separate title/count row.
+    const [intakeTotal,       setIntakeTotal]       = useState(0);
+    const [deliveryTotal,     setDeliveryTotal]     = useState(0);
+    const [moneyReceiptTotal, setMoneyReceiptTotal] = useState(0);
+
     const dbName      = useAppSelector(selectDbName);
     const schema      = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
@@ -380,15 +394,97 @@ export function CustomerConnectSection() {
             initial={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
         >
-            {/* Header */}
-            <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                    <WhatsAppIcon className="h-4 w-4" />
+            {/* Header — stacks on mobile (title, then centered tabs); on sm:
+                up, a 4-column grid keeps the tab group visually centered
+                regardless of how wide the title/subtitle on the left is. */}
+            <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
+                <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
+                        <WhatsAppIcon className="h-4 w-4" />
+                    </div>
+                    <h2 className="text-sm font-bold text-(--cl-text) whitespace-nowrap">Customer Connect</h2>
+                    <span className="text-xs text-(--cl-text-muted) whitespace-nowrap">
+                        {activeTab === "completion" && `${total} eligible job${total !== 1 ? "s" : ""}`}
+                        {activeTab === "intake" && `${intakeTotal} logged message${intakeTotal !== 1 ? "s" : ""}`}
+                        {activeTab === "delivery" && `${deliveryTotal} logged message${deliveryTotal !== 1 ? "s" : ""}`}
+                        {activeTab === "moneyReceipt" && `${moneyReceiptTotal} logged message${moneyReceiptTotal !== 1 ? "s" : ""}`}
+                    </span>
                 </div>
-                <h2 className="text-sm font-bold text-(--cl-text)">Customer Connect</h2>
-                <span className="text-xs text-(--cl-text-muted)">{total} eligible job{total !== 1 ? "s" : ""}</span>
+
+                <div className="grid grid-cols-4 gap-2.5 rounded-xl border-2 border-(--cl-border) bg-(--cl-surface-2) p-1 shadow-md sm:mx-auto sm:flex sm:w-auto">
+                    {/* Job Completion is the only tab that actually sends —
+                        the WhatsApp icon marks it as the "live" action tab
+                        even when it's not the one currently active, so it
+                        never reads as just another identical log tab. */}
+                    <button
+                        className={`h-9 gap-1.5 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer inline-flex items-center justify-center ${activeTab === "completion"
+                                ? "bg-emerald-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
+                                : "bg-transparent text-emerald-700 dark:text-emerald-400 ring-1 ring-inset ring-emerald-300 dark:ring-emerald-800 hover:text-white hover:bg-emerald-600 hover:ring-emerald-600 sm:hover:scale-105 font-semibold"
+                            }`}
+                        onClick={() => setActiveTab("completion")}
+                    >
+                        <WhatsAppIcon className="h-3.5 w-3.5 shrink-0" />
+                        Job Completion
+                    </button>
+                    <button
+                        className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${activeTab === "intake"
+                                ? "bg-sky-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
+                                : "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-sky-600 sm:hover:scale-105 font-semibold"
+                            }`}
+                        onClick={() => setActiveTab("intake")}
+                    >
+                        Job Intake
+                    </button>
+                    <button
+                        className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${activeTab === "delivery"
+                                ? "bg-violet-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
+                                : "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-violet-600 sm:hover:scale-105 font-semibold"
+                            }`}
+                        onClick={() => setActiveTab("delivery")}
+                    >
+                        Job Delivery
+                    </button>
+                    <button
+                        className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${activeTab === "moneyReceipt"
+                                ? "bg-amber-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
+                                : "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-amber-600 sm:hover:scale-105 font-semibold"
+                            }`}
+                        onClick={() => setActiveTab("moneyReceipt")}
+                    >
+                        Money Receipt
+                    </button>
+                </div>
             </div>
 
+            {/* Job Intake — read-only log, no send controls */}
+            {activeTab === "intake" && (
+                <WhatsappLogSection
+                    eventKey="JOB_CREATION"
+                    emptyMessage="No Job Intake messages have been sent yet."
+                    onCountChange={setIntakeTotal}
+                />
+            )}
+
+            {/* Job Delivery — read-only log, no send controls */}
+            {activeTab === "delivery" && (
+                <WhatsappLogSection
+                    eventKey="JOB_DELIVERY"
+                    emptyMessage="No Job Delivery messages have been sent yet."
+                    onCountChange={setDeliveryTotal}
+                />
+            )}
+
+            {/* Money Receipt — read-only log, no send controls */}
+            {activeTab === "moneyReceipt" && (
+                <MoneyReceiptLogSection
+                    emptyMessage="No Money Receipt messages have been sent yet."
+                    onCountChange={setMoneyReceiptTotal}
+                />
+            )}
+
+            {/* Job Completion — the only tab that actually sends; unchanged below */}
+            {activeTab === "completion" && (
+            <>
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-2">
                 <div className="relative flex-1 sm:max-w-sm">
@@ -409,10 +505,10 @@ export function CustomerConnectSection() {
                         </button>
                     )}
                 </div>
-                <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }}>
-                    <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
-                </Button>
-                <div className="ml-auto">
+                <div className="ml-auto flex items-center gap-2">
+                    <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }}>
+                        <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
+                    </Button>
                     <Button
                         className="h-9 gap-2 px-4 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md tracking-wide disabled:opacity-40 disabled:cursor-not-allowed"
                         disabled={selectedIds.size === 0 || loadingGroups || !branchId}
@@ -476,6 +572,8 @@ export function CustomerConnectSection() {
                 results={results ?? []}
                 onClose={() => setResults(null)}
             />
+            </>
+            )}
         </motion.div>
     );
 }

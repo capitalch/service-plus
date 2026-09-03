@@ -17,6 +17,7 @@ from app.graphql.resolvers.shared.generic_query import (
     resolve_generic_batch_query_helper,
     resolve_generic_query_helper,
 )
+from app.whatsapp.sender import get_job_delivery_otp_pending
 
 
 # Create QueryType instance
@@ -75,6 +76,16 @@ async def resolve_generic_query(_, info, db_name="", schema="public", value="") 
         Result of the generic query
     """
     return await resolve_generic_query_helper(db_name, schema, value)
+
+
+@query.field("getJobDeliveryOtpPending")
+@handle_query_errors("Unexpected getJobDeliveryOtpPending failure")
+async def resolve_get_job_delivery_otp_pending(_, info, db_name="", schema="public", value="") -> Any:
+    """Whether a still-valid, unconfirmed delivery OTP is already waiting for
+    this exact job set — feeds the "Verify Code" affordance (plans/plan.md,
+    Step 4) so a staff member who loses the OTP dialog can resume verification
+    without a fresh (and first-code-invalidating) resend."""
+    return await get_job_delivery_otp_pending(db_name, schema, value)
 
 
 @query.field("superAdminClientsData")

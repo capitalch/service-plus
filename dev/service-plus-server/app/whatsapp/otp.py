@@ -16,17 +16,19 @@ from app.config import settings
 
 
 def generate() -> str:
-    """6-digit numeric code, cryptographically random — `secrets.randbelow`, not
+    """4-digit numeric code, cryptographically random — `secrets.randbelow`, not
     `random`, since this is a value someone could try to guess."""
-    return f"{secrets.randbelow(1_000_000):06d}"
+    return f"{secrets.randbelow(10_000):04d}"
 
 
 def hash_code(code: str) -> str:
     """HMAC-SHA256 over the plaintext code with the dedicated OTP secret — never
-    store the code itself, only this. A 6-digit code has a small enough keyspace
-    that online brute-force (not offline hash-cracking) is the real threat, which
-    is why the short expiry and attempt lockout (sql_jobs.py) carry the actual
-    security weight here, not the hash algorithm."""
+    store the code itself, only this. A 4-digit code has a small keyspace
+    (10,000 possibilities) — online brute-force, not offline hash-cracking, is
+    the real threat, which is why the short expiry and the 5-attempt lockout
+    (sql_jobs.py) carry the actual security weight here, not the hash
+    algorithm. That lockout is load-bearing precisely because the keyspace is
+    this small — see plans/plan.md's Watch-outs."""
     return hmac.new(
         settings.whatsapp_delivery_otp_secret.encode("utf-8"), code.encode("utf-8"), hashlib.sha256
     ).hexdigest()

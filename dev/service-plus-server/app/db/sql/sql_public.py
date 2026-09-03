@@ -77,6 +77,10 @@ class PublicSql:
             j.warranty_card_no,
             j.purchase_date,
             j.address_snapshot,
+            j.serial_no,
+            p.name AS product_name,
+            brd.name AS brand_name,
+            pbm.model_name,
             TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(brd.name, ''), NULLIF(pbm.model_name, ''),
                            NULLIF(j.serial_no, ''))) AS device,
             js.name AS status,
@@ -86,12 +90,23 @@ class PublicSql:
             jt.name AS job_type_name,
             jrm.name AS receive_manner_name,
             jrc.name AS receive_condition_name,
+            b.code AS branch_code,
             b.name AS branch_name,
             b.phone AS branch_phone,
             b.email AS branch_email,
             b.gstin AS branch_gstin,
             TRIM(CONCAT_WS(', ', NULLIF(b.address_line1, ''), NULLIF(b.address_line2, ''),
                            NULLIF(b.city, ''), NULLIF(st.name, ''), NULLIF(b.pincode, ''))) AS branch_address,
+            -- The printed/downloadable Job Sheet is branded per DIVISION, same as
+            -- the client's own job-sheet-pdf.ts (division.name/address/phone/
+            -- email/gstin, not the branch's) — the HTML status page above keeps
+            -- using branch_* as it always has; only the PDF builder reads these.
+            d.name AS division_name,
+            d.phone AS division_phone,
+            d.email AS division_email,
+            d.gstin AS division_gstin,
+            TRIM(CONCAT_WS(', ', NULLIF(d.address_line1, ''), NULLIF(d.address_line2, ''),
+                           NULLIF(d.city, ''), NULLIF(d.pincode, ''))) AS division_address,
             cc.full_name AS customer_name,
             cc.mobile AS customer_mobile
         FROM job j
@@ -102,6 +117,7 @@ class PublicSql:
         LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
         JOIN branch b ON b.id = j.branch_id
         LEFT JOIN state st ON st.id = b.state_id
+        LEFT JOIN division d ON d.id = j.division_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand brd ON brd.id = pbm.brand_id
         LEFT JOIN product p ON p.id = pbm.product_id
@@ -167,28 +183,118 @@ class PublicSql:
     # throughout, not JOIN: a job with no invoice yet (e.g. a zero-charge RETURN)
     # must still appear, with null invoice/line fields, rather than silently
     # vanish from the PDF.
+    # Deliberately mirrors the manual, staff-triggered invoice's own field set
+    # (deliver-job-pdf.ts's drawInvoiceContent / GET_JOB_INVOICE_BY_JOB) — division
+    # (not branch) is what brands the printed Tax Invoice, same "why" as
+    # GET_JOB_INTAKE_STATUS's division_* columns above — plus enough
+    # customer/device detail for the WhatsApp-triggered PDF to render the same
+    # Customer Details/Shipping Address block, not a stripped-down summary.
     GET_JOB_DELIVERY_INVOICE_DETAIL = """
         SELECT
             j.id AS job_id,
             j.job_no,
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(brd.name, ''), NULLIF(pbm.model_name, ''))) AS device,
+            j.serial_no,
+            b.name AS branch_name,
+            d.code AS division_code,
+            d.name AS division_name,
+            d.phone AS division_phone,
+            d.email AS division_email,
+            d.gstin AS division_gstin,
+            d.web_site AS division_web_site,
+            dst.gst_state_code AS division_gst_state_code,
+            TRIM(CONCAT_WS(', ', NULLIF(d.address_line1, ''), NULLIF(d.address_line2, ''),
+                           NULLIF(d.city, ''), NULLIF(d.pincode, ''))) AS division_address,
+            cc.full_name AS customer_name,
+            cc.mobile AS customer_mobile,
+            cc.gstin AS customer_gstin,
+            cc.email AS customer_email,
+            TRIM(CONCAT_WS(', ', NULLIF(cc.address_line1, ''), NULLIF(cc.address_line2, ''),
+                           NULLIF(cc.landmark, ''), NULLIF(cc.city, ''), NULLIF(cst.name, ''),
+                           NULLIF(cc.postal_code, ''))) AS customer_address,
             ji.invoice_no,
             ji.invoice_date,
+            ji.aggregate AS invoice_aggregate,
             ji.cgst_amount AS invoice_cgst,
             ji.sgst_amount AS invoice_sgst,
             ji.igst_amount AS invoice_igst,
             ji.amount AS invoice_total,
             jil.description,
+            jil.part_code,
             jil.hsn_code,
             jil.qty,
             jil.price,
+            jil.aggregate AS line_aggregate,
             jil.gst_rate,
+            jil.cgst_amount AS line_cgst,
+            jil.sgst_amount AS line_sgst,
+            jil.igst_amount AS line_igst,
             jil.amount AS line_amount,
             COALESCE((SELECT SUM(jp.amount) FROM job_payment jp WHERE jp.job_id = j.id), 0) AS paid_amount
         FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN state cst ON cst.id = cc.state_id
+        JOIN branch b ON b.id = j.branch_id
+        LEFT JOIN division d ON d.id = j.division_id
+        LEFT JOIN state dst ON dst.id = d.state_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand brd ON brd.id = pbm.brand_id
+        LEFT JOIN product p ON p.id = pbm.product_id
         LEFT JOIN job_invoice ji ON ji.job_id = j.id
         LEFT JOIN job_invoice_line jil ON jil.job_invoice_id = ji.id
         WHERE j.id = ANY(%(job_ids)s::bigint[])
         ORDER BY j.job_no, jil.id
+    """
+
+    # Receipts against the delivered job(s), for the invoice PDF's "Receipts /
+    # Debits" table — same job_payment columns deliver-job-pdf.ts's own
+    # JobPaymentRow reads, fetched separately (not folded into the
+    # invoice-line query above) so a job with N lines and M payments doesn't
+    # cross-join into N*M denormalized rows.
+    GET_JOB_DELIVERY_PAYMENTS = """
+        SELECT job_id, id, receipt_no, payment_date, payment_mode, amount, reference_no, remarks
+        FROM job_payment
+        WHERE job_id = ANY(%(job_ids)s::bigint[])
+        ORDER BY payment_date, id
+    """
+
+    # ── Money Receipt (public, WhatsApp-triggered "Download Money Receipt") ─────
+    # Whitelisted columns only, one specific job_payment row — both payment_id
+    # and job_id required in the WHERE (never trust one alone), same discipline
+    # verify_receipt's two-id token payload exists for (plans/plan.md, Step 1).
+    # Division, not branch, brands the printed receipt — same reasoning
+    # GET_JOB_INTAKE_STATUS/GET_JOB_DELIVERY_INVOICE_DETAIL already give for
+    # their own division_* columns.
+    GET_JOB_PAYMENT_FOR_WHATSAPP_RECEIPT = """
+        SELECT
+            jp.receipt_no,
+            jp.payment_date,
+            jp.payment_mode,
+            jp.amount,
+            jp.reference_no,
+            jp.remarks,
+            j.job_no,
+            j.alternate_job_no,
+            j.job_date,
+            b.name AS branch_name,
+            d.name AS division_name,
+            d.phone AS division_phone,
+            d.email AS division_email,
+            d.gstin AS division_gstin,
+            TRIM(CONCAT_WS(', ', NULLIF(d.address_line1, ''), NULLIF(d.address_line2, ''),
+                           NULLIF(d.city, ''), NULLIF(d.pincode, ''))) AS division_address,
+            cc.full_name AS customer_name,
+            cc.mobile AS customer_mobile,
+            TRIM(CONCAT_WS(', ', NULLIF(cc.address_line1, ''), NULLIF(cc.address_line2, ''),
+                           NULLIF(cc.landmark, ''), NULLIF(cc.city, ''), NULLIF(cst.name, ''),
+                           NULLIF(cc.postal_code, ''))) AS customer_address
+        FROM job_payment jp
+        JOIN job j ON j.id = jp.job_id
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN state cst ON cst.id = cc.state_id
+        JOIN branch b ON b.id = j.branch_id
+        LEFT JOIN division d ON d.id = j.division_id
+        WHERE jp.id = %(payment_id)s AND jp.job_id = %(job_id)s
     """
 
     GET_PUBLIC_OPEN_JOBS_BY_MOBILE = """

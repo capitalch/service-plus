@@ -9,6 +9,7 @@ printed/messaged URL reads as a page, not an API call. See plans/plan-whatsapp.m
 """
 
 import html
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from io import BytesIO
@@ -20,7 +21,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import HRFlowable, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.core.rate_limit import rate_limit
 from app.db.connection.psycopg_driver import exec_sql_query
@@ -49,6 +50,15 @@ class _JobIntakeItem:
     receive_condition_name: str | None
     warranty_card_no: str | None
     purchase_date: str | None
+    # Job-sheet-only fields (device above stays as the combined string the HTML
+    # status page's per-item card already renders) — the grid job sheet needs
+    # Product/Brand/Model/Serial No as their own cells, matching the manual
+    # paper job sheet (job-sheet-pdf.ts's buildSingleJobSheetDoc/
+    # buildBatchJobSheetDoc, this route's server-side counterpart).
+    product_name: str | None
+    brand_name: str | None
+    model_name: str | None
+    serial_no: str | None
 
 
 @dataclass(frozen=True)
@@ -73,16 +83,27 @@ class _JobIntakeData:
     document expected to carry the same information the manual printed job slip
     does) — the HTML status page never reads them. `terms_and_conditions` comes
     from the `job_terms_and_conditions` app_setting, the exact text already printed
-    on the manual slip today."""
+    on the manual slip today.
+    `branch_code` and `division_*` are job-sheet-only too — the printed/
+    downloaded Job Sheet is branded per DIVISION (name/address/phone/email/
+    gstin), exactly like the client's own job-sheet-pdf.ts, not per branch;
+    `branch_code` (e.g. "HO") is what that document's "Branch:" row shows,
+    never the full branch_name the HTML status page uses instead."""
 
     batch_no: int | None
     job_no: str | None
     bu_name: str
+    branch_code: str
     branch_name: str
     branch_address: str
     branch_phone: str | None
     branch_email: str | None
     branch_gstin: str | None
+    division_name: str | None
+    division_address: str | None
+    division_phone: str | None
+    division_email: str | None
+    division_gstin: str | None
     customer_name: str
     customer_mobile: str
     customer_address: str | None
@@ -90,6 +111,16 @@ class _JobIntakeData:
     amount_payable: float
     terms_and_conditions: str | None
     items: list[_JobIntakeItem]
+    # Job-sheet-only, mirroring job-sheet-pdf.ts's SingleJobSheetPrintMeta:
+    # `client_name` is this server's own tenant identifier (db_name) — the
+    # closest server-side equivalent of the client's own auth-derived
+    # `clientName`, used only in the low-stakes "tenant -- BU" identification
+    # segment of the track line, not customer-facing branding.
+    # `track_job_url` is the `track_job_url` app_setting verbatim (a bare
+    # configured URL, not a per-job deep link) — same pass-through the client
+    # does, no "https://" prefix added here either.
+    client_name: str
+    track_job_url: str | None
 
 
 async def _load_job_intake(token: str) -> _JobIntakeData | None:
@@ -127,6 +158,14 @@ async def _load_job_intake(token: str) -> _JobIntakeData | None:
     )
     terms_and_conditions = (terms_rows[0]["setting_value"] or None) if terms_rows else None
 
+    track_url_rows = await exec_sql_query(
+        db_name=db_name,
+        schema=schema,
+        sql=PublicSql.GET_APP_SETTING_BY_KEY,
+        sql_args={"setting_key": "track_job_url"},
+    )
+    track_job_url = (track_url_rows[0]["setting_value"] or None) if track_url_rows else None
+
     items = [
         _JobIntakeItem(
             job_no=r["job_no"],
@@ -141,6 +180,10 @@ async def _load_job_intake(token: str) -> _JobIntakeData | None:
             receive_condition_name=r["receive_condition_name"],
             warranty_card_no=r["warranty_card_no"],
             purchase_date=r["purchase_date"].strftime("%d %b %Y") if r["purchase_date"] else None,
+            product_name=r["product_name"],
+            brand_name=r["brand_name"],
+            model_name=r["model_name"],
+            serial_no=r["serial_no"],
         )
         for r in rows
     ]
@@ -153,17 +196,25 @@ async def _load_job_intake(token: str) -> _JobIntakeData | None:
         batch_no=rows[0]["batch_no"] if is_batch else None,
         job_no=None if is_batch else items[0].job_no,
         bu_name=bu_name,
+        branch_code=rows[0]["branch_code"],
         branch_name=rows[0]["branch_name"],
         branch_address=rows[0]["branch_address"] or "",
         branch_phone=rows[0]["branch_phone"],
         branch_email=rows[0]["branch_email"],
         branch_gstin=rows[0]["branch_gstin"],
+        division_name=rows[0]["division_name"],
+        division_address=rows[0]["division_address"] or None,
+        division_phone=rows[0]["division_phone"],
+        division_email=rows[0]["division_email"],
+        division_gstin=rows[0]["division_gstin"],
         customer_name=rows[0]["customer_name"],
         customer_mobile=rows[0]["customer_mobile"],
         customer_address=rows[0]["address_snapshot"],
         received_date=job_date.strftime("%d %b %Y") if job_date else "—",
         amount_payable=amount_payable,
         terms_and_conditions=terms_and_conditions,
+        client_name=db_name,
+        track_job_url=track_job_url,
         items=items,
     )
 
@@ -338,176 +389,274 @@ def _build_status_page_html(data: _JobIntakeData, pdf_url: str) -> str:
 </html>"""
 
 
-_BRAND_BLUE = colors.HexColor("#2563eb")
-_BRAND_BLUE_DARK = colors.HexColor("#1e3a8a")
 _SLATE_500 = colors.HexColor("#64748b")
 _SLATE_100 = colors.HexColor("#f1f5f9")
 _BORDER = colors.HexColor("#dbe3ee")
 
 
+_DASH = "—"
+
+
+def _or_dash(value: str | None) -> str:
+    return value if value else _DASH
+
+
+def _strip_rupee(text: str) -> str:
+    """The printed/downloaded Job Sheet must never show the ₹ glyph — reportlab's
+    core Helvetica font has no glyph for U+20B9 and renders a solid black box
+    (the exact bug already hit and fixed once this session, in
+    job_delivery_router.py's Delivery Note PDF). `job_terms_and_conditions` is
+    free text an admin typed into App Settings, so it could contain ₹ despite
+    nothing in this flow needing an amount — normalize it away the same way
+    the client's own job-sheet-pdf.ts already does for its jsPDF rendering
+    (`text.replace(/₹\\s*/g, "Rs ")`), not just hope it's never typed."""
+    return re.sub(r"₹\s*", "Rs ", text)
+
+
+def _build_track_line(data: _JobIntakeData, ref_label: str | None, ref_value: str | None) -> str | None:
+    """Mirrors job-sheet-pdf.ts's buildTrackInfoLine exactly (same segments, same
+    "label -- label" / " | " joins) — this is a plain text line inside a PDF, not
+    a link a browser resolves, so `track_job_url` is shown verbatim (it's a bare
+    configured URL, e.g. a general status-lookup page, not a per-job deep link;
+    same pass-through the client does, no scheme prefix added here either).
+    `ref_label`/`ref_value` are omitted entirely for a batch, same as the
+    client's batch job sheet (no single "Job No" applies to every row)."""
+    segments: list[str] = []
+    if data.track_job_url:
+        segments.append(f"Track your Job URL: {data.track_job_url}")
+    name_bu = " -- ".join(p for p in [data.client_name, data.bu_name] if p)
+    if name_bu:
+        segments.append(name_bu)
+    if ref_label and ref_value:
+        segments.append(f"{ref_label}: {ref_value}")
+    segments.append(f"Mobile: {data.customer_mobile}")
+    return "   |   ".join(segments) if segments else None
+
+
 def _build_pdf(data: _JobIntakeData) -> bytes:
-    """Server-side, pure-Python — reportlab, no native dependencies. This is a
-    legal document, not just a convenience download — it's expected to carry the
-    same information the manual, staff-printed job slip does (same standard staff
-    hands a customer at drop-off), not a trimmed-down summary. Per-item detail
-    (problem reported, remarks, job type, condition, warranty, purchase date) is
-    rendered as a card per item rather than dense table columns, since several of
-    those fields are free text that a narrow table column can't hold — reportlab's
-    KeepTogether keeps one item's whole block from splitting across a page break.
-    Still fed only by the whitelisted public fields in _JobIntakeData/
-    _JobIntakeItem, never the internal JobDetailType/JobInfoReport the client-side
-    builders take — no cost price, technician, diagnosis, or payment history, none
-    of which belongs on an intake-time document anyway."""
+    """Server-side, pure-Python — reportlab, no native dependencies. Redesigned
+    (plans/plan.md) to match the manual, staff-printed Job Sheet field-for-field
+    (job-sheet-pdf.ts's buildSingleJobSheetDoc/buildBatchJobSheetDoc) rather than
+    the earlier card-per-item layout — this is the same document a customer would
+    otherwise be handed on paper at drop-off, just reachable from the WhatsApp
+    Job Intake Notice's "Download Job Slip" button instead. Branded per DIVISION
+    (name/address/phone/email/gstin), not per branch — same as the client's own
+    version; the "Branch:" row shows the branch's short `code` (e.g. "HO"), not
+    its full name. Still fed only by the whitelisted public fields in
+    _JobIntakeData/_JobIntakeItem — no cost price, technician, diagnosis, or
+    payment history."""
     esc = html.escape
-    ref_label, ref_value = ("Batch No", str(data.batch_no)) if data.batch_no is not None else ("Job No", data.job_no or "")
+    is_batch = data.batch_no is not None
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(
-        buffer, pagesize=A4, topMargin=18 * mm, bottomMargin=18 * mm, leftMargin=20 * mm, rightMargin=20 * mm,
-        title=f"Job Intake Slip — {ref_label} {ref_value} — {data.bu_name}",
+        buffer, pagesize=A4, topMargin=16 * mm, bottomMargin=16 * mm, leftMargin=18 * mm, rightMargin=18 * mm,
+        title=f"Job Intake Slip — {'Batch ' + str(data.batch_no) if is_batch else data.job_no} — {data.bu_name}",
     )
 
-    # reportlab's ParagraphStyle defaults `leading` to a flat 12pt regardless of
-    # `fontSize` when built from scratch (not inherited from a stylesheet base) —
-    # left alone, an 18pt title's own line height is shorter than the glyphs are
-    # tall, so it visually collides with whatever paragraph comes right after it.
-    # Every custom style below sets `leading` explicitly for this reason.
     bu_style = ParagraphStyle(
-        "BU", fontName="Helvetica-Bold", fontSize=18, leading=22, alignment=TA_CENTER,
-        textColor=_BRAND_BLUE_DARK, spaceAfter=2,
+        "BU", fontName="Helvetica-Bold", fontSize=15, leading=18, alignment=TA_CENTER, spaceAfter=2,
     )
     branch_line_style = ParagraphStyle(
-        "BranchLine", fontName="Helvetica", fontSize=9.5, leading=13, alignment=TA_CENTER, textColor=_SLATE_500,
+        "BranchLine", fontName="Helvetica", fontSize=9, leading=12, alignment=TA_CENTER, textColor=_SLATE_500,
     )
-    contact_line_style = ParagraphStyle(
-        "ContactLine", fontName="Helvetica", fontSize=8.5, leading=11, alignment=TA_CENTER, textColor=_SLATE_500,
+    title_style = ParagraphStyle(
+        "Title", fontName="Helvetica-Bold", fontSize=13, leading=16, alignment=TA_CENTER, spaceBefore=6, spaceAfter=4,
     )
     subtitle_style = ParagraphStyle(
-        "Subtitle", fontName="Helvetica", fontSize=10, leading=13, alignment=TA_CENTER, textColor=_SLATE_500,
-        spaceBefore=6,
+        "Subtitle", fontName="Helvetica", fontSize=9, leading=12, alignment=TA_CENTER, spaceAfter=10, textColor=_SLATE_500,
     )
-    intro_style = ParagraphStyle(
-        "Intro", fontName="Helvetica", fontSize=10, leading=15, textColor=colors.HexColor("#1e293b"),
-    )
-    section_style = ParagraphStyle("Section", fontName="Helvetica-Bold", fontSize=9, leading=12, textColor=_SLATE_500, spaceAfter=6)
-    cell_style = ParagraphStyle("Cell", fontName="Helvetica", fontSize=9.5, leading=13)
+    cell_style = ParagraphStyle("Cell", fontName="Helvetica", fontSize=9, leading=12)
     cell_bold_style = ParagraphStyle("CellBold", parent=cell_style, fontName="Helvetica-Bold")
-    footer_style = ParagraphStyle("Footer", fontName="Helvetica", fontSize=8, leading=11, alignment=TA_CENTER, textColor=_SLATE_500)
-    item_title_style = ParagraphStyle("ItemTitle", fontName="Helvetica-Bold", fontSize=10.5, leading=14, textColor=_BRAND_BLUE_DARK)
-    item_line_style = ParagraphStyle("ItemLine", fontName="Helvetica", fontSize=9, leading=13, textColor=colors.HexColor("#334155"))
-    item_note_style = ParagraphStyle("ItemNote", fontName="Helvetica", fontSize=9, leading=13, textColor=colors.HexColor("#1e293b"))
-    terms_style = ParagraphStyle("Terms", fontName="Helvetica", fontSize=7.5, leading=11, textColor=_SLATE_500)
-    sig_label_style = ParagraphStyle("SigLabel", fontName="Helvetica", fontSize=8.5, leading=11, alignment=TA_CENTER, textColor=_SLATE_500)
+    track_style = ParagraphStyle("Track", parent=cell_bold_style, alignment=TA_CENTER, fontSize=7.5, leading=10)
+    section_label_style = ParagraphStyle("SectionLabel", fontName="Helvetica-Bold", fontSize=9, leading=12)
+    body_style = ParagraphStyle("Body", fontName="Helvetica", fontSize=9, leading=13)
+    terms_style = ParagraphStyle("Terms", fontName="Helvetica-BoldOblique", fontSize=7, leading=9.5, textColor=_SLATE_500)
+    sig_label_style = ParagraphStyle("SigLabel", fontName="Helvetica", fontSize=8.5, leading=11, textColor=_SLATE_500)
+    footer_style = ParagraphStyle("Footer", fontName="Helvetica", fontSize=7.5, leading=10, alignment=TA_CENTER, textColor=_SLATE_500)
 
-    item_word = "item" if len(data.items) == 1 else "items"
-    branch_line = f"{data.branch_name} · {data.branch_address}" if data.branch_address else data.branch_name
+    # ── Header: DIVISION name/address/contact, then the JOB INTAKE SLIP title ─
+    header_name = data.division_name or data.bu_name
+    elements: list = [Paragraph(esc(header_name), bu_style)]
+    if data.division_address:
+        elements.append(Paragraph(esc(data.division_address), branch_line_style))
     contact_parts = [
-        p for p in [data.branch_phone, data.branch_email, f"GSTIN: {data.branch_gstin}" if data.branch_gstin else None] if p
-    ]
-
-    elements: list = [
-        Paragraph(esc(data.bu_name), bu_style),
-        Paragraph(esc(branch_line), branch_line_style),
+        p for p in [
+            f"Phone: {data.division_phone}" if data.division_phone else None,
+            f"Email: {data.division_email}" if data.division_email else None,
+        ] if p
     ]
     if contact_parts:
-        elements.append(Paragraph(esc(" · ".join(contact_parts)), contact_line_style))
-    elements += [
-        Paragraph("JOB INTAKE SLIP", subtitle_style),
-        Spacer(1, 16),
-        Paragraph(
-            f"This confirms that {len(data.items)} {item_word} listed below "
-            f"{'has' if len(data.items) == 1 else 'have'} been received by "
-            f"<b>{esc(data.branch_name)}</b> for service.",
-            intro_style,
-        ),
-        Spacer(1, 14),
+        elements.append(Paragraph(esc(" | ".join(contact_parts)), branch_line_style))
+    if data.division_gstin:
+        elements.append(Paragraph(esc(f"GSTIN: {data.division_gstin}"), branch_line_style))
+    elements.append(Paragraph("BATCH JOB INTAKE SLIP" if is_batch else "JOB INTAKE SLIP", title_style))
+    elements.append(Paragraph("Received following articles from customer for repairs", subtitle_style))
+
+    label_w = 30 * mm
+    value_w = (doc.width - 2 * label_w) / 2
+    col_widths = [label_w, value_w, label_w, value_w]
+    grid_style_cmds = [
+        ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]
 
-    info_rows = [
-        [Paragraph(ref_label, cell_bold_style), Paragraph(esc(ref_value), cell_style)],
-        [Paragraph("Date Received", cell_bold_style), Paragraph(esc(data.received_date), cell_style)],
-        [Paragraph("Customer", cell_bold_style), Paragraph(esc(data.customer_name), cell_style)],
-        [Paragraph("Mobile", cell_bold_style), Paragraph(esc(data.customer_mobile), cell_style)],
-    ]
-    if data.customer_address:
-        info_rows.append([Paragraph("Address", cell_bold_style), Paragraph(esc(data.customer_address), cell_style)])
-
-    info_table = Table(info_rows, colWidths=[100, None])
-    info_table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (0, -1), _SLATE_100),
-                ("GRID", (0, 0), (-1, -1), 0.6, _BORDER),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 10),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-            ]
-        )
-    )
-    elements += [info_table, Spacer(1, 20), Paragraph("ITEMS RECEIVED", section_style)]
-
-    for idx, item in enumerate(data.items, start=1):
-        title = f"{idx}. {esc(item.job_no)}"
+    if not is_batch:
+        # ── Single job: one info grid mirroring buildSingleJobSheetDoc's exactly ──
+        item = data.items[0]
+        job_no_html = esc(data.job_no or item.job_no)
         if item.alternate_job_no:
-            title += f"  (Alt: {esc(item.alternate_job_no)})"
-        block: list = [Paragraph(title, item_title_style)]
-        if item.device:
-            block.append(Paragraph(esc(item.device), item_line_style))
+            job_no_html += f'  <font size="7" color="#888888">Alt: {esc(item.alternate_job_no)}</font>'
 
-        meta_parts = [f"Job Type: {item.job_type_name}", f"Qty: {item.qty}", f"Received Via: {item.receive_manner_name}"]
-        if item.receive_condition_name:
-            meta_parts.append(f"Condition: {item.receive_condition_name}")
-        if item.warranty_card_no:
-            meta_parts.append(f"Warranty Card: {item.warranty_card_no}")
-        block.append(Paragraph(esc(" · ".join(meta_parts)), item_line_style))
+        rows: list = []
+        spans: list = []
 
-        if item.purchase_date:
-            block.append(Paragraph(esc(f"Purchase Date: {item.purchase_date}"), item_line_style))
-        if item.problem_reported:
-            block.append(Paragraph(f"<b>Problem Reported:</b> {esc(item.problem_reported)}", item_note_style))
+        def pair(l1: str, v1: str, l2: str, v2: str) -> None:
+            rows.append([
+                Paragraph(l1, cell_bold_style), Paragraph(esc(v1), cell_style),
+                Paragraph(l2, cell_bold_style), Paragraph(esc(v2), cell_style),
+            ])
+
+        def full(label: str, value_html: str) -> None:
+            r = len(rows)
+            rows.append([Paragraph(label, cell_bold_style), Paragraph(value_html, cell_style), "", ""])
+            spans.append(("SPAN", (1, r), (3, r)))
+
+        rows.append([Paragraph("Job No", cell_bold_style), Paragraph(job_no_html, cell_style),
+                     Paragraph("Date", cell_bold_style), Paragraph(esc(data.received_date), cell_style)])
+        pair("Branch", data.branch_code, "Customer", data.customer_name)
+        full("Mobile", esc(data.customer_mobile))
+        full("Address", esc(_or_dash(data.customer_address)))
+        pair("Product", _or_dash(item.product_name), "Brand", _or_dash(item.brand_name))
+        pair("Model", _or_dash(item.model_name), "Serial No", _or_dash(item.serial_no))
+        full("Qty", esc(str(item.qty)))
+        pair("Job Type", item.job_type_name, "Warranty Card", _or_dash(item.warranty_card_no))
+        pair("Receive Manner", item.receive_manner_name, "Condition", _or_dash(item.receive_condition_name))
+
+        track_line = _build_track_line(data, "Job No", data.job_no or item.job_no)
+        if track_line:
+            r = len(rows)
+            rows.append([Paragraph(esc(track_line), track_style), "", "", ""])
+            spans.append(("SPAN", (0, r), (3, r)))
+
+        info_table = Table(rows, colWidths=col_widths)
+        info_table.setStyle(TableStyle(grid_style_cmds + spans))
+        elements.append(info_table)
+
+        # ── Problem Reported / Remarks — side by side, matching the manual slip ──
+        elements.append(Spacer(1, 8))
+        half = (doc.width - 10) / 2
+        note_cells = [Paragraph(f"<b>Problem Reported:</b><br/>{esc(_or_dash(item.problem_reported))}", body_style)]
         if item.remarks:
-            block.append(Paragraph(f"<b>Remarks:</b> {esc(item.remarks)}", item_note_style))
+            note_cells.append(Paragraph(f"<b>Remarks:</b><br/>{esc(item.remarks)}", body_style))
+        else:
+            note_cells.append("")
+        notes_table = Table([note_cells], colWidths=[half, half])
+        notes_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(notes_table)
 
-        block.append(Spacer(1, 8))
-        if idx < len(data.items):
-            block += [HRFlowable(width="100%", thickness=0.5, color=_BORDER), Spacer(1, 8)]
-        elements.append(KeepTogether(block))
-
-    if data.terms_and_conditions:
-        elements += [
-            Spacer(1, 18),
-            Paragraph("TERMS &amp; CONDITIONS", section_style),
-            Paragraph(esc(data.terms_and_conditions), terms_style),
+    else:
+        # ── Batch: batch-level info grid + one row per job ────────────────────
+        rows = [
+            [Paragraph("Batch No", cell_bold_style), Paragraph(f"#{data.batch_no}", cell_style),
+             Paragraph("Date", cell_bold_style), Paragraph(esc(data.received_date), cell_style)],
+            [Paragraph("Branch", cell_bold_style), Paragraph(esc(data.branch_code), cell_style),
+             Paragraph("Customer", cell_bold_style), Paragraph(esc(data.customer_name), cell_style)],
+            [Paragraph("Mobile", cell_bold_style), Paragraph(esc(data.customer_mobile), cell_style),
+             Paragraph("Receive Manner", cell_bold_style), Paragraph(esc(data.items[0].receive_manner_name), cell_style)],
+            [Paragraph("Address", cell_bold_style), Paragraph(esc(_or_dash(data.customer_address)), cell_style),
+             Paragraph("Jobs", cell_bold_style), Paragraph(str(len(data.items)), cell_style)],
         ]
+        spans = []
+        track_line = _build_track_line(data, None, None)
+        if track_line:
+            r = len(rows)
+            rows.append([Paragraph(esc(track_line), track_style), "", "", ""])
+            spans.append(("SPAN", (0, r), (3, r)))
 
-    signature_table = Table(
-        [
-            ["", ""],
-            [Paragraph("Customer Signature", sig_label_style), Paragraph("Authorized Signatory", sig_label_style)],
-        ],
-        colWidths=[None, None],
-        rowHeights=[34, None],
-    )
-    signature_table.setStyle(
-        TableStyle(
-            [
-                ("LINEABOVE", (0, 1), (0, 1), 0.7, _BORDER),
-                ("LINEABOVE", (1, 1), (1, 1), 0.7, _BORDER),
-                ("TOPPADDING", (0, 1), (-1, 1), 6),
-                ("LEFTPADDING", (0, 0), (-1, -1), 24),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 24),
+        info_table = Table(rows, colWidths=col_widths)
+        info_table.setStyle(TableStyle(grid_style_cmds + spans))
+        elements += [info_table, Spacer(1, 10)]
+
+        show_purchase_date = any(i.purchase_date for i in data.items)
+        head = ["#", "Job No", "Product / Brand / Model", "Job Type", "Qty", "Condition", "Serial No"]
+        if show_purchase_date:
+            head.insert(2, "Purchase Date")
+        col_count = len(head)
+
+        job_rows: list = [head]
+        job_span_cmds: list = [
+            ("BACKGROUND", (0, 0), (-1, 0), _SLATE_100),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ]
+        for idx, i in enumerate(data.items, start=1):
+            job_no_cell = i.job_no + (f" (Alt: {i.alternate_job_no})" if i.alternate_job_no else "")
+            row = [
+                str(idx), esc(job_no_cell),
+                _or_dash(" / ".join(p for p in [i.product_name, i.brand_name, i.model_name] if p)),
+                i.job_type_name, str(i.qty), _or_dash(i.receive_condition_name), _or_dash(i.serial_no),
             ]
-        )
+            if show_purchase_date:
+                row.insert(2, _or_dash(i.purchase_date))
+            job_rows.append(row)
+
+            note_text = " | ".join(p.strip() for p in [i.problem_reported, i.remarks] if p and p.strip())
+            if note_text:
+                r = len(job_rows)
+                job_rows.append([esc(note_text)] + [""] * (col_count - 1))
+                job_span_cmds.append(("SPAN", (0, r), (col_count - 1, r)))
+                job_span_cmds.append(("FONTSIZE", (0, r), (-1, r), 7))
+                job_span_cmds.append(("TEXTCOLOR", (0, r), (-1, r), _SLATE_500))
+
+        # Explicit, weighted column widths (rather than colWidths=None) so the
+        # table always stretches to fill the full page width instead of shrinking
+        # to its content's minimum width.
+        col_weights = {
+            "#": 0.035, "Job No": 0.14, "Purchase Date": 0.11,
+            "Product / Brand / Model": 0.24, "Job Type": 0.12, "Qty": 0.05,
+            "Condition": 0.16, "Serial No": 0.145,
+        }
+        weights = [col_weights[h] for h in head]
+        col_widths = [doc.width * w / sum(weights) for w in weights]
+        jobs_table = Table(job_rows, colWidths=col_widths, repeatRows=1)
+        jobs_table.setStyle(TableStyle(job_span_cmds + [
+            ("GRID", (0, 0), (-1, -1), 0.4, _BORDER),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4), ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        elements.append(jobs_table)
+
+    # ── Terms & conditions — same exact text the manual slip prints, ₹-free ───
+    if data.terms_and_conditions:
+        elements += [Spacer(1, 10), Paragraph(_strip_rupee(esc(data.terms_and_conditions)), terms_style)]
+
+    # ── Signatures ─────────────────────────────────────────────────────────
+    sig_table = Table(
+        [["", ""], [Paragraph("Customer Signature", sig_label_style), Paragraph("Authorized Signatory", sig_label_style)]],
+        colWidths=[doc.width / 2, doc.width / 2],
+        rowHeights=[26, None],
     )
-    elements += [Spacer(1, 28), signature_table]
+    sig_table.setStyle(TableStyle([
+        ("LINEABOVE", (0, 1), (0, 1), 0.7, _BORDER),
+        ("LINEABOVE", (1, 1), (1, 1), 0.7, _BORDER),
+        ("TOPPADDING", (0, 1), (-1, 1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (1, 0), (1, -1), 0),
+    ]))
+    elements += [Spacer(1, 16), sig_table]
 
     generated_at = datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M UTC")
     elements += [
-        Spacer(1, 20),
-        HRFlowable(width="100%", thickness=0.6, color=_BORDER, spaceAfter=8),
-        Paragraph("Please retain this slip for your reference.", footer_style),
+        Spacer(1, 12),
         Paragraph(f"This is a system-generated document — generated {generated_at}.", footer_style),
     ]
 

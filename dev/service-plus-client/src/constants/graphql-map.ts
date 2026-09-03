@@ -209,6 +209,31 @@ export const GRAPHQL_MAP = {
             sendWhatsappJobIntake(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    sendWhatsappJobDelivery: gql`
+        mutation SendWhatsappJobDelivery($db_name: String!, $schema: String, $value: String!) {
+            sendWhatsappJobDelivery(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    sendWhatsappMoneyReceipt: gql`
+        mutation SendWhatsappMoneyReceipt($db_name: String!, $schema: String, $value: String!) {
+            sendWhatsappMoneyReceipt(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    verifyJobDeliveryOtp: gql`
+        mutation VerifyJobDeliveryOtp($db_name: String!, $schema: String, $value: String!) {
+            verifyJobDeliveryOtp(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    getJobDeliveryOtpPending: gql`
+        query GetJobDeliveryOtpPending($db_name: String!, $schema: String, $value: String!) {
+            getJobDeliveryOtpPending(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    setJobDeliveryManualConfirmation: gql`
+        mutation SetJobDeliveryManualConfirmation($db_name: String!, $schema: String, $value: String!) {
+            setJobDeliveryManualConfirmation(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     accountsPostingProgress: gql`
         subscription AccountsPostingProgress($db_name: String!, $branchId: String!) {
             accountsPostingProgress(db_name: $db_name, branchId: $branchId)

@@ -86,6 +86,15 @@ server {
        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
        proxy_set_header X-Forwarded-Proto $scheme;
     }
+    
+    # Whatsapp job money receipt
+    location /job-money-receipt/ {
+      proxy_pass http://127.0.0.1:8000/job-money-receipt/;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
     # GraphQL — WebSocket upgrade required for subscriptions
     location /graphql/ {

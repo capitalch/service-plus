@@ -56,7 +56,10 @@ from app.graphql.resolvers.jobs.mutations import (
 from app.whatsapp.sender import (
     resolve_send_whatsapp_completion_helper,
     send_job_creation_notice,
+    send_job_delivery_notice,
+    send_whatsapp_money_receipt,
     set_job_delivery_manual_confirmation,
+    verify_job_delivery_otp,
 )
 from app.graphql.resolvers.sales_accounts.mutations import (
     resolve_accounts_posting_helper,
@@ -443,6 +446,45 @@ async def resolve_send_whatsapp_job_intake(
     already gates the client-side entry points that call this (plans/plan-whatsapp.md,
     Step 5)."""
     return await send_job_creation_notice(db_name, schema, value)
+
+
+@mutation.field("sendWhatsappJobDelivery")
+@handle_graphql_errors("Error sending WhatsApp job delivery message")
+async def resolve_send_whatsapp_job_delivery(
+    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Send the paperless job-delivery WhatsApp messages (summary + OTP), one
+    pair per customer, from the Deliver Job / Batch Warranty Jobs screens.
+    Same `branch_id`/`job_ids` payload shape as sendWhatsappJobIntake, and the
+    same precedent on access rights: no dedicated guard here — Deliver Job's
+    own JOBS_DELIVER_JOB right already gates the screen this is called from."""
+    return await send_job_delivery_notice(db_name, schema, value)
+
+
+@mutation.field("sendWhatsappMoneyReceipt")
+@handle_graphql_errors("Error sending WhatsApp money receipt")
+async def resolve_send_whatsapp_money_receipt(
+    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Send the "Download Money Receipt" WhatsApp message for one job_payment
+    row, from the Receipts grid. `branch_id`/`payment_id` payload shape (not
+    `job_ids` — a receipt send is never grouped/chunked). Same precedent on
+    access rights: no dedicated guard here — the Receipts screen's own right
+    already gates the entry point that calls this."""
+    return await send_whatsapp_money_receipt(db_name, schema, value)
+
+
+@mutation.field("verifyJobDeliveryOtp")
+@handle_graphql_errors("Error verifying job delivery OTP")
+async def resolve_verify_job_delivery_otp(
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Staff-facing confirmation that the customer read the OTP aloud
+    (plans/plan.md, Step 3) — authenticated, not a public route. `staff_id`
+    comes from the authenticated session's own context, never a
+    client-supplied field, same precedent as setJobDeliveryManualConfirmation."""
+    staff_id = (info.context or {}).get("user_id")
+    return await verify_job_delivery_otp(db_name, schema, value, staff_id)
 
 
 @mutation.field("setJobDeliveryManualConfirmation")

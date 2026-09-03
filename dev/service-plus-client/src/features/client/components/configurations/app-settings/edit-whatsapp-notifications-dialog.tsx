@@ -26,9 +26,10 @@ import type { AppSettingRecord } from "@/features/client/types/app-setting";
 // dialog is the friendly editor for that one app_setting row, in place of the
 // generic Simple/JSON editor every other setting key still uses.
 type WhatsappNotificationsValue = {
-    JOB_CREATION:   boolean;
-    JOB_COMPLETION: boolean;
-    JOB_DELIVERY:   boolean;
+    JOB_CREATION:      boolean;
+    JOB_COMPLETION:    boolean;
+    JOB_DELIVERY:      boolean;
+    JOB_MONEY_RECEIPT: boolean;
 };
 
 type EditWhatsappNotificationsDialogProps = {
@@ -43,9 +44,10 @@ type EditWhatsappNotificationsDialogProps = {
 function toValue(v: unknown): WhatsappNotificationsValue {
     const obj = (v && typeof v === "object") ? v as Record<string, unknown> : {};
     return {
-        JOB_CREATION:   obj.JOB_CREATION === true,
-        JOB_COMPLETION: obj.JOB_COMPLETION === true,
-        JOB_DELIVERY:   obj.JOB_DELIVERY === true,
+        JOB_CREATION:      obj.JOB_CREATION === true,
+        JOB_COMPLETION:    obj.JOB_COMPLETION === true,
+        JOB_DELIVERY:      obj.JOB_DELIVERY === true,
+        JOB_MONEY_RECEIPT: obj.JOB_MONEY_RECEIPT === true,
     };
 }
 
@@ -101,9 +103,10 @@ export const EditWhatsappNotificationsDialog = ({
     }
 
     const rows: { key: keyof WhatsappNotificationsValue; label: string; note?: string }[] = [
-        { key: "JOB_CREATION",   label: "Job Intake Message" },
-        { key: "JOB_COMPLETION", label: "Job Completed" },
-        { key: "JOB_DELIVERY",   label: "Job Delivery", note: "Not sent by the app yet" },
+        { key: "JOB_CREATION",      label: "Job Intake Message" },
+        { key: "JOB_COMPLETION",    label: "Job Completed" },
+        { key: "JOB_DELIVERY",      label: "Job Delivery" },
+        { key: "JOB_MONEY_RECEIPT", label: "Money Receipt" },
     ];
 
     return (

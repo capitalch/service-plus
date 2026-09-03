@@ -77,33 +77,81 @@ async def send_template(
 
     `button_values` has one entry per `template.button_count`, in the same button
     order (index 0, 1, ...) — omit (or pass an empty list) for a template with no
-    dynamic-URL buttons, like JOB_COMPLETION."""
+    dynamic-URL buttons, like JOB_COMPLETION.
+
+    `category="AUTHENTICATION"` templates (e.g. JOB_DELIVERY_OTP) are a third
+    shape, not just a header/body variant: no header component at all (skipped
+    below when `template.header_params` is empty, rather than sent with an
+    empty parameter list — untested against Meta's API whether that would even
+    be accepted), *positional* body parameters (no `parameter_name`) since
+    Meta owns the body wording for this category and only accepts `{{1}}`-style
+    substitution, and — if the approved template has one — a "Copy Code"
+    button sent in the *URL* button shape: `sub_type="url"` with a plain
+    `text`-typed parameter carrying the same code already sent in the body,
+    ignoring `button_values` entirely (there's nothing else to copy).
+    `button_values` (the URL-button list below) is meaningless for this
+    category and is simply never consulted."""
     url = f"{_api_base()}/messages"
-    components = [
-        {
-            "type": "header",
-            "parameters": [
-                {"type": "text", "parameter_name": name, "text": value}
-                for name, value in zip(template.header_params, header_values)
-            ],
-        },
-        {
-            "type": "body",
-            "parameters": [
-                {"type": "text", "parameter_name": name, "text": value}
-                for name, value in zip(template.body_params, body_values)
-            ],
-        },
-    ]
-    for index, value in enumerate(button_values or []):
+    is_positional_body = template.category == "AUTHENTICATION"
+    components = []
+    if template.header_params:
         components.append(
             {
-                "type": "button",
-                "sub_type": "url",
-                "index": str(index),
-                "parameters": [{"type": "text", "text": value}],
+                "type": "header",
+                "parameters": [
+                    {"type": "text", "parameter_name": name, "text": value}
+                    for name, value in zip(template.header_params, header_values)
+                ],
             }
         )
+    components.append(
+        {
+            "type": "body",
+            "parameters": (
+                [{"type": "text", "text": value} for value in body_values]
+                if is_positional_body
+                else [
+                    {"type": "text", "parameter_name": name, "text": value}
+                    for name, value in zip(template.body_params, body_values)
+                ]
+            ),
+        }
+    )
+    if template.category == "AUTHENTICATION":
+        # "Copy Code" button, approved on JOB_DELIVERY_OTP (2026-09-02) — purely a
+        # client-side clipboard convenience for the recipient, no callback to us.
+        # Reuses the same code already sent as the body's one positional
+        # parameter, never a separate `button_values` list — there's only ever
+        # one thing to copy.
+        #
+        # Shipped broken until 2026-09-03: this sent `sub_type="copy_code"` with a
+        # `coupon_code`-typed parameter — the *marketing* coupon-code button shape.
+        # Meta rejected every OTP send, so only JOB_DELIVERY's Utility summary ever
+        # reached the customer. The confusion is that `otp_type: COPY_CODE` is a
+        # template-*creation* value: on creation Meta converts the button to type
+        # URL, so a send must address it as a URL button — `sub_type="url"` with a
+        # plain `text` parameter — exactly like the one-tap autofill variant. The
+        # only thing authentication changes about a button is where its value comes
+        # from (the body's code, not `button_values`), not its shape.
+        for index in range(template.button_count):
+            components.append(
+                {
+                    "type": "button",
+                    "sub_type": "url",
+                    "index": str(index),
+                    "parameters": [{"type": "text", "text": body_values[0]}],
+                }
+            )
+    else:
+        for index, value in enumerate(button_values or []):
+            components.append(
+                {
+                    "type": "button",
+                    "sub_type": "url",
+                    "index": str(index),
+                    "parameters": [{"type": "text", "text": value}],
+                }
+            )
     payload = {
         "messaging_product": "whatsapp",
         "to": to,

@@ -77,6 +77,7 @@ type JobChargeLine = {
     gst_rate:      number;
     hsn_code:      string | null;
     description:   string | null;
+    ref_no:        string | null;
 };
 
 type JobPayment = {

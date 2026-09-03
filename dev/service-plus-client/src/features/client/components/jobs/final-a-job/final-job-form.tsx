@@ -513,36 +513,36 @@ export function FinalJobForm({
                                 )}
                             </div>
                         </div>
+                        <div className="mt-3 flex items-center gap-5 border-t border-(--cl-border) pt-3">
+                            {isGst && (
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={forceIgst}
+                                        className="h-4 w-4 accent-(--cl-accent) cursor-pointer"
+                                        onChange={e => setForceIgst(e.target.checked)}
+                                    />
+                                    <span className="text-xs font-semibold text-(--cl-text-muted)">Force IGST</span>
+                                </label>
+                            )}
+                            {!isWarranty && (
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={showPartsInInvoice}
+                                        className="h-4 w-4 accent-(--cl-accent) cursor-pointer"
+                                        onChange={e => setShowPartsInInvoice(e.target.checked)}
+                                    />
+                                    <span className="text-xs font-semibold text-(--cl-text-muted)">Show part / charge details in invoice</span>
+                                </label>
+                            )}
+                        </div>
                     </div>
 
                     {/* Parts Used */}
                     <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface) overflow-hidden">
-                        <div className="px-4 py-2.5 border-b border-(--cl-border) bg-(--cl-surface-2)/60 flex items-center justify-between">
+                        <div className="px-4 py-2.5 border-b border-(--cl-border) bg-(--cl-surface-2)/60">
                             <p className="text-xs font-bold uppercase tracking-wider text-(--cl-text-muted)">Parts Used</p>
-                            <div className="flex items-center gap-5">
-                                {isGst && (
-                                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={forceIgst}
-                                            className="h-4 w-4 accent-(--cl-accent) cursor-pointer"
-                                            onChange={e => setForceIgst(e.target.checked)}
-                                        />
-                                        <span className="text-xs font-semibold text-(--cl-text-muted)">Force IGST</span>
-                                    </label>
-                                )}
-                                {!isWarranty && (
-                                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={showPartsInInvoice}
-                                            className="h-4 w-4 accent-(--cl-accent) cursor-pointer"
-                                            onChange={e => setShowPartsInInvoice(e.target.checked)}
-                                        />
-                                        <span className="text-xs font-semibold text-(--cl-text-muted)">Show part / charge details in invoice</span>
-                                    </label>
-                                )}
-                            </div>
                         </div>
                         {partLines.length === 0 && (
                             <div className="flex items-center justify-center py-6">

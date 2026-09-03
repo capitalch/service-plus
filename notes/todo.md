@@ -2,11 +2,16 @@
 - Menu proper arrangement
 - Fix location and style of refresh and search box in the screen
 - Whatsapp
+	- Whatsapp Money receipt
+	- Whatsapp delivery 
+		- Modify template
+		- Make single template with pin
 						- Receive a job
 							- Modifications of status info
 								- Show price info
 								- show index no of row for batch jobs
-		- Modifications of job slip pdf
+								
+								- Modifications of job slip pdf
 							- Status info
 								- Ngrok implement
 								- Test from front end
