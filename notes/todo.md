@@ -1,5 +1,9 @@
 # To Do
 - Invoice
+	- Intimation of warranty over message for renew
+	- Intimation for immediate collection of your set
+	- Log of multiple message timings
+	- Delivery of Invoice through whatsapp
 	- Sony service center
 	- Provide ALT job no
 	- On top right sl no appears twice
