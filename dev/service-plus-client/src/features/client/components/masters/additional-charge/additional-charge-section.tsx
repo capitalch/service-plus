@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Pencil, Plus, Receipt, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { Loader2, Pencil, Plus, Receipt, Search, Trash2, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -315,15 +316,7 @@ export const AdditionalChargeSection = () => {
                         </button>
                     )}
                 </div>
-                <Button
-                    className="h-8 px-2.5 text-xs"
-                    disabled={loading}
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void loadData()}
-                >
-                    <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
-                </Button>
+                <RefreshButton loading={loading} onClick={() => void loadData()} />
                 <span className="text-xs text-(--cl-text-muted)">
                     {loading ? "Loading…" : `${filtered.length} item${filtered.length !== 1 ? "s" : ""}`}
                 </span>

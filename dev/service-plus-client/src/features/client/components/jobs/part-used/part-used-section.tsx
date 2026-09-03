@@ -11,6 +11,7 @@ import { JobTypeBadge, StatusBadge } from "../job-badges";
 import type { JobLookupForReceiptType } from "@/features/client/types/receipt";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input } from "@/components/ui/input";
 
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
@@ -353,9 +354,7 @@ export const PartUsedSection = () => {
                             )}
                         </div>
                         <div className="flex-1" />
-                        <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }}>
-                            <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
-                        </Button>
+                        <RefreshButton disabled={!branchId} loading={loading} onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }} />
                     </div>
 
                     {/* Grid */}

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
     Dialog,
@@ -736,16 +737,7 @@ export const PurchaseEntrySection = () => {
                                 <FileSpreadsheet className="h-4 w-4 text-slate-600" />
                                 Export Excel
                             </Button>
-                            <Button
-                                className="h-8 px-2.5 text-xs"
-                                disabled={loading || !branchId}
-                                size="sm"
-                                variant="outline"
-                                onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, viewDivisionId); }}
-                            >
-                                <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" />
-                                Refresh
-                            </Button>
+                            <RefreshButton disabled={!branchId} loading={loading} onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, viewDivisionId); }} />
                         </div>
                     </div>
 

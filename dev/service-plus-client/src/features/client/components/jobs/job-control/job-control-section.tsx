@@ -3,12 +3,13 @@ import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
     ArrowLeft, ArrowRightLeft, CheckSquare,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    ClipboardList, Eye, FileDown, Loader2, Lock, MoreVertical, Package, Paperclip, Pencil, Printer, Receipt, ReceiptText, RefreshCw, Search, Truck, Undo2, X,
+    ClipboardList, Eye, FileDown, Loader2, Lock, MoreVertical, Package, Paperclip, Pencil, Printer, Receipt, ReceiptText, Search, Truck, Undo2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input } from "@/components/ui/input";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -635,16 +636,7 @@ export const JobControlSection = () => {
                         <Truck className="h-3.5 w-3.5 text-orange-600" />
                         Undo Delivery
                     </Button>
-                    <Button
-                        className="h-8 px-2.5 text-[11px] shrink-0"
-                        disabled={loading || !branchId}
-                        size="sm"
-                        variant="outline"
-                        onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page, filter); }}
-                    >
-                        <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" />
-                        Refresh
-                    </Button>
+                        <RefreshButton disabled={!branchId} loading={loading} onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page, filter); }} />
                 </div>
             )}
 

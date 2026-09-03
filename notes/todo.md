@@ -1,4 +1,10 @@
 # To Do
+- Invoice
+	- Sony service center
+	- Provide ALT job no
+	- On top right sl no appears twice
+	- Parts costing is must
+	- Allow cost to change after final and posting
 - Menu proper arrangement
 - Fix location and style of refresh and search box in the screen
 - Whatsapp

@@ -16,7 +16,6 @@ import {ArrowDownIcon,
 	MoreHorizontalIcon,
 	PencilIcon,
 	PlusIcon,
-	RefreshCwIcon,
 	SearchIcon,
 	ServerCrashIcon,
 	ShieldIcon,
@@ -31,6 +30,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageLoader } from "@/components/ui/page-loader";
 import {
@@ -304,16 +304,7 @@ export const ClientsPage = () => {
 						<p className="mt-1 text-sm text-slate-500">Manage all clients and their administrators.</p>
 					</div>
 					<div className="flex items-center gap-2">
-						<Button
-							className="gap-1.5 border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900"
-							disabled={loading}
-							size="sm"
-							variant="outline"
-							onClick={() => refetch()}
-						>
-							<RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
-							Refresh
-						</Button>
+						<RefreshButton loading={loading} onClick={() => refetch()} />
 						<Button
 							className="gap-1.5 border border-amber-300 bg-amber-50 text-amber-700 shadow-sm hover:bg-amber-100 hover:text-amber-800"
 							disabled={isSendingTestEmail}

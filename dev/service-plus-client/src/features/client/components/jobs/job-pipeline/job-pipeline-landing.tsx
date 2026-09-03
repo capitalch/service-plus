@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { BarChart3, Loader2, RefreshCcw } from "lucide-react";
+import { BarChart3, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -131,16 +132,7 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
                         </span>
                     </div>
                 </div>
-                <Button
-                    className="h-8 w-8 text-(--cl-text-muted) hover:text-(--cl-accent)"
-                    disabled={loading}
-                    size="icon"
-                    title="Refresh"
-                    variant="ghost"
-                    onClick={() => void loadCounts()}
-                >
-                    <RefreshCcw className={`h-4 w-4 text-blue-600 ${loading ? "animate-spin" : ""}`} />
-                </Button>
+                <RefreshButton iconOnly loading={loading} onClick={() => void loadCounts()} />
             </div>
 
             {/* Bar list */}

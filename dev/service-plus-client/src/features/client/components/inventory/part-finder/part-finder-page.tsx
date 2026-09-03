@@ -8,13 +8,13 @@ import {
     ChevronsRight,
     LayoutGrid,
     List,
-    RefreshCwIcon,
     SearchIcon,
     XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
@@ -329,16 +329,7 @@ export const PartFinderPage = () => {
                 </div>
 
                 {searchQ && (
-                    <Button
-                        className="gap-1.5 border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) shadow-sm hover:bg-(--cl-surface-3)"
-                        disabled={loading}
-                        size="sm"
-                        variant="outline"
-                        onClick={handleRefresh}
-                    >
-                        <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
-                        Refresh
-                    </Button>
+                    <RefreshButton loading={loading} onClick={handleRefresh} />
                 )}
             </div>
 

@@ -7,6 +7,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
     Dialog,
@@ -478,16 +479,7 @@ export const StockAdjustmentSection = () => {
                             )}
                         </div>
                         <div className="flex items-center gap-2 ml-auto">
-                            <Button
-                                className="h-8 px-2.5 text-xs"
-                                disabled={loading || !branchId}
-                                size="sm"
-                                variant="outline"
-                                onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
-                            >
-                                <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" />
-                                Refresh
-                            </Button>
+                            <RefreshButton disabled={!branchId} loading={loading} onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }} />
                         </div>
                     </div>
 

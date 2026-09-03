@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import {
     AlertTriangle, Banknote, BookCheck, CheckCircle2, FileText, Loader2,
-    RefreshCw, ShoppingCart, UploadCloud, Wrench,
+    ShoppingCart, UploadCloud, Wrench,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -185,14 +186,7 @@ export function AccountsPostingSection() {
                     <BookCheck className="h-4 w-4 text-emerald-600" />
                 </div>
                 <h1 className="text-lg font-bold text-(--cl-text)">Accounts Posting</h1>
-                <button
-                    disabled={loadingCounts || !branchId}
-                    onClick={() => { if (branchId) void loadCounts(branchId); }}
-                    className="ml-auto flex cursor-pointer items-center gap-1.5 rounded-md border border-(--cl-border) px-3 py-1.5 text-sm font-medium text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text) disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <RefreshCw className={`h-3.5 w-3.5 text-blue-600 ${loadingCounts ? "animate-spin" : ""}`} />
-                    Refresh
-                </button>
+                <RefreshButton className="ml-auto" loading={loadingCounts} disabled={!branchId} onClick={() => { if (branchId) void loadCounts(branchId); }} />
             </div>
 
             {/* Body */}

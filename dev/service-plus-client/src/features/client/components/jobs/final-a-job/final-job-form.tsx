@@ -1,12 +1,13 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
 import {
     AlertTriangle, ArrowLeft, CheckCheck, CheckCircle2,
-    Eye, Loader2, Plus, Radius, RefreshCw, RotateCcw, Trash2, XCircle,
+    Eye, Loader2, Plus, Radius, RotateCcw, Trash2, XCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input } from "@/components/ui/input";
 import { MESSAGES } from "@/constants/messages";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -407,16 +408,7 @@ export function FinalJobForm({
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Button
-                            className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
-                            disabled={loadingDetail || submitting}
-                            size="icon"
-                            title="Refresh from DB"
-                            variant="ghost"
-                            onClick={() => void onRefresh()}
-                        >
-                            {loadingDetail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 text-blue-600" />}
-                        </Button>
+                        <RefreshButton iconOnly disabled={submitting} loading={loadingDetail} onClick={() => void onRefresh()} />
                         <Button
                             className="h-7 gap-1 px-2 text-xs text-amber-700 border border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950/30"
                             disabled={submitting}

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { RefreshCwIcon, ServerIcon, DatabaseIcon, MailIcon, FileTextIcon } from "lucide-react";
+import { ServerIcon, DatabaseIcon, MailIcon, FileTextIcon } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { apolloClient } from "@/lib/apollo-client";
@@ -189,16 +190,7 @@ export const UsageHealthPage = () => {
                                 {overallLabel[overall]}
                             </Badge>
                         )}
-                        <Button
-                            className="h-8 gap-1.5 border-slate-200 px-3 text-xs text-slate-600 hover:bg-slate-50"
-                            disabled={loading}
-                            onClick={handleRefresh}
-                            size="sm"
-                            variant="outline"
-                        >
-                            <RefreshCwIcon className={`h-3.5 w-3.5 text-blue-600 ${loading ? "animate-spin" : ""}`} />
-                            Refresh
-                        </Button>
+                        <RefreshButton loading={loading} onClick={handleRefresh} />
                     </div>
                 </div>
 

@@ -13,6 +13,7 @@ import { singleJobFormSchema, type SingleJobFormValues, getSingleJobDefaultValue
 import { deleteJobFiles } from "@/lib/image-service";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import {
     Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -621,16 +622,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                             )}
                         </div>
                         <div className="ml-auto">
-                            <Button
-                                className="h-8 px-2.5 text-xs"
-                                disabled={loading || !branchId}
-                                size="sm"
-                                variant="outline"
-                                onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }}
-                            >
-                                <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" />
-                                Refresh
-                            </Button>
+                            <RefreshButton disabled={!branchId} loading={loading} onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }} />
                         </div>
                     </div>
 

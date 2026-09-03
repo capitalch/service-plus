@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -645,9 +646,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                             )}
                         </div>
                         <div className="ml-auto">
-                            <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }}>
-                                <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
-                            </Button>
+                            <RefreshButton disabled={!branchId} loading={loading} onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }} />
                         </div>
                     </div>
 

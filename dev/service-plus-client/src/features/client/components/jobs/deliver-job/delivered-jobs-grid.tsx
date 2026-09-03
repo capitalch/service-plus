@@ -1,11 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, MoreVertical, Paperclip, Printer, RefreshCw, Search, Truck, Undo2, X,
+    Eye, MoreVertical, Paperclip, Printer, Search, Truck, Undo2, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input }  from "@/components/ui/input";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -148,15 +149,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                     onChange={e => { onDeliveryDateChange(e.target.value); setPage(1); }}
                 />
                 <div className="ml-auto flex items-center gap-2">
-                    <Button
-                        className="h-8 px-2.5 text-xs"
-                        disabled={loading || !branchId}
-                        size="sm"
-                        variant="outline"
-                        onClick={onRefresh}
-                    >
-                        <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
-                    </Button>
+                        <RefreshButton disabled={!branchId} loading={loading} onClick={onRefresh} />
                     {selectedIds.size >= 2 && (
                         <Button
                             className="h-9 gap-2 px-4 text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-md tracking-wide"

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {Package, RefreshCw, Search, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, ArrowDown as ArrowDownIcon, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, X} from "lucide-react";
+import {Package, Search, ArrowUpDown as ArrowUpDownIcon, ArrowUp as ArrowUpIcon, ArrowDown as ArrowDownIcon, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, X} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -251,16 +252,7 @@ export const StockOverviewSection = () => {
                     />
                 </div>
 
-                <Button
-                    className="ml-auto h-8 gap-1.5 px-3 text-xs"
-                    disabled={loading || !selectedBranch}
-                    size="sm"
-                    variant="outline"
-                    onClick={() => { if (selectedBranch) void loadStock(Number(selectedBranch), Number(selectedBrand), searchQ, page); }}
-                >
-                    <RefreshCw className={`h-3.5 w-3.5 text-blue-600 ${loading ? "animate-spin" : ""}`} />
-                    Refresh
-                </Button>
+                <RefreshButton className="ml-auto" disabled={!selectedBranch} loading={loading} onClick={() => { if (selectedBranch) void loadStock(Number(selectedBranch), Number(selectedBrand), searchQ, page); }} />
             </div>
 
             {/* Aggregates (Header info removed from here as it's better in footer or small area) */}

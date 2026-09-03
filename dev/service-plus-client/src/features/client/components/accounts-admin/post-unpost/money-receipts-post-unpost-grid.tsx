@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RefreshCw, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input } from "@/components/ui/input";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
@@ -127,9 +128,7 @@ export function MoneyReceiptsPostUnpostGrid({ pendingChanges, onChangeToggle, on
                         </button>
                     )}
                 </div>
-                <Button variant="outline" size="sm" className="ml-auto" onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }}>
-                    <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
-                </Button>
+                    <RefreshButton className="ml-auto" onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }} />
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border)">

@@ -1,11 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Paperclip, RefreshCw, Search, Truck, X,
+    Eye, Loader2, Paperclip, Search, Truck, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input }  from "@/components/ui/input";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
@@ -126,15 +127,7 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
                     )}
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                    <Button
-                        className="h-8 px-2.5 text-xs"
-                        disabled={loading || !branchId}
-                        size="sm"
-                        variant="outline"
-                        onClick={onRefresh}
-                    >
-                        <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
-                    </Button>
+                        <RefreshButton disabled={!branchId} loading={loading} onClick={onRefresh} />
                     {selectedIds.size > 0 && (
                         <Button
                             className="h-9 gap-2 px-4 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md tracking-wide"

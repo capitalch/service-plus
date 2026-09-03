@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    DollarSign, Eye, Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
+    DollarSign, Eye, Loader2, MoreHorizontal, Pencil, Printer, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -414,15 +415,7 @@ export const ReceiptsSection = () => {
                     )}
                 </div>
                 <div className="flex-1" />
-                <Button
-                    className="h-8 px-2.5 text-xs"
-                    disabled={loading || !branchId}
-                    size="sm"
-                    variant="outline"
-                    onClick={() => { if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page); }}
-                >
-                    <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
-                </Button>
+                    <RefreshButton disabled={!branchId} loading={loading} onClick={() => { if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page); }} />
             </div>
 
             {/* Grid */}

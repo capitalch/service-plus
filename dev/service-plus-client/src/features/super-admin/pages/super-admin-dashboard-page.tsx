@@ -1,6 +1,4 @@
 import { useEffect } from "react";
-import { motion } from "framer-motion";
-import { RefreshCwIcon } from "lucide-react";
 import { useAppDispatch } from "@/store/hooks";
 import { useQuery } from "@apollo/client/react";
 import { toast } from "sonner";
@@ -11,6 +9,7 @@ import { setStats } from "../store/super-admin-slice";
 import type { StatsType } from "../types/index";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 
@@ -52,23 +51,7 @@ export const SuperAdminDashboard = () => {
 						<p className="mt-1 text-sm text-slate-500">Welcome Super Admin</p>
 					</div>
 					<div className="flex items-center gap-2">
-						<Button
-							className="gap-1.5 border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900"
-							disabled={loading}
-							size="sm"
-							variant="outline"
-							onClick={() => refetch()}
-						>
-							<motion.span
-								animate={loading ? { rotate: 360 } : { rotate: 0 }}
-								transition={
-									loading ? { duration: 0.8, ease: "linear", repeat: Infinity } : { duration: 0 }
-								}
-							>
-								<RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
-							</motion.span>
-							{loading ? "Refreshing..." : "Refresh"}
-						</Button>
+						<RefreshButton loading={loading} onClick={() => refetch()} />
 					</div>
 				</div>
 

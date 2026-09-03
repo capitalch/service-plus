@@ -4,7 +4,6 @@ import {
     ActivityIcon,
     AlertTriangleIcon,
     DownloadIcon,
-    RefreshCwIcon,
     SearchIcon,
     UsersIcon,
     ZapIcon,
@@ -25,6 +24,7 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Dialog,
@@ -494,16 +494,7 @@ export const AuditLogsPage = () => {
 
                     {/* Actions */}
                     <div className="ml-auto flex gap-2">
-                        <Button
-                            className="h-8 px-3 text-xs"
-                            disabled={logsLoading}
-                            onClick={handleRefresh}
-                            size="sm"
-                            variant="outline"
-                        >
-                            <RefreshCwIcon className={`mr-1.5 h-3.5 w-3.5 text-blue-600 ${logsLoading ? "animate-spin" : ""}`} />
-                            Refresh
-                        </Button>
+                        <RefreshButton loading={logsLoading} onClick={handleRefresh} />
                         <Button
                             className="h-8 px-3 text-xs"
                             disabled={!logPage?.items.length}

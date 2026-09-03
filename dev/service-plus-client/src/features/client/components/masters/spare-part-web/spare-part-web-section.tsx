@@ -8,7 +8,6 @@ import {
     PackageIcon,
     PencilIcon,
     PlusIcon,
-    RefreshCwIcon,
     SearchIcon,
     ToggleLeftIcon,
     ToggleRightIcon,
@@ -19,6 +18,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -192,16 +192,7 @@ export const SparePartWebSection = () => {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button
-                        className="gap-1.5 border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) shadow-sm hover:bg-(--cl-surface-3)"
-                        disabled={loading}
-                        size="sm"
-                        variant="outline"
-                        onClick={loadData}
-                    >
-                        <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
-                        Refresh
-                    </Button>
+                    <RefreshButton loading={loading} onClick={loadData} />
                     <Button
                         className="bg-teal-600 text-white hover:bg-teal-700"
                         size="sm"

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { MapPin, RefreshCwIcon, SearchIcon, XIcon } from "lucide-react";
+import { MapPin, SearchIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
@@ -169,16 +170,7 @@ const displayParts = useMemo(() => {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
-                            className="gap-1.5 border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) shadow-sm hover:bg-(--cl-surface-3)"
-                            disabled={loading}
-                            size="sm"
-                            variant="outline"
-                            onClick={loadData}
-                        >
-                            <RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
-                            Refresh
-                        </Button>
+                        <RefreshButton loading={loading} onClick={loadData} />
                         {selectedCount > 0 && (
                             <Button
                                 className="bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50"

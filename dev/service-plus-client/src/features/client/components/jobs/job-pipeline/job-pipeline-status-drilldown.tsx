@@ -3,12 +3,13 @@ import {
     ArrowLeft, ArrowRightLeft, CheckSquare,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Eye, FileDown, Loader2, Lock, Package, Paperclip, Pencil, Receipt, ReceiptText,
-    RefreshCcw, Search, Truck, Undo2, X,
+    Search, Truck, Undo2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
     DropdownMenuSeparator, DropdownMenuTrigger,
@@ -447,16 +448,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                         )}
                     </div>
                     {/* Refresh */}
-                    <Button
-                        className="h-8 w-8 text-(--cl-text-muted) hover:text-(--cl-accent)"
-                        disabled={loading}
-                        size="icon"
-                        title="Refresh"
-                        variant="ghost"
-                        onClick={() => void loadData()}
-                    >
-                        <RefreshCcw className={`h-4 w-4 text-blue-600 ${loading ? "animate-spin" : ""}`} />
-                    </Button>
+                    <RefreshButton iconOnly loading={loading} onClick={() => void loadData()} />
                 </div>
             </div>
 

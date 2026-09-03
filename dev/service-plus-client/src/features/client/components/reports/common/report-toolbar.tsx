@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { Download, FileText, Printer, RefreshCcw } from "lucide-react";
+import { Download, FileText, Printer } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -53,17 +54,7 @@ export const ReportToolbar = ({
                 </div>
                 <div className="flex items-center gap-1.5">
                     {actions}
-                    {onRefresh && (
-                        <Button
-                            aria-label="Refresh"
-                            className="h-8 px-2"
-                            onClick={onRefresh}
-                            size="sm"
-                            variant="ghost"
-                        >
-                            <RefreshCcw className="h-3.5 w-3.5 text-blue-600" />
-                        </Button>
-                    )}
+                    {onRefresh && <RefreshButton iconOnly onClick={onRefresh} />}
                     {(onExportPdf || onExportExcel || onPrint) && (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>

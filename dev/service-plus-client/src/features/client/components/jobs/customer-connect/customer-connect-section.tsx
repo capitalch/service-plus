@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, RefreshCw, Search, X } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input } from "@/components/ui/input";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
@@ -506,9 +507,7 @@ export function CustomerConnectSection() {
                     )}
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                    <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }}>
-                        <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
-                    </Button>
+                    <RefreshButton disabled={!branchId} loading={loading} onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }} />
                     <Button
                         className="h-9 gap-2 px-4 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md tracking-wide disabled:opacity-40 disabled:cursor-not-allowed"
                         disabled={selectedIds.size === 0 || loadingGroups || !branchId}

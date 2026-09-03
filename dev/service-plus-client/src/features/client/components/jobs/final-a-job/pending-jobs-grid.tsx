@@ -2,11 +2,12 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import {
     CheckCheck,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Paperclip, RefreshCw, Search, X,
+    Eye, Loader2, Paperclip, Search, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input } from "@/components/ui/input";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import { PAGE_SIZE, thClass, tdClass } from "./final-a-job-helpers";
@@ -77,15 +78,7 @@ export const PendingJobsGrid = forwardRef<GridRetentionHandle, Props>(function P
                     </button>
                 )}
             </div>
-            <Button
-                className="ml-auto h-8 px-2.5 text-xs"
-                disabled={loading || !branchId}
-                size="sm"
-                variant="outline"
-                onClick={onRefresh}
-            >
-                <RefreshCw className="mr-1.5 h-3 w-3 text-blue-600" /> Refresh
-            </Button>
+            <RefreshButton className="ml-auto" disabled={!branchId} loading={loading} onClick={onRefresh} />
         </div>
 
         {/* Grid */}
