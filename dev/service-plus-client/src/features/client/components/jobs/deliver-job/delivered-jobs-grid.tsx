@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { RefreshButton } from "@/components/shared/refresh-button";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { Input }  from "@/components/ui/input";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -74,6 +75,7 @@ type Props = {
     postDataToAccounts:       boolean;
     onUndoDelivery:           (row: DeliveredJobRow) => void;
     onPrintInvoiceReceipts:   (row: DeliveredJobRow) => void;
+    onSendInvoiceWhatsapp:    (row: DeliveredJobRow) => void;
     onDeliveryNote:           (row: DeliveredJobRow) => void;
     selectedIds:              Set<number>;
     onSelectionChange:        (row: DeliveredJobRow, checked: boolean) => void;
@@ -85,7 +87,7 @@ type Props = {
 export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function DeliveredJobsGrid({
     rows, loading, total, page, search, deliveryDateFilter,
     branchId, availableDivisions, setPage, postDataToAccounts,
-    onSearch, onDeliveryDateChange, onRefresh, onViewJob, onOpenAttach, onUndoDelivery, onPrintInvoiceReceipts, onDeliveryNote,
+    onSearch, onDeliveryDateChange, onRefresh, onViewJob, onOpenAttach, onUndoDelivery, onPrintInvoiceReceipts, onSendInvoiceWhatsapp, onDeliveryNote,
     selectedIds, onSelectionChange, onPrintCombinedNote,
 }, ref) {
     const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore } = useGridRowRetention(loading);
@@ -377,6 +379,11 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                     {row.invoice_no && (
                                                         <DropdownMenuItem className="gap-2 text-xs text-indigo-700 dark:text-indigo-400 cursor-pointer" onClick={() => onPrintInvoiceReceipts(row)}>
                                                             <Printer className="h-3.5 w-3.5 text-slate-600" /> Invoice + Receipts
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {row.invoice_no && (
+                                                        <DropdownMenuItem className="gap-2 text-xs text-emerald-700 dark:text-emerald-400 cursor-pointer" onClick={() => onSendInvoiceWhatsapp(row)}>
+                                                            <WhatsAppIcon className="h-3.5 w-3.5" /> Send Invoice via WhatsApp
                                                         </DropdownMenuItem>
                                                     )}
                                                     <DropdownMenuSeparator />

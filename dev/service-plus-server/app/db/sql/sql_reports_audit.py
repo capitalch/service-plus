@@ -432,7 +432,7 @@ class ReportsAuditSql:
             "p_to"       as (values(%(to)s::date)),
             "p_category" as (values(%(category_name)s::text))
         SELECT
-            'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date,
+            'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, j.created_at as event_time,
             cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
         FROM job j
@@ -488,6 +488,10 @@ class ReportsAuditSql:
     # job); the other three read job_transaction.transaction_date (event-level).
     # Status is always the job's *current* status (job.job_status_id) for
     # 'Received' — the event itself is already known to be the receipt.
+    # event_time is a separate timestamptz column (job.created_at /
+    # job_transaction.performed_at) alongside the date-only event_date —
+    # the bucket/filter grouping stays on the plain date, but the drill-down
+    # can still show the actual time of day beneath it.
     GET_EVENT_TRACKING_JOBS = """
         with
             "p_from"       as (values(%(from)s::date)),
@@ -513,7 +517,7 @@ class ReportsAuditSql:
             )
         (
             select
-                'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, cur_js.name as status_label,
+                'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, j.created_at as event_time, cur_js.name as status_label,
                 cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
                 (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
                 d.code as division_code,
@@ -536,7 +540,7 @@ class ReportsAuditSql:
         union all
         (
             select
-                't-' || jt.id as row_key, j.id, j.job_no, jt.transaction_date as event_date, js.name as status_label,
+                't-' || jt.id as row_key, j.id, j.job_no, jt.transaction_date as event_date, jt.performed_at as event_time, js.name as status_label,
                 cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
                 (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
                 d.code as division_code,
@@ -593,7 +597,7 @@ class ReportsAuditSql:
             "p_to"       as (values(%(to)s::date)),
             "p_category" as (values(%(category_name)s::text))
         SELECT
-            'j-' || j.id as row_key, j.id, j.job_no, j.updated_at::date as event_date,
+            'j-' || j.id as row_key, j.id, j.job_no, j.updated_at::date as event_date, j.updated_at as event_time,
             cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
         FROM job j
@@ -653,7 +657,7 @@ class ReportsAuditSql:
                 SELECT job_id, SUM(cost_price * qty) AS charges_cost FROM job_additional_charge GROUP BY job_id
             )
         SELECT
-            'j-' || j.id as row_key, j.id, j.job_no, j.delivery_date as event_date,
+            'j-' || j.id as row_key, j.id, j.job_no, j.delivery_date as event_date, dt.performed_at as event_time,
             cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
             COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
@@ -668,6 +672,18 @@ class ReportsAuditSql:
         LEFT JOIN job_invoice ji ON ji.job_id = j.id
         LEFT JOIN parts   ON parts.job_id   = j.id
         LEFT JOIN charges ON charges.job_id = j.id
+        -- job.delivery_date has no time of its own — the actual delivery
+        -- timestamp lives on the job_transaction row that moved this job into
+        -- its current (DELIVERED_OK) status, same source Event Tracking's own
+        -- 'Deliver' branch reads (jt.performed_at). Latest such row wins, same
+        -- as GET_JOB_TRANSACTIONS_DETAIL's own precedent for one-row-per-event.
+        LEFT JOIN LATERAL (
+            SELECT jt.performed_at
+            FROM job_transaction jt
+            WHERE jt.job_id = j.id AND jt.status_id = j.job_status_id
+            ORDER BY jt.performed_at DESC
+            LIMIT 1
+        ) dt ON true
         WHERE js.code = 'DELIVERED_OK'
           AND j.delivery_date BETWEEN (table "p_from") AND (table "p_to")
           AND p.name = (table "p_category")
@@ -700,7 +716,7 @@ class ReportsAuditSql:
             "p_to"       as (values(%(to)s::date)),
             "p_category" as (values(%(category_name)s::text))
         SELECT
-            't-' || jt.id as row_key, j.id, j.job_no, jt.transaction_date as event_date,
+            't-' || jt.id as row_key, j.id, j.job_no, jt.transaction_date as event_date, jt.performed_at as event_time,
             cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
         FROM job_transaction jt

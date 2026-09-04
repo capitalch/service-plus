@@ -2,13 +2,14 @@
 - Invoice
 	- Intimation of warranty over message for renew
 	- Intimation for immediate collection of your set
-	- Log of multiple message timings
-	- Delivery of Invoice through whatsapp
-	- Sony service center
-	- Provide ALT job no
-	- On top right sl no appears twice
-	- Parts costing is must
-	- Allow cost to change after final and posting
+								- Log of multiple message timings
+								- Delivery of Invoice through whatsapp
+								- Sony service center
+								- Provide ALT job no in invoice
+								- On top right sl no appears twice
+								- Parts costing is must
+	- Allow cost to change even after final and posting
+	- Locking of charge rows in additional charges while doing final of a job
 - Menu proper arrangement
 - Fix location and style of refresh and search box in the screen
 - Whatsapp

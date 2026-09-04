@@ -1333,6 +1333,70 @@ class JobsSql:
         ORDER BY id
     """
 
+    # Cost-correction editor — every existing cost-bearing line on one job, both
+    # tables in one result, already scoped to the caller's branch.
+    GET_JOB_COST_LINES = """
+        with "p_job_id" as (values(%(job_id)s::bigint)),
+             "p_branch_id" as (values(%(branch_id)s::bigint))
+        SELECT 'part'::text AS line_table, p.id, p.qty,
+               p.cost_price, p.selling_price,
+               sp.part_code AS code, sp.part_name AS name, p.remarks AS note
+        FROM job_part_used p
+        JOIN job j ON j.id = p.job_id
+        JOIN spare_part_master sp ON sp.id = p.part_id
+        WHERE p.job_id = (table "p_job_id") AND j.branch_id = (table "p_branch_id")
+        UNION ALL
+        SELECT 'charge', c.id, c.qty, c.cost_price, c.selling_price,
+               c.ref_no, c.charge_name, c.description
+        FROM job_additional_charge c
+        JOIN job j ON j.id = c.job_id
+        WHERE c.job_id = (table "p_job_id") AND j.branch_id = (table "p_branch_id")
+        ORDER BY 1, 2
+    """
+
+    # Cost correction (plans/plan.md). Runs via genericUpdateScript, gated by
+    # JOBS_CORRECT_COST in GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS. Every guard lives in
+    # this statement, so the write is safe regardless of what the client sends:
+    # cost > 0, row belongs to this job AND branch, and only cost_price is set.
+    # Returns submitted vs updated — a mismatch means something was rejected.
+    SET_JOB_COST_CORRECTION = """
+        WITH input AS (
+            SELECT DISTINCT ON (line_table, id) line_table, id, cost_price
+            FROM (
+                SELECT (e ->> 'line_table')::text    AS line_table,
+                       (e ->> 'id')::bigint          AS id,
+                       (e ->> 'cost_price')::numeric AS cost_price
+                FROM jsonb_array_elements(%(lines)s::jsonb) e
+            ) t
+            ORDER BY line_table, id
+        ),
+        valid AS (
+            SELECT i.* FROM input i
+            WHERE i.cost_price > 0
+              AND ( (i.line_table = 'part' AND EXISTS (
+                        SELECT 1 FROM job_part_used p JOIN job j ON j.id = p.job_id
+                        WHERE p.id = i.id AND p.job_id = %(job_id)s
+                          AND j.branch_id = %(branch_id)s))
+                 OR (i.line_table = 'charge' AND EXISTS (
+                        SELECT 1 FROM job_additional_charge c JOIN job j ON j.id = c.job_id
+                        WHERE c.id = i.id AND c.job_id = %(job_id)s
+                          AND j.branch_id = %(branch_id)s)) )
+        ),
+        upd_parts AS (
+            UPDATE job_part_used p SET cost_price = v.cost_price, updated_at = now()
+            FROM valid v WHERE v.line_table = 'part' AND p.id = v.id
+            RETURNING 1
+        ),
+        upd_charges AS (
+            -- job_additional_charge has no updated_at column; do not add one.
+            UPDATE job_additional_charge c SET cost_price = v.cost_price
+            FROM valid v WHERE v.line_table = 'charge' AND c.id = v.id
+            RETURNING 1
+        )
+        SELECT (SELECT COUNT(*) FROM input) AS submitted,
+               (SELECT COUNT(*) FROM upd_parts) + (SELECT COUNT(*) FROM upd_charges) AS updated
+    """
+
     # ── Job Receipts (Payments) ───────────────────────────────────────────────
 
     GET_JOB_PAYMENTS_COUNT = """
@@ -1633,6 +1697,13 @@ class JobsSql:
                    (SELECT SUM(jp2.amount) FROM job_payment jp2 WHERE jp2.job_id = j.id),
                    0
                )              AS total_paid,
+               (
+                   (SELECT COUNT(*) FROM job_part_used p
+                      WHERE p.job_id = j.id AND COALESCE(p.cost_price, 0) <= 0)
+                 + (SELECT COUNT(*) FROM job_additional_charge c
+                      WHERE c.job_id = j.id AND COALESCE(c.cost_price, 0) <= 0
+                        AND c.charge_name ~* '(spare|parts)')
+               )              AS missing_cost_lines,
                (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
@@ -1719,6 +1790,13 @@ class JobsSql:
                ji.amount     AS invoice_total,
                ji.invoice_no,
                ji.is_posted  AS invoice_is_posted,
+               (
+                   (SELECT COUNT(*) FROM job_part_used p
+                      WHERE p.job_id = j.id AND COALESCE(p.cost_price, 0) <= 0)
+                 + (SELECT COUNT(*) FROM job_additional_charge c
+                      WHERE c.job_id = j.id AND COALESCE(c.cost_price, 0) <= 0
+                        AND c.charge_name ~* '(spare|parts)')
+               )              AS missing_cost_lines,
                (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
@@ -1951,6 +2029,21 @@ class JobsSql:
     # (e.g. an array) instead of erroring — reads use chained -> / ->> (return NULL on a
     # type mismatch), never #>> path arrays (which raise "path element ... is not an
     # integer" when a path segment can't be resolved against the actual runtime type).
+    #
+    # `attempts` is the per-send history the flat `last_*` fields can't carry: one
+    # element per send attempt ({attempt_no, wamid, sent_at, status, status_at,
+    # error}), appended here and settled later by SET_JOB_WHATSAPP_OUTCOME below,
+    # which rewrites the element whose `wamid` matches the callback. The flat
+    # fields stay authoritative for badges/sorting/selection (customer-connect-
+    # helpers.ts's hasAnyPriorAttempt reads attempt_count, and
+    # GET_WHATSAPP_EVENT_LOG_PAGED sorts on last_sent_at) — this array is purely
+    # additive, so a job whose history predates it simply has no `attempts` key and
+    # renders exactly as before. Capped at the 20 most recent (LIMIT 19 + the new
+    # one): this is a display history for the Customer Connect log, not an audit
+    # log, and an uncapped array grows without bound inside a row that is read on
+    # every page of every grid. Built as its own array expression, then attached
+    # with one single-level jsonb_set — same auto-vivify rule the rest of this
+    # object obeys.
     SET_JOB_WHATSAPP_ATTEMPT = """
         UPDATE job
         SET whatsapp_notifications = jsonb_set(
@@ -1962,41 +2055,73 @@ class JobsSql:
                         jsonb_set(
                             jsonb_set(
                                 jsonb_set(
-                                    CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
-                                         THEN whatsapp_notifications -> %(event_key)s
-                                         ELSE '{}'::jsonb END,
-                                    '{attempt_count}',
-                                    to_jsonb(
-                                        COALESCE(
-                                            CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
-                                                 THEN (whatsapp_notifications -> %(event_key)s ->> 'attempt_count')::int
-                                                 ELSE NULL END,
-                                            0
-                                        ) + 1
+                                    jsonb_set(
+                                        CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                             THEN whatsapp_notifications -> %(event_key)s
+                                             ELSE '{}'::jsonb END,
+                                        '{attempt_count}',
+                                        to_jsonb(
+                                            COALESCE(
+                                                CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                                     THEN (whatsapp_notifications -> %(event_key)s ->> 'attempt_count')::int
+                                                     ELSE NULL END,
+                                                0
+                                            ) + 1
+                                        ),
+                                        true
                                     ),
+                                    '{last_wamid}',
+                                    CASE WHEN %(wamid)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(wamid)s::text) END,
                                     true
                                 ),
-                                '{last_wamid}',
-                                CASE WHEN %(wamid)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(wamid)s::text) END,
-                                true
+                                '{last_status}', to_jsonb(%(status)s::text), true
                             ),
-                            '{last_status}', to_jsonb(%(status)s::text), true
+                            '{last_sent_at}', to_jsonb(%(sent_at)s::text), true
                         ),
-                        '{last_sent_at}', to_jsonb(%(sent_at)s::text), true
+                        '{last_error}',
+                        CASE WHEN %(error)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(error)s::text) END,
+                        true
                     ),
-                    '{last_error}',
-                    CASE WHEN %(error)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(error)s::text) END,
+                    '{fail_count}',
+                    to_jsonb(
+                        COALESCE(
+                            CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                 THEN (whatsapp_notifications -> %(event_key)s ->> 'fail_count')::int
+                                 ELSE NULL END,
+                            0
+                        ) + CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END
+                    ),
                     true
                 ),
-                '{fail_count}',
-                to_jsonb(
-                    COALESCE(
-                        CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
-                             THEN (whatsapp_notifications -> %(event_key)s ->> 'fail_count')::int
-                             ELSE NULL END,
-                        0
-                    ) + CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END
-                ),
+                '{attempts}',
+                (
+                    SELECT COALESCE(jsonb_agg(kept.elem ORDER BY kept.ord), '[]'::jsonb)
+                    FROM (
+                        SELECT elem, ord
+                        FROM jsonb_array_elements(
+                            CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s -> 'attempts') = 'array'
+                                 THEN whatsapp_notifications -> %(event_key)s -> 'attempts'
+                                 ELSE '[]'::jsonb END
+                        ) WITH ORDINALITY AS t(elem, ord)
+                        ORDER BY ord DESC
+                        LIMIT 19
+                    ) kept
+                ) || jsonb_build_array(jsonb_build_object(
+                    'attempt_no',
+                        COALESCE(
+                            CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                 THEN (whatsapp_notifications -> %(event_key)s ->> 'attempt_count')::int
+                                 ELSE NULL END,
+                            0
+                        ) + 1,
+                    'wamid',
+                        CASE WHEN %(wamid)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(wamid)s::text) END,
+                    'sent_at',  to_jsonb(%(sent_at)s::text),
+                    'status',   to_jsonb(%(status)s::text),
+                    'status_at', 'null'::jsonb,
+                    'error',
+                        CASE WHEN %(error)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(error)s::text) END
+                )),
                 true
             ),
             true
@@ -2013,6 +2138,10 @@ class JobsSql:
     # this check a late/duplicate callback for a PRIOR wamid (e.g. its own terminal
     # FAILED) could still land after the resend and clobber its success, since FAILED
     # outranks everything on the ladder alone.
+    # Settles the matching `attempts` element too (status/status_at/error), keyed on
+    # `wamid` rather than array position — the row-level WHERE already pins this to
+    # the current last_wamid, so at most one element ever matches, and a legacy row
+    # with no `attempts` key just gets an empty array instead of an error.
     SET_JOB_WHATSAPP_OUTCOME = """
         UPDATE job
         SET whatsapp_notifications = jsonb_set(
@@ -2022,34 +2151,56 @@ class JobsSql:
                 jsonb_set(
                     jsonb_set(
                         jsonb_set(
-                            CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
-                                 THEN whatsapp_notifications -> %(event_key)s
-                                 ELSE '{}'::jsonb END,
-                            '{last_status}', to_jsonb(%(status)s::text), true
+                            jsonb_set(
+                                CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                     THEN whatsapp_notifications -> %(event_key)s
+                                     ELSE '{}'::jsonb END,
+                                '{last_status}', to_jsonb(%(status)s::text), true
+                            ),
+                            '{last_error}',
+                            CASE WHEN %(error)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(error)s::text) END,
+                            true
                         ),
-                        '{last_error}',
-                        CASE WHEN %(error)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(error)s::text) END,
+                        '{success_count}',
+                        to_jsonb(
+                            COALESCE(
+                                CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
+                                     THEN (whatsapp_notifications -> %(event_key)s ->> 'success_count')::int
+                                     ELSE NULL END,
+                                0
+                            ) + CASE WHEN %(status)s = 'DELIVERED' THEN 1 ELSE 0 END
+                        ),
                         true
                     ),
-                    '{success_count}',
+                    '{fail_count}',
                     to_jsonb(
                         COALESCE(
                             CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
-                                 THEN (whatsapp_notifications -> %(event_key)s ->> 'success_count')::int
+                                 THEN (whatsapp_notifications -> %(event_key)s ->> 'fail_count')::int
                                  ELSE NULL END,
                             0
-                        ) + CASE WHEN %(status)s = 'DELIVERED' THEN 1 ELSE 0 END
+                        ) + CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END
                     ),
                     true
                 ),
-                '{fail_count}',
-                to_jsonb(
-                    COALESCE(
-                        CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s) = 'object'
-                             THEN (whatsapp_notifications -> %(event_key)s ->> 'fail_count')::int
-                             ELSE NULL END,
-                        0
-                    ) + CASE WHEN %(status)s = 'FAILED' THEN 1 ELSE 0 END
+                '{attempts}',
+                (
+                    SELECT COALESCE(jsonb_agg(
+                        CASE WHEN elem ->> 'wamid' = %(wamid)s
+                             THEN elem || jsonb_build_object(
+                                 'status',    to_jsonb(%(status)s::text),
+                                 'status_at', to_jsonb(%(settled_at)s::text),
+                                 'error',
+                                     CASE WHEN %(error)s::text IS NULL THEN 'null'::jsonb ELSE to_jsonb(%(error)s::text) END
+                             )
+                             ELSE elem END
+                        ORDER BY ord
+                    ), '[]'::jsonb)
+                    FROM jsonb_array_elements(
+                        CASE WHEN jsonb_typeof(whatsapp_notifications -> %(event_key)s -> 'attempts') = 'array'
+                             THEN whatsapp_notifications -> %(event_key)s -> 'attempts'
+                             ELSE '[]'::jsonb END
+                    ) WITH ORDINALITY AS t(elem, ord)
                 ),
                 true
             ),
@@ -2127,6 +2278,36 @@ class JobsSql:
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN branch b ON b.id = j.branch_id
         WHERE jp.id = %(payment_id)s
+          AND j.branch_id = %(branch_id)s
+    """
+
+    # ── Invoice resend (single job) — plans/plan.md ──────────────────────────────
+    # Server-side lookup for sendWhatsappJobInvoice — never trusts the client's
+    # job_id alone, same branch_id cross-check discipline as
+    # GET_JOBS_FOR_WHATSAPP_DELIVERY/GET_JOB_PAYMENT_FOR_WHATSAPP_SEND above.
+    # INNER JOIN on job_invoice means a job with no invoice yet simply returns
+    # no rows — the same "nothing to send" outcome the client's own
+    # `row.invoice_no` gate already gives, just enforced again server-side. Not
+    # filtered on job_status — this is a resend for a job already delivered
+    # and closed, but the query itself doesn't need to assume that; the only
+    # caller (Delivered Jobs grid) already only shows closed jobs.
+    GET_JOB_INVOICE_FOR_WHATSAPP_SEND = """
+        SELECT
+            j.id AS job_id,
+            j.job_no,
+            j.customer_contact_id,
+            ji.invoice_no,
+            ji.amount,
+            COALESCE((SELECT SUM(jp.amount) FROM job_payment jp WHERE jp.job_id = j.id), 0) AS paid_amount,
+            cc.full_name AS customer_name,
+            cc.mobile,
+            b.name AS branch_name,
+            b.phone AS branch_phone
+        FROM job j
+        JOIN job_invoice ji ON ji.job_id = j.id
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN branch b ON b.id = j.branch_id
+        WHERE j.id = %(job_id)s
           AND j.branch_id = %(branch_id)s
     """
 

@@ -219,6 +219,11 @@ export const GRAPHQL_MAP = {
             sendWhatsappMoneyReceipt(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    sendWhatsappJobInvoice: gql`
+        mutation SendWhatsappJobInvoice($db_name: String!, $schema: String, $value: String!) {
+            sendWhatsappJobInvoice(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     verifyJobDeliveryOtp: gql`
         mutation VerifyJobDeliveryOtp($db_name: String!, $schema: String, $value: String!) {
             verifyJobDeliveryOtp(db_name: $db_name, schema: $schema, value: $value)

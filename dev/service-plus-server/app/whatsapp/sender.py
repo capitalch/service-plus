@@ -128,7 +128,10 @@ def _chunk(items: list[dict], size: int) -> list[list[dict]]:
 # `JOB_CREATION`, ...) is this codebase's own vocabulary everywhere else (SQL args,
 # whatsapp_notifications jsonb keys); only this callback payload ever sees the
 # abbreviation, and only for as long as it's in flight to/from Meta.
-_EVENT_CODE_BY_KEY = {"JOB_COMPLETION": "CC", "JOB_CREATION": "JC", "JOB_DELIVERY": "JD", "JOB_MONEY_RECEIPT": "MR"}
+_EVENT_CODE_BY_KEY = {
+    "JOB_COMPLETION": "CC", "JOB_CREATION": "JC", "JOB_DELIVERY": "JD",
+    "JOB_MONEY_RECEIPT": "MR", "JOB_INVOICE": "JI",
+}
 
 
 async def _is_event_enabled(db_name: str, schema: str, event_key: str) -> bool:
@@ -242,6 +245,30 @@ def _build_money_receipt_params(bu_name: str, row: dict) -> tuple[list[str], lis
         payment_date.strftime("%d %b %Y") if hasattr(payment_date, "strftime") else str(payment_date),
         _build_delivery_reference_line([row["job_no"]]),
         row["receipt_no"] or str(row["payment_id"]),
+        row["branch_name"],
+        row["branch_phone"] or "-",
+    ]
+    return (
+        [_sanitize(v) for v in header_values],
+        [_sanitize(v) for v in body_values],
+    )
+
+
+def _build_invoice_params(bu_name: str, row: dict) -> tuple[list[str], list[str]]:
+    """header_values, body_values for one Invoice send — order matches
+    TEMPLATES["JOB_INVOICE"]'s header_params/body_params. Never grouped
+    (one job is always one message), same precedent as
+    _build_money_receipt_params. `amount_line` reuses `_build_amount_line`
+    unchanged by wrapping this single row in a one-element list — that
+    helper already sums `amount`/`paid_amount` across whatever list it's
+    given, and a one-element list is exactly "this job's own balance,"
+    nothing to build fresh here."""
+    header_values = [_truncate_business_unit(bu_name)]
+    body_values = [
+        row["customer_name"],
+        row["invoice_no"],
+        _build_delivery_reference_line([row["job_no"]]),
+        _build_amount_line([row]),
         row["branch_name"],
         row["branch_phone"] or "-",
     ]
@@ -819,6 +846,104 @@ async def send_whatsapp_money_receipt(db_name: str, schema: str = "public", valu
             {
                 "customer_name": row["customer_name"],
                 "payment_id": payment_id,
+                "status": "SENT" if result.ok else "FAILED",
+                "error": result.error_message,
+            }
+        ]
+    }
+
+
+async def send_whatsapp_job_invoice(db_name: str, schema: str = "public", value: str = "") -> dict[str, Any]:
+    """Send the "Download Invoice" WhatsApp message for exactly one job
+    (plans/plan.md) — a resend path from the Delivered Jobs grid for jobs
+    that already left the live paperless-delivery session (`JOB_DELIVERY`'s
+    own Invoice button, in `_send_delivery_chunk`, only exists for the
+    duration of that one send/session). Never grouped or chunked, like
+    `send_whatsapp_money_receipt` — an invoice always belongs to exactly one
+    job/customer. Plain Utility, no companion Authentication send, no OTP:
+    this is a convenience resend of a document already issued, not a new
+    delivery-confirmation event needing staff verification. Reuses the
+    existing `GET /job-delivery/invoice/{token}` route completely
+    unchanged — `token.py`'s `sign()` is a generic link token, not
+    OTP-gated or status-checked, so minting a fresh one here needs no new
+    PDF route, no new token scheme."""
+    payload = _decode_value(value, "sendWhatsappJobInvoice")
+    branch_id = payload.get("branch_id")
+    job_id = payload.get("job_id")
+
+    if not branch_id or not job_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "branch_id/job_id"},
+        )
+
+    db_name_arg: str = db_name or ""
+    schema_name = schema or "public"
+
+    if not await _is_event_enabled(db_name_arg, schema_name, "JOB_INVOICE"):
+        return {"results": [], "disabled": True}
+
+    # Server never trusts the client's job_id as-is —
+    # GET_JOB_INVOICE_FOR_WHATSAPP_SEND re-filters to this branch_id and
+    # requires a job_invoice row to exist, same discipline as the other
+    # events' own GET_JOBS_FOR_WHATSAPP_*/GET_JOB_PAYMENT_FOR_WHATSAPP_SEND
+    # queries.
+    rows = await exec_sql_query(
+        db_name=db_name_arg, schema=schema_name, sql=SqlStore.GET_JOB_INVOICE_FOR_WHATSAPP_SEND,
+        sql_args={"job_id": job_id, "branch_id": branch_id},
+    )
+    if not rows:
+        return {"results": []}
+    row = rows[0]
+
+    if not is_valid_mobile(row["mobile"]):
+        logger.info(
+            "Skipping WhatsApp invoice send for customer=%s — invalid/missing mobile",
+            row["customer_name"],
+        )
+        return {
+            "results": [
+                {
+                    "customer_name": row["customer_name"],
+                    "job_id": job_id,
+                    "status": "FAILED",
+                    "error": "Invalid or missing mobile number",
+                }
+            ]
+        }
+
+    bu_rows = await exec_sql_query(
+        db_name=db_name_arg, schema="security", sql=SqlStore.GET_BU_NAME_BY_CODE, sql_args={"schema": schema_name}
+    )
+    bu_name = bu_rows[0]["name"] if bu_rows else schema_name
+
+    template = TEMPLATES["JOB_INVOICE"]
+    header_values, body_values = _build_invoice_params(bu_name, row)
+    callback_data = _build_biz_opaque_callback_data(db_name_arg, schema_name, "JOB_INVOICE", [job_id])
+
+    # Reuses the same generic status-link token JOB_DELIVERY's own Invoice
+    # button already points at (GET /job-delivery/invoice/{token}) — not
+    # OTP-gated, not status-checked, so a fresh one here works for a job in
+    # any status, closed or not.
+    invoice_token = sign_status_link(db_name_arg, schema_name, [job_id])
+    button_values = [invoice_token]
+
+    result = await send_template(
+        normalize_mobile(row["mobile"]), template, header_values, body_values, callback_data, button_values
+    )
+
+    status = "ACCEPTED" if result.ok else "FAILED"
+    await _persist_attempt(
+        db_name_arg, schema_name, job_id, "JOB_INVOICE", result.provider_message_id, status, result.error_message
+    )
+
+    logger.info("sendWhatsappJobInvoice: job_id=%s status=%s", job_id, status)
+
+    return {
+        "results": [
+            {
+                "customer_name": row["customer_name"],
+                "job_id": job_id,
                 "status": "SENT" if result.ok else "FAILED",
                 "error": result.error_message,
             }

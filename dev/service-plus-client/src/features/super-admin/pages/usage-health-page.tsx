@@ -4,7 +4,6 @@ import { ServerIcon, DatabaseIcon, MailIcon, FileTextIcon } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { RefreshButton } from "@/components/shared/refresh-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";

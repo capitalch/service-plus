@@ -1,1 +1,3 @@
-# Whatsapp 
+# Modify functionality of doing final of a job
+- In Add Part, if a row exists, then cost cannot be 0 against that row. Modify the code such that cost is not 0 against that row. Provide suitable validation for the same.
+- In additional charges, if a row exists, then cost cannot be 0 against that row if Charge Name is "Spare Parts" or "spare" or "parts" is embedded in Charge Name. Provide suitable validation for the same.

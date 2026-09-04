@@ -30,6 +30,7 @@ type WhatsappNotificationsValue = {
     JOB_COMPLETION:    boolean;
     JOB_DELIVERY:      boolean;
     JOB_MONEY_RECEIPT: boolean;
+    JOB_INVOICE:       boolean;
 };
 
 type EditWhatsappNotificationsDialogProps = {
@@ -48,6 +49,7 @@ function toValue(v: unknown): WhatsappNotificationsValue {
         JOB_COMPLETION:    obj.JOB_COMPLETION === true,
         JOB_DELIVERY:      obj.JOB_DELIVERY === true,
         JOB_MONEY_RECEIPT: obj.JOB_MONEY_RECEIPT === true,
+        JOB_INVOICE:       obj.JOB_INVOICE === true,
     };
 }
 
@@ -107,6 +109,7 @@ export const EditWhatsappNotificationsDialog = ({
         { key: "JOB_COMPLETION",    label: "Job Completed" },
         { key: "JOB_DELIVERY",      label: "Job Delivery" },
         { key: "JOB_MONEY_RECEIPT", label: "Money Receipt" },
+        { key: "JOB_INVOICE",       label: "Invoice" },
     ];
 
     return (

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAppDispatch } from "@/store/hooks";
 import { useQuery } from "@apollo/client/react";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import { StatsCards } from "../components/stats-cards";
@@ -8,7 +9,6 @@ import { SuperAdminLayout } from "../components/super-admin-layout";
 import { setStats } from "../store/super-admin-slice";
 import type { StatsType } from "../types/index";
 
-import { Button } from "@/components/ui/button";
 import { RefreshButton } from "@/components/shared/refresh-button";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";

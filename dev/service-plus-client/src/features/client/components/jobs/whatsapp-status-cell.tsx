@@ -1,5 +1,7 @@
-import { AlertTriangle } from "lucide-react";
-import type { WhatsappCompletionState } from "./customer-connect/customer-connect-schema";
+import { useState } from "react";
+import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { resolveAttemptHistory } from "./customer-connect/customer-connect-helpers";
+import type { WhatsappAttempt, WhatsappCompletionState } from "./customer-connect/customer-connect-schema";
 
 // Generalized out of customer-connect-grid.tsx (plans/plan-whatsapp.md, Step 8) —
 // the same pill (success/fail counts, "Last try" timestamp, delivery badge) reads
@@ -17,6 +19,14 @@ function fmtLastTry(iso: string): string {
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12 || 12;
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(hours)}:${pad(d.getMinutes())} ${ampm}`;
+}
+
+// Tooltip for one history row: when the outcome landed, and why it failed if it
+// did. `status_at` is null while an attempt is still unsettled (ACCEPTED with no
+// callback yet), which is itself the useful thing to convey.
+function fmtAttemptOutcome(a: WhatsappAttempt): string {
+    const when = a.status_at ? `${a.status} ${fmtLastTry(a.status_at)}` : `${a.status} — not settled yet`;
+    return a.error ? `${when} — ${a.error}` : when;
 }
 
 const DELIVERY_BADGE_STYLES: Record<string, string> = {
@@ -41,10 +51,23 @@ const CONFIRMATION_LABEL: Record<"otp_verified" | "manual_override", string> = {
 // `isDeliveryConfirmation` replaces the old `eventKey === "JOB_DELIVERY"`
 // check for the same reason — the one place `eventKey` drove behavior
 // beyond the lookup itself.
+//
+// A customer can be messaged about the same job several times, and the flat
+// `last_*` fields only ever describe the most recent one. Whenever there was
+// more than one send, this lists every one of them — time and outcome —
+// rather than just the last. Expanded by default: a job that was messaged
+// repeatedly is precisely the row someone opens this screen to look at, and
+// hiding that behind a click is what the flat display already did wrong.
+// `resolveAttemptHistory` reconciles the recorded array against
+// `attempt_count`, so a job messaged before per-attempt history existed still
+// shows its known last send and an honest count of what wasn't recorded.
+// Rendered here rather than in one grid so every tab that already uses this
+// cell gets it, instead of forking a second status cell.
 export function WhatsappStatusCell({ state, isDeliveryConfirmation = false }: {
     state: WhatsappCompletionState | null;
     isDeliveryConfirmation?: boolean;
 }) {
+    const [historyCollapsed, setHistoryCollapsed] = useState(false);
     const hasConfirmation = isDeliveryConfirmation && !!state?.confirmed_at && !!state.confirmation_method;
     // `success_count` is written by exactly one thing — Meta's status webhook
     // (SET_JOB_WHATSAPP_OUTCOME), on the transition into DELIVERED — so it measures
@@ -60,7 +83,24 @@ export function WhatsappStatusCell({ state, isDeliveryConfirmation = false }: {
     // all — absent, not zero, until a webhook callback lands.
     const successCount = hasConfirmation ? 1 : (state?.success_count ?? 0);
     const failCount    = state?.fail_count ?? 0;
-    if (!state || (successCount === 0 && failCount === 0 && !state.otp_pending)) {
+    // Newest first (resolveAttemptHistory reverses), reconciled against
+    // attempt_count so pre-history jobs still account for their sends.
+    const { attempts, unrecorded, totalSends } = resolveAttemptHistory(state);
+    // Shown whenever there is any attempt record at all — not only when there are
+    // several. Gating this on "more than one send" was wrong: a job messaged once
+    // has a complete, correctly recorded attempt, and hiding it behind that gate
+    // rendered the old flat "Last try" line instead, so a freshly sent job looked
+    // exactly as it did before per-attempt history existed. When the list shows it
+    // replaces that line and the lone status badge, which only repeat its newest row.
+    const showHistory = attempts.length > 0;
+    // The collapse toggle only earns its line when there is more than one row to
+    // collapse; a single attempt just renders as itself.
+    const showToggle  = totalSends > 1;
+    // A send that Meta hasn't settled yet has neither a success nor a failure
+    // to count, but it is still a message that went out — before the per-attempt
+    // history existed there was nothing to say so, and the cell fell through to
+    // "—". With an attempt on record there is.
+    if (!state || (successCount === 0 && failCount === 0 && !state.otp_pending && attempts.length === 0)) {
         return <span className="text-sm text-(--cl-text-muted)">—</span>;
     }
     return (
@@ -84,18 +124,59 @@ export function WhatsappStatusCell({ state, isDeliveryConfirmation = false }: {
                     </span>
                 )}
             </div>
-            {state.last_sent_at && (
+            {!showHistory && state.last_sent_at && (
                 <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
                     Last try: {fmtLastTry(state.last_sent_at)}
                 </span>
             )}
-            {state.last_status && (
+            {!showHistory && state.last_status && (
                 <span
                     className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-bold ${DELIVERY_BADGE_STYLES[state.last_status] ?? ""}`}
                     title={state.last_error ?? undefined}
                 >
                     {state.last_status}
                 </span>
+            )}
+            {showHistory && (
+                <>
+                    {showToggle && (
+                    <button
+                        aria-expanded={!historyCollapsed}
+                        className="inline-flex w-fit items-center gap-0.5 rounded text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-(--cl-accent) cursor-pointer"
+                        title={historyCollapsed ? "Show all sends" : "Hide all sends"}
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setHistoryCollapsed(c => !c); }}
+                    >
+                        {historyCollapsed
+                            ? <ChevronRight className="h-3 w-3" />
+                            : <ChevronDown className="h-3 w-3" />}
+                        {totalSends} sends
+                    </button>
+                    )}
+                    {(!historyCollapsed || !showToggle) && (
+                        <div className="flex w-fit flex-col gap-1 rounded-md border border-(--cl-border) bg-(--cl-surface-2) px-2 py-1.5">
+                            {attempts.map(a => (
+                                <div key={`${a.attempt_no}-${a.sent_at}`} className="flex items-center gap-1.5 whitespace-nowrap">
+                                    <span className="min-w-4 shrink-0 text-right text-[10px] font-semibold text-(--cl-text-muted)">{a.attempt_no}.</span>
+                                    <span className="text-[11px] tabular-nums text-(--cl-text)">{a.sent_at ? fmtLastTry(a.sent_at) : "\u2014"}</span>
+                                    <span
+                                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${DELIVERY_BADGE_STYLES[a.status] ?? ""}`}
+                                        title={fmtAttemptOutcome(a)}
+                                    >
+                                        {a.status}
+                                    </span>
+                                </div>
+                            ))}
+                            {/* Sends made before per-attempt history existed. Counted,
+                                never invented — their times and outcomes are gone. */}
+                            {unrecorded > 0 && (
+                                <span className="text-[10px] italic text-(--cl-text-muted)">
+                                    + {unrecorded} earlier send{unrecorded !== 1 ? "s" : ""} — not recorded
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </>
             )}
             {hasConfirmation && (
                 <span

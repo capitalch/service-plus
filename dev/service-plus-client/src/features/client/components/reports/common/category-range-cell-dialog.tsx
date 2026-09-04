@@ -20,7 +20,7 @@ import { ReportError } from "./report-error";
 import { ReportLoading } from "./report-loading";
 import { ReportTable } from "./report-table";
 import type { ReportColumnType } from "./report-table";
-import { formatNumber } from "./formatters";
+import { formatDateShort, formatNumber, formatTimeShort } from "./formatters";
 
 export type CategoryRangeCellType = {
     reportTitle:   string;
@@ -38,6 +38,7 @@ type CellJobType = {
     id:            number;
     job_no:        string;
     event_date:    string;
+    event_time:    string | null;
     customer_name: string | null;
     brand_name:    string | null;
     model_name:    string | null;
@@ -65,7 +66,20 @@ export const CategoryRangeCellDialog = ({ cell, onClose }: Props) => {
     const showFinancials = cell?.showFinancials ?? false;
 
     const columns: ReportColumnType<CellJobType>[] = [
-        { header: "Date", id: "event_date", value: r => r.event_date, width: "100px" },
+        {
+            cell:   r => (
+                <div className="flex flex-col gap-0.5">
+                    <span>{formatDateShort(r.event_date)}</span>
+                    {r.event_time && (
+                        <span className="text-[10px] text-(--cl-text-muted)">{formatTimeShort(r.event_time)}</span>
+                    )}
+                </div>
+            ),
+            header: "Date",
+            id:     "event_date",
+            value:  r => r.event_date,
+            width:  "100px",
+        },
         {
             cell:   r => <span className="font-mono text-xs font-semibold text-(--cl-accent) hover:underline">{r.job_no}</span>,
             header: "Job No",

@@ -180,7 +180,7 @@ function drawInvoiceContent(
     // Type + Job # on one line
     const typeJobLine = buildAddrLines([
         "Type: Service",
-        job.job_no ? `Job #: ${job.job_no}` : null,
+        job.job_no ? `Job #: ${job.job_no}${job.alternate_job_no ? ` / ${job.alternate_job_no}` : ""}` : null,
     ]).join("   ");
     doc.text(typeJobLine, titleX, ry, { maxWidth: titleColW });
     ry += 4.5;
@@ -195,8 +195,11 @@ function drawInvoiceContent(
         ry += devLines.length * 4;
     }
 
-    // Serial No, if available
-    if (job.serial_no) {
+    // Serial No, if available — skip when device_details already ends with it
+    // (device_details is built server-side via CONCAT_WS(..., serial_no)).
+    const serialAlreadyInDeviceDetails =
+        !!job.device_details && !!job.serial_no && job.device_details.trim().endsWith(job.serial_no.trim());
+    if (job.serial_no && !serialAlreadyInDeviceDetails) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(50, 50, 50);

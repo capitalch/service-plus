@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input } from "@/components/ui/input";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
@@ -125,7 +124,9 @@ export function MoneyReceiptLogSection({ emptyMessage, onCountChange }: Props) {
                         </button>
                     )}
                 </div>
+                <div className="ml-auto flex items-center gap-2">
                     <RefreshButton disabled={!branchId} loading={loading} onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }} />
+                </div>
             </div>
 
             <MoneyReceiptLogGrid

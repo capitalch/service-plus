@@ -1,3 +1,21 @@
+// One element per send attempt, appended by SET_JOB_WHATSAPP_ATTEMPT and settled
+// in place by SET_JOB_WHATSAPP_OUTCOME (server, sql_jobs.py). The flat `last_*`
+// fields below only ever describe the most recent attempt; this is the full
+// history behind them — a customer can be messaged about the same job several
+// times, and "when did each go out, and what came of it" is exactly what the
+// Customer Connect log is read for. Capped server-side at the 20 most recent.
+// `status_at` is when Meta's callback settled that attempt (null while it's
+// still ACCEPTED and unsettled); `error` carries the failure reason for a
+// FAILED attempt.
+export type WhatsappAttempt = {
+    attempt_no: number;
+    wamid:      string | null;
+    sent_at:    string;
+    status:     "ACCEPTED" | "SENT" | "DELIVERED" | "READ" | "FAILED";
+    status_at:  string | null;
+    error:      string | null;
+};
+
 export type WhatsappCompletionState = {
     attempt_count: number;
     success_count: number;
@@ -6,6 +24,10 @@ export type WhatsappCompletionState = {
     last_sent_at:  string | null;
     last_status:   "ACCEPTED" | "SENT" | "DELIVERED" | "READ" | "FAILED" | null;
     last_error:    string | null;
+    // Absent on any state written before the per-attempt history existed — the
+    // flat fields above stay authoritative, so an older row simply has no
+    // history to expand and renders exactly as it always did.
+    attempts?:     WhatsappAttempt[] | null;
     // JOB_DELIVERY only (plans/plan.md, Step 3/4) — set by verifyJobDeliveryOtp
     // or setJobDeliveryManualConfirmation, never by the send itself.
     confirmed_at?:          string | null;

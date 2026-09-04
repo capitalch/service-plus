@@ -157,4 +157,26 @@ TEMPLATES: dict[str, TemplateSpec] = {
         # dynamic-URL buttons already needed.
         button_count=1,
     ),
+    # One send per job, from the Delivered Jobs grid — a resend path for
+    # jobs that already left the live paperless-delivery session
+    # (plans/plan.md). Plain Utility like JOB_MONEY_RECEIPT; reuses
+    # JOB_DELIVERY's already-approved /job-delivery/invoice/ button prefix,
+    # just minted with a fresh token — no new PDF route.
+    "JOB_INVOICE": TemplateSpec(
+        name="job_invoice_v1",
+        language="en",
+        category="UTILITY",
+        header_params=["business_unit"],
+        body_params=[
+            "customer_name",
+            "invoice_no",
+            "reference_line",
+            "amount_line",
+            "branch_name",
+            "branch_contact",
+        ],
+        # "Download Invoice" — single dynamic-URL button, same bare-prefix
+        # registration discipline every other dynamic-URL button here needs.
+        button_count=1,
+    ),
 }

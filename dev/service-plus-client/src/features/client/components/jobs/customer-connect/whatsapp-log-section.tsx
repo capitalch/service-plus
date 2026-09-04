@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input } from "@/components/ui/input";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
@@ -33,7 +32,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // next to the shared "Customer Connect" title via `onCountChange`, so there's
 // one subtitle line total, not one per tab.
 type Props = {
-    eventKey:      "JOB_CREATION" | "JOB_DELIVERY";
+    eventKey:      "JOB_CREATION" | "JOB_DELIVERY" | "JOB_INVOICE";
     emptyMessage:  string;
     onCountChange: (total: number) => void;
 };
@@ -124,7 +123,9 @@ export function WhatsappLogSection({ eventKey, emptyMessage, onCountChange }: Pr
                         </button>
                     )}
                 </div>
+                <div className="ml-auto flex items-center gap-2">
                     <RefreshButton disabled={!branchId} loading={loading} onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }} />
+                </div>
             </div>
 
             <WhatsappLogGrid

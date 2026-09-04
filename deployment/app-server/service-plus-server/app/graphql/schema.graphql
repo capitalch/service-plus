@@ -46,6 +46,8 @@ type Mutation {
     sendWhatsappCompletion(db_name: String!, schema: String, value: String!): Generic
     sendWhatsappJobIntake(db_name: String!, schema: String, value: String!): Generic
     sendWhatsappJobDelivery(db_name: String!, schema: String, value: String!): Generic
+    sendWhatsappMoneyReceipt(db_name: String!, schema: String, value: String!): Generic
+    sendWhatsappJobInvoice(db_name: String!, schema: String, value: String!): Generic
     verifyJobDeliveryOtp(db_name: String!, schema: String, value: String!): Generic
     setJobDeliveryManualConfirmation(db_name: String!, schema: String, value: String!): Generic
 }

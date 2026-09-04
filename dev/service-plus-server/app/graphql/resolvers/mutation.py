@@ -57,6 +57,7 @@ from app.whatsapp.sender import (
     resolve_send_whatsapp_completion_helper,
     send_job_creation_notice,
     send_job_delivery_notice,
+    send_whatsapp_job_invoice,
     send_whatsapp_money_receipt,
     set_job_delivery_manual_confirmation,
     verify_job_delivery_otp,
@@ -472,6 +473,21 @@ async def resolve_send_whatsapp_money_receipt(
     access rights: no dedicated guard here — the Receipts screen's own right
     already gates the entry point that calls this."""
     return await send_whatsapp_money_receipt(db_name, schema, value)
+
+
+@mutation.field("sendWhatsappJobInvoice")
+@handle_graphql_errors("Error sending WhatsApp invoice")
+async def resolve_send_whatsapp_job_invoice(
+    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Send the "Download Invoice" WhatsApp message for one job, from the
+    Delivered Jobs grid — a resend path for jobs that already left the live
+    paperless-delivery session (plans/plan.md). `branch_id`/`job_id`
+    payload shape (not `job_ids` — an invoice send is never grouped/
+    chunked, same precedent as sendWhatsappMoneyReceipt). Same precedent on
+    access rights: no dedicated guard here — the Delivered Jobs screen's own
+    right already gates the entry point that calls this."""
+    return await send_whatsapp_job_invoice(db_name, schema, value)
 
 
 @mutation.field("verifyJobDeliveryOtp")

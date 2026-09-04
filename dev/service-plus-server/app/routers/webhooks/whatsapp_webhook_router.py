@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 
@@ -113,7 +114,10 @@ async def _process_webhook_payload(payload: dict) -> None:
 # (SET_JOB_MONEY_RECEIPT_WHATSAPP_ATTEMPT's own docstring) — its
 # attempt/fail counts only ever reflect the initial send, never advance to
 # DELIVERED/READ.
-_EVENT_KEY_BY_CODE = {"CC": "JOB_COMPLETION", "JC": "JOB_CREATION", "JD": "JOB_DELIVERY", "MR": "JOB_MONEY_RECEIPT"}
+_EVENT_KEY_BY_CODE = {
+    "CC": "JOB_COMPLETION", "JC": "JOB_CREATION", "JD": "JOB_DELIVERY",
+    "MR": "JOB_MONEY_RECEIPT", "JI": "JOB_INVOICE",
+}
 
 
 def _decode_callback_data(callback_data: str) -> tuple[str, str, str, list[int]] | None:
@@ -162,6 +166,12 @@ async def _apply_status_callback(msg_status: dict) -> None:
         return
     db_name, schema, event_key, job_ids = decoded
 
+    # Stamped once per callback, not per job_id — every job in this batch settled on
+    # the same wamid at the same moment. ISO-8601 UTC, same convention sender.py's
+    # `sent_at` uses, so `attempts[].sent_at` and `attempts[].status_at` are directly
+    # comparable in the Customer Connect log.
+    settled_at = datetime.now(timezone.utc).isoformat()
+
     error_message = None
     if raw_status == "FAILED":
         errors = msg_status.get("errors") or []
@@ -181,6 +191,7 @@ async def _apply_status_callback(msg_status: dict) -> None:
                     "status": raw_status,
                     "error": error_message,
                     "new_rank": new_rank,
+                    "settled_at": settled_at,
                 },
             )
             if rows:

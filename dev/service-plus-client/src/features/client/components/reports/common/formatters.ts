@@ -14,6 +14,13 @@ export function formatDateShort(value: Date | null | string | undefined): string
     return `${String(d.getDate()).padStart(2, "0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+export function formatTimeShort(value: Date | null | string | undefined): string {
+    if (!value) return "";
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString("en-IN", { hour: "2-digit", hour12: true, minute: "2-digit" });
+}
+
 export function formatInr(value: number | null | undefined): string {
     if (value == null || !Number.isFinite(Number(value))) return "₹0";
     return INR.format(Number(value));

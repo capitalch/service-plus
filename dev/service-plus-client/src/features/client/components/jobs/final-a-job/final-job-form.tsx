@@ -674,10 +674,17 @@ export function FinalJobForm({
                                                         />
                                                     </div>
                                                     <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">Cost</span>
+                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">
+                                                            Cost <span className="text-red-500">*</span>
+                                                        </span>
+                                                        {/* Flagged only once a part is actually selected — an untouched
+                                                            placeholder row starts at 0 and isn't an error yet. */}
                                                         <Input
-                                                            className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
-                                                            min="0" step="0.01" type="number"
+                                                            className={`h-6 w-24 border-(--cl-border) bg-white text-xs text-right ${
+                                                                line.part_id && !((parseFloat(line.cost_price) || 0) > 0) ? "border-red-500 focus:border-red-500" : ""
+                                                            }`}
+                                                            min="0.01" step="0.01" type="number"
+                                                            title={line.part_id && !((parseFloat(line.cost_price) || 0) > 0) ? "Cost must be greater than 0" : undefined}
                                                             value={line.cost_price}
                                                             onChange={e => onCostChange(line._key, e.target.value)}
                                                             onFocus={e => e.target.select()}
@@ -800,7 +807,7 @@ export function FinalJobForm({
                                             {isGst && !isWarranty && <th className={`${thClass} w-28`}>HSN <span className="text-red-500">*</span></th>}
                                             {isGst && !isWarranty && <th className={`${thClass} w-20 text-right`}>GST%</th>}
                                             <th className={`${thClass} w-20 text-right`}>Qty</th>
-                                            <th className={`${thClass} w-28 text-right`}>Cost</th>
+                                            <th className={`${thClass} w-28 text-right`}>Cost <span className="text-red-500">*</span></th>
                                             {!isWarranty && <th className={`${thClass} w-28 text-right`}>Sale <span className="text-red-500">*</span></th>}
                                             {isGst && !isWarranty && <th className={`${thClass} w-28 text-right`}>Sale+GST</th>}
                                             <th className={`${thClass} w-32 text-right whitespace-nowrap`}>Amount</th>
@@ -873,9 +880,14 @@ export function FinalJobForm({
                                                     />
                                                 </td>
                                                 <td className={`${tdClass} text-right`}>
+                                                    {/* Flagged only once the charge is actually named, mirroring the
+                                                        HSN check on this same row — a blank new row isn't an error. */}
                                                     <Input
-                                                        className="h-7 w-24 border-(--cl-border) bg-white text-xs text-right"
-                                                        min="0" step="0.01" type="number"
+                                                        className={`h-7 w-24 border-(--cl-border) bg-white text-xs text-right ${
+                                                            c.charge_name.trim() && !((parseFloat(c.cost_price) || 0) > 0) ? "border-red-500 focus:border-red-500" : ""
+                                                        }`}
+                                                        min="0.01" step="0.01" type="number"
+                                                        title={c.charge_name.trim() && !((parseFloat(c.cost_price) || 0) > 0) ? "Cost must be greater than 0" : undefined}
                                                         value={c.cost_price}
                                                         onChange={e => onUpdateCharge(c._key, "cost_price", e.target.value)}
                                                         onFocus={e => e.target.select()}

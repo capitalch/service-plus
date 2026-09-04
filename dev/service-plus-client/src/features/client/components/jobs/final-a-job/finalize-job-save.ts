@@ -94,6 +94,23 @@ export async function finalizeJobSave(args: FinalizeJobSaveArgs): Promise<boolea
             return false;
         }
 
+        // A row that exists must carry a real cost — zero is not a valid cost, it's an
+        // unfilled field. Checked separately from the negative/qty test above so the
+        // message names the one thing that's actually wrong; a combined message sends
+        // staff hunting through every numeric column. Row existence is judged the same
+        // way every other check on this screen judges it (a part actually selected, a
+        // charge actually named), so a blank placeholder row is not a validation error.
+        const zeroCostParts   = partLines.filter(l => l.part_id && !((parseFloat(l.cost_price) || 0) > 0));
+        const zeroCostCharges = chargeLines.filter(c => c.charge_name.trim() && !((parseFloat(c.cost_price) || 0) > 0));
+        if (zeroCostParts.length > 0 || zeroCostCharges.length > 0) {
+            const where = [
+                zeroCostParts.length   ? `${zeroCostParts.length} part row${zeroCostParts.length !== 1 ? "s" : ""}` : null,
+                zeroCostCharges.length ? `${zeroCostCharges.length} charge row${zeroCostCharges.length !== 1 ? "s" : ""}` : null,
+            ].filter(Boolean).join(" and ");
+            toast.error(`Cost must be greater than 0 on every row — ${where} still have a cost of 0. Enter the cost on the highlighted rows before finalizing.`);
+            return false;
+        }
+
         const chargeUpsertRows = chargeLines
             .filter(c => c.charge_name.trim())
             .map(c => ({

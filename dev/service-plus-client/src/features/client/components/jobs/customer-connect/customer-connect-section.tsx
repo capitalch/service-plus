@@ -24,8 +24,8 @@ import { SendMessagesModal } from "./send-messages-modal";
 import { SendResultsDialog } from "./send-results-dialog";
 import { WhatsappLogSection } from "./whatsapp-log-section";
 import { MoneyReceiptLogSection } from "./money-receipt-log-section";
-import { PAGE_SIZE, getCompletionState, groupRowsByCustomer, hasAnyPriorAttempt, isRowSelectable, type GroupableJobRow } from "./customer-connect-helpers";
-import type { CustomerConnectJobRow, CustomerGroup, WhatsappCompletionState } from "./customer-connect-schema";
+import { PAGE_SIZE, applyOutcomeToAttempts, getCompletionState, groupRowsByCustomer, hasAnyPriorAttempt, isRowSelectable, type GroupableJobRow } from "./customer-connect-helpers";
+import type { CustomerConnectJobRow, CustomerGroup, WhatsappAttempt, WhatsappCompletionState } from "./customer-connect-schema";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
@@ -53,7 +53,7 @@ type DispatchBanner = {
     failedCount:     number;
 };
 
-type ActiveTab = "completion" | "intake" | "delivery" | "moneyReceipt";
+type ActiveTab = "completion" | "intake" | "delivery" | "moneyReceipt" | "invoice";
 
 export function CustomerConnectSection() {
     const [activeTab, setActiveTab] = useState<ActiveTab>("completion");
@@ -65,6 +65,7 @@ export function CustomerConnectSection() {
     const [intakeTotal,       setIntakeTotal]       = useState(0);
     const [deliveryTotal,     setDeliveryTotal]     = useState(0);
     const [moneyReceiptTotal, setMoneyReceiptTotal] = useState(0);
+    const [invoiceTotal,      setInvoiceTotal]      = useState(0);
 
     const dbName      = useAppSelector(selectDbName);
     const schema      = useAppSelector(selectSchema);
@@ -215,6 +216,15 @@ export function CustomerConnectSection() {
                             last_sent_at:  prevState?.last_sent_at ?? null,
                             last_status:   ev.status as WhatsappCompletionState["last_status"],
                             last_error:    ev.error,
+                            // Keep the per-send history in step with the flat fields —
+                            // dropping it here would blank the "N sends" expander on a
+                            // live outcome until the next refresh.
+                            attempts:      applyOutcomeToAttempts(
+                                prevState?.attempts,
+                                prevState?.last_wamid ?? null,
+                                ev.status as WhatsappAttempt["status"],
+                                ev.error,
+                            ),
                         };
                         return {
                             ...row,
@@ -409,10 +419,11 @@ export function CustomerConnectSection() {
                         {activeTab === "intake" && `${intakeTotal} logged message${intakeTotal !== 1 ? "s" : ""}`}
                         {activeTab === "delivery" && `${deliveryTotal} logged message${deliveryTotal !== 1 ? "s" : ""}`}
                         {activeTab === "moneyReceipt" && `${moneyReceiptTotal} logged message${moneyReceiptTotal !== 1 ? "s" : ""}`}
+                        {activeTab === "invoice" && `${invoiceTotal} logged message${invoiceTotal !== 1 ? "s" : ""}`}
                     </span>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2.5 rounded-xl border-2 border-(--cl-border) bg-(--cl-surface-2) p-1 shadow-md sm:mx-auto sm:flex sm:w-auto">
+                <div className="grid grid-cols-5 gap-2.5 rounded-xl border-2 border-(--cl-border) bg-(--cl-surface-2) p-1 shadow-md sm:mx-auto sm:flex sm:w-auto">
                     {/* Job Completion is the only tab that actually sends —
                         the WhatsApp icon marks it as the "live" action tab
                         even when it's not the one currently active, so it
@@ -454,6 +465,15 @@ export function CustomerConnectSection() {
                     >
                         Money Receipt
                     </button>
+                    <button
+                        className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${activeTab === "invoice"
+                                ? "bg-indigo-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
+                                : "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-indigo-600 sm:hover:scale-105 font-semibold"
+                            }`}
+                        onClick={() => setActiveTab("invoice")}
+                    >
+                        Invoice
+                    </button>
                 </div>
             </div>
 
@@ -480,6 +500,15 @@ export function CustomerConnectSection() {
                 <MoneyReceiptLogSection
                     emptyMessage="No Money Receipt messages have been sent yet."
                     onCountChange={setMoneyReceiptTotal}
+                />
+            )}
+
+            {/* Invoice — read-only log, no send controls */}
+            {activeTab === "invoice" && (
+                <WhatsappLogSection
+                    eventKey="JOB_INVOICE"
+                    emptyMessage="No Invoice messages have been sent yet."
+                    onCountChange={setInvoiceTotal}
                 />
             )}
 

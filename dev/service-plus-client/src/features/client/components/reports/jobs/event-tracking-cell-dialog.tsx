@@ -21,7 +21,7 @@ import { ReportError } from "../common/report-error";
 import { ReportLoading } from "../common/report-loading";
 import { ReportTable } from "../common/report-table";
 import type { ReportColumnType } from "../common/report-table";
-import { formatNumber } from "../common/formatters";
+import { formatDateShort, formatNumber, formatTimeShort } from "../common/formatters";
 
 // Cost/Sale/Profit only make sense once a job has been costed out — meaningful
 // for Finalize (COMPLETED_OK) and Deliver, not for Received/Status Change.
@@ -39,6 +39,7 @@ type CellJobType = {
     id:            number;
     job_no:        string;
     event_date:    string;
+    event_time:    string | null;
     status_label:  string;
     customer_name: string | null;
     brand_name:    string | null;
@@ -68,7 +69,20 @@ export const EventTrackingCellDialog = ({ cell, onClose }: Props) => {
     const showCosts = cell != null && COST_EVENTS.has(cell.eventName);
 
     const columns: ReportColumnType<CellJobType>[] = [
-        { header: "Event Date", id: "event_date", value: r => r.event_date, width: "110px" },
+        {
+            cell:   r => (
+                <div className="flex flex-col gap-0.5">
+                    <span>{formatDateShort(r.event_date)}</span>
+                    {r.event_time && (
+                        <span className="text-[10px] text-(--cl-text-muted)">{formatTimeShort(r.event_time)}</span>
+                    )}
+                </div>
+            ),
+            header: "Event Date",
+            id:     "event_date",
+            value:  r => r.event_date,
+            width:  "110px",
+        },
         {
             cell:   r => (
                 <div className="flex flex-col gap-0.5">

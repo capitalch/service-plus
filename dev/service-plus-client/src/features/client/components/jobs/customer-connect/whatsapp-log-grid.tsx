@@ -29,7 +29,7 @@ type Props = {
     total:        number;
     page:         number;
     setPage:      (v: number | ((p: number) => number)) => void;
-    eventKey:     "JOB_CREATION" | "JOB_DELIVERY";
+    eventKey:     "JOB_CREATION" | "JOB_DELIVERY" | "JOB_INVOICE";
     emptyMessage: string;
     onViewJob:    (id: number) => void;
 };

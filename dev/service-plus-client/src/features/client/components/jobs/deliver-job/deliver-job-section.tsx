@@ -16,6 +16,7 @@ import { useAppSelector } from "@/store/hooks";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { useDeliveredJobActions } from "./use-delivered-job-actions";
+import { useSendWhatsappJobInvoice } from "./use-send-whatsapp-job-invoice";
 
 import { PAGE_SIZE } from "./deliver-job-helpers";
 import { DeliverableJobsGrid, type DeliverableJobRow } from "./deliverable-jobs-grid";
@@ -49,6 +50,7 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
     const branchId           = currentBranch?.id ?? null;
 
     const deliveredActions = useDeliveredJobActions();
+    const sendInvoiceWhatsapp = useSendWhatsappJobInvoice();
 
     // ── List state ────────────────────────────────────────────────────────────
     const [activeTab,  setActiveTab]  = useState<ActiveTab>(initialTab ?? "deliverable");
@@ -405,6 +407,10 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
                     onViewJob={id => setViewJobId(id)}
                     onOpenAttach={(id, jobNo) => { setAttachJobId(id); setAttachJobNo(jobNo); }}
                     onPrintInvoiceReceipts={row => void deliveredActions.handleInvoiceReceipts(row)}
+                    onSendInvoiceWhatsapp={row => {
+                        if (!dbName || !schema || !branchId) return;
+                        void sendInvoiceWhatsapp.send(dbName, schema, branchId, row.id);
+                    }}
                     onDeliveryNote={row => void deliveredActions.handleDeliveryNote(row)}
                     onUndoDelivery={row => {
                         if (row.invoice_is_posted) {
@@ -445,6 +451,8 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
                 void loadDeliveredData();
                 if (branchId) void loadData(branchId, searchQ, page);
             })}
+
+            {sendInvoiceWhatsapp.ConfirmDialog}
 
             {showDeliveryModal && modalJobDetails.length > 0 && (
                 <DeliveryModal
