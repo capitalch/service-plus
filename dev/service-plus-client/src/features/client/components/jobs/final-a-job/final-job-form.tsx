@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input } from "@/components/ui/input";
 import { MESSAGES } from "@/constants/messages";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { JobDetailType } from "@/features/client/types/job";
 import type { DivisionContextType } from "@/features/client/types/division";
@@ -167,7 +168,10 @@ function computeBackCalc(
     if (Math.abs(diff) < 0.005) return {};
 
     const activeParts          = partLines.filter(l => l.part_id !== null);
-    const activeCharges        = chargeLines.filter(c => c.charge_name.trim() !== "");
+    // Locked rows are excluded from the active set entirely: that removes them
+    // from step 2 (other charges) and step 4 (Labour/Service) in one stroke. They
+    // still count in total(), so the target keeps meaning the same thing.
+    const activeCharges        = chargeLines.filter(c => c.charge_name.trim() !== "" && !c.is_locked);
     const nonLastResortCharges = activeCharges.filter(c => !isLastResortCharge(c));
     const lastResortCharges    = activeCharges.filter(c => isLastResortCharge(c));
 
@@ -201,8 +205,10 @@ function computeBackCalc(
         // Non-last-resort charges alone can't absorb the rest — zero them out
         // (leaving Labour/Service Charge untouched) and carry the shortfall onto
         // parts in step 3.
+        // Walks the full list, not `active`, so the locked predicate is repeated here.
         newChargeLines = curCharges().map(c =>
-            (c.charge_name.trim() && !isLastResortCharge(c)) ? { ...c, selling_price: "0", sale_pr_gst: "0" } : c);
+            (c.charge_name.trim() && !isLastResortCharge(c) && !c.is_locked)
+                ? { ...c, selling_price: "0", sale_pr_gst: "0" } : c);
         remainingDiff = target - total(curParts(), curCharges());
     }
 
@@ -331,7 +337,7 @@ export function FinalJobForm({
 
         if (result.wentBelowCost) {
             setBelowCostWarning(
-                `Target of ₹${target.toFixed(2)} required selling one or more parts below their cost price, after Additional Charges were reduced to zero. Please review the part prices before saving.`
+                `Target of ₹${target.toFixed(2)} required selling one or more parts below their cost price, after unlocked Additional Charges were reduced to zero. Unlock a charge to give Apply more room. Please review the part prices before saving.`
             );
             return;
         }
@@ -340,8 +346,10 @@ export function FinalJobForm({
         const achievedTotal = finalPartLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0)
             + finalChargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
         if (Math.abs(achievedTotal - target) >= 0.005) {
+            // "Not achievable" is now something the user can cause deliberately — and undo.
+            const lockHint = chargeLines.some(c => c.is_locked) ? " Unlock a charge, or adjust the target." : "";
             toast.warning(
-                `Target of ₹${target.toFixed(2)} isn't fully achievable with the current parts and charges. Achieved ₹${achievedTotal.toFixed(2)} instead.`
+                `Target of ₹${target.toFixed(2)} isn't fully achievable with the current parts and charges. Achieved ₹${achievedTotal.toFixed(2)} instead.${lockHint}`
             );
         }
     }
@@ -811,6 +819,7 @@ export function FinalJobForm({
                                             {!isWarranty && <th className={`${thClass} w-28 text-right`}>Sale <span className="text-red-500">*</span></th>}
                                             {isGst && !isWarranty && <th className={`${thClass} w-28 text-right`}>Sale+GST</th>}
                                             <th className={`${thClass} w-32 text-right whitespace-nowrap`}>Amount</th>
+                                            {!isWarranty && <th className={`${thClass} w-12 px-0 text-center`}>Lock</th>}
                                             <th className={`${thClass} w-20`}></th>
                                         </tr>
                                     </thead>
@@ -896,9 +905,14 @@ export function FinalJobForm({
                                                 {!isWarranty && (
                                                     <td className={`${tdClass} text-right`}>
                                                         <div className="flex justify-end">
+                                                            {/* Locked rows get a quiet amber ring so it's obvious why Apply
+                                                                skipped them. Still hand-editable — lock blocks Apply, not typing. */}
                                                             <Input
-                                                                className="h-7 w-24 border-(--cl-border) bg-white text-xs text-right"
+                                                                className={`h-7 w-24 border-(--cl-border) bg-white text-xs text-right ${
+                                                                    c.is_locked ? "ring-1 ring-amber-400 bg-amber-50/60" : ""
+                                                                }`}
                                                                 min="0" step="0.01" type="number"
+                                                                title={c.is_locked ? "Locked — Apply will not change this price" : undefined}
                                                                 value={c.selling_price}
                                                                 onChange={e => {
                                                                     const sp = e.target.value;
@@ -932,6 +946,30 @@ export function FinalJobForm({
                                                         ? (parseFloat(c.cost_price) || 0) * (parseFloat(c.qty) || 1)
                                                         : (parseFloat(c.sale_pr_gst) || parseFloat(c.selling_price) || 0) * (parseFloat(c.qty) || 1))}
                                                 </td>
+                                                {!isWarranty && (
+                                                    <td className={`${tdClass} px-0`}>
+                                                        {/* Session-only lock: excludes this row from Apply. Never saved
+                                                            with the job — see plans/plan.md. onPatchCharge (not
+                                                            onUpdateCharge) because this is a boolean, not a string.
+                                                            The Radix root is display:flex, so it needs a flex parent to
+                                                            centre — text-center on the td does nothing. */}
+                                                        <div className="flex justify-center">
+                                                            <Checkbox
+                                                                className={`size-[18px] cursor-pointer border-2 [&_svg]:text-white ${
+                                                                    c.is_locked
+                                                                        ? "border-amber-500 bg-amber-500 data-checked:border-amber-500 data-checked:bg-amber-500 dark:data-checked:bg-amber-500"
+                                                                        : "border-(--cl-text-muted)/50 hover:border-amber-500 hover:bg-amber-100/70"
+                                                                }`}
+                                                                checked={c.is_locked}
+                                                                disabled={!c.charge_name.trim()}
+                                                                title={c.is_locked
+                                                                    ? "Price is locked — Apply will not change it"
+                                                                    : "Lock this price against Apply"}
+                                                                onCheckedChange={v => onPatchCharge(c._key, { is_locked: v === true })}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                )}
                                                 <td className={`${tdClass} px-1 align-middle`}>
                                                     <div className="flex items-center gap-1.5">
                                                         <Button
@@ -1148,6 +1186,16 @@ export function FinalJobForm({
                                                 onFocus={e => e.target.select()}
                                             />
                                         </div>
+                                        {/* Locks are session-only, so a reopened job starts fully unlocked and
+                                            Apply will move a charge that was protected last time. The unticked
+                                            column is the primary cue; this is the quiet backup. Not a toast —
+                                            it should never need dismissing. */}
+                                        {selectedRow.is_final && backCalcTarget !== "" && (
+                                            <p className="text-right text-[11px] leading-tight text-(--cl-text-muted)">
+                                                Charge locks are not carried over between sessions — re-tick Lock on any
+                                                charge you want Apply to leave alone.
+                                            </p>
+                                        )}
                                     </div>
                                 );
                             })()}

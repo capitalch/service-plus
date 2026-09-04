@@ -111,6 +111,10 @@ export async function finalizeJobSave(args: FinalizeJobSaveArgs): Promise<boolea
             return false;
         }
 
+        // NOTE: an explicit field allowlist, deliberately not a spread of the line
+        // object. genericUpdate writes whatever keys the payload carries, and
+        // EditableChargeLine.is_locked is UI-only with no matching column — do not
+        // refactor this into `...c` or the save will fail. See plans/plan.md.
         const chargeUpsertRows = chargeLines
             .filter(c => c.charge_name.trim())
             .map(c => ({

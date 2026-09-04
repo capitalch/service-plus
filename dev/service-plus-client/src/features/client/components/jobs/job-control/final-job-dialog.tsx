@@ -272,6 +272,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
                 cost_price: String(c.cost_price),
                 selling_price: String(c.selling_price),
                 sale_pr_gst: (loadedIsGst ? c.selling_price * (1 + (c.gst_rate ?? 0) / 100) : c.selling_price).toFixed(2),
+                is_locked: false,   // UI-only, per-session: a freshly opened job starts with nothing locked
             })));
             setDeletedChargeIds([]);
             const computedTotal =

@@ -3,13 +3,14 @@ import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
     ArrowLeft, ArrowRightLeft, CheckSquare,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    ClipboardList, Eye, FileDown, Loader2, Lock, MoreVertical, Package, Paperclip, Pencil, Printer, Receipt, ReceiptText, Search, Truck, Undo2, X,
+    ClipboardList, Eye, FileDown, IndianRupee, Loader2, Lock, MoreVertical, Package, Paperclip, Pencil, Printer, Receipt, ReceiptText, Search, Truck, Undo2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { RefreshButton } from "@/components/shared/refresh-button";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { Input } from "@/components/ui/input";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -41,12 +42,14 @@ import type { ChargesJobSummary } from "../job-pipeline/job-charges-modal";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { JobPdfModal } from "./job-pdf-modal";
+import { CorrectCostsModal } from "../cost-correction/correct-costs-modal";
 import { JobProformaInvoiceModal } from "./job-proforma-invoice-modal";
 import { FinalJobDialog } from "./final-job-dialog";
 import { FinalAJobSection } from "../final-a-job/final-a-job-section";
 import { DeliverJobSection } from "../deliver-job/deliver-job-section";
 import { DeliveryModal } from "../deliver-job/delivery-modal";
 import { useDeliveredJobActions } from "../deliver-job/use-delivered-job-actions";
+import { useSendWhatsappJobInvoice } from "../deliver-job/use-send-whatsapp-job-invoice";
 import type { JobDeliveryFullDetail } from "../deliver-job/deliver-job-schema";
 import { JobChargesReadonlyModal, type ChargesViewPartLine, type ChargesViewChargeLine } from "../final-a-job/job-charges-readonly-modal";
 
@@ -125,6 +128,7 @@ export const JobControlSection = () => {
 
     const [viewJobId,      setViewJobId]      = useState<number | null>(null);
     const [pdfJobId,       setPdfJobId]       = useState<number | null>(null);
+    const [correctCostsJob, setCorrectCostsJob] = useState<JobControlRow | null>(null);
     const [proformaJobId,  setProformaJobId]  = useState<number | null>(null);
     const [selectedRowId,  setSelectedRowId]  = useState<number | null>(null);
 
@@ -147,6 +151,7 @@ export const JobControlSection = () => {
     const [loadingDelivery,           setLoadingDelivery]           = useState<number | null>(null);
 
     const deliveredActions = useDeliveredJobActions();
+    const sendInvoiceWhatsapp = useSendWhatsappJobInvoice();
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -840,11 +845,31 @@ export const JobControlSection = () => {
                                                                             <Printer className="h-3.5 w-3.5 shrink-0 text-slate-600" /> Invoice + Receipts
                                                                         </DropdownMenuItem>
                                                                     )}
+                                                                    {job.invoice_is_posted !== null && (
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                                                            disabled={sendInvoiceWhatsapp.sending}
+                                                                            onClick={() => {
+                                                                                if (!dbName || !schema || !branchId) return;
+                                                                                void sendInvoiceWhatsapp.send(dbName, schema, Number(branchId), job.id);
+                                                                            }}
+                                                                        >
+                                                                            <WhatsAppIcon className="h-3.5 w-3.5 shrink-0" /> Send Invoice via WhatsApp
+                                                                        </DropdownMenuItem>
+                                                                    )}
                                                                     <DropdownMenuItem
                                                                         className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                                                                         onClick={() => setPdfJobId(job.id)}
                                                                     >
                                                                         <FileDown className="h-3.5 w-3.5 shrink-0 text-slate-600" /> Job Details PDF
+                                                                    </DropdownMenuItem>
+                                                                    {/* Deliberately not gated on invoice_is_posted — cost
+                                                                        correction is allowed on posted jobs. */}
+                                                                    <DropdownMenuItem
+                                                                        className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                                                                        onClick={() => setCorrectCostsJob(job)}
+                                                                    >
+                                                                        <IndianRupee className="h-3.5 w-3.5 shrink-0 text-slate-600" /> Correct Costs
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                     <DropdownMenuItem
@@ -1153,6 +1178,19 @@ export const JobControlSection = () => {
                     submitting={submitting}
                     onConfirm={() => void handleUndoConfirm(undoPendingJob)}
                     onClose={() => setUndoPendingJob(null)}
+                />
+            )}
+
+            {sendInvoiceWhatsapp.ConfirmDialog}
+
+            {correctCostsJob !== null && (
+                <CorrectCostsModal
+                    open
+                    branchId={branchId}
+                    jobId={correctCostsJob.id}
+                    jobNo={correctCostsJob.job_no}
+                    onClose={() => setCorrectCostsJob(null)}
+                    onSaved={refreshGrid}
                 />
             )}
 

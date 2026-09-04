@@ -18,6 +18,7 @@ export type FinalizedJobRow = {
     amount:              number | null;
     division_id:         number | null;
     file_count:          number;
+    missing_cost_lines:  number;
     batch_no:            number | null;
     device_details:      string | null;
     serial_no:           string | null;
@@ -82,6 +83,9 @@ export type EditableChargeLine = {
     cost_price:    string;
     selling_price: string;
     sale_pr_gst:   string;
+    // UI-only, never persisted: excludes this row from Apply (back-calculation).
+    // Deliberately absent from the DB and from chargeUpsertRows — see plans/plan.md.
+    is_locked:     boolean;
 };
 
 export function emptyChargeLine(gstRate = 0, hsn = ""): EditableChargeLine {
@@ -96,5 +100,6 @@ export function emptyChargeLine(gstRate = 0, hsn = ""): EditableChargeLine {
         cost_price:    "0",
         selling_price: "0",
         sale_pr_gst:   "0",
+        is_locked:     false,
     };
 }

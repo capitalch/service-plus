@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import {
     CheckCircle2,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, FileDown, Loader2, MoreVertical, Paperclip, Pencil, Receipt, ReceiptText, Search, Truck, Undo2, X,
+    Eye, FileDown, IndianRupee, Loader2, MoreVertical, Paperclip, Pencil, Receipt, ReceiptText, Search, Truck, Undo2, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -38,13 +38,14 @@ type Props = {
     onProforma:           (id: number) => void;
     onPdf:                (id: number) => void;
     onReviseFinal:        (row: FinalizedJobRow) => void;
+    onCorrectCosts:       (row: FinalizedJobRow) => void;
 };
 
 export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function FinalizedJobsGrid({
     rows, loading, total, page, setPage,
     search, branchId, availableDivisions, undoingJobId, chargesLoadingJobId, deliveryLoadingJobId,
     onSearchChange, onRefresh, onViewJob, onUndo, onOpenAttach, onViewCharges,
-    onDeliver, onProforma, onPdf, onReviseFinal,
+    onDeliver, onProforma, onPdf, onReviseFinal, onCorrectCosts,
 }, ref) {
     const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore } = useGridRowRetention(loading);
     useImperativeHandle(ref, () => ({ armRestore }), [armRestore]);
@@ -204,6 +205,14 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                     <span>{row.file_count} File{row.file_count !== 1 ? "s" : ""}</span>
                                                 </button>
                                             )}
+                                            {row.missing_cost_lines > 0 && (
+                                                <span
+                                                    className="w-fit rounded px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/40"
+                                                    title="Lines still missing a cost"
+                                                >
+                                                    {row.missing_cost_lines} missing cost
+                                                </span>
+                                            )}
                                         </div>
                                     </td>
 
@@ -313,6 +322,15 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                     >
                                                         <Pencil className="h-3.5 w-3.5 text-blue-600" />
                                                         Revise Final
+                                                    </DropdownMenuItem>
+                                                    {/* No is_posted block here, unlike Revise/Undo Final —
+                                                        cost correction is deliberately allowed on posted jobs. */}
+                                                    <DropdownMenuItem
+                                                        className="gap-2 text-xs text-rose-700 dark:text-rose-400 focus:text-rose-700 dark:focus:text-rose-400"
+                                                        onSelect={() => onCorrectCosts(row)}
+                                                    >
+                                                        <IndianRupee className="h-3.5 w-3.5 text-slate-600" />
+                                                        Correct Costs
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         className="gap-2 text-xs text-amber-700 dark:text-amber-400 focus:text-amber-700 dark:focus:text-amber-400"

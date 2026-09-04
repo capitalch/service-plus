@@ -682,7 +682,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
         content: [
             { type: "para", text: "Roles and access rights are seeded, not created through any UI form — matching the 'system-defined, not editable' philosophy in roles-page.tsx." },
             { type: "table", headers: ["Piece", "Detail"], rows: [
-                ["seed_security_data.py", "ROLE_SEED_SQL (the 3 role rows) + ACCESS_RIGHT_SEED_SQL (17 access_right rows as of the WhatsApp feature + role_access_right mapping), both ON CONFLICT DO NOTHING — fully idempotent, safe to re-run. A new right needs a new row here AND a corresponding role_access_right row per role that should get it — see 'WhatsApp Integration — Implementation' for a recent worked example (JOBS_CUSTOMER_CONNECT, id=17)."],
+                ["seed_security_data.py", "ROLE_SEED_SQL (the 3 role rows) + ACCESS_RIGHT_SEED_SQL (18 access_right rows as of job cost correction + role_access_right mapping), both ON CONFLICT DO NOTHING — fully idempotent, safe to re-run. A new right needs a new row here AND a corresponding role_access_right row per role that should get it — see 'WhatsApp Integration — Implementation' for a worked example (JOBS_CUSTOMER_CONNECT, id=17), and 'Job Cost Correction — Implementation' for the most recent one (JOBS_CORRECT_COST, id=18, MANAGER only)."],
                 ["Automatic seeding", "Runs inline whenever a new client schema is created (Super Admin → Initialize Client)"],
                 ["On-demand seeding", "The seedSecurityData GraphQL mutation, wired to Super Admin's seed-roles-dialog.tsx — a two-step wizard (Roles, then Access Rights), each step independently checked and idempotent"],
             ]},
@@ -764,6 +764,103 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
     },
 
     // ── Category 6: Multi-Tenancy & Provisioning ─────────────────────────────
+
+    {
+        id: "dev-cost-correction",
+        category: "Jobs",
+        title: "Job Cost Correction — Implementation",
+        summary: "SET_JOB_COST_CORRECTION via genericUpdateScript, why the per-table rights map cannot serve it, and where every guard lives.",
+        tags: ["cost correction", "SET_JOB_COST_CORRECTION", "JOBS_CORRECT_COST", "genericUpdateScript", "GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS", "job_part_used", "job_additional_charge"],
+        content: [
+            { type: "para", text: "Cost correction edits cost_price on rows that already exist in job_part_used / job_additional_charge, at any job status including delivered, closed and posted. No row is inserted, no row is deleted, and no other column is written. Selling price, job.amount, the invoice, receipts and stock are never touched." },
+            { type: "heading", text: "The write path" },
+            { type: "table", headers: ["Piece", "Where"], rows: [
+                ["SQL",            "SqlStore.SET_JOB_COST_CORRECTION in app/db/sql/sql_jobs.py — a single statement with input / valid / upd_parts / upd_charges CTEs"],
+                ["Mutation",       "The existing genericUpdateScript — no new resolver, no schema.graphql change"],
+                ["Right",          "JOBS_CORRECT_COST (access_right id 18), MANAGER only"],
+                ["Rights map",     "JOBS_GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS in jobs/mutations.py, merged into GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS in mutation.py"],
+                ["Guard",          "_require_generic_update_script_right() reads sql_id off the payload and calls require_access_right()"],
+                ["Read query",     "SqlStore.GET_JOB_COST_LINES — both tables UNIONed into one branch-scoped result"],
+                ["Client",         "features/client/components/jobs/cost-correction/ — modal, save function, schema, helpers"],
+            ]},
+            { type: "heading", text: "Why not plain genericUpdate" },
+            { type: "para", text: "_require_generic_update_table_right() reads only the top-level tableName and never walks xDetails, which leaves two dead ends. Sending tableName 'job' with the two tables nested (the finalizeJobSave shape) means the guard never sees them, so no right can be applied at all. Sending job_part_used / job_additional_charge top-level is guardable, but GENERIC_UPDATE_TABLE_RIGHTS is keyed per table — registering either against JOBS_CORRECT_COST would also gate part-used-section.tsx, edit-part-used-dialog.tsx, delete-part-used-dialog.tsx and job-charges-modal.tsx, all Receptionist-usable today." },
+            { type: "para", text: "genericUpdateScript's rights map is keyed per sql_id instead, so the right applies to this one operation and nothing else. That keying is the whole reason the feature went this way." },
+            { type: "heading", text: "Every guard lives in the SQL" },
+            { type: "bullets", items: [
+                "cost_price > 0 — the valid CTE drops non-positive costs.",
+                "Ownership — the row must belong to this job_id AND this branch_id, checked with EXISTS against job.",
+                "Column allowlist — both UPDATEs hardcode SET cost_price, so the payload cannot reach selling_price or qty however it is crafted.",
+                "DISTINCT ON (line_table, id) — without it, a payload repeating an id with two different costs makes UPDATE ... FROM valid non-deterministic.",
+                "The statement returns submitted vs updated; a mismatch means rows were rejected, and the client treats that as a failure rather than success.",
+            ]},
+            { type: "note", text: "This matters because genericUpdate writes whatever keys the payload carries. With no audit trail, these server-side guarantees are the only thing holding the feature's safety case up — do not move any of them into the client." },
+            { type: "heading", text: "The (spare|parts) pattern lives in three places" },
+            { type: "table", headers: ["Location", "Form"], rows: [
+                ["sql_jobs.py — missing_cost_lines on GET_DELIVERED_JOBS_PAGED and GET_DELIVERABLE_JOBS_PAGED", "charge_name ~* '(spare|parts)'"],
+                ["cost-correction-helpers.ts", "SPARE_CHARGE_PATTERN = /(spare|parts)/i"],
+                ["finalize-job-save.ts", "the finalize-time validation"],
+            ]},
+            { type: "warning", text: "Change one, change all three — they define the same 'this charge needs a cost' rule, and a drift shows up as a badge count that disagrees with what the editor flags." },
+            { type: "heading", text: "No audit trail — deliberate" },
+            { type: "para", text: "There is no audit table, no reason field, and nothing is shown about who changed a cost or when. job_part_used gets updated_at = now() only because the column already exists; job_additional_charge has no such column and one was deliberately not added. If an audit requirement ever arrives, it is a new feature, not a bug fix." },
+        ],
+        faqs: [
+            { q: "Why is the action allowed on a posted job when Revise Final and Undo Final are not?", a: "Those two rewrite customer-facing and accounting-relevant data. Cost correction writes one internal column that no invoice, receipt, or posting reads — so the posted state is irrelevant to it. The dropdown items deliberately omit the is_posted disabled/title attributes for that reason." },
+            { q: "Do I need to add anything to schema.graphql for a new sql_id like this?", a: "No. genericUpdateScript already exists on both sides; a new operation is a new SqlStore attribute plus, if it needs gating, one entry in a domain's *_GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS dict." },
+            { q: "How does an existing tenant get access_right id 18?", a: "Super Admin → the seed-roles dialog re-runs the access-rights seed on open and upgrades tenants seeded before the code existed (ON CONFLICT DO NOTHING). See 'Seeding Roles & Access Rights'." },
+            { q: "Why does the client still check cost > 0 if the SQL already does?", a: "For the error message and to keep Save disabled. It is convenience only — the server rejects the row regardless, and the client treats an updated/submitted mismatch as a failure." },
+        ],
+    },
+
+    {
+        id: "dev-charge-lock-back-calc",
+        category: "Jobs",
+        title: "Charge Lock on Apply (Back-Calculation) — Implementation",
+        summary: "is_locked is UI-only session state on EditableChargeLine; the two computeBackCalc edit points that must both honour it, and why it is deliberately never persisted.",
+        tags: ["is_locked", "charge lock", "back calculation", "computeBackCalc", "applyBackCalc", "scaleCharges", "chargeUpsertRows", "EditableChargeLine", "isLastResortCharge"],
+        content: [
+            { type: "para", text: "A Lock checkbox on each Additional Charge row in the finalize form excludes that row from Apply (target-amount back-calculation), in both directions and at every step. Parts have no equivalent — the cost-price floor is their protection. The column is hidden on warranty jobs, where selling prices are hidden and the amount is always ₹0." },
+            { type: "heading", text: "Where it lives" },
+            { type: "table", headers: ["Piece", "Where"], rows: [
+                ["The field",       "EditableChargeLine.is_locked: boolean in final-a-job-schema.ts — a real boolean, unlike the strings every other editable field uses (those are strings because they are bound to text inputs mid-typing)"],
+                ["Seeded false",   "emptyChargeLine(), plus both load sites: final-a-job-section.tsx and job-control/final-job-dialog.tsx"],
+                ["Apply logic",    "computeBackCalc() in final-job-form.tsx — two edit points, below"],
+                ["The column",     "The Additional Charges table in final-job-form.tsx, wired to onPatchCharge (a Partial<EditableChargeLine>), never onUpdateCharge (typed for string fields only)"],
+                ["Never saved",    "chargeUpsertRows in finalize-job-save.ts — an explicit field allowlist that structurally cannot carry it"],
+            ]},
+            { type: "note", text: "final-job-dialog.tsx reuses FinalJobForm, so the form and Apply changes cover both finalize surfaces at once. Only the load mapping is duplicated — a new field on the line type needs adding in both places." },
+            { type: "heading", text: "computeBackCalc has two edit points, and both must exclude locked rows" },
+            { type: "bullets", items: [
+                "activeCharges — filtering locked rows out of the active set removes them from step 2 (other charges) and step 4 (Labour/Service) in one stroke. scaleCharges already takes (allCharges, active, …) and patches only keys present in active, so it needed no change at all.",
+                "Step 2's zero-out fallback — it walks curCharges() (the full list), not active, so the !c.is_locked predicate has to be repeated there or a locked row gets zeroed.",
+            ]},
+            { type: "warning", text: "total() is deliberately NOT filtered. A locked row still counts toward the job total — locking changes what Apply moves, never what it measures. Filtering it there would silently redefine the target." },
+            { type: "para", text: "scaleCharges, scaleParts, allocateFloored, pickResidualKey and snapInclToWholeRupee are all untouched by this feature." },
+            { type: "heading", text: "It must never reach the database" },
+            { type: "para", text: "There is no is_locked column on job_additional_charge and there is not meant to be one. chargeUpsertRows builds each row as an explicit field allowlist rather than a spread of the line object, which is the only thing keeping is_locked out of the payload — and genericUpdate writes whatever keys the payload carries. Refactoring that mapping to `...c` breaks the save. There is a comment there saying so; keep it." },
+            { type: "heading", text: "Why it is not persisted — settled, do not re-litigate" },
+            { type: "bullets", items: [
+                "The durable need is already met. isLastResortCharge() permanently holds Labour and Service Charge back until every other lever is exhausted — 'we never discount labour' is enforced with no user action and no storage.",
+                "What is left is inherently in-session: ad-hoc per-negotiation cases ('on this job the diagnostic fee stays at ₹500'). The lock's work is finished at Apply time.",
+                "Persisting creates stale-state surprise — a checkbox ticked three weeks ago silently constraining today's Apply on a job someone else is revising.",
+                "The cost was real: no migration framework here, so a column meant a manual ALTER TABLE per already-provisioned tenant plus defensive ?? false fallbacks on every load site during rollout.",
+            ]},
+            { type: "para", text: "The one thing persistence would have bought — locks surviving a revise — is covered instead by an inline hint near the Target Amount field, shown when an already-finalized job is reopened with a target set." },
+            { type: "heading", text: "Deliberately out of scope" },
+            { type: "bullets", items: [
+                "Reset Prices and the division/GST change both rebuild charges with prev.map(c => ({ ...c, … })) and rewrite only gst_rate, hsn_code and sale_pr_gst — unlisted fields survive, so locks survive both for free. Do not add lock handling to either.",
+                "Job Pipeline's charges modal (job-charges-modal.tsx) has no Apply, so it gets no Lock column and no change.",
+                "No persistence means no audit, no history and no cross-user visibility. Two people editing the same job see independent locks.",
+            ]},
+        ],
+        faqs: [
+            { q: "Why a field on the line rather than a Set of locked _keys?", a: "It then flows through patchChargeLine, the reset helper and the division-change helper for free, and it cannot reach the database anyway because chargeUpsertRows is an allowlist." },
+            { q: "Does locking disable the Sale input?", a: "No, deliberately. Lock blocks Apply, not typing. The locked row's Sale box gets an amber ring as a cue and stays fully editable." },
+            { q: "A user locked everything and now Save & Mark Final is blocked.", a: "Expected, and not a regression. The hard block in finalize-job-save.ts fires whenever the target and the line total disagree by more than ₹0.02. They unlock a charge, change the target, or clear the Target Amount field. This is the most likely support question the feature generates — it is covered in the client help article." },
+            { q: "Why do Parts get no lock?", a: "The cost-price floor already stops Apply discounting a part into a loss in step 1, and step 3 (below cost) only runs when every charge is at zero. A per-part lock would add a second protection mechanism for the same problem." },
+        ],
+    },
 
     {
         id: "dev-client-lifecycle",
@@ -1277,6 +1374,15 @@ export const DEV_CAT_STYLE: Record<string, CategoryStyleType> = {
         stepText: "text-white",
         border:   "border-rose-300 dark:border-rose-700",
     },
+    "Jobs": {
+        emoji:    "🧾",
+        gradient: "from-teal-600 to-cyan-700",
+        pill:     "bg-teal-100 dark:bg-teal-900/40",
+        pillText: "text-teal-700 dark:text-teal-300",
+        stepBg:   "bg-teal-600",
+        stepText: "text-white",
+        border:   "border-teal-300 dark:border-teal-700",
+    },
     "Multi-Tenancy & Provisioning": {
         emoji:    "🏢",
         gradient: "from-amber-500 to-yellow-600",
@@ -1351,6 +1457,7 @@ export const DEV_HELP_CATEGORIES = [
     "Server (Backend)",
     "Client (Frontend)",
     "Access Control & Security",
+    "Jobs",
     "Multi-Tenancy & Provisioning",
     "Deployment & Infrastructure",
     "Configuration",

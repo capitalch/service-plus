@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, MoreVertical, Paperclip, Printer, Search, Truck, Undo2, X,
+    Eye, IndianRupee, MoreVertical, Paperclip, Printer, Search, Truck, Undo2, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -55,6 +55,7 @@ export type DeliveredJobRow = {
     invoice_is_posted:   boolean | null;
     batch_no:            number | null;
     file_count:          number;
+    missing_cost_lines:  number;
 };
 
 type Props = {
@@ -77,6 +78,7 @@ type Props = {
     onPrintInvoiceReceipts:   (row: DeliveredJobRow) => void;
     onSendInvoiceWhatsapp:    (row: DeliveredJobRow) => void;
     onDeliveryNote:           (row: DeliveredJobRow) => void;
+    onCorrectCosts:           (row: DeliveredJobRow) => void;
     selectedIds:              Set<number>;
     onSelectionChange:        (row: DeliveredJobRow, checked: boolean) => void;
     onPrintCombinedNote:      () => void;
@@ -87,7 +89,7 @@ type Props = {
 export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function DeliveredJobsGrid({
     rows, loading, total, page, search, deliveryDateFilter,
     branchId, availableDivisions, setPage, postDataToAccounts,
-    onSearch, onDeliveryDateChange, onRefresh, onViewJob, onOpenAttach, onUndoDelivery, onPrintInvoiceReceipts, onSendInvoiceWhatsapp, onDeliveryNote,
+    onSearch, onDeliveryDateChange, onRefresh, onViewJob, onOpenAttach, onUndoDelivery, onPrintInvoiceReceipts, onSendInvoiceWhatsapp, onDeliveryNote, onCorrectCosts,
     selectedIds, onSelectionChange, onPrintCombinedNote,
 }, ref) {
     const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore } = useGridRowRetention(loading);
@@ -302,6 +304,14 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                         <span>{row.file_count} File{row.file_count !== 1 ? "s" : ""}</span>
                                                     </button>
                                                 )}
+                                                {row.missing_cost_lines > 0 && (
+                                                    <span
+                                                        className="w-fit rounded px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/40"
+                                                        title="Lines still missing a cost"
+                                                    >
+                                                        {row.missing_cost_lines} missing cost
+                                                    </span>
+                                                )}
                                             </div>
                                         </td>
 
@@ -386,6 +396,14 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                             <WhatsAppIcon className="h-3.5 w-3.5" /> Send Invoice via WhatsApp
                                                         </DropdownMenuItem>
                                                     )}
+                                                    {/* Deliberately not gated on invoice_is_posted — cost
+                                                        correction is allowed on posted jobs. */}
+                                                    <DropdownMenuItem
+                                                        className="gap-2 text-xs text-rose-700 dark:text-rose-400 cursor-pointer"
+                                                        onClick={() => onCorrectCosts(row)}
+                                                    >
+                                                        <IndianRupee className="h-3.5 w-3.5 text-slate-600" /> Correct Costs
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem
                                                         className="gap-2 text-xs text-amber-700 dark:text-amber-400 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"

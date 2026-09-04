@@ -8,8 +8,8 @@
 								- Provide ALT job no in invoice
 								- On top right sl no appears twice
 								- Parts costing is must
-	- Allow cost to change even after final and posting
-	- Locking of charge rows in additional charges while doing final of a job
+								- Allow cost to change even after final and posting
+								- Locking of charge rows in additional charges while doing final of a job
 - Menu proper arrangement
 - Fix location and style of refresh and search box in the screen
 - Whatsapp

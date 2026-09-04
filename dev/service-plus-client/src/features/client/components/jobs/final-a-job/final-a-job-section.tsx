@@ -36,6 +36,7 @@ import { TargetNotAppliedDialog } from "./target-not-applied-dialog";
 import { FinalJobForm } from "./final-job-form";
 import { PendingJobsGrid } from "./pending-jobs-grid";
 import { FinalizedJobsGrid } from "./finalized-jobs-grid";
+import { CorrectCostsModal } from "../cost-correction/correct-costs-modal";
 import type { GridRetentionHandle } from "../use-grid-row-retention";
 import { JobChargesReadonlyModal, type ChargesViewPartLine, type ChargesViewChargeLine } from "./job-charges-readonly-modal";
 import { DeliveryModal } from "../deliver-job/delivery-modal";
@@ -418,6 +419,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                 cost_price: String(c.cost_price),
                 selling_price: String(c.selling_price),
                 sale_pr_gst: (loadedIsGst ? c.selling_price * (1 + (c.gst_rate ?? 0) / 100) : c.selling_price).toFixed(2),
+                is_locked: false,   // UI-only, per-session: a freshly opened job starts with nothing locked
             })));
             setDeletedChargeIds([]);
 
@@ -458,6 +460,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
     // ── Undo Final ──────────────────────────────────────────────────────────
     const [undoingJobId, setUndoingJobId] = useState<number | null>(null);
     const [undoConfirmRow, setUndoConfirmRow] = useState<FinalizedJobRow | null>(null);
+    const [correctCostsJob, setCorrectCostsJob] = useState<FinalizedJobRow | null>(null);
 
     // ── PDF / Proforma / Delivery modals ─────────────────────────────────────
     type DeliveryMannerRow = { id: number; name: string };
@@ -983,6 +986,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                         onProforma={setProformaJobId}
                         onPdf={setPdfJobId}
                         onReviseFinal={row => void handleReviseFinal(row)}
+                        onCorrectCosts={row => setCorrectCostsJob(row)}
                     />
                 )}
             </motion.div>
@@ -1056,6 +1060,21 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                         setDeliveryJobDetails([]);
                         finalizedGridRef.current?.armRestore();
                         void loadFinalizedData();
+                    }}
+                />
+            )}
+
+            {correctCostsJob !== null && (
+                <CorrectCostsModal
+                    open
+                    branchId={branchId}
+                    jobId={correctCostsJob.id}
+                    jobNo={correctCostsJob.job_no}
+                    onClose={() => setCorrectCostsJob(null)}
+                    onSaved={() => {
+                        finalizedGridRef.current?.armRestore();
+                        void loadFinalizedData();
+                        if (branchId) void loadData(branchId, searchQ, page, currentDivision?.id ?? null);
                     }}
                 />
             )}

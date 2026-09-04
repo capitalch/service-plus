@@ -22,6 +22,7 @@ import { PAGE_SIZE } from "./deliver-job-helpers";
 import { DeliverableJobsGrid, type DeliverableJobRow } from "./deliverable-jobs-grid";
 import { DeliveredJobsGrid, type DeliveredJobRow } from "./delivered-jobs-grid";
 import { DeliveryModal } from "./delivery-modal";
+import { CorrectCostsModal } from "../cost-correction/correct-costs-modal";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import type { GridRetentionHandle } from "../use-grid-row-retention";
 
@@ -88,6 +89,7 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
     const [attachJobId,  setAttachJobId]  = useState<number | null>(null);
     const [attachJobNo,  setAttachJobNo]  = useState<string>("");
     const [viewJobId,    setViewJobId]    = useState<number | null>(null);
+    const [correctCostsJob, setCorrectCostsJob] = useState<DeliveredJobRow | null>(null);
 
     const debounceRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
     const deliveredDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -412,6 +414,7 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
                         void sendInvoiceWhatsapp.send(dbName, schema, branchId, row.id);
                     }}
                     onDeliveryNote={row => void deliveredActions.handleDeliveryNote(row)}
+                    onCorrectCosts={row => setCorrectCostsJob(row)}
                     onUndoDelivery={row => {
                         if (row.invoice_is_posted) {
                             toast.error(`Cannot undo delivery — invoice ${row.invoice_no ? `#${row.invoice_no}` : ""} is already posted to accounts.`);
@@ -443,6 +446,20 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
                 <JobDetailsModal
                     jobId={viewJobId}
                     onClose={() => setViewJobId(null)}
+                />
+            )}
+
+            {correctCostsJob !== null && (
+                <CorrectCostsModal
+                    open
+                    branchId={branchId}
+                    jobId={correctCostsJob.id}
+                    jobNo={correctCostsJob.job_no}
+                    onClose={() => setCorrectCostsJob(null)}
+                    onSaved={() => {
+                        deliveredGridRef.current?.armRestore();
+                        void loadDeliveredData();
+                    }}
                 />
             )}
 

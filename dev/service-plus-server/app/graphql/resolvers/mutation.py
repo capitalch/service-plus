@@ -41,6 +41,7 @@ from app.graphql.resolvers.jobs.invoicing import (
     resolve_regenerate_job_invoice_helper,
 )
 from app.graphql.resolvers.jobs.mutations import (
+    JOBS_GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS,
     JOBS_GENERIC_UPDATE_TABLE_RIGHTS,
     resolve_create_job_batch_helper,
     resolve_create_job_payment_helper,
@@ -102,9 +103,13 @@ GENERIC_UPDATE_TABLE_RIGHTS: dict[str, str] = {
 }
 
 # genericUpdateScript executes a named SqlStore query by sql_id (not a
-# tableName), so it needs its own, separately-keyed rights dict. Only
-# Set Part Location needs one today — see plans/plan.md Step 8.
+# tableName), so it needs its own, separately-keyed rights dict. Being keyed
+# per sql_id, a right here gates exactly one operation and no other caller of
+# the same table — which is why job cost correction lives here rather than in
+# GENERIC_UPDATE_TABLE_RIGHTS (see plans/plan.md Step 6). Each domain owns its
+# own slice, merged here since genericUpdateScript is a single dispatcher.
 GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS: dict[str, str] = {
+    **JOBS_GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS,
     **INVENTORY_GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS,
 }
 
