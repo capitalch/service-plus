@@ -25,6 +25,7 @@ import {
 } from "./final-a-job-schema";
 import { fmtCurrency, thClass, tdClass, calculateLinePricing } from "./final-a-job-helpers";
 import { ChargeNameCombobox } from "./charge-name-combobox";
+import { chargeNeedsCost } from "../charge-cost-rule";
 import { isValidGstin, normalizeGstin } from "@/lib/gstin";
 import { allocateFloored, pickResidualKey, snapInclToWholeRupee, type FloorAllocItem } from "@/lib/back-calc";
 
@@ -36,6 +37,14 @@ function isLabourCharge(c: EditableChargeLine): boolean {
 
 function isServiceCharge(c: EditableChargeLine): boolean {
     return /service\s*charge/i.test(c.charge_name);
+}
+
+// Cost is mandatory only on spare/parts charges — labour, service and visit charges
+// legitimately have none. Mirrors the finalize-time check in finalize-job-save.ts and the
+// missing_cost_lines badge; a blank, unnamed row is never an error.
+function isChargeCostMissing(c: EditableChargeLine): boolean {
+    return c.charge_name.trim() !== "" && chargeNeedsCost(c.charge_name)
+        && !((parseFloat(c.cost_price) || 0) > 0);
 }
 
 // Labour and Service Charge are both held back as the last-resort lever during
@@ -815,7 +824,8 @@ export function FinalJobForm({
                                             {isGst && !isWarranty && <th className={`${thClass} w-28`}>HSN <span className="text-red-500">*</span></th>}
                                             {isGst && !isWarranty && <th className={`${thClass} w-20 text-right`}>GST%</th>}
                                             <th className={`${thClass} w-20 text-right`}>Qty</th>
-                                            <th className={`${thClass} w-28 text-right`}>Cost <span className="text-red-500">*</span></th>
+                                            {/* No asterisk: cost is required only on spare/parts charges (chargeNeedsCost). */}
+                                            <th className={`${thClass} w-28 text-right`} title="Required on spare/parts charges">Cost</th>
                                             {!isWarranty && <th className={`${thClass} w-28 text-right`}>Sale <span className="text-red-500">*</span></th>}
                                             {isGst && !isWarranty && <th className={`${thClass} w-28 text-right`}>Sale+GST</th>}
                                             <th className={`${thClass} w-32 text-right whitespace-nowrap`}>Amount</th>
@@ -890,13 +900,15 @@ export function FinalJobForm({
                                                 </td>
                                                 <td className={`${tdClass} text-right`}>
                                                     {/* Flagged only once the charge is actually named, mirroring the
-                                                        HSN check on this same row — a blank new row isn't an error. */}
+                                                        HSN check on this same row — a blank new row isn't an error —
+                                                        and only on spare/parts charges, matching the finalize-time
+                                                        validation and the missing_cost_lines badge. */}
                                                     <Input
                                                         className={`h-7 w-24 border-(--cl-border) bg-white text-xs text-right ${
-                                                            c.charge_name.trim() && !((parseFloat(c.cost_price) || 0) > 0) ? "border-red-500 focus:border-red-500" : ""
+                                                            isChargeCostMissing(c) ? "border-red-500 focus:border-red-500" : ""
                                                         }`}
                                                         min="0.01" step="0.01" type="number"
-                                                        title={c.charge_name.trim() && !((parseFloat(c.cost_price) || 0) > 0) ? "Cost must be greater than 0" : undefined}
+                                                        title={isChargeCostMissing(c) ? "Cost is required on spare/parts charges" : undefined}
                                                         value={c.cost_price}
                                                         onChange={e => onUpdateCharge(c._key, "cost_price", e.target.value)}
                                                         onFocus={e => e.target.select()}

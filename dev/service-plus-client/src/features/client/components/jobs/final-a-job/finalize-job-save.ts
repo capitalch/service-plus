@@ -7,6 +7,7 @@ import { isValidGstin, saveCustomerGstin } from "@/lib/gstin";
 import type { JobDetailType } from "@/features/client/types/job";
 
 import type { EditablePartLine, EditableChargeLine, FinalJobRow } from "./final-a-job-schema";
+import { chargeNeedsCost } from "../charge-cost-rule";
 
 export type FinalizeJobSaveArgs = {
     selectedJob:        JobDetailType;
@@ -94,20 +95,24 @@ export async function finalizeJobSave(args: FinalizeJobSaveArgs): Promise<boolea
             return false;
         }
 
-        // A row that exists must carry a real cost — zero is not a valid cost, it's an
+        // A row that needs a cost must carry a real one — zero is not a valid cost, it's an
         // unfilled field. Checked separately from the negative/qty test above so the
         // message names the one thing that's actually wrong; a combined message sends
         // staff hunting through every numeric column. Row existence is judged the same
         // way every other check on this screen judges it (a part actually selected, a
         // charge actually named), so a blank placeholder row is not a validation error.
+        // Every part needs a cost; a charge only when chargeNeedsCost() says so — labour
+        // and service charges legitimately have none. That test is the same rule the
+        // missing_cost_lines badge and the Correct Costs modal apply.
         const zeroCostParts   = partLines.filter(l => l.part_id && !((parseFloat(l.cost_price) || 0) > 0));
-        const zeroCostCharges = chargeLines.filter(c => c.charge_name.trim() && !((parseFloat(c.cost_price) || 0) > 0));
+        const zeroCostCharges = chargeLines.filter(c => c.charge_name.trim() && chargeNeedsCost(c.charge_name)
+            && !((parseFloat(c.cost_price) || 0) > 0));
         if (zeroCostParts.length > 0 || zeroCostCharges.length > 0) {
             const where = [
                 zeroCostParts.length   ? `${zeroCostParts.length} part row${zeroCostParts.length !== 1 ? "s" : ""}` : null,
-                zeroCostCharges.length ? `${zeroCostCharges.length} charge row${zeroCostCharges.length !== 1 ? "s" : ""}` : null,
+                zeroCostCharges.length ? `${zeroCostCharges.length} spare/parts charge row${zeroCostCharges.length !== 1 ? "s" : ""}` : null,
             ].filter(Boolean).join(" and ");
-            toast.error(`Cost must be greater than 0 on every row — ${where} still have a cost of 0. Enter the cost on the highlighted rows before finalizing.`);
+            toast.error(`Cost must be greater than 0 on every part row and every spare/parts charge — ${where} still have a cost of 0. Enter the cost on the highlighted rows before finalizing.`);
             return false;
         }
 

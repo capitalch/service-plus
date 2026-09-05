@@ -84,7 +84,7 @@ it means the env is ready the moment DNS flips.
 
 cPanel → **Zone Editor** → **Manage** for `kushinfotech.in`:
 
-1. **Delete** the `service` **A** record (`103.212.121.53`).
+1. **Delete** the `service` **A** record (`103.212.121.53`). This is the same you edited one hour before.
 2. **Add**:
    ```
    Name:   service                (cPanel may want the FQDN: service.kushinfotech.in.)
@@ -135,6 +135,27 @@ plain HTTP on port 80 and will burn a rate-limit attempt if DNS is not ready.
 The platform's built-in wildcard certificate covers only `*.cloudjiffy.net`, so
 `https://service.kushinfotech.in` will throw a name-mismatch warning until you do this.
 
+**As actually done (2026-09-05):** no manual nginx reverse proxy and no separate
+Let's Encrypt Marketplace add-on were needed. Instead:
+
+1. Any manually-installed nginx reverse-proxy node was uninstalled, leaving the
+   python server as the env's own entry point.
+2. Environment → **Settings** → the env-level **SSL** button was clicked (this is
+   Cloudjiffy's built-in Let's Encrypt integration, which issues/renews a cert for
+   every domain already bound to the env — the default `*.cloudjiffy.net` name and
+   any custom domains — rather than a separately-installed add-on).
+3. Result: `https://service-stage.cloudjiffy.net` **and**
+   `https://serviceplus.kushinfotech.in` both serve over valid HTTPS.
+
+> ⚠️ **Domain name check needed:** this plan (Phases 1–3) binds and cuts over
+> `service.kushinfotech.in`, but the confirmed-working custom domain above is
+> `serviceplus.kushinfotech.in` (also referenced in Phase 6 as the *existing*
+> public site that must not be touched). Confirm which hostname is actually meant
+> before relying on this — if `service.kushinfotech.in` was intended, its SSL
+> coverage still needs separate verification.
+
+Original plan (still valid if the Marketplace add-on route is preferred instead of
+the env's SSL button):
 1. Environment → **Add-ons** / **Marketplace** → install **Let's Encrypt Free SSL** on
    the environment's **entry-point** node.
 2. Configure:
@@ -144,7 +165,7 @@ The platform's built-in wildcard certificate covers only `*.cloudjiffy.net`, so
      expected — it changes the scheme, never the hostname.)*
 3. Install and wait for the success message.
 
-Verify:
+Verify (either route):
 ```bash
 curl -I https://service.kushinfotech.in
 echo | openssl s_client -connect service.kushinfotech.in:443 \
@@ -152,6 +173,8 @@ echo | openssl s_client -connect service.kushinfotech.in:443 \
   | openssl x509 -noout -subject -issuer -dates
 ```
 The SAN must contain `service.kushinfotech.in` and the issuer must be Let's Encrypt.
+Also confirm the cert's expiry/auto-renewal is active rather than a one-time manual
+issuance that will silently lapse in ~90 days.
 
 **Rate limit:** 5 failed validations per hostname per hour. If issuance fails, diagnose
 (nearly always DNS not propagated, or port 80 blocked) rather than retrying blindly.

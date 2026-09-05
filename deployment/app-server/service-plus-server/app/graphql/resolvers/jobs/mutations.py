@@ -26,6 +26,12 @@ JOBS_GENERIC_UPDATE_TABLE_RIGHTS: dict[str, str] = {
     "job_invoice": "JOBS_DELIVER_JOB",
 }
 
+# genericUpdateScript access rights, keyed by sql_id rather than tableName.
+# Cost correction cannot go through genericUpdate — see plans/plan.md Step 6.
+JOBS_GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS: dict[str, str] = {
+    "SET_JOB_COST_CORRECTION": "JOBS_CORRECT_COST",
+}
+
 
 async def resolve_create_job_payment_helper(
     db_name: str, schema: str = "public", value: str = ""

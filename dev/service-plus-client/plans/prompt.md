@@ -1,5 +1,11 @@
-# Mapping a sudomain https://serviceplus.kushinfotech.in to a cloudjiffy env
-- I have a subdomain https://serviceplus.kushinfotech.in with milesweb.in
-- I want to map it to a cloudjiffy env, such that traffic to https://serviceplus.kushinfotech.in is served from cloudjiffy.
-- Say for example cloudjiffy env is at https://service-stage.cloudjiffy.net
-- give a complete step by step guide to do it in plan.md file
+# Adding a new feature
+- Create a top nav menu item "Options" (like jobs, customers, sales, etc)
+- Add an item "Extended warranty" to this menu.
+- Context of this feature is:
+    - I am Sony authorised service center. I want to give reminders as whatsapp messages to Sony customers for extended warranty.
+    - These customers are not in customer master, nor do they will ever be in the future.
+    - The message is like this
+        - Greetings from {brand}, Warranty of your {brand}{product} will be expired on {date}, You may extend the warranty period for further 1/2 years. For details pl contact {phone number} or whatsapp to{whatsapp number}
+    - There should be a button like "I am interested in extended warranty. Please contact me". When user clicks this button, staff should get info about customer's intrest in extended warranty. Staff would manually foolow up with the customer.
+- Create a complete design with backend apis and database schema changes for this feature.
+- create your plan in plan-ew.md

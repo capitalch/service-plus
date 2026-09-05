@@ -1333,6 +1333,70 @@ class JobsSql:
         ORDER BY id
     """
 
+    # Cost-correction editor — every existing cost-bearing line on one job, both
+    # tables in one result, already scoped to the caller's branch.
+    GET_JOB_COST_LINES = """
+        with "p_job_id" as (values(%(job_id)s::bigint)),
+             "p_branch_id" as (values(%(branch_id)s::bigint))
+        SELECT 'part'::text AS line_table, p.id, p.qty,
+               p.cost_price, p.selling_price,
+               sp.part_code AS code, sp.part_name AS name, p.remarks AS note
+        FROM job_part_used p
+        JOIN job j ON j.id = p.job_id
+        JOIN spare_part_master sp ON sp.id = p.part_id
+        WHERE p.job_id = (table "p_job_id") AND j.branch_id = (table "p_branch_id")
+        UNION ALL
+        SELECT 'charge', c.id, c.qty, c.cost_price, c.selling_price,
+               c.ref_no, c.charge_name, c.description
+        FROM job_additional_charge c
+        JOIN job j ON j.id = c.job_id
+        WHERE c.job_id = (table "p_job_id") AND j.branch_id = (table "p_branch_id")
+        ORDER BY 1, 2
+    """
+
+    # Cost correction (plans/plan.md). Runs via genericUpdateScript, gated by
+    # JOBS_CORRECT_COST in GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS. Every guard lives in
+    # this statement, so the write is safe regardless of what the client sends:
+    # cost > 0, row belongs to this job AND branch, and only cost_price is set.
+    # Returns submitted vs updated — a mismatch means something was rejected.
+    SET_JOB_COST_CORRECTION = """
+        WITH input AS (
+            SELECT DISTINCT ON (line_table, id) line_table, id, cost_price
+            FROM (
+                SELECT (e ->> 'line_table')::text    AS line_table,
+                       (e ->> 'id')::bigint          AS id,
+                       (e ->> 'cost_price')::numeric AS cost_price
+                FROM jsonb_array_elements(%(lines)s::jsonb) e
+            ) t
+            ORDER BY line_table, id
+        ),
+        valid AS (
+            SELECT i.* FROM input i
+            WHERE i.cost_price > 0
+              AND ( (i.line_table = 'part' AND EXISTS (
+                        SELECT 1 FROM job_part_used p JOIN job j ON j.id = p.job_id
+                        WHERE p.id = i.id AND p.job_id = %(job_id)s
+                          AND j.branch_id = %(branch_id)s))
+                 OR (i.line_table = 'charge' AND EXISTS (
+                        SELECT 1 FROM job_additional_charge c JOIN job j ON j.id = c.job_id
+                        WHERE c.id = i.id AND c.job_id = %(job_id)s
+                          AND j.branch_id = %(branch_id)s)) )
+        ),
+        upd_parts AS (
+            UPDATE job_part_used p SET cost_price = v.cost_price, updated_at = now()
+            FROM valid v WHERE v.line_table = 'part' AND p.id = v.id
+            RETURNING 1
+        ),
+        upd_charges AS (
+            -- job_additional_charge has no updated_at column; do not add one.
+            UPDATE job_additional_charge c SET cost_price = v.cost_price
+            FROM valid v WHERE v.line_table = 'charge' AND c.id = v.id
+            RETURNING 1
+        )
+        SELECT (SELECT COUNT(*) FROM input) AS submitted,
+               (SELECT COUNT(*) FROM upd_parts) + (SELECT COUNT(*) FROM upd_charges) AS updated
+    """
+
     # ── Job Receipts (Payments) ───────────────────────────────────────────────
 
     GET_JOB_PAYMENTS_COUNT = """
@@ -1633,6 +1697,13 @@ class JobsSql:
                    (SELECT SUM(jp2.amount) FROM job_payment jp2 WHERE jp2.job_id = j.id),
                    0
                )              AS total_paid,
+               (
+                   (SELECT COUNT(*) FROM job_part_used p
+                      WHERE p.job_id = j.id AND COALESCE(p.cost_price, 0) <= 0)
+                 + (SELECT COUNT(*) FROM job_additional_charge c
+                      WHERE c.job_id = j.id AND COALESCE(c.cost_price, 0) <= 0
+                        AND c.charge_name ~* '(spare|parts)')
+               )              AS missing_cost_lines,
                (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
@@ -1719,6 +1790,13 @@ class JobsSql:
                ji.amount     AS invoice_total,
                ji.invoice_no,
                ji.is_posted  AS invoice_is_posted,
+               (
+                   (SELECT COUNT(*) FROM job_part_used p
+                      WHERE p.job_id = j.id AND COALESCE(p.cost_price, 0) <= 0)
+                 + (SELECT COUNT(*) FROM job_additional_charge c
+                      WHERE c.job_id = j.id AND COALESCE(c.cost_price, 0) <= 0
+                        AND c.charge_name ~* '(spare|parts)')
+               )              AS missing_cost_lines,
                (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
