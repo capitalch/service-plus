@@ -89,25 +89,6 @@ The folder tree under `features/client/components/` mirrors the app's menu hiera
 
 ## Conventions (project-specific, enforced by review)
 
-- **Red is reserved for errors** and for the `*` on mandatory fields. Never use red for ordinary control styling. Hard rule.
-- Text longer than two words goes in `constants/messages.ts` as a key; control display text (labels, buttons, placeholders) stays hardcoded in the component.
-- **Never use `index.ts` re-export barrels** — always explicit named imports, intra- and cross-feature.
-- Arrow functions for components and hooks; normal `function` declarations for utilities, API helpers and inline handlers.
-- `type`, not `interface`, wherever possible; type names end in `Type`.
-- Sort alphabetically within a file: functions, object properties, type members, array literals, parameters, and Tailwind classes.
 - `useAppDispatch` / `useAppSelector` (from `store/hooks`), never the untyped react-redux hooks. `apolloClient.query(...)` directly, never `useApolloClient()`.
-- Forms: react-hook-form + `useFieldArray` + zod resolvers. Validation errors must appear immediately and disable submit while invalid.
-- shadcn components + framer-motion for transitions; sonner for toasts. Designs must be responsive.
+- shadcn components + framer-motion for transitions; sonner for toasts. 
 - Debounce timings come from `constants/timing.ts` (`SEARCH_DEBOUNCE_MS`, `FIELD_VALIDATION_DEBOUNCE_MS` — both 1600 ms); never inline a literal.
-- Prettier config is unusual: **tabs, width 4, double quotes, semicolons, printWidth 120**. Run `pnpm format` on touched files.
-
-## Planning protocol
-
-When a request ends with the word "plan" (or you are in plan mode), produce a plan only — no code changes. Write it to `plans/plan.md` in this folder, overwriting any existing file, with steps labelled `Step 1`, `Step 2`, … and a **Workflow** section describing the end-to-end flow. Other `plans/*.md` files are per-feature plans and prompts; do not overwrite them unless asked.
-
-## Files not to read
-
-.claudeignore` excludes `.env`, `**/.env*` and `**/config.*` — secrets live there.
-
-## Folders never to read and work upon
-- All folders named as deployment and subfolders in it. These are deployment files and not to be touched.

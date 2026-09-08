@@ -58,45 +58,45 @@ sleep 1
 konsole --workdir "/home/sushant/projects/trace-plus/dev/trace-client" &
 sleep 5
 
-konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" & -e bash -ic "pnpm start; exec bash" &
-sleep 5
-
-konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" & -e bash -c "claude; exec bash" &
-sleep 5
-
-konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" &
-sleep 1
-
-konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" &
-sleep 1
-
-konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" & -e bash -ic "git pull; exec bash" &
-sleep 5
-
-konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" & -e bash -ic "pnpm start; exec bash" &
-sleep 5
-
-konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" & -e bash -ic "claude; exec bash" &
-sleep 5
-
-konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" &
-sleep 1
-
-konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" &
-sleep 1
-
-konsole --workdir "/home/sushant/projects/kush-infotech-web/" & -e bash -ic "git pull; exec bash" &
-sleep 5
-
-konsole --workdir "/home/sushant/projects/kush-infotech-web/" & -e bash -ic "pnpm start; exec bash" &
-sleep 5
-
-konsole --workdir "/home/sushant/projects/kush-infotech-web/" & -e bash -ic "claude; exec bash" &
-sleep 5
-
-konsole --workdir "/home/sushant/projects/kush-infotech-web/" &
-sleep 1
-
-konsole --workdir "/home/sushant/projects/kush-infotech-web/" &
-sleep 1
+# konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" & -e bash -ic "pnpm start; exec bash" &
+# sleep 5
+#
+# konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" & -e bash -c "claude; exec bash" &
+# sleep 5
+#
+# konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" &
+# sleep 1
+#
+# konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" &
+# sleep 1
+#
+# konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" & -e bash -ic "git pull; exec bash" &
+# sleep 5
+#
+# konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" & -e bash -ic "pnpm start; exec bash" &
+# sleep 5
+#
+# konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" & -e bash -ic "claude; exec bash" &
+# sleep 5
+#
+# konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" &
+# sleep 1
+#
+# konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" &
+# sleep 1
+#
+# konsole --workdir "/home/sushant/projects/kush-infotech-web/" & -e bash -ic "git pull; exec bash" &
+# sleep 5
+#
+# konsole --workdir "/home/sushant/projects/kush-infotech-web/" & -e bash -ic "pnpm start; exec bash" &
+# sleep 5
+#
+# konsole --workdir "/home/sushant/projects/kush-infotech-web/" & -e bash -ic "claude; exec bash" &
+# sleep 5
+#
+# konsole --workdir "/home/sushant/projects/kush-infotech-web/" &
+# sleep 1
+#
+# konsole --workdir "/home/sushant/projects/kush-infotech-web/" &
+# sleep 1
 
