@@ -3,6 +3,27 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-10 17:39 (main)
+Extended Warranty: WhatsApp renewal reminders end to end
+
+- Server data layer: new single-table `ew_customer` model — flat columns for anything a
+  grid filters on, JSONB `stages`/`follow_ups` for history — plus the `ew_stage_v`
+  flattening view, `sql_extended_warranty.py`, and the `ew_delta.sql` /
+  `seed_access_right_ew.sql` migration scripts.
+- Server send path: two new Meta templates, `sign_ew`/`verify_ew` link tokens,
+  `send_ew_reminders` and `send_ew_lead_alert`, webhook routing for the `EW`/`EL` event
+  codes, and the public `/extended-warranty` interest and opt-out pages.
+- Client: a new "Custom" top-nav section holding the Extended Warranty screen — customers,
+  due list, interest, follow-ups and message log — with a drill-down dashboard, two new
+  access rights, and the visibility/send app settings behind them.
+- Hardening: WhatsApp HMAC secrets now fail at startup rather than signing with an empty
+  key, and a hardcoded default was removed from `trace_plus_service_key` (value not read
+  or reproduced; it remains in earlier history, so rotate it).
+- Housekeeping: nginx `location /extended-warranty/` block added to notes/Deployment.md;
+  six finished per-feature plans replaced by the single Extended Warranty plan.
+
+Files: 66 changed (+5827 / -2911) — Base: 8e8a0f5
+
 ## 2026-09-08 15:13 (main)
 Chore: add /git-deploy skill and trim duplicated client conventions
 
