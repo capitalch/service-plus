@@ -15,7 +15,8 @@ import { selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ACCESS_RIGHTS, hasAccessRight } from "@/features/auth/utils/access-rights";
 import { ROUTES } from "@/router/routes";
 import { useAppSelector } from "@/store/hooks";
-import { selectPostDataToAccounts } from "@/store/context-slice";
+import { selectExtendedWarrantyNotificationsEnabled, selectPostDataToAccounts } from "@/store/context-slice";
+import { getVisibleCustomMenuItems } from "./custom-menu-registry";
 import { HelpHint } from "@/components/shared/help/help-hint";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 
@@ -102,6 +103,30 @@ function ConfigurationsExplorer() {
                 <TreeItem icon={Building2} iconColor="text-purple-600"    label="Divisions"          helpArticleId="divisions" />
                 <TreeItem icon={Settings2} iconColor="text-blue-600"    label="App Settings"       helpArticleId="app-settings" />
                 <TreeItem icon={Hash} iconColor="text-slate-600"         label="Numbering / Auto Series" helpArticleId="document-sequences" />
+            </div>
+        </div>
+    );
+}
+
+// Renders exactly what custom-menu-registry says is visible, so this panel and the
+// top-nav tab can never disagree about whether Custom has anything in it.
+function CustomExplorer() {
+    const currentUser = useAppSelector(selectCurrentUser);
+    const extendedWarrantyNotificationsEnabled = useAppSelector(selectExtendedWarrantyNotificationsEnabled);
+    const items = getVisibleCustomMenuItems(currentUser, { extendedWarrantyNotificationsEnabled });
+
+    return (
+        <div className="space-y-4">
+            <div className="space-y-1">
+                {items.map(({ helpArticleId, icon, iconColor, label }) => (
+                    <TreeItem
+                        key={label}
+                        helpArticleId={helpArticleId}
+                        icon={icon}
+                        iconColor={iconColor}
+                        label={label}
+                    />
+                ))}
             </div>
         </div>
     );
@@ -351,6 +376,7 @@ function ReportsExplorer() {
 const EXPLORERS: Record<Section, ComponentType> = {
     admin:          AdminExplorer,
     configurations: ConfigurationsExplorer,
+    custom:         CustomExplorer,
     inventory:      InventoryExplorer,
     jobs:           JobsExplorer,
     masters:        MastersExplorer,
@@ -360,6 +386,7 @@ const EXPLORERS: Record<Section, ComponentType> = {
 const SECTION_TITLES: Record<Section, string> = {
     admin:          'Administration',
     configurations: 'System Configuration',
+    custom:         'Add-on Services',
     inventory:      'Stock & Parts',
     jobs:           'Job Lifecycle',
     masters:        'Master Data',
@@ -372,6 +399,7 @@ const MOBILE_NAV_ITEMS: MobileNavItem[] = [
     { label: 'Jobs',    section: 'jobs',           to: ROUTES.client.jobs },
     { label: 'Inv',     section: 'inventory',      to: ROUTES.client.inventory },
     { label: 'Reports', section: 'reports',        to: ROUTES.client.reports },
+    { label: 'Custom',  section: 'custom',         to: ROUTES.client.custom },
     { label: 'Masters', section: 'masters',        to: ROUTES.client.masters },
     { label: 'Config',  section: 'configurations', to: ROUTES.client.configurations },
     { label: 'Admin',   section: 'admin',          to: ROUTES.client.admin },

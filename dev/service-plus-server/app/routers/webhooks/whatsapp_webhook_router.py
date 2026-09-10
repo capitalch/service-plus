@@ -114,10 +114,18 @@ async def _process_webhook_payload(payload: dict) -> None:
 # (SET_JOB_MONEY_RECEIPT_WHATSAPP_ATTEMPT's own docstring) — its
 # attempt/fail counts only ever reflect the initial send, never advance to
 # DELIVERED/READ.
+#
+# "EW"/"EL" (Extended Warranty reminder / staff lead alert) are the first codes whose
+# trailing id list is NOT job ids — it is `customer_id,stage`, and they are routed to
+# their own SQL below rather than to SET_JOB_WHATSAPP_OUTCOME. Anything reading that
+# segment must check the event code first.
 _EVENT_KEY_BY_CODE = {
     "CC": "JOB_COMPLETION", "JC": "JOB_CREATION", "JD": "JOB_DELIVERY",
     "MR": "JOB_MONEY_RECEIPT", "JI": "JOB_INVOICE",
+    "EW": "EXTENDED_WARRANTY", "EL": "EXTENDED_WARRANTY_LEAD",
 }
+
+_EW_EVENT_KEYS = {"EXTENDED_WARRANTY", "EXTENDED_WARRANTY_LEAD"}
 
 
 def _decode_callback_data(callback_data: str) -> tuple[str, str, str, list[int]] | None:
@@ -146,6 +154,98 @@ def _decode_callback_data(callback_data: str) -> tuple[str, str, str, list[int]]
         return None
 
 
+async def _apply_ew_status_callback(
+    db_name: str,
+    schema: str,
+    event_key: str,
+    ids: list[int],
+    wamid: str | None,
+    raw_status: str,
+    new_rank: int,
+    msg_status: dict,
+) -> None:
+    """Extended Warranty status callbacks — `ids` is `[ew_customer_id, stage]`, not job
+    ids. The reminder and the staff lead alert settle into different places on the same
+    row (`stages[n]` vs `stages[n].interest.alert`), so they get different statements,
+    and the pubsub payload carries `target` so the Message Log chip and the Interest
+    grid's alert chip update independently."""
+    if len(ids) != 2:
+        logger.warning("EW status callback wamid=%s has malformed ids=%r", wamid, ids)
+        return
+    ew_customer_id, stage = ids[0], ids[1]
+
+    settled_at = datetime.now(timezone.utc).isoformat()
+    error_message = None
+    if raw_status == "FAILED":
+        errors = msg_status.get("errors") or []
+        if errors:
+            error_message = errors[0].get("title") or errors[0].get("message")
+
+    is_lead_alert = event_key == "EXTENDED_WARRANTY_LEAD"
+    try:
+        if is_lead_alert:
+            # The alert has no ladder guard of its own: it is a single send with no
+            # re-send path that could be clobbered, and its whole purpose is to show
+            # staff the latest state.
+            rows = await exec_sql(
+                db_name=db_name,
+                schema=schema,
+                sql=SqlStore.SET_EW_ALERT_OUTCOME,
+                sql_args={
+                    "ew_customer_id": ew_customer_id,
+                    "stage": str(stage),
+                    "status": raw_status,
+                    "wamid": wamid,
+                    "sent_at": settled_at,
+                    "error": error_message,
+                },
+            )
+        else:
+            rows = await exec_sql(
+                db_name=db_name,
+                schema=schema,
+                sql=SqlStore.SET_EW_REMINDER_OUTCOME,
+                sql_args={
+                    "ew_customer_id": ew_customer_id,
+                    "stage": str(stage),
+                    "wamid": wamid,
+                    "status": raw_status,
+                    "error": error_message,
+                    "new_rank": new_rank,
+                    "settled_at": settled_at,
+                },
+            )
+        if rows:
+            logger.info(
+                "EW outcome applied: customer_id=%s stage=%s status=%s wamid=%s",
+                ew_customer_id, stage, raw_status, wamid,
+            )
+            await pubsub.publish(
+                "whatsapp_delivery_status",
+                {
+                    "db_name": db_name,
+                    "ew_customer_id": ew_customer_id,
+                    "error": error_message,
+                    "kind": "EW",
+                    "stage": stage,
+                    "status": raw_status,
+                    "target": "STAFF" if is_lead_alert else "CUSTOMER",
+                },
+            )
+        else:
+            logger.info(
+                "EW outcome ignored (status ladder, duplicate/out-of-order): "
+                "customer_id=%s stage=%s status=%s wamid=%s",
+                ew_customer_id, stage, raw_status, wamid,
+            )
+    except Exception:  # pylint: disable=broad-except
+        # Meta must never see a 500 here, same discipline as the job path.
+        logger.exception(
+            "Failed to apply EW outcome for customer_id=%s stage=%s wamid=%s",
+            ew_customer_id, stage, wamid,
+        )
+
+
 async def _apply_status_callback(msg_status: dict) -> None:
     wamid = msg_status.get("id")
     raw_status = (msg_status.get("status") or "").upper()
@@ -165,6 +265,12 @@ async def _apply_status_callback(msg_status: dict) -> None:
         )
         return
     db_name, schema, event_key, job_ids = decoded
+
+    if event_key in _EW_EVENT_KEYS:
+        await _apply_ew_status_callback(
+            db_name, schema, event_key, job_ids, wamid, raw_status, new_rank, msg_status
+        )
+        return
 
     # Stamped once per callback, not per job_id — every job in this batch settled on
     # the same wamid at the same moment. ISO-8601 UTC, same convention sender.py's
@@ -201,7 +307,13 @@ async def _apply_status_callback(msg_status: dict) -> None:
                 # one it's currently tracking.
                 await pubsub.publish(
                     "whatsapp_delivery_status",
-                    {"db_name": db_name, "job_id": job_id, "status": raw_status, "error": error_message},
+                    {
+                        "db_name": db_name,
+                        "job_id": job_id,
+                        "kind": "JOB",
+                        "status": raw_status,
+                        "error": error_message,
+                    },
                 )
             else:
                 logger.info(

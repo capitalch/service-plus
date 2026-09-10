@@ -24,6 +24,7 @@ const ACTIVITY_ITEMS: ActivityItem[] = [
     { color: 'text-green-600', icon: BarChart3,         section: 'reports',        to: ROUTES.client.reports,        title: 'Reports' },
     { color: 'text-sky-600',   icon: BookOpen,          section: 'masters',        to: ROUTES.client.masters,        title: 'Masters' },
     { color: 'text-slate-500', icon: SlidersHorizontal, section: 'configurations', to: ROUTES.client.configurations, title: 'Configurations' },
+    { color: 'text-violet-600', icon: ShieldCheck,      section: 'custom',         to: ROUTES.client.custom,         title: 'Custom' },
 ];
 
 type Props = { activeSection: Section };

@@ -44,6 +44,8 @@ const ACCESS_RIGHT_PREVIEW_ITEMS = [
 	{ code: "MASTERS_ORGANIZATION", module: "Masters", name: "Organization (Manager only)" },
 	{ code: "MASTERS_SERVICE_CONFIG", module: "Masters", name: "Service Config (Manager only)" },
 	{ code: "JOBS_BATCH_WARRANTY_TRANSACTIONS", module: "Jobs", name: "Batch Warranty Jobs" },
+	{ code: "CUSTOM_MENU", module: "Custom", name: "Custom (whole tab)" },
+	{ code: "CUSTOM_EXTENDED_WARRANTY", module: "Custom", name: "Extended Warranty" },
 ];
 
 type SeedRolesDialogPropsType = {

@@ -1,6 +1,6 @@
 """Account settings for the WhatsApp Cloud API — direct with Meta, no BSP."""
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,3 +49,28 @@ class WhatsappSettings(BaseSettings):
     whatsapp_delivery_otp_secret: str = Field(
         default="", repr=False, description="HMAC secret for hashing job-delivery confirmation codes"
     )
+
+    @model_validator(mode="after")
+    def _require_signing_secrets_when_configured(self):
+        """WhatsApp is optional — with nothing configured every field here stays "" and the
+        integration is simply unused, which is why these two keep an empty default rather
+        than becoming required outright.
+
+        Once WhatsApp *is* configured, though, an empty HMAC secret is worse than a missing
+        one: token.py and otp.py would sign with b"", and since the algorithm is public
+        anyone could reproduce that signature — forging a status link or a delivery code
+        without ever seeing a secret. The empty default made that failure silent. Fail at
+        startup instead, naming the keys to add to .env."""
+        if not (self.whatsapp_access_token or self.whatsapp_phone_number_id):
+            return self
+        missing = [
+            name
+            for name in ("whatsapp_link_token_secret", "whatsapp_delivery_otp_secret")
+            if not getattr(self, name).strip()
+        ]
+        if missing:
+            raise ValueError(
+                "WhatsApp is configured, so these HMAC secrets must be set in .env: "
+                + ", ".join(missing)
+            )
+        return self

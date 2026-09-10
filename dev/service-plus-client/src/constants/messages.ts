@@ -526,6 +526,27 @@ export const MESSAGES = {
   CONFIRM_POST_UNPOST_SELECT_ALL_TITLE_POSTED:   'Mark all as Posted?',
   CONFIRM_POST_UNPOST_SELECT_ALL_TITLE_UNPOSTED: 'Mark all as Unposted?',
   CONFIRM_POST_UNPOST_SELECT_ALL_BODY:           'This will set {count} record{plural} on this page to {state}. The change is staged and applied only when you click Continue.',
+
+  // Custom — Extended Warranty
+  ERROR_EW_CUSTOMERS_LOAD_FAILED:      'Failed to load extended warranty customers. Please try again.',
+  ERROR_EW_DASHBOARD_LOAD_FAILED:      'Failed to load the extended warranty dashboard. Please try again.',
+  ERROR_EW_DUE_LOAD_FAILED:            'Failed to load due reminders. Please try again.',
+  ERROR_EW_FOLLOW_UP_FAILED:           'Failed to record the follow-up. Please try again.',
+  ERROR_EW_INTEREST_LOAD_FAILED:       'Failed to load warranty leads. Please try again.',
+  ERROR_EW_LOG_LOAD_FAILED:            'Failed to load the message log. Please try again.',
+  ERROR_EW_RESEND_ALERT_FAILED:        'Failed to resend the staff alert. Please try again.',
+  ERROR_EW_SEND_FAILED:                'Failed to send extended warranty reminders. Please try again.',
+  INFO_EW_ALERT_NOT_SENT:              'The staff WhatsApp alert was not sent for this lead. The lead itself is safe — you can resend the alert.',
+  INFO_EW_DISABLED:                    'Extended warranty messaging is switched off. Turn on EXTENDED_WARRANTY under Configurations, App Settings, WhatsApp notifications.',
+  INFO_EW_NO_DUE_REMINDERS:            'No customers are due a reminder at this stage right now.',
+  INFO_EW_NO_INTEREST:                 'No customer has expressed interest yet.',
+  INFO_EW_NO_LOG:                      'No extended warranty messages have been sent yet.',
+  INFO_EW_SELECT_CUSTOMERS:            'Select one or more customers to send reminders to.',
+  SUCCESS_EW_ALERT_RESENT:             'Staff alert resent.',
+  SUCCESS_EW_CUSTOMER_SAVED:           'Extended warranty customer saved.',
+  SUCCESS_EW_FOLLOW_UP_RECORDED:       'Follow-up recorded.',
+  CONFIRM_EW_DELETE_TITLE:             'Delete this warranty record?',
+  CONFIRM_EW_DELETE_BODY:              'This removes the customer and their entire reminder and follow-up history. This cannot be undone.',
 } as const;
 
 // Builds the Post/Unpost "Select All" confirmation title + description from central templates.

@@ -97,7 +97,6 @@ class ApiSettings(BaseSettings):
         description="Trace-plus base URL for production (no trailing slash)",
     )
     trace_plus_service_key: str = Field(
-        default="5171f52c545e8a88a3eca272685f4e2016cb7fbefd8ef687acdec9cf606491c6",
         description="Pre-shared key for trace-plus internal endpoint (X-Service-Key header). Must match trace-plus SERVICE_PLUS_API_KEY.",
     )
 

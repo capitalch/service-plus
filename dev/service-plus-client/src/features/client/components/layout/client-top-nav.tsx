@@ -1,5 +1,5 @@
 import { useNavigate, NavLink } from "react-router-dom";
-import { LogOut, Menu, Moon, PackageX, PanelLeft, Sun, Timer, UploadCloud } from "lucide-react";
+import { LogOut, Menu, Moon, PackageX, PanelLeft, ShieldCheck, Sun, Timer, UploadCloud } from "lucide-react";
 
 import { NotificationBell } from "@/components/shared/notifications/notification-bell";
 import type { NotificationItem } from "@/components/shared/notifications/notification-bell";
@@ -8,16 +8,29 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout, selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ACCESS_RIGHTS, getRoleDisplayName, hasAccessRight, type AccessRightCode } from "@/features/auth/utils/access-rights";
 import { ROUTES } from "@/router/routes";
+import { selectExtendedWarrantyNotificationsEnabled } from "@/store/context-slice";
+import { getVisibleCustomMenuItems } from "./custom-menu-registry";
 import { useLayout, useTheme } from "./client-layout";
 import type { Section } from "./client-layout";
 import { useNotificationsSummary } from "./use-notifications-summary";
 
-type NavItem = { label: string; requiredRight?: AccessRightCode; section: Section; to: string; end?: boolean };
+// `isHidden` is the one thing an access right can't express: Custom is a container for
+// bought add-ons, so when a tenant has none of them the tab must not exist at all —
+// not render disabled the way a missing access right does.
+type NavItem = {
+    label: string;
+    requiredRight?: AccessRightCode;
+    section: Section;
+    to: string;
+    end?: boolean;
+    isHidden?: boolean;
+};
 
 const NAV_ITEMS: NavItem[] = [
     { label: 'Jobs',           section: 'jobs',           to: ROUTES.client.jobs },
     { label: 'Inventory',      section: 'inventory',      to: ROUTES.client.inventory },
     { label: 'Reports',        section: 'reports',        to: ROUTES.client.reports },
+    { label: 'Custom',         section: 'custom',         to: ROUTES.client.custom,         requiredRight: ACCESS_RIGHTS.CUSTOM_MENU },
     { label: 'Masters',        section: 'masters',        to: ROUTES.client.masters,        requiredRight: ACCESS_RIGHTS.MASTERS_MENU },
     { label: 'Configurations', section: 'configurations', to: ROUTES.client.configurations, requiredRight: ACCESS_RIGHTS.CONFIG_MENU },
     { label: 'Admin',          section: 'admin',          to: ROUTES.client.admin,          requiredRight: ACCESS_RIGHTS.ADMIN_MENU },
@@ -29,9 +42,16 @@ export const ClientTopNav = ({ activeSection }: Props) => {
     const dispatch                 = useAppDispatch();
     const navigate                 = useNavigate();
     const user                     = useAppSelector(selectCurrentUser);
+    const extendedWarrantyNotificationsEnabled = useAppSelector(selectExtendedWarrantyNotificationsEnabled);
+
+    // Custom is a container: it exists only while it has at least one visible child.
+    // An empty tab would be worse than no tab — it promises a feature the tenant has
+    // not bought.
+    const hasCustomItems = getVisibleCustomMenuItems(user, { extendedWarrantyNotificationsEnabled }).length > 0;
+    const navItems       = NAV_ITEMS.filter(item => item.section !== 'custom' || hasCustomItems);
     const { isDark, toggleTheme }  = useTheme();
     const { toggleExplorer }       = useLayout();
-    const { jobsOverdue, lowStockParts, unpostedDocs } = useNotificationsSummary();
+    const { ewNewInterest, jobsOverdue, lowStockParts, unpostedDocs } = useNotificationsSummary();
 
     function handleLogout() {
         dispatch(logout());
@@ -59,6 +79,15 @@ export const ClientTopNav = ({ activeSection }: Props) => {
             id:       "low-stock-parts",
             label:    "Low-stock parts",
             onSelect: () => navigate(ROUTES.client.inventory, { state: { subItem: "Part Finder" } }),
+        },
+        // Only meaningful while the add-on is on; useNotificationsSummary already
+        // returns 0 when it isn't, so the bell simply has nothing to show.
+        {
+            count:    ewNewInterest,
+            icon:     ShieldCheck,
+            id:       "ew-new-interest",
+            label:    "Extended warranty interest",
+            onSelect: () => navigate(ROUTES.client.custom, { state: { subItem: "Extended Warranty" } }),
         },
     ];
 
@@ -89,7 +118,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                 <span className="shrink-0 text-lg font-black tracking-tighter text-(--cl-accent-text) hidden xs:block">Service+</span>
 
                 <nav className="hidden items-center gap-1 md:flex overflow-hidden">
-                    {NAV_ITEMS.map(({ label, requiredRight, section, to, end }) => {
+                    {navItems.map(({ label, requiredRight, section, to, end }) => {
                         const disabled = !!requiredRight && !hasAccessRight(user, requiredRight);
                         if (disabled) {
                             return (

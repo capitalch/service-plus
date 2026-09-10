@@ -162,6 +162,62 @@ TEMPLATES: dict[str, TemplateSpec] = {
     # (plans/plan.md). Plain Utility like JOB_MONEY_RECEIPT; reuses
     # JOB_DELIVERY's already-approved /job-delivery/invoice/ button prefix,
     # just minted with a fresh token — no new PDF route.
+    # ── Extended Warranty (plans/plan.md) ─────────────────────────────────────
+    # The first event not anchored to a `job` row, and the first MARKETING template
+    # here. MARKETING takes the same named header/body path as UTILITY in client.py
+    # (only AUTHENTICATION branches), so no send-path change was needed — but this is
+    # a non-opt-in list, which is why the feature ships behind two default-OFF
+    # switches, a daily cap, an opt-out link and a once-per-stage send guard.
+    "EXTENDED_WARRANTY": TemplateSpec(
+        name="extended_warranty_reminder_v1",
+        language="en",
+        category="MARKETING",
+        header_params=["business_unit"],
+        body_params=[
+            "customer_name",
+            "brand",
+            "product",
+            "expiry_date",
+            "contact_phone",
+            "whatsapp_number",
+        ],
+        # "I'm interested — contact me". Same bare-prefix-no-placeholder registration
+        # discipline every other dynamic-URL button here needs; the send appends the
+        # signed token from token.py's sign_ew.
+        button_count=1,
+    ),
+    # Fires at the same moment as a customer's interest tap, to the company's own
+    # WhatsApp number — one of two redundant channels for the same lead (the other
+    # being the in-app Interest tab + bell + email). "Full details of the customer"
+    # is carried in five COMPOSED lines rather than fifteen variables: Meta templates
+    # cannot branch, so "omit this field when blank" has to happen in Python, exactly
+    # as _build_reference_line/_build_amount_line already do. Each param is one line —
+    # _sanitize strips newlines and tabs, so a line break inside a parameter is not
+    # available; the template's own body text supplies the breaks.
+    #
+    # Category is a judgement call: a lead alert to your own staff number is arguably
+    # Utility, but Meta's classifier has rejected a Utility submission here before for
+    # content it read differently (JOB_DELIVERY's OTP split). If it is rejected,
+    # resubmit as MARKETING — nothing in the send path changes.
+    "EXTENDED_WARRANTY_LEAD": TemplateSpec(
+        name="extended_warranty_lead_alert_v1",
+        language="en",
+        category="UTILITY",
+        header_params=["business_unit"],
+        body_params=[
+            "customer_line",
+            "device_line",
+            "warranty_line",
+            "contact_line",
+            "remarks_line",
+        ],
+        # "Open in Service+" — a deep link into the AUTHENTICATED app
+        # (/client/custom/ew/<customer_id>-<stage>), so ProtectedRoute is the
+        # credential and no signed token is minted for it. This is the return path
+        # that lets staff close a lead from the WhatsApp side; an inbound reply
+        # cannot be used, since it carries no biz_opaque_callback_data to route by.
+        button_count=1,
+    ),
     "JOB_INVOICE": TemplateSpec(
         name="job_invoice_v1",
         language="en",

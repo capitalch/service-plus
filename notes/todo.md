@@ -2,6 +2,8 @@
 - Invoice
 	- Intimation of warranty over message for renew
 	- Intimation for immediate collection of your set
+	- One internal remarks, not printable, for internal working
+	- Estimate approval process through whatsapp
 								- Log of multiple message timings
 								- Delivery of Invoice through whatsapp
 								- Sony service center

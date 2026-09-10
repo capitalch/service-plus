@@ -14,6 +14,7 @@ import {
     selectIsGstMode,
     selectSchema,
     setDefaultGstRate,
+    setExtendedWarrantyNotificationsEnabled,
     setMarkupPercentOverCost,
     setDefaultHsnForSparePart,
     setDefaultHsnForServiceCharge,
@@ -33,7 +34,7 @@ import { ClientStatusBar } from "./client-status-bar";
 import { ClientTopNav } from "./client-top-nav";
 import { CLIENT_CAT_STYLE, CLIENT_POPULAR_IDS, HELP_ARTICLES, HELP_CATEGORIES } from "../help/help-content";
 
-export type Section = 'admin' | 'configurations' | 'inventory' | 'jobs' | 'masters' | 'reports';
+export type Section = 'admin' | 'configurations' | 'custom' | 'inventory' | 'jobs' | 'masters' | 'reports';
 
 type ThemeContextType = { isDark: boolean; toggleTheme: () => void };
 
@@ -75,6 +76,7 @@ export const usePortalContainer = () => useContext(PortalContainerContext);
 function sectionFromPath(pathname: string): Section {
     if (pathname.startsWith('/client/admin'))          return 'admin';
     if (pathname.startsWith('/client/configurations')) return 'configurations';
+    if (pathname.startsWith('/client/custom'))         return 'custom';
     if (pathname.startsWith('/client/inventory'))      return 'inventory';
     if (pathname.startsWith('/client/jobs'))           return 'jobs';
     if (pathname.startsWith('/client/masters'))        return 'masters';
@@ -84,6 +86,7 @@ function sectionFromPath(pathname: string): Section {
 const SECTION_LABELS: Record<Section, string> = {
     admin:          'Admin',
     configurations: 'Configurations',
+    custom:         'Custom',
     inventory:      'Inventory',
     jobs:           'Jobs',
     masters:        'Masters',
@@ -93,6 +96,7 @@ const SECTION_LABELS: Record<Section, string> = {
 const SECTION_DEFAULTS: Record<Section, string> = {
     admin:          'Post / Unpost',
     configurations: 'Divisions',
+    custom:         'Extended Warranty',
     inventory:      'Stock Overview',
     jobs:           'Single Job',
     masters:        'Branch',
@@ -102,6 +106,7 @@ const SECTION_DEFAULTS: Record<Section, string> = {
 const SECTION_DEFAULT_GROUPS: Record<Section, string> = {
     admin:          '',
     configurations: '',
+    custom:         '',
     inventory:      '',
     jobs:           'New Job',
     masters:        'Organization',
@@ -215,6 +220,11 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
             let parsedTrackUrl: unknown = rawTrackUrl;
             if (typeof rawTrackUrl === 'string') { try { parsedTrackUrl = JSON.parse(rawTrackUrl); } catch { /* keep raw */ } }
             dispatch(setTrackJobUrl(parsedTrackUrl != null ? String(parsedTrackUrl) : null));
+
+            const rawEw = settings.find(s => s.setting_key === 'extended_warranty_notifications_enabled')?.setting_value;
+            let parsedEw: unknown = rawEw;
+            if (typeof rawEw === 'string') { try { parsedEw = JSON.parse(rawEw); } catch { /* keep raw */ } }
+            dispatch(setExtendedWarrantyNotificationsEnabled(parsedEw === true || parsedEw === 'true'));
 
             const rawTerms = settings.find(s => s.setting_key === 'job_terms_and_conditions')?.setting_value;
             let parsedTerms: unknown = rawTerms;

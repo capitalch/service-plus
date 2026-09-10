@@ -1,11 +1,23 @@
-# Adding a new feature
-- Create a top nav menu item "Options" (like jobs, customers, sales, etc)
-- Add an item "Extended warranty" to this menu.
+# Adding a new feature for sending whatsapp notifications for extended warranty
+- This is a custom feature applicable when extended_warranty_notifications_enabled is true in app setting. So provide the new key in app_setting and default value to false.
+- Create a top nav menu item "Custom" (like jobs, Inentory, reports, etc)
+- Create a left nav menu item "Extended Warranty" in custom menu. This will be visible only when extended_warranty_notifications_enabled is true. In turn Custom will be visible when there are one or more submenu items is available in custom menu.
 - Context of this feature is:
-    - I am Sony authorised service center. I want to give reminders as whatsapp messages to Sony customers for extended warranty.
-    - These customers are not in customer master, nor do they will ever be in the future.
-    - The message is like this
+    - I am Sony authorised service center. I enabled extended_warranty_notifications_enabled.
+    - I run a parallel service software provided by sony company, where I get information about which customers will have their extended warranty expiring in next 60 days, 30 days, 7 days etc. based on the warranty data provided by sony company. These customers are not in customer master.
+    - From this parallel system i manually copy/paste date of purchase, cust name, address, product and mobile no to service+.
+    - I want to give reminders as whatsapp messages to these customers for extended warranty. If customer shows intrest for extended warranty, by clicking a button on the message, staff gets a message to company's whatsapp through a mobileno, with customer details, that this customer is interested in extended warranty. Staff follows up and closes the deal. 
+    - The customer data along with the information logged (like status of reminder:sended, delivred, not delivred etc.) of sending message to the customer and his interest data will be logged and visible in service software also parallely, so that staff can follow with 2nd, 3rd reminder. Staff can also see customer's interest by seeing on monitor display.
+    - staff can also provide the actions taken during follow up (call, whatsapp msg etc). Everything should be visible to staff in monitor display.
+    - Reminders are sent on button click in this service software by staff.
+    - Success of follow up can be marked by staff in software.
+    - These customers are not in customer master. They are to be recorded in a separate table. I would prefer single table for extended warranty setup, if required, JSONB or array of text columns can be used.
+    - When a mobile no is inputted, search in customer master and also extended warranty table and get the customer data, if available there otherswise customer data can be added. Edit and delete of customer data for extended warranty will be available.
+    - The message sent to customer is like this or you can modify it
         - Greetings from {brand}, Warranty of your {brand}{product} will be expired on {date}, You may extend the warranty period for further 1/2 years. For details pl contact {phone number} or whatsapp to{whatsapp number}
-    - There should be a button like "I am interested in extended warranty. Please contact me". When user clicks this button, staff should get info about customer's intrest in extended warranty. Staff would manually foolow up with the customer.
-- Create a complete design with backend apis and database schema changes for this feature.
-- create your plan in plan-ew.md
+    - There should be a button like "I am interested in extended warranty. Please contact me". 
+- Create a complete design with backend apis and database schema changes for this feature along with front end screens.
+- I like to have a drill down dashboard, Send messages, logs and follow ups nicely designed for business owner to have an overview and drill down to details as and when needed. This dashboard should provide business insight to the owner to take business decisions.
+- There may be some statuses like: start, message sent, Customer shows interest, Followed up, Converted, Not interested, Unreachable etc. for each customer and for each stage (60 days, 30 days, 7 days, 0 days). Provide a suitable way to record these statuses. Drill down through status would be appreciated.
+- read also the previously created plan as plan-ew.md and improve it if needed.
+- Give a new detailed plan.

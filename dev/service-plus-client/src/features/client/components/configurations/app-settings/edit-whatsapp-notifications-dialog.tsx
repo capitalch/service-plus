@@ -31,6 +31,7 @@ type WhatsappNotificationsValue = {
     JOB_DELIVERY:      boolean;
     JOB_MONEY_RECEIPT: boolean;
     JOB_INVOICE:       boolean;
+    EXTENDED_WARRANTY: boolean;
 };
 
 type EditWhatsappNotificationsDialogProps = {
@@ -50,6 +51,7 @@ function toValue(v: unknown): WhatsappNotificationsValue {
         JOB_DELIVERY:      obj.JOB_DELIVERY === true,
         JOB_MONEY_RECEIPT: obj.JOB_MONEY_RECEIPT === true,
         JOB_INVOICE:       obj.JOB_INVOICE === true,
+        EXTENDED_WARRANTY: obj.EXTENDED_WARRANTY === true,
     };
 }
 
@@ -110,6 +112,11 @@ export const EditWhatsappNotificationsDialog = ({
         { key: "JOB_DELIVERY",      label: "Job Delivery" },
         { key: "JOB_MONEY_RECEIPT", label: "Money Receipt" },
         { key: "JOB_INVOICE",       label: "Invoice" },
+        {
+            key:   "EXTENDED_WARRANTY",
+            label: "Extended Warranty",
+            note:  "Also needs the Extended Warranty add-on switched on. Marketing message to a non-opt-in list — leave off until you have checked the reminder settings.",
+        },
     ];
 
     return (

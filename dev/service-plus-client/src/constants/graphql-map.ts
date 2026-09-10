@@ -224,6 +224,21 @@ export const GRAPHQL_MAP = {
             sendWhatsappJobInvoice(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    sendEwReminders: gql`
+        mutation SendEwReminders($db_name: String!, $schema: String, $value: String!) {
+            sendEwReminders(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    addEwFollowUp: gql`
+        mutation AddEwFollowUp($db_name: String!, $schema: String, $value: String!) {
+            addEwFollowUp(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    resendEwLeadAlert: gql`
+        mutation ResendEwLeadAlert($db_name: String!, $schema: String, $value: String!) {
+            resendEwLeadAlert(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     verifyJobDeliveryOtp: gql`
         mutation VerifyJobDeliveryOtp($db_name: String!, $schema: String, $value: String!) {
             verifyJobDeliveryOtp(db_name: $db_name, schema: $schema, value: $value)

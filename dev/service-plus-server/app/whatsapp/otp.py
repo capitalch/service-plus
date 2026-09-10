@@ -15,6 +15,20 @@ import secrets
 from app.config import settings
 
 
+def _otp_secret() -> bytes:
+    """Refuse to hash with an empty key. Settings fails at startup when WhatsApp is
+    configured without this secret, so reaching here empty means WhatsApp was left
+    unconfigured and something called the delivery flow anyway — hash with b"" and every
+    stored hash becomes reproducible by anyone."""
+    secret = settings.whatsapp_delivery_otp_secret
+    if not secret.strip():
+        raise RuntimeError(
+            "whatsapp_delivery_otp_secret is not set — refusing to hash a delivery code "
+            "with an empty HMAC key"
+        )
+    return secret.encode("utf-8")
+
+
 def generate() -> str:
     """4-digit numeric code, cryptographically random — `secrets.randbelow`, not
     `random`, since this is a value someone could try to guess."""
@@ -29,9 +43,7 @@ def hash_code(code: str) -> str:
     (sql_jobs.py) carry the actual security weight here, not the hash
     algorithm. That lockout is load-bearing precisely because the keyspace is
     this small — see plans/plan.md's Watch-outs."""
-    return hmac.new(
-        settings.whatsapp_delivery_otp_secret.encode("utf-8"), code.encode("utf-8"), hashlib.sha256
-    ).hexdigest()
+    return hmac.new(_otp_secret(), code.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def verify(code: str, otp_hash: str) -> bool:
