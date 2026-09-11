@@ -7,7 +7,14 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -142,25 +149,28 @@ export const EditClientDialog = ({ client, onOpenChange, onSuccess, open }: Edit
 		if (invalid) return;
 		if (debouncedName === client.name) return;
 		setCheckingUnique(true);
-		apolloClient.query<GenericExistsQueryDataType>({
-			query: GRAPHQL_MAP.genericQuery,
-			variables: {
-				db_name: "",
-				schema: "public",
-				value: graphQlUtils.buildGenericQueryValue({
-					sqlArgs: { id: client.id, name: debouncedName },
-					sqlId: SQL_MAP.CHECK_CLIENT_NAME_EXISTS_EXCLUDE_ID,
-				}),
-			},
-		}).then((res) => {
-			if (res.data?.genericQuery?.[0]?.exists) {
-				setError("name", { message: MESSAGES.ERROR_CLIENT_NAME_EXISTS, type: "manual" });
-			} else {
-				clearErrors("name");
-			}
-		}).finally(() => {
-			setCheckingUnique(false);
-		});
+		apolloClient
+			.query<GenericExistsQueryDataType>({
+				query: GRAPHQL_MAP.genericQuery,
+				variables: {
+					db_name: "",
+					schema: "public",
+					value: graphQlUtils.buildGenericQueryValue({
+						sqlArgs: { id: client.id, name: debouncedName },
+						sqlId: SQL_MAP.CHECK_CLIENT_NAME_EXISTS_EXCLUDE_ID,
+					}),
+				},
+			})
+			.then((res) => {
+				if (res.data?.genericQuery?.[0]?.exists) {
+					setError("name", { message: MESSAGES.ERROR_CLIENT_NAME_EXISTS, type: "manual" });
+				} else {
+					clearErrors("name");
+				}
+			})
+			.finally(() => {
+				setCheckingUnique(false);
+			});
 	}, [debouncedName]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	async function onSubmit(data: EditClientFormType) {
@@ -220,12 +230,7 @@ export const EditClientDialog = ({ client, onOpenChange, onSuccess, open }: Edit
 					<div className="grid grid-cols-2 gap-3">
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="ec-code">Code</Label>
-							<Input
-								className="bg-slate-50 text-slate-500"
-								id="ec-code"
-								readOnly
-								{...register("code")}
-							/>
+							<Input className="bg-slate-50 text-slate-500" id="ec-code" readOnly {...register("code")} />
 						</div>
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="ec-name">

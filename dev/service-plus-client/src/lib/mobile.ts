@@ -9,9 +9,9 @@ export const MOBILE_REGEX = /^[6-9]\d{9}$/;
  * since the field gets capped at 10 digits before the prefix is fully entered.
  */
 export function normalizeMobile(value: string | null | undefined): string {
-    let v = (value ?? "").replace(/\D/g, "");
-    if (v.length > 10 && v.startsWith("91")) v = v.slice(2);
-    return v.slice(0, 10);
+	let v = (value ?? "").replace(/\D/g, "");
+	if (v.length > 10 && v.startsWith("91")) v = v.slice(2);
+	return v.slice(0, 10);
 }
 
 /**
@@ -19,6 +19,6 @@ export function normalizeMobile(value: string | null | undefined): string {
  * value must match the normalized 10-digit pattern.
  */
 export function isValidMobile(value: string | null | undefined): boolean {
-    const v = normalizeMobile(value);
-    return v === "" || MOBILE_REGEX.test(v);
+	const v = normalizeMobile(value);
+	return v === "" || MOBILE_REGEX.test(v);
 }

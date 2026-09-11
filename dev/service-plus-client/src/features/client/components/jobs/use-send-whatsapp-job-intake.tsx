@@ -2,13 +2,13 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { MESSAGES } from "@/constants/messages";
 import { sendWhatsappJobIntake, type WhatsappJobIntakeResult } from "./send-whatsapp-job-intake";
@@ -28,70 +28,75 @@ import { sendWhatsappJobIntake, type WhatsappJobIntakeResult } from "./send-what
 // The caller must render the returned ConfirmDialog element once, anywhere in its
 // tree — every call site sharing one hook instance shares one dialog.
 export function useSendWhatsappJobIntake() {
-    const [sending, setSending] = useState(false);
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const resolveConfirmRef = useRef<((confirmed: boolean) => void) | null>(null);
+	const [sending, setSending] = useState(false);
+	const [confirmOpen, setConfirmOpen] = useState(false);
+	const resolveConfirmRef = useRef<((confirmed: boolean) => void) | null>(null);
 
-    async function doSend(
-        dbName: string,
-        schema: string,
-        branchId: number,
-        jobIds: number[],
-    ): Promise<WhatsappJobIntakeResult[]> {
-        setSending(true);
-        try {
-            const { results, disabled } = await sendWhatsappJobIntake(dbName, schema, branchId, jobIds);
-            if (disabled) {
-                toast.warning(MESSAGES.WARN_WHATSAPP_EVENT_DISABLED);
-            } else if (results.length === 0) {
-                toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
-            } else if (results.some(r => r.status === "FAILED")) {
-                toast.warning(MESSAGES.WARN_WHATSAPP_PARTIAL_SEND);
-            } else {
-                toast.success(MESSAGES.SUCCESS_WHATSAPP_SENT);
-            }
-            return results;
-        } catch {
-            toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
-            return [];
-        } finally {
-            setSending(false);
-        }
-    }
+	async function doSend(
+		dbName: string,
+		schema: string,
+		branchId: number,
+		jobIds: number[],
+	): Promise<WhatsappJobIntakeResult[]> {
+		setSending(true);
+		try {
+			const { results, disabled } = await sendWhatsappJobIntake(dbName, schema, branchId, jobIds);
+			if (disabled) {
+				toast.warning(MESSAGES.WARN_WHATSAPP_EVENT_DISABLED);
+			} else if (results.length === 0) {
+				toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
+			} else if (results.some((r) => r.status === "FAILED")) {
+				toast.warning(MESSAGES.WARN_WHATSAPP_PARTIAL_SEND);
+			} else {
+				toast.success(MESSAGES.SUCCESS_WHATSAPP_SENT);
+			}
+			return results;
+		} catch {
+			toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
+			return [];
+		} finally {
+			setSending(false);
+		}
+	}
 
-    async function send(
-        dbName: string,
-        schema: string,
-        branchId: number,
-        jobIds: number[],
-    ): Promise<WhatsappJobIntakeResult[]> {
-        const confirmed = await new Promise<boolean>((resolve) => {
-            resolveConfirmRef.current = resolve;
-            setConfirmOpen(true);
-        });
-        if (!confirmed) return [];
-        return doSend(dbName, schema, branchId, jobIds);
-    }
+	async function send(
+		dbName: string,
+		schema: string,
+		branchId: number,
+		jobIds: number[],
+	): Promise<WhatsappJobIntakeResult[]> {
+		const confirmed = await new Promise<boolean>((resolve) => {
+			resolveConfirmRef.current = resolve;
+			setConfirmOpen(true);
+		});
+		if (!confirmed) return [];
+		return doSend(dbName, schema, branchId, jobIds);
+	}
 
-    function handleAnswer(confirmed: boolean) {
-        setConfirmOpen(false);
-        resolveConfirmRef.current?.(confirmed);
-        resolveConfirmRef.current = null;
-    }
+	function handleAnswer(confirmed: boolean) {
+		setConfirmOpen(false);
+		resolveConfirmRef.current?.(confirmed);
+		resolveConfirmRef.current = null;
+	}
 
-    const ConfirmDialog = (
-        <AlertDialog open={confirmOpen} onOpenChange={(open) => { if (!open) handleAnswer(false); }}>
-            <AlertDialogContent className="max-w-sm">
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Send Whatsapp message for Job Intake?</AlertDialogTitle>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => handleAnswer(false)}>No</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleAnswer(true)}>Yes</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-    );
+	const ConfirmDialog = (
+		<AlertDialog
+			open={confirmOpen}
+			onOpenChange={(open) => {
+				if (!open) handleAnswer(false);
+			}}
+		>
+			<AlertDialogContent className="max-w-sm">
+				<AlertDialogHeader>
+					<AlertDialogTitle>Send Whatsapp message for Job Intake?</AlertDialogTitle>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel onClick={() => handleAnswer(false)}>No</AlertDialogCancel>
+					<AlertDialogAction onClick={() => handleAnswer(true)}>Yes</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
 
-    return { sending, send, ConfirmDialog };
+	return { sending, send, ConfirmDialog };
 }

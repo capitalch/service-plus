@@ -1,34 +1,29 @@
 import type { WarrantyBatchJobRow } from "@/features/client/types/job";
 import { getTransitions } from "../job-pipeline/status-transitions";
 
-export type TransactionKind =
-    | "COMPLETED_OK"
-    | "SEND_TO_COMPANY"
-    | "RECEIVE_FROM_COMPANY"
-    | "FINAL"
-    | "DELIVER";
+export type TransactionKind = "COMPLETED_OK" | "SEND_TO_COMPANY" | "RECEIVE_FROM_COMPANY" | "FINAL" | "DELIVER";
 
 export type TransactionGroup = "vendor-cycle" | "completion";
 
 export const TRANSACTION_GROUP: Record<TransactionKind, TransactionGroup> = {
-    COMPLETED_OK:          "completion",
-    FINAL:                 "completion",
-    DELIVER:               "completion",
-    SEND_TO_COMPANY:       "vendor-cycle",
-    RECEIVE_FROM_COMPANY:  "vendor-cycle",
+	COMPLETED_OK: "completion",
+	FINAL: "completion",
+	DELIVER: "completion",
+	SEND_TO_COMPANY: "vendor-cycle",
+	RECEIVE_FROM_COMPANY: "vendor-cycle",
 };
 
 export const TRANSACTION_LABEL: Record<TransactionKind, string> = {
-    COMPLETED_OK:          "Completed OK",
-    SEND_TO_COMPANY:       "Send to Company",
-    RECEIVE_FROM_COMPANY:  "Received from Company",
-    FINAL:                 "Final a Job",
-    DELIVER:               "Deliver a Job",
+	COMPLETED_OK: "Completed OK",
+	SEND_TO_COMPANY: "Send to Company",
+	RECEIVE_FROM_COMPANY: "Received from Company",
+	FINAL: "Final a Job",
+	DELIVER: "Deliver a Job",
 };
 
 // Fixed pipeline order within each mutually-exclusive group (see getEligibleKinds).
 export const COMPLETION_ORDER: TransactionKind[] = ["COMPLETED_OK", "FINAL", "DELIVER"];
-export const VENDOR_ORDER:     TransactionKind[] = ["SEND_TO_COMPANY", "RECEIVE_FROM_COMPANY"];
+export const VENDOR_ORDER: TransactionKind[] = ["SEND_TO_COMPANY", "RECEIVE_FROM_COMPANY"];
 
 /**
  * Legal next kinds for a single job, given its current in-memory status.
@@ -39,16 +34,16 @@ export const VENDOR_ORDER:     TransactionKind[] = ["SEND_TO_COMPANY", "RECEIVE_
  * from is_final/is_closed, matching job-control-section.tsx's own gating.
  */
 export function getLegalKinds(job: WarrantyBatchJobRow): Set<TransactionKind> {
-    const legal = new Set<TransactionKind>();
-    const transitions = getTransitions(job.job_status_id, job.job_type_code);
+	const legal = new Set<TransactionKind>();
+	const transitions = getTransitions(job.job_status_id, job.job_type_code);
 
-    if (transitions.some(t => t.targetCode === "COMPLETED_OK"))               legal.add("COMPLETED_OK");
-    if (transitions.some(t => t.targetCode === "SENT_TO_COMPANY"))            legal.add("SEND_TO_COMPANY");
-    if (transitions.some(t => t.targetCode === "RECEIVED_BACK_FROM_COMPANY")) legal.add("RECEIVE_FROM_COMPANY");
-    if (job.job_status_code === "COMPLETED_OK" && !job.is_final)             legal.add("FINAL");
-    if (job.is_final && !job.is_closed)                                     legal.add("DELIVER");
+	if (transitions.some((t) => t.targetCode === "COMPLETED_OK")) legal.add("COMPLETED_OK");
+	if (transitions.some((t) => t.targetCode === "SENT_TO_COMPANY")) legal.add("SEND_TO_COMPANY");
+	if (transitions.some((t) => t.targetCode === "RECEIVED_BACK_FROM_COMPANY")) legal.add("RECEIVE_FROM_COMPANY");
+	if (job.job_status_code === "COMPLETED_OK" && !job.is_final) legal.add("FINAL");
+	if (job.is_final && !job.is_closed) legal.add("DELIVER");
 
-    return legal;
+	return legal;
 }
 
 /**
@@ -69,29 +64,29 @@ export function getLegalKinds(job: WarrantyBatchJobRow): Set<TransactionKind> {
  * receiving it back can't sensibly happen in the same instant.
  */
 export function getEligibleKinds(
-    jobs: WarrantyBatchJobRow[],
-    checkedKinds: Set<TransactionKind> = new Set(),
+	jobs: WarrantyBatchJobRow[],
+	checkedKinds: Set<TransactionKind> = new Set(),
 ): Set<TransactionKind> {
-    if (jobs.length === 0) return new Set();
+	if (jobs.length === 0) return new Set();
 
-    const perJobLegal = jobs.map(getLegalKinds);
-    const allLegalFor = (kind: TransactionKind) => perJobLegal.every(s => s.has(kind));
+	const perJobLegal = jobs.map(getLegalKinds);
+	const allLegalFor = (kind: TransactionKind) => perJobLegal.every((s) => s.has(kind));
 
-    const eligible = new Set<TransactionKind>();
+	const eligible = new Set<TransactionKind>();
 
-    if (allLegalFor("SEND_TO_COMPANY"))      eligible.add("SEND_TO_COMPANY");
-    if (allLegalFor("RECEIVE_FROM_COMPANY")) eligible.add("RECEIVE_FROM_COMPANY");
+	if (allLegalFor("SEND_TO_COMPANY")) eligible.add("SEND_TO_COMPANY");
+	if (allLegalFor("RECEIVE_FROM_COMPANY")) eligible.add("RECEIVE_FROM_COMPANY");
 
-    const completedOkEligible = allLegalFor("COMPLETED_OK");
-    if (completedOkEligible) eligible.add("COMPLETED_OK");
+	const completedOkEligible = allLegalFor("COMPLETED_OK");
+	if (completedOkEligible) eligible.add("COMPLETED_OK");
 
-    const finalEligible = allLegalFor("FINAL") || (completedOkEligible && checkedKinds.has("COMPLETED_OK"));
-    if (finalEligible) eligible.add("FINAL");
+	const finalEligible = allLegalFor("FINAL") || (completedOkEligible && checkedKinds.has("COMPLETED_OK"));
+	if (finalEligible) eligible.add("FINAL");
 
-    const deliverEligible = allLegalFor("DELIVER") || (finalEligible && checkedKinds.has("FINAL"));
-    if (deliverEligible) eligible.add("DELIVER");
+	const deliverEligible = allLegalFor("DELIVER") || (finalEligible && checkedKinds.has("FINAL"));
+	if (deliverEligible) eligible.add("DELIVER");
 
-    return eligible;
+	return eligible;
 }
 
 /**
@@ -103,7 +98,7 @@ export function getEligibleKinds(
  * picks which fixed pipeline order applies.
  */
 export function pipelineOrderFor(checkedKinds: Set<TransactionKind>): TransactionKind[] {
-    return checkedKinds.has("SEND_TO_COMPANY") || checkedKinds.has("RECEIVE_FROM_COMPANY")
-        ? VENDOR_ORDER
-        : COMPLETION_ORDER;
+	return checkedKinds.has("SEND_TO_COMPANY") || checkedKinds.has("RECEIVE_FROM_COMPANY")
+		? VENDOR_ORDER
+		: COMPLETION_ORDER;
 }

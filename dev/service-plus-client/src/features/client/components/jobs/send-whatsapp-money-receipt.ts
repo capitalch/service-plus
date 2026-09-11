@@ -9,37 +9,37 @@ import { encodeObj } from "@/lib/graphql-utils";
 // job_ids (a receipt send has no equivalent server-side re-filter to report
 // back — the payment_id the caller passed is the payment_id that was sent).
 export type WhatsappMoneyReceiptResult = {
-    customer_name: string;
-    payment_id:    number;
-    status:        "SENT" | "FAILED";
-    error:         string | null;
+	customer_name: string;
+	payment_id: number;
+	status: "SENT" | "FAILED";
+	error: string | null;
 };
 
 type SendWhatsappMoneyReceiptData = {
-    sendWhatsappMoneyReceipt: { results: WhatsappMoneyReceiptResult[]; disabled?: boolean } | null;
+	sendWhatsappMoneyReceipt: { results: WhatsappMoneyReceiptResult[]; disabled?: boolean } | null;
 };
 
 export type WhatsappMoneyReceiptSendOutcome = {
-    results:  WhatsappMoneyReceiptResult[];
-    disabled: boolean;
+	results: WhatsappMoneyReceiptResult[];
+	disabled: boolean;
 };
 
 export async function sendWhatsappMoneyReceipt(
-    dbName: string,
-    schema: string,
-    branchId: number,
-    paymentId: number,
+	dbName: string,
+	schema: string,
+	branchId: number,
+	paymentId: number,
 ): Promise<WhatsappMoneyReceiptSendOutcome> {
-    const res = await apolloClient.mutate<SendWhatsappMoneyReceiptData>({
-        mutation: GRAPHQL_MAP.sendWhatsappMoneyReceipt,
-        variables: {
-            db_name: dbName,
-            schema,
-            value: encodeObj({ branch_id: branchId, payment_id: paymentId }),
-        },
-    });
-    return {
-        results:  res.data?.sendWhatsappMoneyReceipt?.results ?? [],
-        disabled: res.data?.sendWhatsappMoneyReceipt?.disabled ?? false,
-    };
+	const res = await apolloClient.mutate<SendWhatsappMoneyReceiptData>({
+		mutation: GRAPHQL_MAP.sendWhatsappMoneyReceipt,
+		variables: {
+			db_name: dbName,
+			schema,
+			value: encodeObj({ branch_id: branchId, payment_id: paymentId }),
+		},
+	});
+	return {
+		results: res.data?.sendWhatsappMoneyReceipt?.results ?? [],
+		disabled: res.data?.sendWhatsappMoneyReceipt?.disabled ?? false,
+	};
 }

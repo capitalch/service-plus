@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { searchClients } from '@/lib/auth-service';
-import { useDebounce } from '@/hooks/use-debounce';
-import type { ClientType, SearchClientsResponseType } from '@/lib/auth-service';
+import { useState, useEffect } from "react";
+import { searchClients } from "@/lib/auth-service";
+import { useDebounce } from "@/hooks/use-debounce";
+import type { ClientType, SearchClientsResponseType } from "@/lib/auth-service";
 import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 
 /**
@@ -14,46 +14,46 @@ import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
  * @returns Object containing search state and functions
  */
 export const useClientSearch = () => {
-  const [criteria, setCriteria] = useState('');
-  const [clients, setClients] = useState<ClientType[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<unknown>(null);
-  const debouncedSearch = useDebounce(criteria, FIELD_VALIDATION_DEBOUNCE_MS);
+	const [criteria, setCriteria] = useState("");
+	const [clients, setClients] = useState<ClientType[]>([]);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<unknown>(null);
+	const debouncedSearch = useDebounce(criteria, FIELD_VALIDATION_DEBOUNCE_MS);
 
-  useEffect(() => {
-    if (debouncedSearch.length < 2) {
-      setClients([]);
-      return;
-    }
+	useEffect(() => {
+		if (debouncedSearch.length < 2) {
+			setClients([]);
+			return;
+		}
 
-    let cancelled = false;
+		let cancelled = false;
 
-    const run = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const data: SearchClientsResponseType = await searchClients(debouncedSearch);
-        if (!cancelled) setClients(data);
-      } catch (err) {
-        if (!cancelled) setError(err);
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
+		const run = async () => {
+			setIsLoading(true);
+			setError(null);
+			try {
+				const data: SearchClientsResponseType = await searchClients(debouncedSearch);
+				if (!cancelled) setClients(data);
+			} catch (err) {
+				if (!cancelled) setError(err);
+			} finally {
+				if (!cancelled) setIsLoading(false);
+			}
+		};
 
-    run();
+		run();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedSearch]);
+		return () => {
+			cancelled = true;
+		};
+	}, [debouncedSearch]);
 
-  return {
-    criteria,
-    setCriteria,
-    clients,
-    error,
-    hasMinimumChars: criteria.length >= 2,
-    isLoading,
-  };
+	return {
+		criteria,
+		setCriteria,
+		clients,
+		error,
+		hasMinimumChars: criteria.length >= 2,
+		isLoading,
+	};
 };

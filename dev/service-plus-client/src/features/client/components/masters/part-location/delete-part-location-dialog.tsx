@@ -12,74 +12,74 @@ import type { PartLocationType } from "@/features/client/types/part-location";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type DeletePartLocationDialogPropsType = {
-    location:     PartLocationType;
-    onOpenChange: (open: boolean) => void;
-    onSuccess:    () => void;
-    open:         boolean;
+	location: PartLocationType;
+	onOpenChange: (open: boolean) => void;
+	onSuccess: () => void;
+	open: boolean;
 };
 
 type InUseQueryDataType = {
-    genericQuery: { in_use: boolean }[] | null;
+	genericQuery: { in_use: boolean }[] | null;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const DeletePartLocationDialog = ({
-    location,
-    onOpenChange,
-    onSuccess,
-    open,
+	location,
+	onOpenChange,
+	onSuccess,
+	open,
 }: DeletePartLocationDialogPropsType) => {
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
+	const dbName = useAppSelector(selectDbName);
+	const schema = useAppSelector(selectSchema);
 
-    async function checkInUse() {
-        if (!dbName || !schema) return null;
-        const res = await apolloClient.query<InUseQueryDataType>({
-            fetchPolicy: "network-only",
-            query: GRAPHQL_MAP.genericQuery,
-            variables: {
-                db_name: dbName,
-                schema,
-                value: graphQlUtils.buildGenericQueryValue({
-                    sqlArgs: { id: location.id },
-                    sqlId:   SQL_MAP.CHECK_PART_LOCATION_IN_USE,
-                }),
-            },
-        });
-        return res.data?.genericQuery?.[0]?.in_use ?? false;
-    }
+	async function checkInUse() {
+		if (!dbName || !schema) return null;
+		const res = await apolloClient.query<InUseQueryDataType>({
+			fetchPolicy: "network-only",
+			query: GRAPHQL_MAP.genericQuery,
+			variables: {
+				db_name: dbName,
+				schema,
+				value: graphQlUtils.buildGenericQueryValue({
+					sqlArgs: { id: location.id },
+					sqlId: SQL_MAP.CHECK_PART_LOCATION_IN_USE,
+				}),
+			},
+		});
+		return res.data?.genericQuery?.[0]?.in_use ?? false;
+	}
 
-    async function handleDelete() {
-        await apolloClient.mutate({
-            mutation: GRAPHQL_MAP.genericUpdate,
-            variables: {
-                db_name: dbName,
-                schema,
-                value: graphQlUtils.buildGenericUpdateValue({
-                    deletedIds: [location.id],
-                    tableName:  "stock_location_master",
-                    xData:      {},
-                }),
-            },
-        });
-    }
+	async function handleDelete() {
+		await apolloClient.mutate({
+			mutation: GRAPHQL_MAP.genericUpdate,
+			variables: {
+				db_name: dbName,
+				schema,
+				value: graphQlUtils.buildGenericUpdateValue({
+					deletedIds: [location.id],
+					tableName: "stock_location_master",
+					xData: {},
+				}),
+			},
+		});
+	}
 
-    return (
-        <DeleteConfirmDialog
-            open={open}
-            onOpenChange={onOpenChange}
-            onSuccess={onSuccess}
-            title="Delete Part Location"
-            entityName={location.location}
-            confirmKey={location.location}
-            inUseMessage={MESSAGES.ERROR_PART_LOCATION_DELETE_IN_USE}
-            onCheckInUse={checkInUse}
-            onDelete={handleDelete}
-            toastMessages={{
-                success: MESSAGES.SUCCESS_PART_LOCATION_DELETED,
-                error:   MESSAGES.ERROR_PART_LOCATION_DELETE_FAILED,
-            }}
-        />
-    );
+	return (
+		<DeleteConfirmDialog
+			open={open}
+			onOpenChange={onOpenChange}
+			onSuccess={onSuccess}
+			title="Delete Part Location"
+			entityName={location.location}
+			confirmKey={location.location}
+			inUseMessage={MESSAGES.ERROR_PART_LOCATION_DELETE_IN_USE}
+			onCheckInUse={checkInUse}
+			onDelete={handleDelete}
+			toastMessages={{
+				success: MESSAGES.SUCCESS_PART_LOCATION_DELETED,
+				error: MESSAGES.ERROR_PART_LOCATION_DELETE_FAILED,
+			}}
+		/>
+	);
 };

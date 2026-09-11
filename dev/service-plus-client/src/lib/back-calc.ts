@@ -16,30 +16,30 @@ export type FloorAllocItem = { key: string; curIncl: number; floorIncl: number }
  * a relaxed floor (or a different section) for the shortfall.
  */
 export function allocateFloored(items: FloorAllocItem[], poolTarget: number): Map<string, number> {
-    const result = new Map<string, number>();
-    let pool = items;
-    let target = poolTarget;
-    while (pool.length > 0) {
-        const curSum = pool.reduce((s, i) => s + i.curIncl, 0);
-        const allocs = pool.map(i => curSum > 0 ? i.curIncl * target / curSum : target / pool.length);
-        const notPinned: FloorAllocItem[] = [];
-        let anyPinned = false;
-        pool.forEach((item, idx) => {
-            if (allocs[idx] <= item.floorIncl) {
-                result.set(item.key, item.floorIncl);
-                target -= item.floorIncl;
-                anyPinned = true;
-            } else {
-                notPinned.push(item);
-            }
-        });
-        if (!anyPinned) {
-            pool.forEach((item, idx) => result.set(item.key, allocs[idx]));
-            return result;
-        }
-        pool = notPinned;
-    }
-    return result;
+	const result = new Map<string, number>();
+	let pool = items;
+	let target = poolTarget;
+	while (pool.length > 0) {
+		const curSum = pool.reduce((s, i) => s + i.curIncl, 0);
+		const allocs = pool.map((i) => (curSum > 0 ? (i.curIncl * target) / curSum : target / pool.length));
+		const notPinned: FloorAllocItem[] = [];
+		let anyPinned = false;
+		pool.forEach((item, idx) => {
+			if (allocs[idx] <= item.floorIncl) {
+				result.set(item.key, item.floorIncl);
+				target -= item.floorIncl;
+				anyPinned = true;
+			} else {
+				notPinned.push(item);
+			}
+		});
+		if (!anyPinned) {
+			pool.forEach((item, idx) => result.set(item.key, allocs[idx]));
+			return result;
+		}
+		pool = notPinned;
+	}
+	return result;
 }
 
 /**
@@ -50,11 +50,11 @@ export function allocateFloored(items: FloorAllocItem[], poolTarget: number): Ma
  * any non-pinned item (best effort), then to the last item overall.
  */
 export function pickResidualKey(items: { key: string; qty: number }[], pinned: Set<string>): string {
-    const nonPinned = items.filter(i => !pinned.has(i.key));
-    const unit = [...nonPinned].reverse().find(i => i.qty === 1);
-    if (unit) return unit.key;
-    if (nonPinned.length) return nonPinned[nonPinned.length - 1].key;
-    return items[items.length - 1].key;
+	const nonPinned = items.filter((i) => !pinned.has(i.key));
+	const unit = [...nonPinned].reverse().find((i) => i.qty === 1);
+	if (unit) return unit.key;
+	if (nonPinned.length) return nonPinned[nonPinned.length - 1].key;
+	return items[items.length - 1].key;
 }
 
 /**
@@ -64,8 +64,12 @@ export function pickResidualKey(items: { key: string; qty: number }[], pinned: S
  * off from `incl / multiplier` by a paisa or two once re-multiplied; that's the
  * accepted trade-off for a clean whole-rupee line amount.
  */
-export function snapInclToWholeRupee(idealIncl: number, floor: number, multiplier: number): { sp: number; incl: number } {
-    const whole = Math.max(Math.round(idealIncl), Math.ceil(floor * multiplier));
-    const sp = parseFloat(Math.max(whole / multiplier, floor).toFixed(2));
-    return { sp, incl: whole };
+export function snapInclToWholeRupee(
+	idealIncl: number,
+	floor: number,
+	multiplier: number,
+): { sp: number; incl: number } {
+	const whole = Math.max(Math.round(idealIncl), Math.ceil(floor * multiplier));
+	const sp = parseFloat(Math.max(whole / multiplier, floor).toFixed(2));
+	return { sp, incl: whole };
 }

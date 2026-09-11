@@ -18,51 +18,49 @@ type View = "landing" | "detail";
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 export const JobPipelineSection = () => {
-    const dbName        = useAppSelector(selectDbName);
-    const schema        = useAppSelector(selectSchema);
-    const currentBranch = useAppSelector(selectCurrentBranch);
-    const branchId      = currentBranch?.id ?? null;
+	const dbName = useAppSelector(selectDbName);
+	const schema = useAppSelector(selectSchema);
+	const currentBranch = useAppSelector(selectCurrentBranch);
+	const branchId = currentBranch?.id ?? null;
 
-    const [view,           setView]           = useState<View>("landing");
-    const [selectedStatus, setSelectedStatus] = useState<JobBoardStatusCount | null>(null);
-    const [technicians,    setTechnicians]    = useState<TechnicianRow[]>([]);
+	const [view, setView] = useState<View>("landing");
+	const [selectedStatus, setSelectedStatus] = useState<JobBoardStatusCount | null>(null);
+	const [technicians, setTechnicians] = useState<TechnicianRow[]>([]);
 
-    useEffect(() => {
-        if (!dbName || !schema || !branchId) return;
-        void apolloClient.query<GenericQueryData<TechnicianRow>>({
-            fetchPolicy: "network-only",
-            query:       GRAPHQL_MAP.genericQuery,
-            variables:   {
-                db_name: dbName, schema,
-                value: graphQlUtils.buildGenericQueryValue({
-                    sqlId:   SQL_MAP.GET_ALL_TECHNICIANS,
-                    sqlArgs: { branch_id: branchId },
-                }),
-            },
-        }).then(res => {
-            setTechnicians(res.data?.genericQuery ?? []);
-        }).catch(() => toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED));
-    }, [dbName, schema, branchId]);
+	useEffect(() => {
+		if (!dbName || !schema || !branchId) return;
+		void apolloClient
+			.query<GenericQueryData<TechnicianRow>>({
+				fetchPolicy: "network-only",
+				query: GRAPHQL_MAP.genericQuery,
+				variables: {
+					db_name: dbName,
+					schema,
+					value: graphQlUtils.buildGenericQueryValue({
+						sqlId: SQL_MAP.GET_ALL_TECHNICIANS,
+						sqlArgs: { branch_id: branchId },
+					}),
+				},
+			})
+			.then((res) => {
+				setTechnicians(res.data?.genericQuery ?? []);
+			})
+			.catch(() => toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED));
+	}, [dbName, schema, branchId]);
 
-    function handleStatusClick(status: JobBoardStatusCount) {
-        setSelectedStatus(status);
-        setView("detail");
-    }
+	function handleStatusClick(status: JobBoardStatusCount) {
+		setSelectedStatus(status);
+		setView("detail");
+	}
 
-    function handleBack() {
-        setView("landing");
-        setSelectedStatus(null);
-    }
+	function handleBack() {
+		setView("landing");
+		setSelectedStatus(null);
+	}
 
-    if (view === "detail" && selectedStatus) {
-        return (
-            <JobPipelineStatusDrilldown
-                status={selectedStatus}
-                technicians={technicians}
-                onBack={handleBack}
-            />
-        );
-    }
+	if (view === "detail" && selectedStatus) {
+		return <JobPipelineStatusDrilldown status={selectedStatus} technicians={technicians} onBack={handleBack} />;
+	}
 
-    return <JobPipelineLanding onStatusClick={handleStatusClick} />;
+	return <JobPipelineLanding onStatusClick={handleStatusClick} />;
 };

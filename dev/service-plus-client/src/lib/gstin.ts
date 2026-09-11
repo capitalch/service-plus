@@ -10,7 +10,7 @@ export const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z
 
 /** Trim + uppercase a raw GSTIN entry. */
 export function normalizeGstin(value: string | null | undefined): string {
-    return (value ?? "").trim().toUpperCase();
+	return (value ?? "").trim().toUpperCase();
 }
 
 /**
@@ -18,17 +18,17 @@ export function normalizeGstin(value: string | null | undefined): string {
  * must match the 15-character pattern.
  */
 export function isValidGstin(value: string | null | undefined): boolean {
-    const v = normalizeGstin(value);
-    return v === "" || GSTIN_REGEX.test(v);
+	const v = normalizeGstin(value);
+	return v === "" || GSTIN_REGEX.test(v);
 }
 
 type SaveCustomerGstinArgs = {
-    customerId: number | null | undefined;
-    gstin: string | null | undefined;
-    /** The GSTIN already stored on the customer; used to skip a redundant write. */
-    currentGstin?: string | null;
-    dbName: string | null;
-    schema: string | null;
+	customerId: number | null | undefined;
+	gstin: string | null | undefined;
+	/** The GSTIN already stored on the customer; used to skip a redundant write. */
+	currentGstin?: string | null;
+	dbName: string | null;
+	schema: string | null;
 };
 
 /**
@@ -38,27 +38,31 @@ type SaveCustomerGstinArgs = {
  * primary job action (create / finalize / deliver) is never rolled back by it.
  */
 export async function saveCustomerGstin({
-    customerId, gstin, currentGstin, dbName, schema,
+	customerId,
+	gstin,
+	currentGstin,
+	dbName,
+	schema,
 }: SaveCustomerGstinArgs): Promise<void> {
-    const next = normalizeGstin(gstin);
-    if (!customerId || !dbName || !schema) return;
-    if (next === "") return;                              // never overwrite with blank
-    if (next === normalizeGstin(currentGstin)) return;    // unchanged
-    if (!GSTIN_REGEX.test(next)) return;                  // caller should have blocked already
+	const next = normalizeGstin(gstin);
+	if (!customerId || !dbName || !schema) return;
+	if (next === "") return; // never overwrite with blank
+	if (next === normalizeGstin(currentGstin)) return; // unchanged
+	if (!GSTIN_REGEX.test(next)) return; // caller should have blocked already
 
-    try {
-        await apolloClient.mutate({
-            mutation: GRAPHQL_MAP.genericUpdate,
-            variables: {
-                db_name: dbName,
-                schema,
-                value: graphQlUtils.buildGenericUpdateValue({
-                    tableName: "customer_contact",
-                    xData: { id: customerId, gstin: next },
-                }),
-            },
-        });
-    } catch {
-        toast.error("Job saved, but updating the customer's GSTIN failed.");
-    }
+	try {
+		await apolloClient.mutate({
+			mutation: GRAPHQL_MAP.genericUpdate,
+			variables: {
+				db_name: dbName,
+				schema,
+				value: graphQlUtils.buildGenericUpdateValue({
+					tableName: "customer_contact",
+					xData: { id: customerId, gstin: next },
+				}),
+			},
+		});
+	} catch {
+		toast.error("Job saved, but updating the customer's GSTIN failed.");
+	}
 }

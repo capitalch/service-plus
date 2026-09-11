@@ -7,37 +7,37 @@ import { encodeObj } from "@/lib/graphql-utils";
 // (job_ids: the full multi-select) both call this same mutation — see
 // plans/plan-whatsapp.md §4d.
 export type WhatsappCompletionResult = {
-    customer_name: string;
-    job_ids:       number[];
-    status:        "SENT" | "FAILED";
-    error:         string | null;
+	customer_name: string;
+	job_ids: number[];
+	status: "SENT" | "FAILED";
+	error: string | null;
 };
 
 type SendWhatsappCompletionData = {
-    sendWhatsappCompletion: { results: WhatsappCompletionResult[]; disabled?: boolean } | null;
+	sendWhatsappCompletion: { results: WhatsappCompletionResult[]; disabled?: boolean } | null;
 };
 
 export type WhatsappCompletionSendOutcome = {
-    results:  WhatsappCompletionResult[];
-    disabled: boolean;
+	results: WhatsappCompletionResult[];
+	disabled: boolean;
 };
 
 export async function sendWhatsappCompletion(
-    dbName: string,
-    schema: string,
-    branchId: number,
-    jobIds: number[],
+	dbName: string,
+	schema: string,
+	branchId: number,
+	jobIds: number[],
 ): Promise<WhatsappCompletionSendOutcome> {
-    const res = await apolloClient.mutate<SendWhatsappCompletionData>({
-        mutation: GRAPHQL_MAP.sendWhatsappCompletion,
-        variables: {
-            db_name: dbName,
-            schema,
-            value: encodeObj({ branch_id: branchId, job_ids: jobIds }),
-        },
-    });
-    return {
-        results:  res.data?.sendWhatsappCompletion?.results ?? [],
-        disabled: res.data?.sendWhatsappCompletion?.disabled ?? false,
-    };
+	const res = await apolloClient.mutate<SendWhatsappCompletionData>({
+		mutation: GRAPHQL_MAP.sendWhatsappCompletion,
+		variables: {
+			db_name: dbName,
+			schema,
+			value: encodeObj({ branch_id: branchId, job_ids: jobIds }),
+		},
+	});
+	return {
+		results: res.data?.sendWhatsappCompletion?.results ?? [],
+		disabled: res.data?.sendWhatsappCompletion?.disabled ?? false,
+	};
 }

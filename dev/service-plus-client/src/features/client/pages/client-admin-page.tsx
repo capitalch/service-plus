@@ -2,17 +2,17 @@ import { ClientLayout, useClientSelection } from "../components/layout/client-la
 import { AdminSection } from "../components/accounts-admin/admin-section";
 
 function AdminContent() {
-    const { selected } = useClientSelection();
+	const { selected } = useClientSelection();
 
-    switch (selected) {
-        case "Post / Unpost":
-        default:
-            return <AdminSection group="post-unpost" />;
-    }
+	switch (selected) {
+		case "Post / Unpost":
+		default:
+			return <AdminSection group="post-unpost" />;
+	}
 }
 
 export const ClientAdminPage = () => (
-    <ClientLayout>
-        <AdminContent />
-    </ClientLayout>
+	<ClientLayout>
+		<AdminContent />
+	</ClientLayout>
 );

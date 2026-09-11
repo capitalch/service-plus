@@ -1,37 +1,37 @@
 const INR = new Intl.NumberFormat("en-IN", {
-    currency: "INR",
-    maximumFractionDigits: 0,
-    style: "currency",
+	currency: "INR",
+	maximumFractionDigits: 0,
+	style: "currency",
 });
 
 const INR_PLAIN = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 export function formatDateShort(value: Date | null | string | undefined): string {
-    if (!value) return "";
-    const d = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(d.getTime())) return "";
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return `${String(d.getDate()).padStart(2, "0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
+	if (!value) return "";
+	const d = value instanceof Date ? value : new Date(value);
+	if (Number.isNaN(d.getTime())) return "";
+	const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+	return `${String(d.getDate()).padStart(2, "0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export function formatTimeShort(value: Date | null | string | undefined): string {
-    if (!value) return "";
-    const d = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toLocaleTimeString("en-IN", { hour: "2-digit", hour12: true, minute: "2-digit" });
+	if (!value) return "";
+	const d = value instanceof Date ? value : new Date(value);
+	if (Number.isNaN(d.getTime())) return "";
+	return d.toLocaleTimeString("en-IN", { hour: "2-digit", hour12: true, minute: "2-digit" });
 }
 
 export function formatInr(value: number | null | undefined): string {
-    if (value == null || !Number.isFinite(Number(value))) return "₹0";
-    return INR.format(Number(value));
+	if (value == null || !Number.isFinite(Number(value))) return "₹0";
+	return INR.format(Number(value));
 }
 
 export function formatNumber(value: number | null | undefined): string {
-    if (value == null || !Number.isFinite(Number(value))) return "0";
-    return INR_PLAIN.format(Number(value));
+	if (value == null || !Number.isFinite(Number(value))) return "0";
+	return INR_PLAIN.format(Number(value));
 }
 
 export function formatWarrantySplit(split: { oow_count: number; warranty_count: number }): string {
-    const total = split.warranty_count + split.oow_count;
-    return `${formatNumber(total)} (W:${formatNumber(split.warranty_count)} OW:${formatNumber(split.oow_count)})`;
+	const total = split.warranty_count + split.oow_count;
+	return `${formatNumber(total)} (W:${formatNumber(split.warranty_count)} OW:${formatNumber(split.oow_count)})`;
 }

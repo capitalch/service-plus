@@ -181,7 +181,6 @@ export const ICON_COLORS: Record<string, string | null> = {
 	// Loading (inherits currentColor, not colorized)
 	Loader2: null,
 	Loader2Icon: null,
-
 };
 
 /** Fallback color for any icon not explicitly listed in ICON_COLORS. */

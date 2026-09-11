@@ -7,7 +7,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -77,12 +84,7 @@ function FieldError({ message }: { message?: string }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const CreateAdminDialog = ({
-	client,
-	onOpenChange,
-	onSuccess,
-	open,
-}: CreateAdminDialogPropsType) => {
+export const CreateAdminDialog = ({ client, onOpenChange, onSuccess, open }: CreateAdminDialogPropsType) => {
 	const [checkingEmail, setCheckingEmail] = useState(false);
 	const [checkingUsername, setCheckingUsername] = useState(false);
 	const [emailTaken, setEmailTaken] = useState<boolean | null>(null);
@@ -95,7 +97,9 @@ export const CreateAdminDialog = ({
 		resolver: zodResolver(createAdminSchema),
 	});
 
-	const { formState: { errors } } = form;
+	const {
+		formState: { errors },
+	} = form;
 
 	const emailValue = useWatch({ control: form.control, name: "email" });
 	const usernameValue = useWatch({ control: form.control, name: "username" });
@@ -214,13 +218,15 @@ export const CreateAdminDialog = ({
 				variables: {
 					db_name: client.db_name,
 					schema: "security",
-					value: encodeURIComponent(JSON.stringify({
-						client_id: client.id,
-						email: data.email,
-						full_name: data.full_name,
-						mobile: data.mobile || null,
-						username: data.username,
-					})),
+					value: encodeURIComponent(
+						JSON.stringify({
+							client_id: client.id,
+							email: data.email,
+							full_name: data.full_name,
+							mobile: data.mobile || null,
+							username: data.username,
+						}),
+					),
 				},
 			});
 			if (result.error) {
@@ -254,21 +260,14 @@ export const CreateAdminDialog = ({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="w-full sm:max-w-[440px]">
 				<DialogHeader>
-					<DialogTitle className="text-base font-semibold text-foreground">
-						Add Admin User
-					</DialogTitle>
+					<DialogTitle className="text-base font-semibold text-foreground">Add Admin User</DialogTitle>
 					<DialogDescription className="text-xs text-slate-500">
-						New admin for{" "}
-						<span className="font-medium text-slate-700">{client.name}</span>
-						{" "}·{" "}
+						New admin for <span className="font-medium text-slate-700">{client.name}</span> ·{" "}
 						<span className="font-mono text-slate-500">{client.db_name}</span>
 					</DialogDescription>
 				</DialogHeader>
 
-				<form
-					className="flex flex-col gap-4 pt-1"
-					onSubmit={form.handleSubmit(onSubmit)}
-				>
+				<form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
 					{/* Full Name */}
 					<div className="flex flex-col gap-1.5">
 						<Label htmlFor="full_name">
@@ -351,11 +350,7 @@ export const CreateAdminDialog = ({
 					</div>
 
 					<DialogFooter className="pt-2">
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={() => onOpenChange(false)}
-						>
+						<Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
 							Cancel
 						</Button>
 						<Button

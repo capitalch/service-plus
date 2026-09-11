@@ -84,23 +84,19 @@ export const DetachDbDialog = ({ client, onOpenChange, onSuccess, open }: Detach
 								{client.db_name}
 							</code>
 						</p>
-						<p className="mt-1">All users of this client will lose access until the database is re-attached.</p>
+						<p className="mt-1">
+							All users of this client will lose access until the database is re-attached.
+						</p>
 					</div>
 				</div>
 
 				<div className="flex items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-				<InfoIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-sky-600" />
-				<p className="text-sm text-slate-600">
-					{MESSAGES.INFO_CLIENT_DB_MANUAL_DELETE_ONLY}
-				</p>
-			</div>
+					<InfoIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-sky-600" />
+					<p className="text-sm text-slate-600">{MESSAGES.INFO_CLIENT_DB_MANUAL_DELETE_ONLY}</p>
+				</div>
 
-			<DialogFooter>
-					<Button
-						disabled={mutating}
-						variant="ghost"
-						onClick={() => onOpenChange(false)}
-					>
+				<DialogFooter>
+					<Button disabled={mutating} variant="ghost" onClick={() => onOpenChange(false)}>
 						Cancel
 					</Button>
 					<Button

@@ -62,8 +62,9 @@ export const DeactivateClientDialog = ({ client, onOpenChange, onSuccess, open }
 				<DialogHeader>
 					<DialogTitle>Deactivate Client</DialogTitle>
 					<DialogDescription>
-						Are you sure you want to deactivate <span className="font-semibold text-slate-800">{client.name}</span>?
-						This will prevent all users from logging in.
+						Are you sure you want to deactivate{" "}
+						<span className="font-semibold text-slate-800">{client.name}</span>? This will prevent all users
+						from logging in.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -72,11 +73,7 @@ export const DeactivateClientDialog = ({ client, onOpenChange, onSuccess, open }
 				</p>
 
 				<DialogFooter>
-					<Button
-						disabled={mutating}
-						variant="ghost"
-						onClick={() => onOpenChange(false)}
-					>
+					<Button disabled={mutating} variant="ghost" onClick={() => onOpenChange(false)}>
 						Cancel
 					</Button>
 					<Button

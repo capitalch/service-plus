@@ -180,8 +180,7 @@ export const AttachDbDialog = ({ client, onOpenChange, onSuccess, open }: Attach
 				<DialogHeader>
 					<DialogTitle>Attach Database</DialogTitle>
 					<DialogDescription>
-						Link a database to client{" "}
-						<span className="font-semibold text-slate-800">{client.name}</span>.
+						Link a database to client <span className="font-semibold text-slate-800">{client.name}</span>.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -216,12 +215,7 @@ export const AttachDbDialog = ({ client, onOpenChange, onSuccess, open }: Attach
 					</div>
 
 					<DialogFooter>
-						<Button
-							disabled={mutating}
-							type="button"
-							variant="ghost"
-							onClick={() => onOpenChange(false)}
-						>
+						<Button disabled={mutating} type="button" variant="ghost" onClick={() => onOpenChange(false)}>
 							Cancel
 						</Button>
 						<Button

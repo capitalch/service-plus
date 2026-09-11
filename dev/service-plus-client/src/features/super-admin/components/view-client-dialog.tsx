@@ -3,13 +3,7 @@ import { motion } from "framer-motion";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import type { ClientType } from "@/features/super-admin/types";
 
@@ -85,7 +79,9 @@ export const ViewClientDialog = ({ client, onOpenChange, open }: ViewClientDialo
 								}
 								variant="outline"
 							>
-								<span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${client.is_active ? "bg-emerald-500" : "bg-slate-400"}`} />
+								<span
+									className={`mr-1.5 h-1.5 w-1.5 rounded-full ${client.is_active ? "bg-emerald-500" : "bg-slate-400"}`}
+								/>
 								{client.is_active ? "Active" : "Inactive"}
 							</Badge>
 						</div>
@@ -94,7 +90,9 @@ export const ViewClientDialog = ({ client, onOpenChange, open }: ViewClientDialo
 							<span className="text-sm">
 								<span className="font-semibold text-teal-600">{client.activeAdminCount}</span>
 								<span className="mx-1 text-slate-300">/</span>
-								<span className={`font-semibold ${client.inactiveAdminCount > 0 ? "text-slate-500" : "text-slate-400"}`}>
+								<span
+									className={`font-semibold ${client.inactiveAdminCount > 0 ? "text-slate-500" : "text-slate-400"}`}
+								>
 									{client.inactiveAdminCount}
 								</span>
 							</span>
@@ -111,15 +109,18 @@ export const ViewClientDialog = ({ client, onOpenChange, open }: ViewClientDialo
 
 					{/* Tax IDs */}
 					<div className="grid grid-cols-2 gap-3">
-						<FieldRow label="GSTIN" value={client.gstin ? <span className="font-mono">{client.gstin}</span> : null} />
-						<FieldRow label="PAN" value={client.pan ? <span className="font-mono">{client.pan}</span> : null} />
+						<FieldRow
+							label="GSTIN"
+							value={client.gstin ? <span className="font-mono">{client.gstin}</span> : null}
+						/>
+						<FieldRow
+							label="PAN"
+							value={client.pan ? <span className="font-mono">{client.pan}</span> : null}
+						/>
 					</div>
 
 					{/* Address */}
-					<FieldRow
-						label="Address"
-						value={addressParts.length > 0 ? addressParts.join(", ") : null}
-					/>
+					<FieldRow label="Address" value={addressParts.length > 0 ? addressParts.join(", ") : null} />
 
 					<Separator />
 
@@ -129,10 +130,14 @@ export const ViewClientDialog = ({ client, onOpenChange, open }: ViewClientDialo
 						<span className="flex items-center gap-1.5 font-mono text-sm text-slate-600">
 							{client.db_name ?? <span className="text-slate-400">—</span>}
 							{client.db_name && client.db_name_valid && (
-								<span title="Database exists"><CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-600" /></span>
+								<span title="Database exists">
+									<CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-600" />
+								</span>
 							)}
 							{client.db_name && !client.db_name_valid && (
-								<span title="Database does not exist"><XCircleIcon className="h-3.5 w-3.5 text-red-600" /></span>
+								<span title="Database does not exist">
+									<XCircleIcon className="h-3.5 w-3.5 text-red-600" />
+								</span>
 							)}
 						</span>
 					</div>

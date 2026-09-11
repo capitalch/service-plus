@@ -57,12 +57,7 @@ type SeedRolesDialogPropsType = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const SeedRolesDialog = ({
-	client,
-	onOpenChange,
-	onSuccess,
-	open,
-}: SeedRolesDialogPropsType) => {
+export const SeedRolesDialog = ({ client, onOpenChange, onSuccess, open }: SeedRolesDialogPropsType) => {
 	const [checking, setChecking] = useState(false);
 	const [seeding, setSeeding] = useState(false);
 	const [seedingAccessRights, setSeedingAccessRights] = useState(false);
@@ -189,8 +184,7 @@ export const SeedRolesDialog = ({
 				{step !== "success" && (
 					<div className="bg-gradient-to-br from-slate-800 to-slate-900 px-5 py-5 sm:px-7">
 						<p className="mb-4 text-sm font-semibold text-slate-300">
-							Seed Roles + Access Rights:{" "}
-							<span className="text-violet-400">{client.name}</span>
+							Seed Roles + Access Rights: <span className="text-violet-400">{client.name}</span>
 						</p>
 						<div className="flex items-center gap-3">
 							{/* Step 1 dot */}
@@ -220,9 +214,7 @@ export const SeedRolesDialog = ({
 								<span className="text-[10px] text-slate-400">Access Rights</span>
 							</div>
 						</div>
-						{client.db_name && (
-							<p className="mt-3 text-xs text-slate-500">{client.db_name}</p>
-						)}
+						{client.db_name && <p className="mt-3 text-xs text-slate-500">{client.db_name}</p>}
 					</div>
 				)}
 
@@ -251,7 +243,9 @@ export const SeedRolesDialog = ({
 												idx !== 0 ? "border-t border-slate-100" : ""
 											}`}
 										>
-											<span className="font-mono text-xs font-medium text-slate-700">{item.code}</span>
+											<span className="font-mono text-xs font-medium text-slate-700">
+												{item.code}
+											</span>
 											<span className="text-xs text-slate-500">{item.name}</span>
 										</div>
 									))}
@@ -286,18 +280,16 @@ export const SeedRolesDialog = ({
 							<div className="flex items-center gap-3 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3">
 								<Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-violet-600" />
 								<p className="text-sm text-violet-700">
-									{accessRightsAlreadyExisted
-										? "Upgrading access rights…"
-										: "Seeding access rights…"}
+									{accessRightsAlreadyExisted ? "Upgrading access rights…" : "Seeding access rights…"}
 								</p>
 							</div>
 							<div>
 								<p className="mb-1 text-sm font-semibold text-slate-800">Default Access Rights</p>
 								<p className="mb-3 text-xs text-slate-500">
 									The following access rights are being seeded, and granted to Manager and
-									Receptionist (Technician gets none by default). The Masters Organization /
-									Service Config rights go to Manager only. Existing rows are left
-									untouched — only missing ones are added.
+									Receptionist (Technician gets none by default). The Masters Organization / Service
+									Config rights go to Manager only. Existing rows are left untouched — only missing
+									ones are added.
 								</p>
 								<div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200">
 									{ACCESS_RIGHT_PREVIEW_ITEMS.map((item, idx) => (

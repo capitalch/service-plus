@@ -6,7 +6,14 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -144,25 +151,28 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 		const { invalid } = getFieldState("code");
 		if (invalid) return;
 		setCheckingUnique(true);
-		apolloClient.query<GenericExistsQueryDataType>({
-			query: GRAPHQL_MAP.genericQuery,
-			variables: {
-				db_name: "",
-				schema: "public",
-				value: graphQlUtils.buildGenericQueryValue({
-					sqlArgs: { code: debouncedCode },
-					sqlId: SQL_MAP.CHECK_CLIENT_CODE_EXISTS,
-				}),
-			},
-		}).then((res) => {
-			if (res.data?.genericQuery?.[0]?.exists) {
-				setError("code", { message: MESSAGES.ERROR_CLIENT_CODE_EXISTS, type: "manual" });
-			} else {
-				clearErrors("code");
-			}
-		}).finally(() => {
-			setCheckingUnique(false);
-		});
+		apolloClient
+			.query<GenericExistsQueryDataType>({
+				query: GRAPHQL_MAP.genericQuery,
+				variables: {
+					db_name: "",
+					schema: "public",
+					value: graphQlUtils.buildGenericQueryValue({
+						sqlArgs: { code: debouncedCode },
+						sqlId: SQL_MAP.CHECK_CLIENT_CODE_EXISTS,
+					}),
+				},
+			})
+			.then((res) => {
+				if (res.data?.genericQuery?.[0]?.exists) {
+					setError("code", { message: MESSAGES.ERROR_CLIENT_CODE_EXISTS, type: "manual" });
+				} else {
+					clearErrors("code");
+				}
+			})
+			.finally(() => {
+				setCheckingUnique(false);
+			});
 	}, [debouncedCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
@@ -170,43 +180,46 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 		const { invalid } = getFieldState("name");
 		if (invalid) return;
 		setCheckingUnique(true);
-		apolloClient.query<GenericExistsQueryDataType>({
-			query: GRAPHQL_MAP.genericQuery,
-			variables: {
-				db_name: "",
-				schema: "public",
-				value: graphQlUtils.buildGenericQueryValue({
-					sqlArgs: { name: debouncedName },
-					sqlId: SQL_MAP.CHECK_CLIENT_NAME_EXISTS,
-				}),
-			},
-		}).then((res) => {
-			if (res.data?.genericQuery?.[0]?.exists) {
-				setError("name", { message: MESSAGES.ERROR_CLIENT_NAME_EXISTS, type: "manual" });
-			} else {
-				clearErrors("name");
-			}
-		}).finally(() => {
-			setCheckingUnique(false);
-		});
+		apolloClient
+			.query<GenericExistsQueryDataType>({
+				query: GRAPHQL_MAP.genericQuery,
+				variables: {
+					db_name: "",
+					schema: "public",
+					value: graphQlUtils.buildGenericQueryValue({
+						sqlArgs: { name: debouncedName },
+						sqlId: SQL_MAP.CHECK_CLIENT_NAME_EXISTS,
+					}),
+				},
+			})
+			.then((res) => {
+				if (res.data?.genericQuery?.[0]?.exists) {
+					setError("name", { message: MESSAGES.ERROR_CLIENT_NAME_EXISTS, type: "manual" });
+				} else {
+					clearErrors("name");
+				}
+			})
+			.finally(() => {
+				setCheckingUnique(false);
+			});
 	}, [debouncedName]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	async function onSubmit(data: AddClientFormType) {
 		const payload: Record<string, unknown> = {
-			code:      data.code,
+			code: data.code,
 			is_active: data.is_active,
-			name:      data.name,
+			name: data.name,
 		};
 		if (data.address_line1) payload.address_line1 = data.address_line1;
 		if (data.address_line2) payload.address_line2 = data.address_line2;
-		if (data.city)          payload.city          = data.city;
-		if (data.country_code)  payload.country_code  = data.country_code;
-		if (data.email)         payload.email         = data.email;
-		if (data.gstin)         payload.gstin         = data.gstin;
-		if (data.pan)           payload.pan           = data.pan;
-		if (data.phone)         payload.phone         = data.phone;
-		if (data.pincode)       payload.pincode       = data.pincode;
-		if (data.state)         payload.state         = data.state;
+		if (data.city) payload.city = data.city;
+		if (data.country_code) payload.country_code = data.country_code;
+		if (data.email) payload.email = data.email;
+		if (data.gstin) payload.gstin = data.gstin;
+		if (data.pan) payload.pan = data.pan;
+		if (data.phone) payload.phone = data.phone;
+		if (data.pincode) payload.pincode = data.pincode;
+		if (data.state) payload.state = data.state;
 
 		setMutating(true);
 		try {
@@ -260,12 +273,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 							<Label htmlFor="code">
 								Code <span className="text-red-500">*</span>
 							</Label>
-							<Input
-								id="code"
-								placeholder="e.g. ACME01"
-								{...register("code")}
-								disabled={formBusy}
-							/>
+							<Input id="code" placeholder="e.g. ACME01" {...register("code")} disabled={formBusy} />
 							<FieldError message={errors.code?.message} />
 						</div>
 						<div className="flex flex-col gap-1.5">

@@ -3,6 +3,27 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-11 14:04 (main)
+Chore: format the whole client with prettier (no behaviour change)
+
+- Ran `pnpm format` across src/: 446 of 474 .ts/.tsx files were not
+  prettier-clean, so every recent feature diff has been swamped by incidental
+  reformatting. This lands that noise once, on its own, so future diffs show
+  only real changes. Nothing outside dev/service-plus-client/src was touched.
+- Verified semantically neutral rather than assumed: the build is deterministic
+  (two consecutive builds produce identical asset hashes), and a before/after
+  build was compared chunk by chunk. Every difference is prettier re-encoding
+  JSX whitespace — swapping a literal space for an explicit {" "} child, or the
+  reverse, when it rewraps a line. React renders both identically.
+- Audited all 18,000 string literals in the main bundle for text that was lost
+  or gained. Every difference paired up as a space moving across a boundary
+  (e.g. "Activate" + {" "} becoming "Activate "); five were confirmed at source
+  level. No user-visible string changed.
+- `pnpm exec tsc -b --noEmit` and `pnpm build` both pass, and prettier now
+  reports zero files needing formatting.
+
+Files: 446 files changed, 95470 insertions(+), 83815 deletions(-) — Base: 8334a62
+
 ## 2026-09-11 13:56 (main)
 Docs: add the Extended Warranty developer article, fix stale WhatsApp facts
 

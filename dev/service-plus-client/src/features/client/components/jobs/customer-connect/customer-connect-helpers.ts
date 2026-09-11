@@ -1,14 +1,19 @@
 import { isValidMobile } from "@/lib/mobile";
-import type { CustomerConnectJobRow, CustomerGroup, WhatsappAttempt, WhatsappCompletionState } from "./customer-connect-schema";
+import type {
+	CustomerConnectJobRow,
+	CustomerGroup,
+	WhatsappAttempt,
+	WhatsappCompletionState,
+} from "./customer-connect-schema";
 
 export const PAGE_SIZE = 50;
 
 export function isRowSelectable(row: CustomerConnectJobRow): boolean {
-    return isValidMobile(row.mobile);
+	return isValidMobile(row.mobile);
 }
 
 export function getCompletionState(row: CustomerConnectJobRow): WhatsappCompletionState | null {
-    return row.whatsapp_notifications?.JOB_COMPLETION ?? null;
+	return row.whatsapp_notifications?.JOB_COMPLETION ?? null;
 }
 
 // Any prior attempt unselects the row, including one still pending an outcome —
@@ -17,36 +22,39 @@ export function getCompletionState(row: CustomerConnectJobRow): WhatsappCompleti
 // revert to checked on a refresh. A resend must be a deliberate click, not just
 // "never succeeded".
 export function hasAnyPriorAttempt(row: CustomerConnectJobRow): boolean {
-    const state = getCompletionState(row);
-    return (state?.attempt_count ?? 0) > 0;
+	const state = getCompletionState(row);
+	return (state?.attempt_count ?? 0) > 0;
 }
 
-export type GroupableJobRow = Pick<CustomerConnectJobRow, "id" | "job_no" | "amount" | "customer_contact_id" | "customer_name" | "mobile">;
+export type GroupableJobRow = Pick<
+	CustomerConnectJobRow,
+	"id" | "job_no" | "amount" | "customer_contact_id" | "customer_name" | "mobile"
+>;
 
 // Groups by customer_contact_id — one WhatsApp message per customer, never one
 // per job. Mirrors the grouping the sendWhatsappCompletion resolver itself does
 // server-side, so "N jobs · M customers" in the toolbar/modal is trustworthy
 // before the click, not just after the server re-groups it.
 export function groupRowsByCustomer(rows: GroupableJobRow[]): CustomerGroup[] {
-    const groups = new Map<number, CustomerGroup>();
-    for (const row of rows) {
-        let group = groups.get(row.customer_contact_id);
-        if (!group) {
-            group = {
-                customer_contact_id: row.customer_contact_id,
-                customer_name: row.customer_name,
-                mobile: row.mobile,
-                job_ids: [],
-                job_nos: [],
-                amount: 0,
-            };
-            groups.set(row.customer_contact_id, group);
-        }
-        group.job_ids.push(row.id);
-        group.job_nos.push(row.job_no);
-        group.amount += row.amount ?? 0;
-    }
-    return [...groups.values()];
+	const groups = new Map<number, CustomerGroup>();
+	for (const row of rows) {
+		let group = groups.get(row.customer_contact_id);
+		if (!group) {
+			group = {
+				customer_contact_id: row.customer_contact_id,
+				customer_name: row.customer_name,
+				mobile: row.mobile,
+				job_ids: [],
+				job_nos: [],
+				amount: 0,
+			};
+			groups.set(row.customer_contact_id, group);
+		}
+		group.job_ids.push(row.id);
+		group.job_nos.push(row.job_no);
+		group.amount += row.amount ?? 0;
+	}
+	return [...groups.values()];
 }
 
 // Client-side mirror of SET_JOB_WHATSAPP_OUTCOME's `attempts` update, for the live
@@ -58,17 +66,15 @@ export function groupRowsByCustomer(rows: GroupableJobRow[]): CustomerGroup[] {
 // an optimistic patch that the next Refresh replaces with the authoritative value,
 // and the alternative is leaving the row visibly unsettled until then.
 export function applyOutcomeToAttempts(
-    attempts: WhatsappAttempt[] | null | undefined,
-    lastWamid: string | null,
-    status: WhatsappAttempt["status"],
-    error: string | null,
+	attempts: WhatsappAttempt[] | null | undefined,
+	lastWamid: string | null,
+	status: WhatsappAttempt["status"],
+	error: string | null,
 ): WhatsappAttempt[] | null {
-    if (!attempts?.length) return attempts ?? null;
-    return attempts.map(a =>
-        a.wamid !== null && a.wamid === lastWamid
-            ? { ...a, status, error, status_at: new Date().toISOString() }
-            : a,
-    );
+	if (!attempts?.length) return attempts ?? null;
+	return attempts.map((a) =>
+		a.wamid !== null && a.wamid === lastWamid ? { ...a, status, error, status_at: new Date().toISOString() } : a,
+	);
 }
 
 // The history to display for one event, reconciled against `attempt_count`.
@@ -86,29 +92,29 @@ export function applyOutcomeToAttempts(
 //    the count as missing instead of quietly showing 1 of 3 and letting the row
 //    read as complete.
 export function resolveAttemptHistory(state: WhatsappCompletionState | null): {
-    attempts: WhatsappAttempt[];
-    unrecorded: number;
-    totalSends: number;
+	attempts: WhatsappAttempt[];
+	unrecorded: number;
+	totalSends: number;
 } {
-    if (!state) return { attempts: [], unrecorded: 0, totalSends: 0 };
-    const recorded = [...(state.attempts ?? [])];
-    // attempt_count is the authoritative send counter; fall back to the array
-    // length in case a write ever lands one without the other.
-    const totalSends = Math.max(state.attempt_count ?? 0, recorded.length);
+	if (!state) return { attempts: [], unrecorded: 0, totalSends: 0 };
+	const recorded = [...(state.attempts ?? [])];
+	// attempt_count is the authoritative send counter; fall back to the array
+	// length in case a write ever lands one without the other.
+	const totalSends = Math.max(state.attempt_count ?? 0, recorded.length);
 
-    if (recorded.length === 0 && state.last_sent_at) {
-        recorded.push({
-            attempt_no: totalSends || 1,
-            wamid:      state.last_wamid,
-            sent_at:    state.last_sent_at,
-            status:     state.last_status ?? "ACCEPTED",
-            status_at:  null,
-            error:      state.last_error,
-        });
-    }
-    return {
-        attempts:   recorded.slice().reverse(),  // newest first
-        unrecorded: Math.max(0, totalSends - recorded.length),
-        totalSends,
-    };
+	if (recorded.length === 0 && state.last_sent_at) {
+		recorded.push({
+			attempt_no: totalSends || 1,
+			wamid: state.last_wamid,
+			sent_at: state.last_sent_at,
+			status: state.last_status ?? "ACCEPTED",
+			status_at: null,
+			error: state.last_error,
+		});
+	}
+	return {
+		attempts: recorded.slice().reverse(), // newest first
+		unrecorded: Math.max(0, totalSends - recorded.length),
+		totalSends,
+	};
 }

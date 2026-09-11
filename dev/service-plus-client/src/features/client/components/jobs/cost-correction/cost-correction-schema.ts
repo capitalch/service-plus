@@ -5,14 +5,14 @@
 export type CostLineTable = "part" | "charge";
 
 export type CostLine = {
-    line_table:    CostLineTable;
-    id:            number;
-    qty:           number;
-    cost_price:    number;
-    selling_price: number;
-    code:          string | null;
-    name:          string;
-    note:          string | null;
+	line_table: CostLineTable;
+	id: number;
+	qty: number;
+	cost_price: number;
+	selling_price: number;
+	code: string | null;
+	name: string;
+	note: string | null;
 };
 
 // cost_price is kept as the raw input string while editing so a half-typed

@@ -1,7 +1,7 @@
-import { Navigate } from 'react-router-dom';
-import { useAppSelector } from '@/store/hooks';
-import { selectCurrentUser, selectSessionMode } from '@/features/auth/store/auth-slice';
-import { ROUTES } from '@/router/routes';
+import { Navigate } from "react-router-dom";
+import { useAppSelector } from "@/store/hooks";
+import { selectCurrentUser, selectSessionMode } from "@/features/auth/store/auth-slice";
+import { ROUTES } from "@/router/routes";
 
 /**
  * Root App component
@@ -10,14 +10,14 @@ import { ROUTES } from '@/router/routes';
  * based on their user type and session mode.
  */
 const App = () => {
-    const sessionMode = useAppSelector(selectSessionMode);
-    const user        = useAppSelector(selectCurrentUser);
+	const sessionMode = useAppSelector(selectSessionMode);
+	const user = useAppSelector(selectCurrentUser);
 
-    if (user?.userType === 'S') return <Navigate replace to={ROUTES.superAdmin.root} />;
-    if (sessionMode === 'admin') return <Navigate replace to={ROUTES.admin.root} />;
+	if (user?.userType === "S") return <Navigate replace to={ROUTES.superAdmin.root} />;
+	if (sessionMode === "admin") return <Navigate replace to={ROUTES.admin.root} />;
 
-    // Client mode (type B always, type A after choosing client mode)
-    return <Navigate replace to={ROUTES.client.root} />;
+	// Client mode (type B always, type A after choosing client mode)
+	return <Navigate replace to={ROUTES.client.root} />;
 };
 
 export default App;

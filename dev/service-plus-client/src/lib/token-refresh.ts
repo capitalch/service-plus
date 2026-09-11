@@ -12,27 +12,27 @@ import { getAuthItem, setAuthItem } from "@/lib/auth-storage";
  * recover from a genuinely dead session.
  */
 export async function refreshIfNeeded(): Promise<string | null> {
-    const token = getAuthItem("accessToken");
-    if (!token) return null;
+	const token = getAuthItem("accessToken");
+	if (!token) return null;
 
-    try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        const exp = payload.exp;
-        const now = Math.floor(Date.now() / 1000);
-        const timeLeft = exp - now;
+	try {
+		const payload = JSON.parse(atob(token.split(".")[1]));
+		const exp = payload.exp;
+		const now = Math.floor(Date.now() / 1000);
+		const timeLeft = exp - now;
 
-        // Refresh if less than 5 minutes left
-        if (timeLeft < 300) {
-            const refreshToken = getAuthItem("refreshToken");
-            if (!refreshToken) return token;
+		// Refresh if less than 5 minutes left
+		if (timeLeft < 300) {
+			const refreshToken = getAuthItem("refreshToken");
+			if (!refreshToken) return token;
 
-            const res = await refreshAccessToken(refreshToken);
-            setAuthItem("accessToken", res.accessToken);
-            setAuthItem("refreshToken", res.refreshToken);
-            return res.accessToken;
-        }
-        return token;
-    } catch {
-        return token;
-    }
+			const res = await refreshAccessToken(refreshToken);
+			setAuthItem("accessToken", res.accessToken);
+			setAuthItem("refreshToken", res.refreshToken);
+			return res.accessToken;
+		}
+		return token;
+	} catch {
+		return token;
+	}
 }

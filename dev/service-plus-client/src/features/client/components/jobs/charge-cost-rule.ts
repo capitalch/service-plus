@@ -10,5 +10,5 @@
 export const SPARE_CHARGE_PATTERN = /(spare|parts)/i;
 
 export function chargeNeedsCost(chargeName: string): boolean {
-    return SPARE_CHARGE_PATTERN.test(chargeName);
+	return SPARE_CHARGE_PATTERN.test(chargeName);
 }

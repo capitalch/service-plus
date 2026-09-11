@@ -57,13 +57,16 @@ function FieldError({ message }: { message?: string }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const DeleteClientDialog = ({ client, onOpenChange, onSuccess, open }: DeleteClientDialogPropsType) => {
-	const schema = useMemo(() =>
-		z.object({
-			confirmName: z.string(),
-		}).refine((data) => data.confirmName === (client?.name ?? ""), {
-			message: MESSAGES.ERROR_CLIENT_NAME_MISMATCH,
-			path: ["confirmName"],
-		}),
+	const schema = useMemo(
+		() =>
+			z
+				.object({
+					confirmName: z.string(),
+				})
+				.refine((data) => data.confirmName === (client?.name ?? ""), {
+					message: MESSAGES.ERROR_CLIENT_NAME_MISMATCH,
+					path: ["confirmName"],
+				}),
 		[client?.name],
 	);
 
@@ -91,18 +94,15 @@ export const DeleteClientDialog = ({ client, onOpenChange, onSuccess, open }: De
 					<DialogHeader>
 						<DialogTitle>Delete Client</DialogTitle>
 						<DialogDescription>
-							Cannot delete{" "}
-							<span className="font-semibold text-slate-800">{client.name}</span>{" "}
-							while a database is attached.
+							Cannot delete <span className="font-semibold text-slate-800">{client.name}</span> while a
+							database is attached.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="flex flex-col gap-2">
 						<div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
 							<DatabaseIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-600" />
-							<p className="text-sm text-amber-800">
-								{MESSAGES.ERROR_CLIENT_DELETE_HAS_DB}
-							</p>
+							<p className="text-sm text-amber-800">{MESSAGES.ERROR_CLIENT_DELETE_HAS_DB}</p>
 						</div>
 						<div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
 							<p className="text-xs text-slate-500">
@@ -152,16 +152,14 @@ export const DeleteClientDialog = ({ client, onOpenChange, onSuccess, open }: De
 					<DialogTitle>Delete Client</DialogTitle>
 					<DialogDescription>
 						You are about to permanently delete{" "}
-						<span className="font-semibold text-slate-800">{client.name}</span>.
-						This action cannot be undone.
+						<span className="font-semibold text-slate-800">{client.name}</span>. This action cannot be
+						undone.
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
 					<AlertTriangleIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
-					<p className="text-sm text-amber-800">
-						This action is permanent and cannot be undone.
-					</p>
+					<p className="text-sm text-amber-800">This action is permanent and cannot be undone.</p>
 				</div>
 
 				<div className="flex flex-col gap-1.5">
@@ -179,11 +177,7 @@ export const DeleteClientDialog = ({ client, onOpenChange, onSuccess, open }: De
 				</div>
 
 				<DialogFooter>
-					<Button
-						disabled={isSubmitting}
-						variant="ghost"
-						onClick={() => onOpenChange(false)}
-					>
+					<Button disabled={isSubmitting} variant="ghost" onClick={() => onOpenChange(false)}>
 						Cancel
 					</Button>
 					<Button

@@ -254,13 +254,15 @@ export const InitializeClientDialog = ({
 				variables: {
 					db_name: activeDb,
 					schema: "security",
-					value: encodeURIComponent(JSON.stringify({
-						client_id: client.id,
-						email: data.email,
-						full_name: data.full_name,
-						mobile: data.mobile || null,
-						username: data.username,
-					})),
+					value: encodeURIComponent(
+						JSON.stringify({
+							client_id: client.id,
+							email: data.email,
+							full_name: data.full_name,
+							mobile: data.mobile || null,
+							username: data.username,
+						}),
+					),
 				},
 			});
 			if (result.error) {
@@ -289,10 +291,7 @@ export const InitializeClientDialog = ({
 
 	const step2Busy = creatingAdmin;
 	const step2SubmitDisabled =
-		step2Busy ||
-		checkingUsername ||
-		usernameTaken === true ||
-		Object.keys(step2Errors).length > 0;
+		step2Busy || checkingUsername || usernameTaken === true || Object.keys(step2Errors).length > 0;
 
 	const dot1Done = step === 2 || step === "success";
 	const dot2Active = step === 2;
@@ -309,17 +308,14 @@ export const InitializeClientDialog = ({
 				{step !== "success" && (
 					<div className="bg-gradient-to-br from-slate-800 to-slate-900 px-5 py-5 sm:px-7">
 						<p className="mb-4 text-sm font-semibold text-slate-300">
-							Initialize Client:{" "}
-							<span className="text-emerald-400">{client.name}</span>
+							Initialize Client: <span className="text-emerald-400">{client.name}</span>
 						</p>
 						<div className="flex items-center gap-3">
 							{/* Step 1 dot */}
 							<div className="flex flex-col items-center gap-1">
 								<div
 									className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-										dot1Done
-											? "bg-emerald-500 text-white"
-											: "bg-slate-600 text-slate-300"
+										dot1Done ? "bg-emerald-500 text-white" : "bg-slate-600 text-slate-300"
 									}`}
 								>
 									{dot1Done ? <Check className="h-3.5 w-3.5" /> : "1"}
@@ -327,18 +323,12 @@ export const InitializeClientDialog = ({
 								<span className="text-[10px] text-slate-400">Database</span>
 							</div>
 							{/* Connector 1→2 */}
-							<div
-								className={`h-0.5 flex-1 rounded ${
-									dot1Done ? "bg-emerald-500" : "bg-slate-600"
-								}`}
-							/>
+							<div className={`h-0.5 flex-1 rounded ${dot1Done ? "bg-emerald-500" : "bg-slate-600"}`} />
 							{/* Step 2 dot */}
 							<div className="flex flex-col items-center gap-1">
 								<div
 									className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-										dot2Active
-											? "bg-emerald-500 text-white"
-											: "bg-slate-600 text-slate-300"
+										dot2Active ? "bg-emerald-500 text-white" : "bg-slate-600 text-slate-300"
 									}`}
 								>
 									2
@@ -361,20 +351,14 @@ export const InitializeClientDialog = ({
 								initial={{ opacity: 0, y: 8 }}
 								transition={{ duration: 0.2 }}
 							>
-								<p className="mb-1 text-sm font-semibold text-slate-800">
-									Create Database
-								</p>
+								<p className="mb-1 text-sm font-semibold text-slate-800">Create Database</p>
 								<p className="mb-4 text-xs text-slate-500">
 									A new PostgreSQL database will be created for this client.
 								</p>
-								<form
-									className="flex flex-col gap-4"
-									onSubmit={step1Form.handleSubmit(onStep1Submit)}
-								>
+								<form className="flex flex-col gap-4" onSubmit={step1Form.handleSubmit(onStep1Submit)}>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="db_name">
-											Database Name{" "}
-											<span className="text-red-500">*</span>
+											Database Name <span className="text-red-500">*</span>
 										</Label>
 										<div className="relative">
 											<Input
@@ -394,11 +378,7 @@ export const InitializeClientDialog = ({
 										<FieldError message={step1Errors.db_name?.message} />
 									</div>
 									<div className="flex justify-end gap-2">
-										<Button
-											type="button"
-											variant="ghost"
-											onClick={() => onOpenChange(false)}
-										>
+										<Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
 											Cancel
 										</Button>
 										<Button
@@ -422,14 +402,11 @@ export const InitializeClientDialog = ({
 								initial={{ opacity: 0, y: 8 }}
 								transition={{ duration: 0.2 }}
 							>
-								<p className="mb-1 text-sm font-semibold text-slate-800">
-									Create Admin User
-								</p>
+								<p className="mb-1 text-sm font-semibold text-slate-800">Create Admin User</p>
 								{createdDbName ? (
 									<div className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-										Database{" "}
-										<span className="font-semibold">{createdDbName}</span>{" "}
-										created successfully. Now create the admin user.
+										Database <span className="font-semibold">{createdDbName}</span> created
+										successfully. Now create the admin user.
 									</div>
 								) : (
 									<p className="mb-4 text-xs text-slate-500">
@@ -437,14 +414,10 @@ export const InitializeClientDialog = ({
 										<span className="font-medium">{client.db_name}</span>.
 									</p>
 								)}
-								<form
-									className="flex flex-col gap-4"
-									onSubmit={step2Form.handleSubmit(onStep2Submit)}
-								>
+								<form className="flex flex-col gap-4" onSubmit={step2Form.handleSubmit(onStep2Submit)}>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="full_name">
-											Full Name{" "}
-											<span className="text-red-500">*</span>
+											Full Name <span className="text-red-500">*</span>
 										</Label>
 										<Input
 											id="full_name"
@@ -457,8 +430,7 @@ export const InitializeClientDialog = ({
 									</div>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="username">
-											Username{" "}
-											<span className="text-red-500">*</span>
+											Username <span className="text-red-500">*</span>
 										</Label>
 										<div className="relative">
 											<Input
@@ -479,8 +451,7 @@ export const InitializeClientDialog = ({
 									</div>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="email">
-											Email{" "}
-											<span className="text-red-500">*</span>
+											Email <span className="text-red-500">*</span>
 										</Label>
 										<Input
 											id="email"
@@ -512,11 +483,7 @@ export const InitializeClientDialog = ({
 										<FieldError message={step2Errors.mobile?.message} />
 									</div>
 									<div className="flex justify-end gap-2">
-										<Button
-											type="button"
-											variant="ghost"
-											onClick={() => onOpenChange(false)}
-										>
+										<Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
 											Cancel
 										</Button>
 										<Button
@@ -543,11 +510,10 @@ export const InitializeClientDialog = ({
 								<div className="mb-4 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600">
 									<PartyPopper className="h-8 w-8 text-emerald-600" />
 								</div>
-								<h3 className="mb-2 text-lg font-bold text-slate-800">
-									Client Initialized!
-								</h3>
+								<h3 className="mb-2 text-lg font-bold text-slate-800">Client Initialized!</h3>
 								<p className="mb-6 text-sm text-slate-500">
-									Database and admin user have been set up. Login credentials have been emailed to the admin.
+									Database and admin user have been set up. Login credentials have been emailed to the
+									admin.
 								</p>
 								<Button
 									className="bg-emerald-600 text-white hover:bg-emerald-700"
