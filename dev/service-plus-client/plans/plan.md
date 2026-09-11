@@ -20,9 +20,9 @@ succeeds, and every new/changed client file has been run through `pnpm format`.
 | 2 | Access rights | **done** — `CUSTOM_MENU` (19) and `CUSTOM_EXTENDED_WARRANTY` (20) in all four places, plus `scripts/seed_access_right_ew.sql` |
 | 3 | SQL store | **done** — `app/db/sql/sql_extended_warranty.py`, mixed into `SqlStore` |
 | 4 | Tokens | **done** — `sign_ew` / `verify_ew`, TTL 180 days |
-| 5 | Templates | **done in code** — `EXTENDED_WARRANTY` + `EXTENDED_WARRANTY_LEAD`; **not yet submitted to Meta** — paste-ready definitions are in Steps 5a/5b |
+| 5 | Templates | **done** — `EXTENDED_WARRANTY` + `EXTENDED_WARRANTY_LEAD`, both **approved by Meta**; the registered definitions are recorded in Steps 5a/5b |
 | 6 | Sender | **done** — `send_ew_reminders`, `send_ew_lead_alert`, webhook routing for `EW`/`EL`, `kind` on pubsub |
-| 7 | Public routes | **done** — `extended_warranty_router.py`, mounted in `main.py`; **the nginx `location` block for it is not deployed — see Step 7a** |
+| 7 | Public routes | **done** — `extended_warranty_router.py`, mounted in `main.py`, with its nginx `location` block deployed (Step 7a) |
 | 8 | GraphQL | **done** — `sendEwReminders`, `addEwFollowUp`, `resendEwLeadAlert` |
 | 9 | Scheduler | **not built** — optional and default-OFF in this plan; manual send is complete. See below |
 | 10 | Custom menu shell | **done** — registry, `Section`, routes, explorer, activity bar, deep-link page |
@@ -43,11 +43,16 @@ succeeds, and every new/changed client file has been run through `pnpm format`.
   Connect code with no caller in this feature. Left where they are; if a later screen
   wants that modal, the move is unchanged and still worth doing.
 
-**Also still yours:** adding the `/extended-warranty/` nginx location block (Step 7a —
-without it the customer-facing page is unreachable), re-running the Seed Roles dialog for
-existing tenants, and submitting both templates to Meta — the exact header/body/footer/button text to paste into
-WhatsApp Manager is in **Steps 5a and 5b**, with the post-approval checks in 5c (Testing 15
-— an unapproved template name fails every send permanently).
+**Also still yours:**
+
+1. **Re-run the Seed Roles dialog** for existing tenants, so their roles pick up
+   `CUSTOM_MENU` and `CUSTOM_EXTENDED_WARRANTY`.
+2. **Test with a single record** before sending in bulk, as Step 5c sets out. `demo1`
+   already has its three numbers filled in and both switches on; `capitalelectronics` and
+   `navtechnology` are still `enabled: false` with blank numbers.
+
+Both templates are approved and the nginx block is deployed, so nothing else is blocking
+the first send.
 
 `pnpm lint` currently fails repo-wide with "typescript-eslint does not support TS 7.0" —
 a pre-existing toolchain incompatibility, not something this feature introduced.
@@ -65,8 +70,8 @@ full customer details **and** raise the lead inside Service+, so staff can follo
 whichever is at hand and close it in one place. Every follow-up action is tracked until the
 deal is won or lost, and the whole funnel shows on a dashboard he can drill into.
 
-Gated behind `extended_warranty_notifications_enabled`, default **false** — this is a
-custom feature, off for every tenant that has not bought it.
+Gated behind `extended_warranty.enabled`, default **false** — this is a custom feature,
+off for every tenant that has not bought it.
 
 ---
 
@@ -248,7 +253,7 @@ is irrelevant.
 
 | Prompt | Implementation |
 |---|---|
-| `extended_warranty_notifications_enabled` | New `app_setting` row — the **feature flag**: menu visibility + module existence |
+| `extended_warranty_notifications_enabled` | The **feature flag**: menu visibility + module existence. Originally its own `app_setting` row; now the `enabled` field of the `extended_warranty` row — see "Settings consolidation" at the end |
 | "Custom" top nav | `Section` `'custom'`, `ROUTES.client.custom`, `ACCESS_RIGHTS.CUSTOM_MENU` |
 | "Extended Warranty" left nav | `CUSTOM_MENU_ITEMS[0]`, right `CUSTOM_EXTENDED_WARRANTY` |
 | "staff gets a message to company's whatsapp" | `EXTENDED_WARRANTY_LEAD` template → `staff_whatsapp_number` |
@@ -305,7 +310,7 @@ regenerated. This section records what it created.
 | `ew_customer_mobile_idx`, `ew_customer_branch_idx`, `ew_customer_outcome_idx` | Lookup, branch scoping, dashboard/grid filtering |
 | `ew_customer_stages_gin` | GIN `jsonb_path_ops` on `stages` |
 | `ew_stage_v` | The flattening view — one row per customer per stage, every JSONB field typed. Every read in Step 3 goes through it, so no reporting query ever touches raw JSONB |
-| `app_setting` rows 16 and 17 | 16 = `extended_warranty_notifications_enabled` (visibility flag, default `false`); 17 = `extended_warranty` (config: `reminder_days_before [30,7,0]`, `daily_send_cap 250`, the numbers and emails). `setting_value` is `jsonb NOT NULL`, so the scalar flag is quoted JSON — `'false'`, never a bare SQL `false` |
+| `app_setting` rows 16 and 17 | As originally applied: 16 = `extended_warranty_notifications_enabled` (visibility flag, default `false`); 17 = `extended_warranty` (config: `reminder_days_before [30,7,0]`, `daily_send_cap 250`, the numbers and emails). **Superseded** — the flag becomes a field on the config row and that row moves to id 16; see "Settings consolidation" at the end |
 | `app_setting` row 15, updated | `EXTENDED_WARRANTY: false` merged into the existing `whatsapp_notifications` object with `||`, guarded by `NOT (setting_value ? 'EXTENDED_WARRANTY')` so a re-run never flips a switch an admin turned on |
 
 The whole script is idempotent — `IF NOT EXISTS` on the table and indexes,
@@ -370,7 +375,7 @@ expiry and the offer stays worth acting on for a few months after, so this outli
 whole window with slack while staying far shorter than a job slip's 730.
 Reuse `_link_secret()`, which already refuses to sign with an empty key.
 
-### Step 5 — Templates — ✅ DONE IN CODE, ⏳ NOT SUBMITTED TO META
+### Step 5 — Templates — ✅ DONE (approved by Meta)
 
 Two new `TemplateSpec` entries.
 
@@ -417,7 +422,7 @@ Add `"EXTENDED_WARRANTY": "EW"` and `"EXTENDED_WARRANTY_LEAD": "EL"` to
 
 ---
 
-#### Step 5a — Register `extended_warranty_reminder_v1` with Meta — ⏳ YOURS
+#### Step 5a — `extended_warranty_reminder_v1` as registered with Meta — ✅ APPROVED
 
 WhatsApp Manager → Templates → Create. Everything below must match `templates.py:171`
 **exactly** — name, language, category and every parameter name. A mismatch is not a
@@ -441,7 +446,8 @@ Warranty offer from {{business_unit}}
 ```
 Hello {{customer_name}},
 
-The warranty on your {{brand}} {{product}} ends on {{expiry_date}}.
+Greetings from {{brand}}.
+The warranty on your {{product}} ends on {{expiry_date}}.
 
 You can extend it for a further 1 or 2 years and stay covered for parts and labour. For
 details call {{contact_phone}} or WhatsApp {{whatsapp_number}}.
@@ -458,7 +464,7 @@ Tap below if you'd like us to call you.
 | | |
 |---|---|
 | Button text | `I'm interested — contact me` |
-| URL | `https://<public-host>/extended-warranty/` | https://serviceplus.cloudjiffy.net/job-delivery/invoice/
+| URL | `https://serviceplus.cloudjiffy.net/extended-warranty/`
 
 **The URL field holds that bare prefix and nothing else — no `{{1}}`, no `{{token}}`.**
 Both were tried on 2026-08-30 and both shipped broken in exactly the same way: the
@@ -477,12 +483,12 @@ theory is that the Dynamic type alone drives the append. That theory is still un
 | `expiry_date` | `12 Oct 2026` |
 | `contact_phone` | `033 4000 1234` |
 | `whatsapp_number` | `+91 98300 12345` |
-| Button URL | `https://<public-host>/extended-warranty/abc123.def456` | older: https://serviceplus.cloudjiffy.net/job-delivery/invoice/c2VydmljZV9wbHVzX2RlbW98ZGVtbzF8NTM5Mw
+| Button URL | `https://serviceplus.cloudjiffy.net/extended-warranty/abc123.def456`
 
 `expiry_date` is `_format_expiry_date`'s `%d %b %Y` — a spelled month, so a customer
 reading it on a phone cannot misread dd/mm as mm/dd.
 
-#### Step 5b — Register `extended_warranty_lead_alert_v1` with Meta — ⏳ YOURS
+#### Step 5b — `extended_warranty_lead_alert_v1` as registered with Meta — ✅ APPROVED
 
 | Field | Value |
 |---|---|
@@ -519,7 +525,7 @@ and tabs out of every parameter, so a parameter can never carry one.
 | | |
 |---|---|
 | Button text | `Open in Service+` |
-| URL | `https://<client-host>/client/custom/ew/` | older: https://serviceplus.cloudjiffy.net/job-delivery/invoice/
+| URL | `https://serviceplus.cloudjiffy.net/client/custom/ew/`
 
 Same bare-prefix rule. The send appends `<customer_id>-<stage>`. This one deep-links into
 the **authenticated** app, so `ProtectedRoute` is the credential and no signed token is
@@ -535,7 +541,7 @@ minted for it.
 | `warranty_line` | `Warranty ends 12 Oct 2026 · Bought 12 Oct 2024 · 30-day reminder` |
 | `contact_line` | `12 Park Street · Kolkata · Prefers a call` |
 | `remarks_line` | `Call after 6pm` |
-| Button URL | `https://<client-host>/client/custom/ew/1234-30` | older: https://serviceplus.cloudjiffy.net/job-delivery/invoice/c2VydmljZV9wbHVzX2RlbW98ZGVtbzF8NTM5Mw
+| Button URL | `https://serviceplus.cloudjiffy.net/client/custom/ew/1234-30`
 
 Those samples are literally what `_join_parts` produces — ` · `-separated, blanks dropped,
 `-` when everything is blank.
@@ -546,10 +552,9 @@ branch on it. A lead alert to your own staff number is arguably Utility, but Met
 classifier has rejected a Utility submission here before over content it read differently
 (the JOB_DELIVERY OTP split, 2026-09-02).
 
-#### Step 5c — After both are approved — ⏳ YOURS
+#### Step 5c — After both are approved — ⏳ PARTLY YOURS
 
-1. Confirm both show **Approved** in WhatsApp Manager. Approval typically takes minutes
-   to a few hours; a rejection arrives with a reason code worth reading in full.
+1. ~~Confirm both show **Approved** in WhatsApp Manager.~~ ✅ Both approved.
 2. Check the header truncation budget still holds: the header is 60 characters, both
    fixed prefixes above are exactly 20, and `_truncate_business_unit` cuts the BU name at
    40 at a word boundary. Changing the header wording means changing that constant.
@@ -614,7 +619,7 @@ retried form post, a customer re-opening the link days later — must not create
 lead **or a second staff alert**. Fan out to the notification channels only when the
 statement reports it actually created the interest.
 
-#### Step 7a — nginx reverse proxy — ⏳ YOURS
+#### Step 7a — nginx reverse proxy — ✅ DONE
 
 **`/extended-warranty` is a new top-level public prefix, and nginx does not know about
 it.** `notes/Deployment.md` gives one `location` block per public WhatsApp prefix
@@ -624,9 +629,8 @@ it.** `notes/Deployment.md` gives one `location` block per public WhatsApp prefi
 no route for `/extended-warranty/<token>`, so they see a dead page — while the send itself
 reports success. Silent failure, on the customer-facing half of the feature.
 
-The block is now in `notes/Deployment.md`'s reference config, so a fresh deploy picks it
-up — but an already-running server still needs it added to
-`/etc/nginx/conf.d/service-plus-server.conf` by hand:
+The block is live on the server and is also in `notes/Deployment.md`'s reference config,
+so a fresh deploy picks it up:
 
 ```nginx
     # Extended Warranty — public interest / opt-out pages
@@ -639,8 +643,8 @@ up — but an already-running server still needs it added to
     }
 ```
 
-Then `sudo nginx -t` and reload. This must be live **before** the first send — the button
-URL registered with Meta (Step 5a) points at this prefix.
+Applied with `sudo nginx -t` and a reload. It had to be live before the first send — the
+button URL registered with Meta (Step 5a) points at this prefix.
 
 Nothing else changes:
 
@@ -906,3 +910,203 @@ Two things were cut from scope deliberately, both cheap to add back:
   later is **a settings edit, not a migration** — no new column, no backfill, no code
   change. Nothing in the design may hard-code the list of stages; read it from the setting
   everywhere, including the dashboard funnel's columns.
+
+
+---
+
+# Settings consolidation — `extended_warranty.enabled`
+
+Added after the feature shipped. The add-on was gated by **two** `app_setting` rows —
+16 `extended_warranty_notifications_enabled` (a bare boolean) and 17 `extended_warranty`
+(the config object). Both belong to the same feature and are always provisioned together,
+so the flag becomes a field on the config row, and the config row moves to **id 16** so the
+numbering stays contiguous.
+
+This does **not** touch `whatsapp_notifications.EXTENDED_WARRANTY` (row 15). That one
+answers "may a message go out"; this one answers "does this tenant have the add-on". They
+keep separate lifecycles — an operator pausing sends must not also hide the screen and its
+lead queue — so the two-switch design is unchanged. Only *where the visibility switch is
+stored* moves.
+
+Two gains beyond tidiness:
+
+1. **One fewer settings round trip.** `send_ew_reminders` issues **three** separate
+   `GET_APP_SETTING_BY_KEY` queries before doing any work — `_is_ew_feature_enabled`,
+   `_is_event_enabled`, `get_ew_settings` (`sender.py:1330/1332/1335`), unbatched and
+   uncached. After the merge the `enabled` check comes free off the row `get_ew_settings`
+   already fetches.
+2. **A safer editing surface.** The generic App Settings editor is not type-aware:
+   `detectMode` (`edit-app-setting-dialog.tsx:58-61`) sends objects to a raw JSON textarea
+   and everything else — booleans included — to a plain text Input. So the flag is edited
+   today by typing the word `true` into a textbox, and a typo (`ture`) saves as the JSON
+   string `"ture"`, which `_is_ew_feature_enabled` reads as disabled. Silently. Moving the
+   switch into the config row is the occasion to give that row its own dialog.
+
+**Constraints confirmed before planning this:**
+
+- **Nothing references `app_setting.id`** — no FK, no code path, no SQL. Every reader looks
+  up `setting_key`; the edit dialogs pass through whatever `record.id` they were handed.
+  `id` is a plain `smallint NOT NULL`, not an identity column. That is what makes the
+  renumber safe.
+- **The reader must fail closed.** A missing key, a non-object value or a missing row all
+  mean disabled — as `_is_event_enabled` (`sender.py:140-152`) already does.
+- **`edit-whatsapp-notifications-dialog.tsx` writes the whole object**
+  (`JSON.stringify(value)`, line 94) and drops any key its field list does not know about.
+  A cloned dialog must round-trip every key, or saving it would silently delete settings.
+- **`auto_send_enabled` is read by nothing** — it exists in `_EW_DEFAULT_SETTINGS`
+  (`sender.py:1137`), the seed and a TS type, with no consumer. `app/scheduler.py` is the
+  stock-snapshot job only. Its switch stays inert until Step 9 is built.
+
+### Step S1 — Migration — ✅ DONE (applied and verified 2026-09-11)
+
+`service-plus-server/scripts/ew_enabled_merge.sql`, applied to all three live schemas —
+`service_plus_demo.demo1`, `service_plus_capitalgroup.capitalelectronics` and
+`.navtechnology`. Verified: the flag row is gone, `extended_warranty` sits at id 16 in each,
+carries a boolean `enabled`, retains all eight config keys with no strays, and `demo1`'s
+already-on switch survived as `true`. `app_setting` ids run 1..16 with no gaps.
+No schema dump regeneration was needed — the dumps are `--schema-only`, and this migration
+changed no DDL. `ew_delta.sql` was left alone for the data move. Idempotent, ordered so id 16 is
+freed before it is reclaimed, and it **preserves a switch the owner already turned on**:
+
+```sql
+-- 1. Carry the flag's value into the config object.
+UPDATE app_setting t
+SET setting_value = t.setting_value || jsonb_build_object('enabled', f.setting_value),
+    updated_at    = now()
+FROM app_setting f
+WHERE t.setting_key = 'extended_warranty'
+  AND f.setting_key = 'extended_warranty_notifications_enabled'
+  AND jsonb_typeof(t.setting_value) = 'object'
+  AND jsonb_typeof(f.setting_value) = 'boolean'
+  AND NOT (t.setting_value ? 'enabled');
+
+-- 2. Default the key in where the flag row was absent, or its value was corrupted to a
+--    string by the old free-text editor. Fail closed: absent means off.
+UPDATE app_setting
+SET setting_value = setting_value || '{"enabled": false}'::jsonb,
+    updated_at    = now()
+WHERE setting_key = 'extended_warranty'
+  AND jsonb_typeof(setting_value) = 'object'
+  AND NOT (setting_value ? 'enabled');
+
+-- 3. Drop the old flag row. This frees id 16.
+DELETE FROM app_setting WHERE setting_key = 'extended_warranty_notifications_enabled';
+
+-- 4. Close the gap — extended_warranty takes id 16. The NOT EXISTS keeps this idempotent
+--    and safe: if 16 is somehow still occupied it no-ops instead of raising on the pkey.
+UPDATE app_setting
+SET id = 16, updated_at = now()
+WHERE setting_key = 'extended_warranty'
+  AND id <> 16
+  AND NOT EXISTS (SELECT 1 FROM app_setting a WHERE a.id = 16);
+```
+
+Run once per BU schema via `search_path`, template schema first:
+
+```bash
+psql "<conn>" -c "SET search_path TO demo1;" -f scripts/ew_enabled_merge.sql
+```
+
+Then regenerate dumps with `app/db/tools/extract_schema.py`, and **verify per schema** —
+the renumber is the one statement that can no-op:
+
+```sql
+SELECT id, setting_key, setting_value FROM app_setting WHERE id >= 15 ORDER BY id;
+-- expect exactly: 15 whatsapp_notifications, 16 extended_warranty (carrying "enabled")
+```
+
+### Step S2 — Seeds, so a new BU arrives correct — ✅ DONE
+
+- `app/db/seeds/seed_bu_data.py:234-235` — delete the flag tuple; renumber the
+  `extended_warranty` tuple to **16**, add `"enabled": false`, update its description.
+  Keys alphabetical: `auto_send_enabled`, `contact_phone`, `daily_send_cap`, `enabled`,
+  `notify_email`, `reminder_days_before`, `staff_whatsapp_number`, `whatsapp_number`.
+- `app/db/sql/sql_bu_admin_ddl.py` — **no change needed.** It carries the `app_setting`
+  *table* DDL only; the seed rows live solely in `seed_bu_data.py`.
+- `scripts/ew_delta.sql` — update the comment block, drop the flag insert, and move the
+  config row to id 16, so a schema migrated from scratch lands directly in the new shape.
+  It is re-runnable and must not reintroduce the flag row.
+
+The seed inserts use `ON CONFLICT (id) DO NOTHING` and run only for a **new** BU, so the
+changed meaning of id 16 cannot collide with a migrated schema — but the seed and the delta
+must agree on the number, or a new BU and a migrated one will disagree.
+
+### Step S3 — Server read path — ✅ DONE
+
+`_is_ew_feature_enabled` is now **synchronous and query-free** — it takes the settings row
+`get_ew_settings` already returned and reads `enabled` off it with strict `is True`, so a
+missing key, a non-bool, or the string `"true"` left by the old free-text editor all read
+as off. `_EW_DEFAULT_SETTINGS` gained `"enabled": False`, keeping the merged-defaults path
+fail-closed for an unmigrated schema.
+
+`send_ew_reminders` now fetches the settings row **before** the two switch checks and reads
+the flag from it, dropping one of the three `GET_APP_SETTING_BY_KEY` round trips.
+
+### Step S4 — Client read path — ✅ DONE
+
+`client-layout.tsx:224-227` reads the scalar row today; it must read the
+`extended_warranty` row and take `.enabled`, keeping the existing string-or-object
+tolerance.
+
+The Redux action `setExtendedWarrantyNotificationsEnabled`, the `context-slice` field and
+the selector keep their names — they describe intent, not storage — so the three consumers
+(`client-top-nav.tsx`, `client-explorer-panel.tsx`, `use-notifications-summary.ts`) and
+`custom-menu-registry.ts:36` need **no change at all**.
+
+### Step S5 — New App Settings dialog — ✅ DONE
+
+New `configurations/app-settings/edit-extended-warranty-dialog.tsx`, modelled on
+`edit-whatsapp-notifications-dialog.tsx` in the same folder: same
+`{ open, record, onOpenChange, onSuccess }` props, same fail-closed JSONB parse with
+defaults, same `genericUpdate` write against `tableName: "app_setting"` — no new SQL id, no
+new resolver, no server change. Branch to it from `app-settings-section.tsx:284-300`,
+beside the existing `setting_key === "whatsapp_notifications"` branch.
+
+Fields, in the order the owner reads them:
+
+| Field | Control | Notes |
+|---|---|---|
+| Enabled | Switch | Shows the Custom → Extended Warranty menu. Note that sending also needs `whatsapp_notifications → Extended Warranty` |
+| Auto send | Switch | `auto_send_enabled`. **Inert** until Step 9 — omit it, or label it as not yet in effect. Do not ship a switch that looks live and is not |
+| Reminder days before | list editor | `[30, 7, 0]`; positive integers, de-duplicated, sorted descending on save, never empty |
+| Daily send cap | number | non-negative |
+| Contact phone / WhatsApp number / Staff WhatsApp number | text | reuse the mobile helper in `lib/`, not a new regex |
+| Notify email | text | optional, validated when non-empty |
+
+**The save must preserve unknown keys.** The cloned pattern serialises the whole object, so
+build the payload by spreading the parsed original and overwriting known fields — never
+from the field list alone.
+
+### Step S6 — Docs — ✅ DONE
+
+- `help-content.ts:1343` — delete the `extended_warranty_notifications_enabled` row from
+  the App Settings table; fold its description into the `extended_warranty` row below it.
+- `help-content.ts:1366` and `:1384` — repoint both to
+  "Configurations → App Settings → extended_warranty → Enabled".
+- Add a paragraph noting `extended_warranty` now opens its own dialog, mirroring the
+  existing "Turning WhatsApp messages on or off" paragraph.
+
+### Verification
+
+1. `pnpm exec tsc -b --noEmit` and `pnpm build`; `pnpm format` on touched client files.
+   (`pnpm lint` is broken repo-wide on TS 7 — not a signal.)
+2. `python -c "import app.main"` on the server.
+3. Apply the delta to a scratch schema: flag row gone, `extended_warranty` at id **16**
+   carrying `enabled`, an owner-flipped `true` survived. Re-run — nothing changes.
+4. With `enabled` false the Custom tab is absent and the bell does not query
+   `COUNT_EW_NEW_INTEREST`; flip it in the new dialog and both appear after reload.
+5. Save the new dialog and re-open it — every field round-trips, no key dropped.
+6. A send is still blocked until `whatsapp_notifications.EXTENDED_WARRANTY` is also on.
+
+### Watch-outs
+
+- **Breaking settings change with no dual-read period.** The moment client and server ship,
+  a schema that has not run the migration reports the add-on disabled — fails closed, so no
+  wrong messages go out, but the menu vanishes until the delta runs. Ship the migration
+  first, or accept that window.
+- **Verify the renumber per schema.** Statements 1-3 always apply; statement 4 is the only
+  one that can no-op silently, by design, to avoid a pkey error. A schema left at id 17
+  still works — nothing reads the id — but its numbering has drifted from the seed.
+- Noticed while planning, out of scope here: `is_editable` is not enforced server-side, and
+  `/client/custom/ew/:ref` has no flag guard, so the staff alert's deep link opens even when
+  the add-on is switched off.

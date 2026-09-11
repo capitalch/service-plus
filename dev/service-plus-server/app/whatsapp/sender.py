@@ -1137,6 +1137,9 @@ _EW_DEFAULT_SETTINGS: dict[str, Any] = {
     "auto_send_enabled": False,
     "contact_phone": "",
     "daily_send_cap": 250,
+    # The feature flag. Default False so an unmigrated schema, a missing row or a partial
+    # object all resolve to "off" — never enabled by omission.
+    "enabled": False,
     "notify_email": "",
     "reminder_days_before": [30, 7, 0],
     "staff_whatsapp_number": "",
@@ -1144,20 +1147,23 @@ _EW_DEFAULT_SETTINGS: dict[str, Any] = {
 }
 
 
-async def _is_ew_feature_enabled(db_name: str, schema: str) -> bool:
+def _is_ew_feature_enabled(settings_row: dict[str, Any]) -> bool:
     """The feature flag, separate from the per-event send switch.
 
-    `extended_warranty_notifications_enabled` makes the module *visible*;
+    `extended_warranty.enabled` makes the module *visible*;
     `whatsapp_notifications.EXTENDED_WARRANTY` makes sends *allowed*. Both must be true
     to send. They are separate because an owner will want to enter and review leads
-    before any message goes out. Fails closed like `_is_event_enabled`."""
-    rows = await exec_sql_query(
-        db_name=db_name, schema=schema, sql=SqlStore.GET_APP_SETTING_BY_KEY,
-        sql_args={"setting_key": "extended_warranty_notifications_enabled"},
-    )
-    if not rows:
-        return False
-    return rows[0]["setting_value"] is True
+    before any message goes out.
+
+    Takes the already-fetched settings row rather than querying: `enabled` lives on the
+    same row `get_ew_settings` returns, so re-reading it would be a second round trip for
+    a key we already hold. It was its own app_setting row until the settings
+    consolidation — see scripts/ew_enabled_merge.sql.
+
+    Fails closed like `_is_event_enabled`: strict `is True`, so a missing key, a non-bool
+    value, or the string "true" left behind by the old free-text editor all read as off.
+    """
+    return settings_row.get("enabled") is True
 
 
 async def get_ew_settings(db_name: str, schema: str) -> dict[str, Any]:
@@ -1326,13 +1332,13 @@ async def send_ew_reminders(
     schema_name = schema or "public"
 
     # Both switches, in order: the feature flag, then the per-event send switch. Either
-    # one off means no message leaves the building.
-    if not await _is_ew_feature_enabled(db_name_arg, schema_name):
+    # one off means no message leaves the building. The flag lives on the settings row, so
+    # fetch that first and read it from there rather than querying app_setting twice.
+    settings_row = await get_ew_settings(db_name_arg, schema_name)
+    if not _is_ew_feature_enabled(settings_row):
         return {"results": [], "disabled": True}
     if not await _is_event_enabled(db_name_arg, schema_name, "EXTENDED_WARRANTY"):
         return {"results": [], "disabled": True}
-
-    settings_row = await get_ew_settings(db_name_arg, schema_name)
 
     rows = await exec_sql_query(
         db_name=db_name_arg, schema=schema_name, sql=SqlStore.GET_EW_CUSTOMERS_FOR_SEND,

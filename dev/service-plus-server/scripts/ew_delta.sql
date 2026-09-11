@@ -109,18 +109,20 @@ FROM ew_customer c
 CROSS JOIN LATERAL jsonb_each(c.stages) AS s(key, value);
 
 -- ── App settings ─────────────────────────────────────────────────────────────
--- Two switches, deliberately. `extended_warranty_notifications_enabled` makes the module
--- VISIBLE (menu + screens); whatsapp_notifications.EXTENDED_WARRANTY makes sends
--- ALLOWED. Both must be true before a message goes out — an owner will want to enter and
--- review leads first. Keeping the send switch in the existing jsonb row means
--- _is_event_enabled needs no change at all.
+-- Two switches, deliberately. `extended_warranty.enabled` makes the module VISIBLE (menu
+-- + screens); whatsapp_notifications.EXTENDED_WARRANTY makes sends ALLOWED. Both must be
+-- true before a message goes out — an owner will want to enter and review leads first.
+-- Keeping the send switch in the existing jsonb row means _is_event_enabled needs no
+-- change at all.
+--
+-- `enabled` used to be its own row, id 16 `extended_warranty_notifications_enabled`. It
+-- was folded into the config object and that row took id 16; a schema still carrying the
+-- old shape is migrated by scripts/ew_enabled_merge.sql, not by this script.
 
 INSERT INTO app_setting (id, setting_key, setting_value, description, is_editable) VALUES
-    (16, 'extended_warranty_notifications_enabled', 'false',
-     'Master switch for the Extended Warranty add-on: shows the Custom -> Extended Warranty menu. Sending also requires whatsapp_notifications.EXTENDED_WARRANTY.', true),
-    (17, 'extended_warranty',
-     '{"auto_send_enabled": false, "contact_phone": "", "daily_send_cap": 250, "notify_email": "", "reminder_days_before": [30, 7, 0], "staff_whatsapp_number": "", "whatsapp_number": ""}',
-     'Extended Warranty configuration: reminder stages, daily send cap, the phone/WhatsApp numbers printed in the customer message, and the staff number that receives lead alerts.', true)
+    (16, 'extended_warranty',
+     '{"auto_send_enabled": false, "contact_phone": "", "daily_send_cap": 250, "enabled": false, "notify_email": "", "reminder_days_before": [30, 7, 0], "staff_whatsapp_number": "", "whatsapp_number": ""}',
+     'Extended Warranty configuration. `enabled` is the master switch: it shows the Custom -> Extended Warranty menu. Sending also requires whatsapp_notifications.EXTENDED_WARRANTY. The rest is reminder stages, daily send cap, the phone/WhatsApp numbers printed in the customer message, and the staff number that receives lead alerts.', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Add the EXTENDED_WARRANTY key to row 15 without disturbing the other event switches,

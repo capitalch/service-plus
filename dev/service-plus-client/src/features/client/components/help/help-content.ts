@@ -10,2020 +10,4226 @@ import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 // ─── Articles ─────────────────────────────────────────────────────────────────
 
 export const HELP_ARTICLES: HelpArticle[] = [
+	// ── Category 1: Getting Started ──────────────────────────────────────────
 
-    // ── Category 1: Getting Started ──────────────────────────────────────────
+	{
+		id: "what-is-service-plus",
+		category: "Getting Started",
+		title: "What is Service+?",
+		summary: "Overview of the platform and its main areas.",
+		tags: ["overview", "intro", "modes", "dashboard"],
+		content: [
+			{
+				type: "para",
+				text: "Service+ is a repair shop and service center management platform. It covers the complete job lifecycle — from device intake through repair, invoicing, payment collection, and delivery to the customer.",
+			},
+			{ type: "heading", text: "Who uses it" },
+			{
+				type: "table",
+				headers: ["Role", "Primary Activities"],
+				rows: [
+					["Front-desk staff", "Create jobs, add customers, record payments, deliver jobs"],
+					["Technicians", "View assigned jobs, update job status"],
+					["Managers", "Monitor reports, track overdue jobs, review revenue"],
+					["Business Admins", "Manage users, view audit logs, configure the system"],
+				],
+			},
+			{ type: "heading", text: "Three operating modes" },
+			{
+				type: "bullets",
+				items: [
+					"Client Mode — day-to-day operations: jobs, inventory, reports, masters",
+					"Admin Mode — user and business unit management (Type A users only)",
+					"Super Admin — platform-level setup and client onboarding",
+				],
+			},
+			{ type: "heading", text: "Main navigation areas" },
+			{
+				type: "table",
+				headers: ["Section", "What you do there"],
+				rows: [
+					["Jobs", "Create, track, finalize, and deliver service jobs"],
+					["Inventory", "Manage spare parts stock — purchases, sales, transfers"],
+					["Reports", "Analytics: revenue, job pipeline, technician performance, GST"],
+					["Masters", "Reference data: customers, technicians, parts, brands, models"],
+					["Configurations", "Divisions, document sequences, app settings, GST setup"],
+					["Admin", "Post/unpost transactions to the accounting system"],
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "What is a Division?",
+				a: "A Division is your billing entity — it holds your business name, address, and GSTIN. It determines whether invoices are GST or non-GST. Every job and invoice is linked to a division.",
+			},
+			{
+				q: "What is a Branch?",
+				a: "A Branch is a physical service center location. All jobs, inventory, and technicians are scoped to a branch. You can have multiple branches.",
+			},
+			{
+				q: "Can I switch between modes?",
+				a: "Yes. Type A (Business Admin) users can switch between Client Mode and Admin Mode from the top-right menu.",
+			},
+		],
+	},
 
-    {
-        id: "what-is-service-plus",
-        category: "Getting Started",
-        title: "What is Service+?",
-        summary: "Overview of the platform and its main areas.",
-        tags: ["overview", "intro", "modes", "dashboard"],
-        content: [
-            { type: "para", text: "Service+ is a repair shop and service center management platform. It covers the complete job lifecycle — from device intake through repair, invoicing, payment collection, and delivery to the customer." },
-            { type: "heading", text: "Who uses it" },
-            { type: "table", headers: ["Role", "Primary Activities"], rows: [
-                ["Front-desk staff",  "Create jobs, add customers, record payments, deliver jobs"],
-                ["Technicians",       "View assigned jobs, update job status"],
-                ["Managers",          "Monitor reports, track overdue jobs, review revenue"],
-                ["Business Admins",   "Manage users, view audit logs, configure the system"],
-            ]},
-            { type: "heading", text: "Three operating modes" },
-            { type: "bullets", items: [
-                "Client Mode — day-to-day operations: jobs, inventory, reports, masters",
-                "Admin Mode — user and business unit management (Type A users only)",
-                "Super Admin — platform-level setup and client onboarding",
-            ]},
-            { type: "heading", text: "Main navigation areas" },
-            { type: "table", headers: ["Section", "What you do there"], rows: [
-                ["Jobs",           "Create, track, finalize, and deliver service jobs"],
-                ["Inventory",      "Manage spare parts stock — purchases, sales, transfers"],
-                ["Reports",        "Analytics: revenue, job pipeline, technician performance, GST"],
-                ["Masters",        "Reference data: customers, technicians, parts, brands, models"],
-                ["Configurations", "Divisions, document sequences, app settings, GST setup"],
-                ["Admin",          "Post/unpost transactions to the accounting system"],
-            ]},
-        ],
-        faqs: [
-            { q: "What is a Division?", a: "A Division is your billing entity — it holds your business name, address, and GSTIN. It determines whether invoices are GST or non-GST. Every job and invoice is linked to a division." },
-            { q: "What is a Branch?", a: "A Branch is a physical service center location. All jobs, inventory, and technicians are scoped to a branch. You can have multiple branches." },
-            { q: "Can I switch between modes?", a: "Yes. Type A (Business Admin) users can switch between Client Mode and Admin Mode from the top-right menu." },
-        ],
-    },
+	{
+		id: "first-time-setup",
+		category: "Getting Started",
+		title: "First-Time Setup Checklist",
+		summary: "Step-by-step guide to go from zero to your first job.",
+		tags: ["setup", "onboarding", "configuration", "document sequence", "division", "getting started"],
+		content: [
+			{
+				type: "para",
+				text: "Complete these steps in order before creating your first job. Skipping steps — especially document sequences — will cause errors later.",
+			},
+			{
+				type: "steps",
+				items: [
+					"Create a Branch (Masters → Branch). At least one branch is required.",
+					"Create a Division (Configurations → Divisions). Fill GSTIN for a GST division; leave GSTIN blank for non-GST.",
+					"Configure Numbering / Auto Series (Configurations → Numbering / Auto Series). Set a prefix for JOB_SHEET, SERVICE_INVOICE, and MONEY_RECEIPT. Without these, jobs and invoices cannot be created.",
+					"Set App Settings (Configurations → App Settings): default GST rate, default HSN codes, number of print copies.",
+					"Add lookup values: Job Types, Job Statuses, Receive/Delivery Manners, Receive Conditions (Masters → Service Config).",
+					"Add Brands, Products, and Models (Masters → Brand / Product / Model). Jobs require all three.",
+					"Add Spare Parts with Cost Price, HSN code, and GST Rate (Masters → Parts).",
+					"Add Customers and Technicians (Masters → Customer and Technician).",
+					"Add Opening Stock if inventory already exists before the system goes live (Inventory → Opening Stock).",
+					"Optionally: enter historical jobs as Opening Jobs (Jobs → Opening Jobs).",
+				],
+			},
+			{
+				type: "warning",
+				text: "If you skip numbering setup, you will see an error such as: 'Job Sheet document sequence is not configured or has no prefix.' Go to Configurations → Numbering / Auto Series and add a prefix to resolve it. (The in-app message currently says 'Settings → Document Sequence' — that wording is stale; the real menu path is Configurations → Numbering / Auto Series.)",
+			},
+		],
+		faqs: [
+			{
+				q: "Why can't I create a new job?",
+				a: "The most common cause is a missing numbering setup. Go to Configurations → Numbering / Auto Series, find JOB_SHEET, and set a prefix (e.g., 'SVC').",
+			},
+			{
+				q: "Do I need to create the customer before the job?",
+				a: "Yes. Search for an existing customer on the job form. If they are new, add them in Masters → Customer first.",
+			},
+			{
+				q: "Can I have multiple divisions?",
+				a: "Yes. Create one division per billing entity (e.g., one GST and one non-GST, or divisions for different states).",
+			},
+			{
+				q: "What is Opening Stock?",
+				a: "Opening Stock records the parts inventory you already have before starting to use Service+. Go to Inventory → Opening Stock and enter each part with its quantity.",
+			},
+		],
+	},
 
-    {
-        id: "first-time-setup",
-        category: "Getting Started",
-        title: "First-Time Setup Checklist",
-        summary: "Step-by-step guide to go from zero to your first job.",
-        tags: ["setup", "onboarding", "configuration", "document sequence", "division", "getting started"],
-        content: [
-            { type: "para", text: "Complete these steps in order before creating your first job. Skipping steps — especially document sequences — will cause errors later." },
-            { type: "steps", items: [
-                "Create a Branch (Masters → Branch). At least one branch is required.",
-                "Create a Division (Configurations → Divisions). Fill GSTIN for a GST division; leave GSTIN blank for non-GST.",
-                "Configure Numbering / Auto Series (Configurations → Numbering / Auto Series). Set a prefix for JOB_SHEET, SERVICE_INVOICE, and MONEY_RECEIPT. Without these, jobs and invoices cannot be created.",
-                "Set App Settings (Configurations → App Settings): default GST rate, default HSN codes, number of print copies.",
-                "Add lookup values: Job Types, Job Statuses, Receive/Delivery Manners, Receive Conditions (Masters → Service Config).",
-                "Add Brands, Products, and Models (Masters → Brand / Product / Model). Jobs require all three.",
-                "Add Spare Parts with Cost Price, HSN code, and GST Rate (Masters → Parts).",
-                "Add Customers and Technicians (Masters → Customer and Technician).",
-                "Add Opening Stock if inventory already exists before the system goes live (Inventory → Opening Stock).",
-                "Optionally: enter historical jobs as Opening Jobs (Jobs → Opening Jobs).",
-            ]},
-            { type: "warning", text: "If you skip numbering setup, you will see an error such as: 'Job Sheet document sequence is not configured or has no prefix.' Go to Configurations → Numbering / Auto Series and add a prefix to resolve it. (The in-app message currently says 'Settings → Document Sequence' — that wording is stale; the real menu path is Configurations → Numbering / Auto Series.)" },
-        ],
-        faqs: [
-            { q: "Why can't I create a new job?", a: "The most common cause is a missing numbering setup. Go to Configurations → Numbering / Auto Series, find JOB_SHEET, and set a prefix (e.g., 'SVC')." },
-            { q: "Do I need to create the customer before the job?", a: "Yes. Search for an existing customer on the job form. If they are new, add them in Masters → Customer first." },
-            { q: "Can I have multiple divisions?", a: "Yes. Create one division per billing entity (e.g., one GST and one non-GST, or divisions for different states)." },
-            { q: "What is Opening Stock?", a: "Opening Stock records the parts inventory you already have before starting to use Service+. Go to Inventory → Opening Stock and enter each part with its quantity." },
-        ],
-    },
+	{
+		id: "dashboard",
+		category: "Getting Started",
+		title: "Understanding the Dashboard",
+		summary: "KPI cards, charts, recent jobs, and overdue alerts explained.",
+		tags: ["dashboard", "kpi", "overdue", "revenue", "chart", "metrics"],
+		content: [
+			{ type: "heading", text: "KPI Cards" },
+			{
+				type: "table",
+				headers: ["Card", "What it counts"],
+				rows: [
+					["Jobs Received Today", "New jobs created today; split shows warranty vs out-of-warranty"],
+					["Jobs Delivered Today", "Jobs closed (delivered) today"],
+					["Revenue Today", "Total of invoices dated today"],
+					["Open Jobs", "Jobs not yet closed — all pending work"],
+					["Overdue Jobs", "Jobs open more than 7 days from creation date"],
+					[
+						"Warranty Jobs (Today)",
+						"Jobs received today that have a Warranty Card No filled in (not necessarily job type UNDER_WARRANTY)",
+					],
+					["Out-of-Warranty (Today)", "Jobs received today with no Warranty Card No"],
+				],
+			},
+			{ type: "heading", text: "Monthly Intake Chart" },
+			{
+				type: "para",
+				text: "Shows the last 12 months of job intake. The bars are split by whether a Warranty Card No is present, not by job type, so you can see the mix trend over time.",
+			},
+			{ type: "heading", text: "Recent Jobs" },
+			{
+				type: "para",
+				text: "The last 8 jobs in the system with their status, device, technician, and date. Status is shown as a plain badge — there is no color-coding by status.",
+			},
+			{ type: "heading", text: "Overdue Jobs Alert" },
+			{
+				type: "para",
+				text: "The bottom panel lists up to 5 of the oldest jobs open more than 7 days, each with an amber badge showing days old. Rows are not clickable.",
+			},
+			{
+				type: "note",
+				text: "Dashboard data is not auto-refreshed. Click the Refresh button to reload all KPIs and charts.",
+			},
+		],
+		faqs: [
+			{
+				q: "Revenue Today shows ₹0 — why?",
+				a: "Revenue Today totals invoices dated today. If no invoices have been created today, revenue is ₹0.",
+			},
+			{
+				q: "What counts as overdue?",
+				a: "Any job that is not closed (not delivered or cancelled) and is more than 7 days old from its creation date.",
+			},
+			{
+				q: "Can I change the overdue threshold?",
+				a: "The 7-day threshold is fixed in this version. Use Reports → Job Pipeline/Aging to see aging breakdowns with different time bands.",
+			},
+		],
+	},
 
-    {
-        id: "dashboard",
-        category: "Getting Started",
-        title: "Understanding the Dashboard",
-        summary: "KPI cards, charts, recent jobs, and overdue alerts explained.",
-        tags: ["dashboard", "kpi", "overdue", "revenue", "chart", "metrics"],
-        content: [
-            { type: "heading", text: "KPI Cards" },
-            { type: "table", headers: ["Card", "What it counts"], rows: [
-                ["Jobs Received Today",  "New jobs created today; split shows warranty vs out-of-warranty"],
-                ["Jobs Delivered Today", "Jobs closed (delivered) today"],
-                ["Revenue Today",        "Total of invoices dated today"],
-                ["Open Jobs",            "Jobs not yet closed — all pending work"],
-                ["Overdue Jobs",         "Jobs open more than 7 days from creation date"],
-                ["Warranty Jobs (Today)", "Jobs received today that have a Warranty Card No filled in (not necessarily job type UNDER_WARRANTY)"],
-                ["Out-of-Warranty (Today)", "Jobs received today with no Warranty Card No"],
-            ]},
-            { type: "heading", text: "Monthly Intake Chart" },
-            { type: "para", text: "Shows the last 12 months of job intake. The bars are split by whether a Warranty Card No is present, not by job type, so you can see the mix trend over time." },
-            { type: "heading", text: "Recent Jobs" },
-            { type: "para", text: "The last 8 jobs in the system with their status, device, technician, and date. Status is shown as a plain badge — there is no color-coding by status." },
-            { type: "heading", text: "Overdue Jobs Alert" },
-            { type: "para", text: "The bottom panel lists up to 5 of the oldest jobs open more than 7 days, each with an amber badge showing days old. Rows are not clickable." },
-            { type: "note", text: "Dashboard data is not auto-refreshed. Click the Refresh button to reload all KPIs and charts." },
-        ],
-        faqs: [
-            { q: "Revenue Today shows ₹0 — why?", a: "Revenue Today totals invoices dated today. If no invoices have been created today, revenue is ₹0." },
-            { q: "What counts as overdue?", a: "Any job that is not closed (not delivered or cancelled) and is more than 7 days old from its creation date." },
-            { q: "Can I change the overdue threshold?", a: "The 7-day threshold is fixed in this version. Use Reports → Job Pipeline/Aging to see aging breakdowns with different time bands." },
-        ],
-    },
+	// ── Category 2: Jobs ─────────────────────────────────────────────────────
 
-    // ── Category 2: Jobs ─────────────────────────────────────────────────────
+	{
+		id: "create-job",
+		category: "Jobs",
+		title: "Creating a New Job",
+		summary: "All fields, validation rules, and how to save a new job.",
+		tags: ["new job", "create job", "customer", "model", "division", "job type", "technician", "serial number"],
+		content: [
+			{
+				type: "para",
+				text: "Go to Jobs → New Job → Single Job. Fill the form and click Save. A job number is auto-assigned from the configured JOB_SHEET document sequence.",
+			},
+			{ type: "heading", text: "Required Fields" },
+			{
+				type: "table",
+				headers: ["Field", "Notes"],
+				rows: [
+					["Customer", "Search by name or mobile. Must exist in Masters → Customer."],
+					["Job Date", "Defaults to today. Can be backdated."],
+					[
+						"Job Type",
+						"Sets the workflow. UNDER_WARRANTY disables selling prices and sets final amount to ₹0.",
+					],
+					[
+						"Division",
+						"Determines GST or non-GST invoicing. Can be changed any time — unless the change would flip GST vs non-GST status while a service invoice already exists, in which case it is blocked until that invoice is voided.",
+					],
+					["Receive Manner", "How the device was received: Walk-in, Courier, Customer Drop, etc."],
+					["Brand / Product / Model", "All three levels required. Add missing entries in Masters first."],
+					["Quantity", "Default 1. Use a higher number only for identical multiple units."],
+				],
+			},
+			{ type: "heading", text: "Optional Fields" },
+			{
+				type: "table",
+				headers: ["Field", "Notes"],
+				rows: [
+					["Receive Condition", "Condition on arrival: Good, Damaged, Dead, Not Working, etc."],
+					["Serial No", "Device serial number for future reference."],
+					[
+						"Alternate Job No",
+						"External reference such as a customer's own tracking number or OEM job number.",
+					],
+					["Problem Reported", "Customer's description of the issue."],
+					["Warranty Card No", "Manufacturer warranty card reference if applicable."],
+					[
+						"GSTIN",
+						"Customer's GSTIN for B2B tax invoices. Auto-fills from the selected customer; edits are saved back to the customer. See 'Customer GSTIN on Jobs'.",
+					],
+					["Technician", "Who will repair the device. Can be assigned or changed later."],
+					["Remarks", "Internal notes."],
+				],
+			},
+			{ type: "heading", text: "Available Actions after saving" },
+			{
+				type: "bullets",
+				items: [
+					"Print — generates a job sheet PDF (copies controlled by App Settings)",
+					"Attach Files — upload images, documents, or receipts",
+					"Edit — modify job details (blocked if job is finalized)",
+					"Delete — remove the job (blocked if it has more than one transaction)",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Can I change the Division after saving?",
+				a: "Yes, in most cases — even after a service invoice exists. It's only blocked when the change would flip the job between GST and non-GST while an invoice already exists ('Invoice must be regenerated due to GST status change. Please void the existing invoice first.'). Void the invoice first if you hit that message.",
+			},
+			{
+				q: "The model dropdown is empty — what do I do?",
+				a: "Add the Brand, Product, and Model in Masters before creating the job. All three levels must exist.",
+			},
+			{
+				q: "Can one job cover multiple different devices?",
+				a: "No. Create one job per device type. Use the Quantity field only for identical units of the same model.",
+			},
+			{
+				q: "Can I edit a finalized job?",
+				a: "No. Jobs marked as Final are locked. Go to Final a Job → Finalized Jobs → click Undo to revert it (you must delete any existing invoice first).",
+			},
+			{
+				q: "What is the difference between Receive Condition and Job Status?",
+				a: "Receive Condition records the physical state of the device when it arrived (e.g., 'Damaged screen'). Job Status tracks where the job is in the repair workflow (e.g., In Progress, Completed).",
+			},
+		],
+	},
 
-    {
-        id: "create-job",
-        category: "Jobs",
-        title: "Creating a New Job",
-        summary: "All fields, validation rules, and how to save a new job.",
-        tags: ["new job", "create job", "customer", "model", "division", "job type", "technician", "serial number"],
-        content: [
-            { type: "para", text: "Go to Jobs → New Job → Single Job. Fill the form and click Save. A job number is auto-assigned from the configured JOB_SHEET document sequence." },
-            { type: "heading", text: "Required Fields" },
-            { type: "table", headers: ["Field", "Notes"], rows: [
-                ["Customer",      "Search by name or mobile. Must exist in Masters → Customer."],
-                ["Job Date",      "Defaults to today. Can be backdated."],
-                ["Job Type",      "Sets the workflow. UNDER_WARRANTY disables selling prices and sets final amount to ₹0."],
-                ["Division",      "Determines GST or non-GST invoicing. Can be changed any time — unless the change would flip GST vs non-GST status while a service invoice already exists, in which case it is blocked until that invoice is voided."],
-                ["Receive Manner","How the device was received: Walk-in, Courier, Customer Drop, etc."],
-                ["Brand / Product / Model", "All three levels required. Add missing entries in Masters first."],
-                ["Quantity",      "Default 1. Use a higher number only for identical multiple units."],
-            ]},
-            { type: "heading", text: "Optional Fields" },
-            { type: "table", headers: ["Field", "Notes"], rows: [
-                ["Receive Condition", "Condition on arrival: Good, Damaged, Dead, Not Working, etc."],
-                ["Serial No",        "Device serial number for future reference."],
-                ["Alternate Job No", "External reference such as a customer's own tracking number or OEM job number."],
-                ["Problem Reported", "Customer's description of the issue."],
-                ["Warranty Card No", "Manufacturer warranty card reference if applicable."],
-                ["GSTIN",            "Customer's GSTIN for B2B tax invoices. Auto-fills from the selected customer; edits are saved back to the customer. See 'Customer GSTIN on Jobs'."],
-                ["Technician",       "Who will repair the device. Can be assigned or changed later."],
-                ["Remarks",          "Internal notes."],
-            ]},
-            { type: "heading", text: "Available Actions after saving" },
-            { type: "bullets", items: [
-                "Print — generates a job sheet PDF (copies controlled by App Settings)",
-                "Attach Files — upload images, documents, or receipts",
-                "Edit — modify job details (blocked if job is finalized)",
-                "Delete — remove the job (blocked if it has more than one transaction)",
-            ]},
-        ],
-        faqs: [
-            { q: "Can I change the Division after saving?", a: "Yes, in most cases — even after a service invoice exists. It's only blocked when the change would flip the job between GST and non-GST while an invoice already exists ('Invoice must be regenerated due to GST status change. Please void the existing invoice first.'). Void the invoice first if you hit that message." },
-            { q: "The model dropdown is empty — what do I do?", a: "Add the Brand, Product, and Model in Masters before creating the job. All three levels must exist." },
-            { q: "Can one job cover multiple different devices?", a: "No. Create one job per device type. Use the Quantity field only for identical units of the same model." },
-            { q: "Can I edit a finalized job?", a: "No. Jobs marked as Final are locked. Go to Final a Job → Finalized Jobs → click Undo to revert it (you must delete any existing invoice first)." },
-            { q: "What is the difference between Receive Condition and Job Status?", a: "Receive Condition records the physical state of the device when it arrived (e.g., 'Damaged screen'). Job Status tracks where the job is in the repair workflow (e.g., In Progress, Completed)." },
-        ],
-    },
+	{
+		id: "job-lifecycle",
+		category: "Jobs",
+		title: "Job Lifecycle & Statuses",
+		summary: "How jobs move from Received to Delivered and what each status means.",
+		tags: ["job status", "lifecycle", "completed", "delivered", "on hold", "cancelled", "pipeline", "in progress"],
+		content: [
+			{ type: "heading", text: "Status Flow" },
+			{
+				type: "bullets",
+				items: [
+					"RECEIVED → job created, work not yet started",
+					"ASSIGNED, ESTIMATED, ESTIMATE_APPROVED, ESTIMATE_REJECTED → pre-repair estimate steps, if used",
+					"IN_PROGRESS → technician is actively working on the device",
+					"PARTS_PENDING, ON_HOLD, OUTSOURCED, SENT_TO_COMPANY → work paused or handed off, for various reasons",
+					"COMPLETED_OK → work done, device is repaired and working",
+					"RETURN → work done, but device could not be fixed (this is the terminal 'not fixed' status)",
+					"DELIVERED_OK → device returned to customer (was working)",
+					"DELIVERED_NOT_OK → device returned to customer (still not fixed)",
+					"CANCELLED → job abandoned",
+					"DISPOSED, RECEIVED_BACK_FROM_COMPANY → end-of-life / outsourcing outcomes",
+				],
+			},
+			{
+				type: "para",
+				text: "To change a status: go to Jobs → Job Control, open the status actions (⇄) on the job row, and pick the next status. Delivered status is set automatically when you complete the Deliver Job workflow. Job Pipeline's drilldown view supports the same status changes as Job Control — it is not read-only, just a different way to find and act on jobs grouped by status.",
+			},
+			{ type: "heading", text: "What determines if a job can be finalized?" },
+			{
+				type: "para",
+				text: "A job appears in Final a Job → Pending tab only when its status is exactly COMPLETED_OK and it is not yet final. RETURN jobs are already marked final automatically and skip this step entirely.",
+			},
+			{ type: "heading", text: "What determines if a job can be delivered?" },
+			{
+				type: "para",
+				text: "A job must have is_final = true and not be closed yet — its status is not otherwise restricted, so any finalized, non-closed job (including RETURN) appears in the Deliver Job screen.",
+			},
+		],
+		faqs: [
+			{
+				q: "How do I reopen a delivered job?",
+				a: "Go to Final a Job → Finalized Jobs tab → click Undo on the job row. This moves the job back to Pending. Any existing service invoice must be deleted before undoing.",
+			},
+			{
+				q: "Can a cancelled job be reopened?",
+				a: "Yes — change the status back to RECEIVED or IN_PROGRESS using the status actions in Job Control or the Job Pipeline drilldown.",
+			},
+			{
+				q: "Where do I see all overdue jobs?",
+				a: "Dashboard → Overdue Jobs panel shows up to 5 of the oldest jobs open more than 7 days. For detailed aging on every job, use Reports → Job Pipeline / Aging.",
+			},
+			{
+				q: "Can two technicians work on the same job?",
+				a: "Only one technician is assigned at a time. Re-assign as needed by editing the job. The most recently assigned technician is shown.",
+			},
+			{
+				q: "What happens to a job with RETURN status after delivery?",
+				a: "It becomes DELIVERED_NOT_OK. An invoice can still be raised for diagnostic or inspection charges.",
+			},
+		],
+	},
 
-    {
-        id: "job-lifecycle",
-        category: "Jobs",
-        title: "Job Lifecycle & Statuses",
-        summary: "How jobs move from Received to Delivered and what each status means.",
-        tags: ["job status", "lifecycle", "completed", "delivered", "on hold", "cancelled", "pipeline", "in progress"],
-        content: [
-            { type: "heading", text: "Status Flow" },
-            { type: "bullets", items: [
-                "RECEIVED → job created, work not yet started",
-                "ASSIGNED, ESTIMATED, ESTIMATE_APPROVED, ESTIMATE_REJECTED → pre-repair estimate steps, if used",
-                "IN_PROGRESS → technician is actively working on the device",
-                "PARTS_PENDING, ON_HOLD, OUTSOURCED, SENT_TO_COMPANY → work paused or handed off, for various reasons",
-                "COMPLETED_OK → work done, device is repaired and working",
-                "RETURN → work done, but device could not be fixed (this is the terminal 'not fixed' status)",
-                "DELIVERED_OK → device returned to customer (was working)",
-                "DELIVERED_NOT_OK → device returned to customer (still not fixed)",
-                "CANCELLED → job abandoned",
-                "DISPOSED, RECEIVED_BACK_FROM_COMPANY → end-of-life / outsourcing outcomes",
-            ]},
-            { type: "para", text: "To change a status: go to Jobs → Job Control, open the status actions (⇄) on the job row, and pick the next status. Delivered status is set automatically when you complete the Deliver Job workflow. Job Pipeline's drilldown view supports the same status changes as Job Control — it is not read-only, just a different way to find and act on jobs grouped by status." },
-            { type: "heading", text: "What determines if a job can be finalized?" },
-            { type: "para", text: "A job appears in Final a Job → Pending tab only when its status is exactly COMPLETED_OK and it is not yet final. RETURN jobs are already marked final automatically and skip this step entirely." },
-            { type: "heading", text: "What determines if a job can be delivered?" },
-            { type: "para", text: "A job must have is_final = true and not be closed yet — its status is not otherwise restricted, so any finalized, non-closed job (including RETURN) appears in the Deliver Job screen." },
-        ],
-        faqs: [
-            { q: "How do I reopen a delivered job?", a: "Go to Final a Job → Finalized Jobs tab → click Undo on the job row. This moves the job back to Pending. Any existing service invoice must be deleted before undoing." },
-            { q: "Can a cancelled job be reopened?", a: "Yes — change the status back to RECEIVED or IN_PROGRESS using the status actions in Job Control or the Job Pipeline drilldown." },
-            { q: "Where do I see all overdue jobs?", a: "Dashboard → Overdue Jobs panel shows up to 5 of the oldest jobs open more than 7 days. For detailed aging on every job, use Reports → Job Pipeline / Aging." },
-            { q: "Can two technicians work on the same job?", a: "Only one technician is assigned at a time. Re-assign as needed by editing the job. The most recently assigned technician is shown." },
-            { q: "What happens to a job with RETURN status after delivery?", a: "It becomes DELIVERED_NOT_OK. An invoice can still be raised for diagnostic or inspection charges." },
-        ],
-    },
+	{
+		id: "job-control",
+		category: "Jobs",
+		title: "Job Control (Operations Hub)",
+		summary: "The central screen to move jobs through statuses, add parts & charges, finalize, deliver, and undo.",
+		tags: [
+			"job control",
+			"status",
+			"transition",
+			"undo",
+			"parts",
+			"charges",
+			"final",
+			"deliver",
+			"proforma",
+			"operations",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Jobs → Job Control is the day-to-day operations hub. Every job created through Single Job, Batch Jobs, or Opening Jobs appears here, and this is where you drive it through its whole life — from Received to Delivered — without leaving the screen.",
+			},
+			{ type: "heading", text: "Finding a job" },
+			{
+				type: "bullets",
+				items: [
+					"Filter tabs: Open (not yet delivered), Delivered, or All.",
+					"Status filter: click Status to switch to a per-status chip bar and click a status to see only those jobs.",
+					"Search by job no, customer, mobile, product, brand, model, or serial number.",
+					"Click a row to select it — the selection is kept in view after any action that reloads the list.",
+				],
+			},
+			{
+				type: "note",
+				text: "In the Delivered filter, the Date column becomes Del Date and shows each job's delivery date instead of its intake date, sorted with the most recently delivered job first (ties broken by newest job id). The job's original intake date is still shown, as a 'job dt:' line under the Job No.",
+			},
+			{ type: "heading", text: "Status badges on each row" },
+			{
+				type: "bullets",
+				items: [
+					"FINAL — the job has been finalized (locked for invoicing).",
+					"GST / Non-GST — whether the job's division charges tax.",
+					"Invoice: Posted / Unposted — whether the job invoice has been posted to accounts.",
+					"CLOSED — the job has been delivered and closed.",
+				],
+			},
+			{ type: "heading", text: "Actions on an open job (⇄ menu)" },
+			{
+				type: "table",
+				headers: ["Action", "When it appears", "What it does"],
+				rows: [
+					[
+						"Move job to …",
+						"Job has valid next statuses",
+						"Opens the transition dialog to set division, technician, estimate (if needed), remarks, and date",
+					],
+					[
+						"Undo Last Transaction",
+						"Job has at least one recorded transaction",
+						"Reverts the job to its previous status",
+					],
+					[
+						"Parts & Charges",
+						"Status is Received / Assigned / Estimate Approved / In Progress (non-demo/inspection)",
+						"Add or edit spare parts and additional charges",
+					],
+					[
+						"Final the Job",
+						"Status is Completed OK and not yet final",
+						"Opens the full finalization form (parts, charges, amount)",
+					],
+					[
+						"Revise / Undo Final",
+						"Job is already final",
+						"Re-open or roll back finalization — blocked once the invoice is posted",
+					],
+					[
+						"Deliver Job",
+						"Job is final and not closed",
+						"Opens the delivery flow (invoice + receipts + delivery details)",
+					],
+					[
+						"Proforma Invoice",
+						"Job is final, not closed, amount > ₹0",
+						"Generates a proforma (pre-delivery) invoice PDF",
+					],
+				],
+			},
+			{ type: "heading", text: "Actions on a delivered job (⋮ menu)" },
+			{
+				type: "bullets",
+				items: [
+					"View job details, print the Delivery Note, or print Invoice + Receipts.",
+					"Print / Save as PDF for the full job document.",
+					"Undo Delivery — re-opens a delivered job. Blocked when its invoice is already posted to accounts.",
+				],
+			},
+			{
+				type: "note",
+				text: "The top bar also has Undo Final and Undo Delivery shortcuts that open the Finalized / Delivered lists directly with a Back button to return.",
+			},
+		],
+		faqs: [
+			{
+				q: "What is the difference between Job Control and Job Pipeline?",
+				a: "Job Control is a flat, searchable list you act on directly. Job Pipeline shows how many jobs are in each status and lets you drill into a status group — the drilldown offers the same status-change actions as Job Control, just grouped differently.",
+			},
+			{
+				q: "The action menu shows a lock icon — why?",
+				a: "The job is in a status with no available action (for example a returned or already-delivered job). No transitions, undo, or charges apply to it.",
+			},
+			{
+				q: "Why can't I Undo Final or Undo Delivery on a job?",
+				a: "Its invoice has been posted to accounts. Posted jobs are locked — the Undo options are disabled with a tooltip explaining why.",
+			},
+			{
+				q: "I moved a job to the wrong status — can I fix it?",
+				a: "Yes. Use 'Undo Last Transaction' from the ⇄ menu to step it back to the previous status, as long as it has not been delivered.",
+			},
+			{
+				q: "Where do I add an estimate amount?",
+				a: "When you move a job to a status that requires an estimate, the transition dialog shows an Estimate Amount field. Enter it there before confirming.",
+			},
+		],
+	},
 
-    {
-        id: "job-control",
-        category: "Jobs",
-        title: "Job Control (Operations Hub)",
-        summary: "The central screen to move jobs through statuses, add parts & charges, finalize, deliver, and undo.",
-        tags: ["job control", "status", "transition", "undo", "parts", "charges", "final", "deliver", "proforma", "operations"],
-        content: [
-            { type: "para", text: "Jobs → Job Control is the day-to-day operations hub. Every job created through Single Job, Batch Jobs, or Opening Jobs appears here, and this is where you drive it through its whole life — from Received to Delivered — without leaving the screen." },
-            { type: "heading", text: "Finding a job" },
-            { type: "bullets", items: [
-                "Filter tabs: Open (not yet delivered), Delivered, or All.",
-                "Status filter: click Status to switch to a per-status chip bar and click a status to see only those jobs.",
-                "Search by job no, customer, mobile, product, brand, model, or serial number.",
-                "Click a row to select it — the selection is kept in view after any action that reloads the list.",
-            ]},
-            { type: "note", text: "In the Delivered filter, the Date column becomes Del Date and shows each job's delivery date instead of its intake date, sorted with the most recently delivered job first (ties broken by newest job id). The job's original intake date is still shown, as a 'job dt:' line under the Job No." },
-            { type: "heading", text: "Status badges on each row" },
-            { type: "bullets", items: [
-                "FINAL — the job has been finalized (locked for invoicing).",
-                "GST / Non-GST — whether the job's division charges tax.",
-                "Invoice: Posted / Unposted — whether the job invoice has been posted to accounts.",
-                "CLOSED — the job has been delivered and closed.",
-            ]},
-            { type: "heading", text: "Actions on an open job (⇄ menu)" },
-            { type: "table", headers: ["Action", "When it appears", "What it does"], rows: [
-                ["Move job to …",       "Job has valid next statuses",                         "Opens the transition dialog to set division, technician, estimate (if needed), remarks, and date"],
-                ["Undo Last Transaction","Job has at least one recorded transaction",           "Reverts the job to its previous status"],
-                ["Parts & Charges",     "Status is Received / Assigned / Estimate Approved / In Progress (non-demo/inspection)", "Add or edit spare parts and additional charges"],
-                ["Final the Job",       "Status is Completed OK and not yet final",            "Opens the full finalization form (parts, charges, amount)"],
-                ["Revise / Undo Final", "Job is already final",                                "Re-open or roll back finalization — blocked once the invoice is posted"],
-                ["Deliver Job",         "Job is final and not closed",                         "Opens the delivery flow (invoice + receipts + delivery details)"],
-                ["Proforma Invoice",    "Job is final, not closed, amount > ₹0",              "Generates a proforma (pre-delivery) invoice PDF"],
-            ]},
-            { type: "heading", text: "Actions on a delivered job (⋮ menu)" },
-            { type: "bullets", items: [
-                "View job details, print the Delivery Note, or print Invoice + Receipts.",
-                "Print / Save as PDF for the full job document.",
-                "Undo Delivery — re-opens a delivered job. Blocked when its invoice is already posted to accounts.",
-            ]},
-            { type: "note", text: "The top bar also has Undo Final and Undo Delivery shortcuts that open the Finalized / Delivered lists directly with a Back button to return." },
-        ],
-        faqs: [
-            { q: "What is the difference between Job Control and Job Pipeline?", a: "Job Control is a flat, searchable list you act on directly. Job Pipeline shows how many jobs are in each status and lets you drill into a status group — the drilldown offers the same status-change actions as Job Control, just grouped differently." },
-            { q: "The action menu shows a lock icon — why?", a: "The job is in a status with no available action (for example a returned or already-delivered job). No transitions, undo, or charges apply to it." },
-            { q: "Why can't I Undo Final or Undo Delivery on a job?", a: "Its invoice has been posted to accounts. Posted jobs are locked — the Undo options are disabled with a tooltip explaining why." },
-            { q: "I moved a job to the wrong status — can I fix it?", a: "Yes. Use 'Undo Last Transaction' from the ⇄ menu to step it back to the previous status, as long as it has not been delivered." },
-            { q: "Where do I add an estimate amount?", a: "When you move a job to a status that requires an estimate, the transition dialog shows an Estimate Amount field. Enter it there before confirming." },
-        ],
-    },
+	{
+		id: "batch-jobs",
+		category: "Jobs",
+		title: "Batch Jobs",
+		summary: "Group multiple jobs from the same customer under one batch number.",
+		tags: ["batch", "bulk jobs", "courier", "batch sheet"],
+		content: [
+			{
+				type: "para",
+				text: "A Batch groups multiple jobs from the same customer under one batch number. This is useful for courier deliveries, warranty returns, or when a customer brings in multiple devices at once.",
+			},
+			{
+				type: "steps",
+				items: [
+					"Go to Jobs → New Job → Batch Jobs.",
+					"Select the customer and fill the batch-level details.",
+					"Add individual jobs within the batch — each with its own model, problem, and technician.",
+					"Save the batch. A batch number is auto-assigned.",
+					"Print the batch sheet for the customer.",
+				],
+			},
+			{
+				type: "note",
+				text: "Finalization and delivery still happen per individual job. A batch is just a grouping — it does not change the job workflow.",
+			},
+			{
+				type: "para",
+				text: "The customer's GSTIN can be captured or edited on the batch form just like on a single job — it auto-fills from the selected customer and is saved back to the customer record. See 'Customer GSTIN on Jobs'.",
+			},
+			{ type: "heading", text: "Editing a batch job" },
+			{
+				type: "para",
+				text: "If a job has a Batch No, it must be edited from Batch Jobs — not from Single Job. Find the batch and edit the individual job within it.",
+			},
+			{
+				type: "note",
+				text: "Not to be confused with Batch Warranty Jobs (Jobs → Batch Warranty Jobs), which processes transactions on jobs that already exist — this screen is only for creating new job intake records. See 'Batch Warranty Jobs'.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why can't I edit a job from Single Job?",
+				a: "The job belongs to a batch. Open Batch Jobs, find the batch by batch number or customer, and edit the job there.",
+			},
+			{
+				q: "Can I add a new job to an existing batch?",
+				a: "Yes — open the batch in Batch Jobs and add more job lines before saving.",
+			},
+			{
+				q: "Can I remove a job from a batch?",
+				a: "Yes — edit the batch and delete the job line. The job will be removed from the batch.",
+			},
+		],
+	},
 
-    {
-        id: "batch-jobs",
-        category: "Jobs",
-        title: "Batch Jobs",
-        summary: "Group multiple jobs from the same customer under one batch number.",
-        tags: ["batch", "bulk jobs", "courier", "batch sheet"],
-        content: [
-            { type: "para", text: "A Batch groups multiple jobs from the same customer under one batch number. This is useful for courier deliveries, warranty returns, or when a customer brings in multiple devices at once." },
-            { type: "steps", items: [
-                "Go to Jobs → New Job → Batch Jobs.",
-                "Select the customer and fill the batch-level details.",
-                "Add individual jobs within the batch — each with its own model, problem, and technician.",
-                "Save the batch. A batch number is auto-assigned.",
-                "Print the batch sheet for the customer.",
-            ]},
-            { type: "note", text: "Finalization and delivery still happen per individual job. A batch is just a grouping — it does not change the job workflow." },
-            { type: "para", text: "The customer's GSTIN can be captured or edited on the batch form just like on a single job — it auto-fills from the selected customer and is saved back to the customer record. See 'Customer GSTIN on Jobs'." },
-            { type: "heading", text: "Editing a batch job" },
-            { type: "para", text: "If a job has a Batch No, it must be edited from Batch Jobs — not from Single Job. Find the batch and edit the individual job within it." },
-            { type: "note", text: "Not to be confused with Batch Warranty Jobs (Jobs → Batch Warranty Jobs), which processes transactions on jobs that already exist — this screen is only for creating new job intake records. See 'Batch Warranty Jobs'." },
-        ],
-        faqs: [
-            { q: "Why can't I edit a job from Single Job?", a: "The job belongs to a batch. Open Batch Jobs, find the batch by batch number or customer, and edit the job there." },
-            { q: "Can I add a new job to an existing batch?", a: "Yes — open the batch in Batch Jobs and add more job lines before saving." },
-            { q: "Can I remove a job from a batch?", a: "Yes — edit the batch and delete the job line. The job will be removed from the batch." },
-        ],
-    },
+	{
+		id: "batch-warranty-jobs",
+		category: "Jobs",
+		title: "Batch Warranty Jobs",
+		summary:
+			"Advance several existing zero-parts warranty jobs for one customer through their transactions together — not the same as Batch Jobs.",
+		tags: [
+			"batch warranty jobs",
+			"warranty",
+			"batch process",
+			"completed ok",
+			"final",
+			"deliver",
+			"send to company",
+			"receive from company",
+			"delivery note",
+			"reprint",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Jobs → Batch Warranty Jobs lets you push several existing, zero-parts warranty jobs for one customer through their pipeline transactions in a single run — Completed OK, Final a Job, Deliver a Job, or the vendor Send-to-Company / Received-from-Company cycle — instead of opening each job separately.",
+			},
+			{
+				type: "warning",
+				text: "This is not the same as Batch Jobs (New Job → Batch Jobs). Batch Jobs creates new job intake records. Batch Warranty Jobs only processes transactions on warranty jobs that already exist.",
+			},
+			{ type: "heading", text: "Running a batch" },
+			{
+				type: "steps",
+				items: [
+					"Go to Jobs → Batch Warranty Jobs.",
+					"Pick a customer — only customers with open (not yet delivered), zero-parts warranty jobs are listed.",
+					"The grid shows that customer's eligible jobs. Select one or more with the checkboxes.",
+					"Click 'Process N Jobs' to open the process modal.",
+					"Set the technician (only required if Completed OK is checked), the date (required, defaults to today), and optional remarks.",
+					"Check the transactions to apply, then click Proceed.",
+				],
+			},
+			{ type: "heading", text: "Transaction Groups" },
+			{
+				type: "table",
+				headers: ["Group", "Transactions", "Behavior"],
+				rows: [
+					[
+						"Completion",
+						"Completed OK → Final a Job → Deliver a Job",
+						"Cascades forward — checking Completed OK unlocks Final, which unlocks Deliver, so one run can carry jobs through several stages at once.",
+					],
+					["Vendor Cycle", "Send to Company → Received from Company", "Independent of the Completion group."],
+				],
+			},
+			{
+				type: "note",
+				text: "Only one group can be active in a single run — checking any box in one group disables the other entirely. A customer with jobs in both states needs two separate runs.",
+			},
+			{ type: "heading", text: "Results and Delivery Note" },
+			{
+				type: "para",
+				text: "The batch always runs job by job, transaction by transaction, in order. If a step fails for a job, the remaining checked transactions for that job are skipped — but every other job in the batch still runs. A results table is shown after every run, even when everything succeeds, listing each job/transaction as success, skipped, or failed.",
+			},
+			{
+				type: "para",
+				text: "If any jobs were delivered during the run, a 'Job Delivery Note' button appears on the results screen to print a combined delivery note for just those jobs.",
+			},
+			{ type: "heading", text: "Reprint Delivery Note" },
+			{
+				type: "para",
+				text: "The 'Reprint Delivery Note' button in the header is a separate flow for past deliveries — browse previously delivered warranty jobs grouped by customer and delivery date, pick a group, and regenerate that delivery note. It works independently of whichever customer is currently selected in the main grid.",
+			},
+		],
+		faqs: [
+			{
+				q: "How is this different from Batch Jobs?",
+				a: "Batch Jobs (New Job → Batch Jobs) creates new job intake records for a customer. Batch Warranty Jobs only advances existing warranty jobs through their transactions — it never creates a new job.",
+			},
+			{
+				q: "Why can't I check Send to Company and Completed OK in the same run?",
+				a: "The Completion group and the Vendor Cycle group are mutually exclusive per run — checking a box in one group disables the other. Run them as two separate batches.",
+			},
+			{
+				q: "What happens if one job fails partway through?",
+				a: "Only that job's remaining checked transactions are skipped; every other job in the batch still runs, and the results table shows exactly what succeeded, was skipped, or failed.",
+			},
+			{
+				q: "How do I reprint a delivery note for a customer delivered last week?",
+				a: "Use the 'Reprint Delivery Note' button in the header — it lists past delivered warranty jobs by customer and delivery date regardless of what's currently selected in the grid.",
+			},
+		],
+	},
 
-    {
-        id: "batch-warranty-jobs",
-        category: "Jobs",
-        title: "Batch Warranty Jobs",
-        summary: "Advance several existing zero-parts warranty jobs for one customer through their transactions together — not the same as Batch Jobs.",
-        tags: ["batch warranty jobs", "warranty", "batch process", "completed ok", "final", "deliver", "send to company", "receive from company", "delivery note", "reprint"],
-        content: [
-            { type: "para", text: "Jobs → Batch Warranty Jobs lets you push several existing, zero-parts warranty jobs for one customer through their pipeline transactions in a single run — Completed OK, Final a Job, Deliver a Job, or the vendor Send-to-Company / Received-from-Company cycle — instead of opening each job separately." },
-            { type: "warning", text: "This is not the same as Batch Jobs (New Job → Batch Jobs). Batch Jobs creates new job intake records. Batch Warranty Jobs only processes transactions on warranty jobs that already exist." },
-            { type: "heading", text: "Running a batch" },
-            { type: "steps", items: [
-                "Go to Jobs → Batch Warranty Jobs.",
-                "Pick a customer — only customers with open (not yet delivered), zero-parts warranty jobs are listed.",
-                "The grid shows that customer's eligible jobs. Select one or more with the checkboxes.",
-                "Click 'Process N Jobs' to open the process modal.",
-                "Set the technician (only required if Completed OK is checked), the date (required, defaults to today), and optional remarks.",
-                "Check the transactions to apply, then click Proceed.",
-            ]},
-            { type: "heading", text: "Transaction Groups" },
-            { type: "table", headers: ["Group", "Transactions", "Behavior"], rows: [
-                ["Completion",    "Completed OK → Final a Job → Deliver a Job", "Cascades forward — checking Completed OK unlocks Final, which unlocks Deliver, so one run can carry jobs through several stages at once."],
-                ["Vendor Cycle",  "Send to Company → Received from Company",   "Independent of the Completion group."],
-            ]},
-            { type: "note", text: "Only one group can be active in a single run — checking any box in one group disables the other entirely. A customer with jobs in both states needs two separate runs." },
-            { type: "heading", text: "Results and Delivery Note" },
-            { type: "para", text: "The batch always runs job by job, transaction by transaction, in order. If a step fails for a job, the remaining checked transactions for that job are skipped — but every other job in the batch still runs. A results table is shown after every run, even when everything succeeds, listing each job/transaction as success, skipped, or failed." },
-            { type: "para", text: "If any jobs were delivered during the run, a 'Job Delivery Note' button appears on the results screen to print a combined delivery note for just those jobs." },
-            { type: "heading", text: "Reprint Delivery Note" },
-            { type: "para", text: "The 'Reprint Delivery Note' button in the header is a separate flow for past deliveries — browse previously delivered warranty jobs grouped by customer and delivery date, pick a group, and regenerate that delivery note. It works independently of whichever customer is currently selected in the main grid." },
-        ],
-        faqs: [
-            { q: "How is this different from Batch Jobs?", a: "Batch Jobs (New Job → Batch Jobs) creates new job intake records for a customer. Batch Warranty Jobs only advances existing warranty jobs through their transactions — it never creates a new job." },
-            { q: "Why can't I check Send to Company and Completed OK in the same run?", a: "The Completion group and the Vendor Cycle group are mutually exclusive per run — checking a box in one group disables the other. Run them as two separate batches." },
-            { q: "What happens if one job fails partway through?", a: "Only that job's remaining checked transactions are skipped; every other job in the batch still runs, and the results table shows exactly what succeeded, was skipped, or failed." },
-            { q: "How do I reprint a delivery note for a customer delivered last week?", a: "Use the 'Reprint Delivery Note' button in the header — it lists past delivered warranty jobs by customer and delivery date regardless of what's currently selected in the grid." },
-        ],
-    },
+	{
+		id: "opening-jobs",
+		category: "Jobs",
+		title: "Opening Jobs",
+		summary: "Enter historical jobs that existed before the system was set up.",
+		tags: ["opening jobs", "migration", "historical", "existing jobs", "alternate job no", "system job no"],
+		content: [
+			{
+				type: "para",
+				text: "Opening Jobs are used to migrate jobs that existed before Service+ was set up. These give you a complete historical record without affecting the live job workflow.",
+			},
+			{
+				type: "steps",
+				items: [
+					"Go to Jobs → Opening Jobs → New.",
+					"Optionally enter a Job No — your old system's reference number for this job (stored as the Alternate Job No; plain free text, no auto-formatting).",
+					"Fill all relevant fields: customer, job type, status, amount (if any), delivery date if already delivered. Problem Reported and Receive Manner are required, same as on a live job.",
+					"Set Is Closed = true for jobs that are already complete at the time of entry.",
+					"Optionally check Is Final if the job was already finalized before migration.",
+					"Click Save.",
+				],
+			},
+			{
+				type: "note",
+				text: "The 'System Job No' shown on the form is read-only and is generated from the same numbering sequence (Configurations → Numbering / Auto Series → Job Sheet) as every other job type — there is no separate prefix for opening jobs. What actually marks a record as an opening job internally is a hidden flag, not its job number.",
+			},
+			{
+				type: "note",
+				text: "Opening jobs can be finalized and delivered through the normal workflow if they are not yet closed. If you set Is Final on creation, the job appears directly in the Finalized Jobs tab.",
+			},
+			{
+				type: "note",
+				text: "Requires the Opening Jobs access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown.",
+			},
+			{ type: "heading", text: "Editing an Opening Job" },
+			{
+				type: "para",
+				text: "Unlike Job Control — which changes status only through a dedicated Status Transition step — the Opening Job edit form lets you set or change Status directly, alongside every other field. If your edit changes the Status, Service+ automatically records a matching Transaction History entry, the same way a Job Control transition would, so the job's history stays accurate.",
+			},
+			{
+				type: "para",
+				text: "Use the row menu's 'View Job' action to open a read-only detail view of an opening job without entering edit mode.",
+			},
+		],
+		faqs: [
+			{
+				q: "Does the job number get a 'Z-' or any other prefix?",
+				a: "No. The system-generated job number uses the same numbering sequence as every other job type — there is no opening-job-specific prefix. The 'Job No' field you type on this form is just a free-text reference to your old system's number, stored separately as the Alternate Job No.",
+			},
+			{
+				q: "What is the difference between Opening Jobs and Single Job?",
+				a: "Opening Jobs is for historical/migrated records only. Use Single Job for all new work going forward.",
+			},
+			{
+				q: "Can I finalize an opening job later?",
+				a: "Yes — go to Final a Job, find the job in the pending list, and finalize it normally.",
+			},
+			{
+				q: "What date should I use for opening jobs?",
+				a: "Use the original job creation date (the date the device was received in your old system). This keeps historical reports accurate.",
+			},
+			{
+				q: "Can I change an opening job's status without using Job Control?",
+				a: "Yes — edit the opening job and change the Status field directly on the form. Service+ records a matching Transaction History entry automatically, so history stays in sync just as it would from a Job Control transition.",
+			},
+			{
+				q: "How do I see an opening job's full details without editing it?",
+				a: "Use 'View Job' from the row's action menu (⋯). It opens the same read-only detail view used elsewhere in Jobs.",
+			},
+		],
+	},
 
-    {
-        id: "opening-jobs",
-        category: "Jobs",
-        title: "Opening Jobs",
-        summary: "Enter historical jobs that existed before the system was set up.",
-        tags: ["opening jobs", "migration", "historical", "existing jobs", "alternate job no", "system job no"],
-        content: [
-            { type: "para", text: "Opening Jobs are used to migrate jobs that existed before Service+ was set up. These give you a complete historical record without affecting the live job workflow." },
-            { type: "steps", items: [
-                "Go to Jobs → Opening Jobs → New.",
-                "Optionally enter a Job No — your old system's reference number for this job (stored as the Alternate Job No; plain free text, no auto-formatting).",
-                "Fill all relevant fields: customer, job type, status, amount (if any), delivery date if already delivered. Problem Reported and Receive Manner are required, same as on a live job.",
-                "Set Is Closed = true for jobs that are already complete at the time of entry.",
-                "Optionally check Is Final if the job was already finalized before migration.",
-                "Click Save.",
-            ]},
-            { type: "note", text: "The 'System Job No' shown on the form is read-only and is generated from the same numbering sequence (Configurations → Numbering / Auto Series → Job Sheet) as every other job type — there is no separate prefix for opening jobs. What actually marks a record as an opening job internally is a hidden flag, not its job number." },
-            { type: "note", text: "Opening jobs can be finalized and delivered through the normal workflow if they are not yet closed. If you set Is Final on creation, the job appears directly in the Finalized Jobs tab." },
-            { type: "note", text: "Requires the Opening Jobs access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
-            { type: "heading", text: "Editing an Opening Job" },
-            { type: "para", text: "Unlike Job Control — which changes status only through a dedicated Status Transition step — the Opening Job edit form lets you set or change Status directly, alongside every other field. If your edit changes the Status, Service+ automatically records a matching Transaction History entry, the same way a Job Control transition would, so the job's history stays accurate." },
-            { type: "para", text: "Use the row menu's 'View Job' action to open a read-only detail view of an opening job without entering edit mode." },
-        ],
-        faqs: [
-            { q: "Does the job number get a 'Z-' or any other prefix?", a: "No. The system-generated job number uses the same numbering sequence as every other job type — there is no opening-job-specific prefix. The 'Job No' field you type on this form is just a free-text reference to your old system's number, stored separately as the Alternate Job No." },
-            { q: "What is the difference between Opening Jobs and Single Job?", a: "Opening Jobs is for historical/migrated records only. Use Single Job for all new work going forward." },
-            { q: "Can I finalize an opening job later?", a: "Yes — go to Final a Job, find the job in the pending list, and finalize it normally." },
-            { q: "What date should I use for opening jobs?", a: "Use the original job creation date (the date the device was received in your old system). This keeps historical reports accurate." },
-            { q: "Can I change an opening job's status without using Job Control?", a: "Yes — edit the opening job and change the Status field directly on the form. Service+ records a matching Transaction History entry automatically, so history stays in sync just as it would from a Job Control transition." },
-            { q: "How do I see an opening job's full details without editing it?", a: "Use 'View Job' from the row's action menu (⋯). It opens the same read-only detail view used elsewhere in Jobs." },
-        ],
-    },
+	{
+		id: "finalize-job",
+		category: "Jobs",
+		title: "Finalizing a Job (Parts & Charges)",
+		summary: "Add parts used and service charges, set prices, and lock the job for invoicing.",
+		tags: [
+			"finalize",
+			"final",
+			"parts",
+			"charges",
+			"cost price",
+			"selling price",
+			"HSN",
+			"GST",
+			"apply",
+			"target amount",
+			"reset",
+			"warranty",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Finalization records which parts were used and what to charge the customer. Go to Jobs → Final a Job → find the job → click Finalize.",
+			},
+			{ type: "heading", text: "Adding Parts" },
+			{
+				type: "steps",
+				items: [
+					"Click '+ Add Part' to add a new row.",
+					"Select the Brand, then type or search the Part Code. Prices, HSN, and GST rate auto-fill from the part master.",
+					"Set the Quantity.",
+					"Adjust Selling Price if needed. Sale Price + GST is calculated automatically.",
+					"Repeat for each part used.",
+				],
+			},
+			{ type: "heading", text: "Adding Service Charges" },
+			{
+				type: "steps",
+				items: [
+					"Click '+ Add Charge' to add a charge row.",
+					"Select the Charge Name from the dropdown (e.g., Diagnostic Fee, Labour Charge).",
+					"Enter Selling Price and Quantity.",
+					"HSN and GST rate auto-fill if configured in the Additional Charges master.",
+				],
+			},
+			{ type: "heading", text: "Pricing Fields Explained" },
+			{
+				type: "table",
+				headers: ["Field", "Meaning"],
+				rows: [
+					["Cost Price", "What the part costs you (from master data; editable)"],
+					["Selling Price", "What you charge the customer before GST"],
+					["Sale Price + GST", "Selling Price with GST added — this is the invoice amount"],
+					["Profit", "Selling Price minus Cost Price per row"],
+					["Amount", "(Sale Price + GST) × Quantity"],
+				],
+			},
+			{ type: "heading", text: "Apply (Target Amount)" },
+			{
+				type: "para",
+				text: "Enter a target total amount in the 'Target Amount' field (e.g., ₹1,500) and click Apply. The system adjusts the Selling Price of the Parts Used and Additional Charges rows until the total reaches your target. If the target already equals the current total, nothing changes.",
+			},
+			{
+				type: "para",
+				text: "Within any section being adjusted, the change is split across its rows in proportion to each row's current line amount including GST — GST rates themselves are never altered. Only rows the system can price are moved: a part typed in by hand without selecting it from the part master, and a charge with no name yet, are both left alone (they still count toward the total).",
+			},
+			{ type: "heading", text: "The order Apply works through" },
+			{
+				type: "para",
+				text: "Apply always pulls on the same four levers in the same order, in both directions, and stops as soon as the target is met. Labour and Service Charge are held back to the very end — see below.",
+			},
+			{
+				type: "table",
+				headers: ["Step", "What is adjusted", "How far it can go"],
+				rows: [
+					["1", "Parts Used", "Down to each part's Cost Price — never below, at this stage"],
+					["2", "Additional Charges, except Labour and Service Charge", "Down to ₹0 per charge"],
+					["3", "Parts Used again", "Below Cost Price — i.e. at a loss"],
+					["4", "Labour and Service Charge, together", "Down to ₹0"],
+				],
+			},
+			{
+				type: "note",
+				text: "Labour and Service Charge are the last resort, deliberately. Every other charge is reduced to ₹0, and parts are pushed below cost, before your labour figure is touched at all. Any charge whose name contains 'labour'/'labor' or 'service charge' is treated this way.",
+			},
+			{
+				type: "para",
+				text: "Increases follow the same order: the extra goes onto Parts Used first, then onto the other Additional Charges if the job has no parts, and only reaches Labour / Service Charge when there is nothing else to raise.",
+			},
+			{ type: "heading", text: "How a step spreads the change across its rows" },
+			{
+				type: "para",
+				text: "Each row takes a share of the change proportional to its current amount. A row whose share would take it past its floor (Cost Price in step 1, ₹0 in steps 2 and 4) is pinned at that floor instead, and the leftover is redistributed proportionally across the rows that still have room — repeatedly, until nothing more pins. If every row in a step ends up pinned, that step is exhausted and Apply moves to the next one.",
+			},
+			{
+				type: "note",
+				text: "Rows are rounded to whole rupees on the GST-inclusive amount, with a single row left to absorb the odd paisa so the job total lands on the target exactly. That row is chosen automatically — a Qty 1 row is preferred, because only a single-unit line can absorb an arbitrary remainder.",
+			},
+			{ type: "heading", text: "Locking a charge" },
+			{
+				type: "para",
+				text: "Every Additional Charge row has a Lock checkbox (hidden on warranty jobs). Tick it and Apply will never reprice that row — not in step 2, not in step 4, and not in either direction. Use it to protect a figure you negotiated with the customer, e.g. 'on this job the diagnostic fee stays at ₹500'.",
+			},
+			{
+				type: "para",
+				text: "A locked row still counts toward the job total — locking changes what Apply moves, never what it measures — so your target keeps meaning the same thing. The Sale price on a locked row also stays editable by hand: Lock blocks Apply, not typing. The row's Sale box is ringed in amber so it's obvious at a glance why Apply skipped it.",
+			},
+			{
+				type: "warning",
+				text: "Locks are not saved with the job. They last only while the job is open in the finalize form. Going Back, refreshing, or reopening the job to revise starts with everything unlocked — re-tick the boxes you need. There is no way to make a lock permanent.",
+			},
+			{
+				type: "note",
+				text: "Lock too much and the target may become unreachable: Apply will say what it achieved instead, and Save & Mark Final stays blocked while the target and the line total disagree. Unlock a charge, change the target, or clear the Target Amount field.",
+			},
+			{ type: "heading", text: "When the target cannot be reached" },
+			{
+				type: "bullets",
+				items: [
+					"If step 3 had to sell parts below cost, an inline warning stays on screen until the next Apply or Reset, naming the target and asking you to review the part prices before saving.",
+					"A locked charge is one you can cause this with deliberately — and undo. When any charge is locked, the messages point that out and suggest unlocking one.",
+					"If every lever is exhausted and the total still doesn't match, a toast tells you what was achieved instead.",
+					"Save & Mark Final is blocked while the target and the line total disagree, with a toast telling you to click Apply first. Clear the Target Amount field if you'd rather save the prices as they stand.",
+				],
+			},
+			{ type: "note", text: "The recalculated total will never go negative." },
+			{ type: "heading", text: "Reset Prices" },
+			{
+				type: "para",
+				text: "Click Reset to reload all prices from the part master for the current division's GST mode. This recalculates without deleting any rows — useful if master prices were updated after the job was opened.",
+			},
+			{ type: "heading", text: "Warranty Jobs" },
+			{
+				type: "para",
+				text: "If the job type is UNDER_WARRANTY, the selling-price fields are hidden entirely (not just disabled) — only Cost Price remains editable, for internal tracking. The final amount is always ₹0.",
+			},
+			{ type: "heading", text: "GST Divisions" },
+			{
+				type: "para",
+				text: "In a GST division, HSN code and a GST rate greater than 0 are both mandatory on every part and charge row. Rows with a missing HSN show a red border, and Save is blocked until every row has both a valid HSN and a non-zero GST rate.",
+			},
+			{ type: "heading", text: "Customer GSTIN" },
+			{
+				type: "para",
+				text: "The finalize form shows the customer's GSTIN, pre-filled from the customer record. You can edit it here for B2B tax invoices; the value is saved back to the customer. It is optional, but if you enter an invalid value, 'Save & Mark Final' is blocked until you correct or clear it. See 'Customer GSTIN on Jobs'.",
+			},
+			{ type: "heading", text: "Row Validation" },
+			{
+				type: "para",
+				text: "Every part or charge row you've filled in must have Qty greater than 0, and Cost Price and Selling Price cannot be negative. 'Save & Mark Final' is blocked with a toast — 'Qty must be greater than 0 and Cost/Sale prices cannot be negative. Please fix the highlighted rows before finalizing.' — until every such row passes.",
+			},
+			{
+				type: "warning",
+				text: "Once you click 'Save & Mark Final', the job is locked. No further edits are possible without using the Undo function in the Finalized Jobs tab.",
+			},
+			{
+				type: "note",
+				text: "Cost price is the one exception to that lock. A wrong or missing cost can be fixed afterwards from Finalized Jobs → row actions → Correct Costs, even on a posted job, without undoing the final — see 'Correcting a Cost on a Job'. Everything else still needs Undo Final.",
+			},
+		],
+		faqs: [
+			{
+				q: "What does Reset do?",
+				a: "Recalculates all prices from the part master data using the current division's GST mode. No rows are deleted. Use it if master prices were changed after opening the job.",
+			},
+			{
+				q: "What is Apply (Target Amount)?",
+				a: "You set a target total and click Apply — the system scales line prices proportionally to reach it, working through four levers in a fixed order: Parts Used down to cost price, then Additional Charges other than Labour/Service Charge down to ₹0, then Parts Used below cost, and only then Labour and Service Charge. It stops as soon as the target is met.",
+			},
+			{
+				q: "I clicked Apply and my Labour charge didn't change — is that a bug?",
+				a: "No, that's deliberate. Labour and Service Charge are the last lever Apply pulls. If parts and the other charges could absorb the whole difference, your labour figure is left exactly as you typed it. It only moves once everything else is exhausted.",
+			},
+			{
+				q: "Why did a part end up priced below its cost?",
+				a: "The target was low enough that reducing parts to cost and every non-labour charge to ₹0 still wasn't enough, so Apply had to go below cost (step 3). An inline warning appears when this happens — review those part prices, or raise the target, before saving.",
+			},
+			{
+				q: "Apply ran but the total is a few rupees off my target.",
+				a: "Two possible reasons. Either the target isn't reachable with the current parts and charges — a toast will say what was achieved instead — or line amounts were snapped to whole rupees; in that case one row absorbs the difference so the job total still lands on the target exactly.",
+			},
+			{
+				q: "I locked a charge and Apply says the target isn't achievable.",
+				a: "A locked row is excluded from every Apply step, so locking removes the room Apply had to work with. Unlock a charge, raise or lower the target, or clear the Target Amount field to save the prices as they stand. Note that Save & Mark Final stays blocked while the target and the line total disagree.",
+			},
+			{
+				q: "Does locking stop me editing the price by hand?",
+				a: "No. Lock only blocks Apply. You can still type any Sale price you like into a locked row — the amber ring is just there to remind you Apply won't touch it.",
+			},
+			{
+				q: "I reopened the job and my locks are gone.",
+				a: "That's expected — locks are per-session and are never saved with the job. Re-tick them if you're going to click Apply again. Labour and Service Charge don't need locking anyway: Apply already holds them back until every other lever is exhausted.",
+			},
+			{
+				q: "Why can't I finalize — a toast says Qty or price is invalid?",
+				a: "One or more part/charge rows have Qty ≤ 0, or a negative Cost Price or Selling Price. Fix the highlighted row(s) and try Save & Mark Final again.",
+			},
+			{
+				q: "What does 'Show Parts in Invoice' mean?",
+				a: "Checked: the invoice lists each part and charge individually. Unchecked: all lines are merged into a single description on the invoice (using the master setting for description and HSN).",
+			},
+			{
+				q: "What is Force IGST?",
+				a: "For supplies to customers in a different state. Check this to apply the full GST rate as IGST (inter-state) instead of splitting into CGST + SGST.",
+			},
+			{
+				q: "HSN shows a red border — what do I do?",
+				a: "Enter a valid HSN code (4, 6, or 8 digits) on that row. Alternatively, set a default HSN in App Settings so it auto-fills for all parts.",
+			},
+			{
+				q: "Why don't I see selling price fields?",
+				a: "The job type is UNDER_WARRANTY. Selling-price inputs are hidden entirely for warranty jobs — only cost price is tracked, and the final amount is always ₹0.",
+			},
+			{
+				q: "I changed the division — why did prices change?",
+				a: "Switching division recalculates prices for the new GST mode using master data. Switching back produces the same values as the original — no data is corrupted by toggling.",
+			},
+			{
+				q: "Can I add a part that isn't in the master?",
+				a: "You can type a part name directly without selecting from the master. However, cost price and HSN will not auto-fill; you must enter them manually.",
+			},
+			{
+				q: "Why is 'Save & Mark Final' blocked with a GSTIN error?",
+				a: "The customer GSTIN field has an invalid value. Fix it to a valid 15-character GSTIN or clear the field (blank is allowed). GSTIN is saved to the customer record. See 'Customer GSTIN on Jobs'.",
+			},
+		],
+	},
 
-    {
-        id: "finalize-job",
-        category: "Jobs",
-        title: "Finalizing a Job (Parts & Charges)",
-        summary: "Add parts used and service charges, set prices, and lock the job for invoicing.",
-        tags: ["finalize", "final", "parts", "charges", "cost price", "selling price", "HSN", "GST", "apply", "target amount", "reset", "warranty"],
-        content: [
-            { type: "para", text: "Finalization records which parts were used and what to charge the customer. Go to Jobs → Final a Job → find the job → click Finalize." },
-            { type: "heading", text: "Adding Parts" },
-            { type: "steps", items: [
-                "Click '+ Add Part' to add a new row.",
-                "Select the Brand, then type or search the Part Code. Prices, HSN, and GST rate auto-fill from the part master.",
-                "Set the Quantity.",
-                "Adjust Selling Price if needed. Sale Price + GST is calculated automatically.",
-                "Repeat for each part used.",
-            ]},
-            { type: "heading", text: "Adding Service Charges" },
-            { type: "steps", items: [
-                "Click '+ Add Charge' to add a charge row.",
-                "Select the Charge Name from the dropdown (e.g., Diagnostic Fee, Labour Charge).",
-                "Enter Selling Price and Quantity.",
-                "HSN and GST rate auto-fill if configured in the Additional Charges master.",
-            ]},
-            { type: "heading", text: "Pricing Fields Explained" },
-            { type: "table", headers: ["Field", "Meaning"], rows: [
-                ["Cost Price",       "What the part costs you (from master data; editable)"],
-                ["Selling Price",    "What you charge the customer before GST"],
-                ["Sale Price + GST", "Selling Price with GST added — this is the invoice amount"],
-                ["Profit",           "Selling Price minus Cost Price per row"],
-                ["Amount",           "(Sale Price + GST) × Quantity"],
-            ]},
-            { type: "heading", text: "Apply (Target Amount)" },
-            { type: "para", text: "Enter a target total amount in the 'Target Amount' field (e.g., ₹1,500) and click Apply. The system adjusts the Selling Price of the Parts Used and Additional Charges rows until the total reaches your target. If the target already equals the current total, nothing changes." },
-            { type: "para", text: "Within any section being adjusted, the change is split across its rows in proportion to each row's current line amount including GST — GST rates themselves are never altered. Only rows the system can price are moved: a part typed in by hand without selecting it from the part master, and a charge with no name yet, are both left alone (they still count toward the total)." },
-            { type: "heading", text: "The order Apply works through" },
-            { type: "para", text: "Apply always pulls on the same four levers in the same order, in both directions, and stops as soon as the target is met. Labour and Service Charge are held back to the very end — see below." },
-            { type: "table", headers: ["Step", "What is adjusted", "How far it can go"], rows: [
-                ["1", "Parts Used", "Down to each part's Cost Price — never below, at this stage"],
-                ["2", "Additional Charges, except Labour and Service Charge", "Down to ₹0 per charge"],
-                ["3", "Parts Used again", "Below Cost Price — i.e. at a loss"],
-                ["4", "Labour and Service Charge, together", "Down to ₹0"],
-            ]},
-            { type: "note", text: "Labour and Service Charge are the last resort, deliberately. Every other charge is reduced to ₹0, and parts are pushed below cost, before your labour figure is touched at all. Any charge whose name contains 'labour'/'labor' or 'service charge' is treated this way." },
-            { type: "para", text: "Increases follow the same order: the extra goes onto Parts Used first, then onto the other Additional Charges if the job has no parts, and only reaches Labour / Service Charge when there is nothing else to raise." },
-            { type: "heading", text: "How a step spreads the change across its rows" },
-            { type: "para", text: "Each row takes a share of the change proportional to its current amount. A row whose share would take it past its floor (Cost Price in step 1, ₹0 in steps 2 and 4) is pinned at that floor instead, and the leftover is redistributed proportionally across the rows that still have room — repeatedly, until nothing more pins. If every row in a step ends up pinned, that step is exhausted and Apply moves to the next one." },
-            { type: "note", text: "Rows are rounded to whole rupees on the GST-inclusive amount, with a single row left to absorb the odd paisa so the job total lands on the target exactly. That row is chosen automatically — a Qty 1 row is preferred, because only a single-unit line can absorb an arbitrary remainder." },
-            { type: "heading", text: "Locking a charge" },
-            { type: "para", text: "Every Additional Charge row has a Lock checkbox (hidden on warranty jobs). Tick it and Apply will never reprice that row — not in step 2, not in step 4, and not in either direction. Use it to protect a figure you negotiated with the customer, e.g. 'on this job the diagnostic fee stays at ₹500'." },
-            { type: "para", text: "A locked row still counts toward the job total — locking changes what Apply moves, never what it measures — so your target keeps meaning the same thing. The Sale price on a locked row also stays editable by hand: Lock blocks Apply, not typing. The row's Sale box is ringed in amber so it's obvious at a glance why Apply skipped it." },
-            { type: "warning", text: "Locks are not saved with the job. They last only while the job is open in the finalize form. Going Back, refreshing, or reopening the job to revise starts with everything unlocked — re-tick the boxes you need. There is no way to make a lock permanent." },
-            { type: "note", text: "Lock too much and the target may become unreachable: Apply will say what it achieved instead, and Save & Mark Final stays blocked while the target and the line total disagree. Unlock a charge, change the target, or clear the Target Amount field." },
-            { type: "heading", text: "When the target cannot be reached" },
-            { type: "bullets", items: [
-                "If step 3 had to sell parts below cost, an inline warning stays on screen until the next Apply or Reset, naming the target and asking you to review the part prices before saving.",
-                "A locked charge is one you can cause this with deliberately — and undo. When any charge is locked, the messages point that out and suggest unlocking one.",
-                "If every lever is exhausted and the total still doesn't match, a toast tells you what was achieved instead.",
-                "Save & Mark Final is blocked while the target and the line total disagree, with a toast telling you to click Apply first. Clear the Target Amount field if you'd rather save the prices as they stand.",
-            ]},
-            { type: "note", text: "The recalculated total will never go negative." },
-            { type: "heading", text: "Reset Prices" },
-            { type: "para", text: "Click Reset to reload all prices from the part master for the current division's GST mode. This recalculates without deleting any rows — useful if master prices were updated after the job was opened." },
-            { type: "heading", text: "Warranty Jobs" },
-            { type: "para", text: "If the job type is UNDER_WARRANTY, the selling-price fields are hidden entirely (not just disabled) — only Cost Price remains editable, for internal tracking. The final amount is always ₹0." },
-            { type: "heading", text: "GST Divisions" },
-            { type: "para", text: "In a GST division, HSN code and a GST rate greater than 0 are both mandatory on every part and charge row. Rows with a missing HSN show a red border, and Save is blocked until every row has both a valid HSN and a non-zero GST rate." },
-            { type: "heading", text: "Customer GSTIN" },
-            { type: "para", text: "The finalize form shows the customer's GSTIN, pre-filled from the customer record. You can edit it here for B2B tax invoices; the value is saved back to the customer. It is optional, but if you enter an invalid value, 'Save & Mark Final' is blocked until you correct or clear it. See 'Customer GSTIN on Jobs'." },
-            { type: "heading", text: "Row Validation" },
-            { type: "para", text: "Every part or charge row you've filled in must have Qty greater than 0, and Cost Price and Selling Price cannot be negative. 'Save & Mark Final' is blocked with a toast — 'Qty must be greater than 0 and Cost/Sale prices cannot be negative. Please fix the highlighted rows before finalizing.' — until every such row passes." },
-            { type: "warning", text: "Once you click 'Save & Mark Final', the job is locked. No further edits are possible without using the Undo function in the Finalized Jobs tab." },
-            { type: "note", text: "Cost price is the one exception to that lock. A wrong or missing cost can be fixed afterwards from Finalized Jobs → row actions → Correct Costs, even on a posted job, without undoing the final — see 'Correcting a Cost on a Job'. Everything else still needs Undo Final." },
-        ],
-        faqs: [
-            { q: "What does Reset do?", a: "Recalculates all prices from the part master data using the current division's GST mode. No rows are deleted. Use it if master prices were changed after opening the job." },
-            { q: "What is Apply (Target Amount)?", a: "You set a target total and click Apply — the system scales line prices proportionally to reach it, working through four levers in a fixed order: Parts Used down to cost price, then Additional Charges other than Labour/Service Charge down to ₹0, then Parts Used below cost, and only then Labour and Service Charge. It stops as soon as the target is met." },
-            { q: "I clicked Apply and my Labour charge didn't change — is that a bug?", a: "No, that's deliberate. Labour and Service Charge are the last lever Apply pulls. If parts and the other charges could absorb the whole difference, your labour figure is left exactly as you typed it. It only moves once everything else is exhausted." },
-            { q: "Why did a part end up priced below its cost?", a: "The target was low enough that reducing parts to cost and every non-labour charge to ₹0 still wasn't enough, so Apply had to go below cost (step 3). An inline warning appears when this happens — review those part prices, or raise the target, before saving." },
-            { q: "Apply ran but the total is a few rupees off my target.", a: "Two possible reasons. Either the target isn't reachable with the current parts and charges — a toast will say what was achieved instead — or line amounts were snapped to whole rupees; in that case one row absorbs the difference so the job total still lands on the target exactly." },
-            { q: "I locked a charge and Apply says the target isn't achievable.", a: "A locked row is excluded from every Apply step, so locking removes the room Apply had to work with. Unlock a charge, raise or lower the target, or clear the Target Amount field to save the prices as they stand. Note that Save & Mark Final stays blocked while the target and the line total disagree." },
-            { q: "Does locking stop me editing the price by hand?", a: "No. Lock only blocks Apply. You can still type any Sale price you like into a locked row — the amber ring is just there to remind you Apply won't touch it." },
-            { q: "I reopened the job and my locks are gone.", a: "That's expected — locks are per-session and are never saved with the job. Re-tick them if you're going to click Apply again. Labour and Service Charge don't need locking anyway: Apply already holds them back until every other lever is exhausted." },
-            { q: "Why can't I finalize — a toast says Qty or price is invalid?", a: "One or more part/charge rows have Qty ≤ 0, or a negative Cost Price or Selling Price. Fix the highlighted row(s) and try Save & Mark Final again." },
-            { q: "What does 'Show Parts in Invoice' mean?", a: "Checked: the invoice lists each part and charge individually. Unchecked: all lines are merged into a single description on the invoice (using the master setting for description and HSN)." },
-            { q: "What is Force IGST?", a: "For supplies to customers in a different state. Check this to apply the full GST rate as IGST (inter-state) instead of splitting into CGST + SGST." },
-            { q: "HSN shows a red border — what do I do?", a: "Enter a valid HSN code (4, 6, or 8 digits) on that row. Alternatively, set a default HSN in App Settings so it auto-fills for all parts." },
-            { q: "Why don't I see selling price fields?", a: "The job type is UNDER_WARRANTY. Selling-price inputs are hidden entirely for warranty jobs — only cost price is tracked, and the final amount is always ₹0." },
-            { q: "I changed the division — why did prices change?", a: "Switching division recalculates prices for the new GST mode using master data. Switching back produces the same values as the original — no data is corrupted by toggling." },
-            { q: "Can I add a part that isn't in the master?", a: "You can type a part name directly without selecting from the master. However, cost price and HSN will not auto-fill; you must enter them manually." },
-            { q: "Why is 'Save & Mark Final' blocked with a GSTIN error?", a: "The customer GSTIN field has an invalid value. Fix it to a valid 15-character GSTIN or clear the field (blank is allowed). GSTIN is saved to the customer record. See 'Customer GSTIN on Jobs'." },
-        ],
-    },
+	{
+		id: "job-final-info",
+		category: "Jobs",
+		title: "Job Final Info (Read-Only Charges View)",
+		summary:
+			"A read-only breakdown of a job's parts, charges, cost, and sale — viewable without opening the finalize form.",
+		tags: [
+			"job final info",
+			"final info",
+			"charges detail",
+			"read only",
+			"cost price",
+			"selling price",
+			"profit",
+			"GST",
+			"technician profit report",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Job Final Info is a read-only view of everything Finalize recorded for a job — parts used, additional charges, cost price, selling price, and profit — without opening (or risking edits to) the finalize form. It's the same 'Charges Detail' view used inside Final a Job and Job Control, just wrapped for standalone use.",
+			},
+			{ type: "heading", text: "Opening it" },
+			{
+				type: "bullets",
+				items: [
+					"Job View / Job Details → click the 'Job Final Info' pill in the action row.",
+					"Technician Profit Report → drill into a technician/month cell → click any row in the job list.",
+				],
+			},
+			{
+				type: "para",
+				text: "Either path opens the same modal for that job's id — there's nothing to configure, and closing it never affects the screen you opened it from.",
+			},
+			{ type: "heading", text: "What it shows" },
+			{
+				type: "table",
+				headers: ["Section", "Contents"],
+				rows: [
+					[
+						"Parts Used",
+						"Every part on the job with Qty, Cost, Sale, GST% (GST divisions only), and line Amount",
+					],
+					["Additional Charges", "Every charge with the same Qty/Cost/Sale/GST/Amount breakdown"],
+					[
+						"Grand Summary",
+						"Totals for Profit, Qty, CGST/SGST or IGST, Parts, Charges, and the job's overall Total",
+					],
+				],
+			},
+			{
+				type: "note",
+				text: "Columns adapt automatically: warranty jobs hide Sale/GST columns (only Cost is tracked, Total shows ₹0.00); non-GST divisions hide the GST% and HSN columns entirely.",
+			},
+			{
+				type: "note",
+				text: "If a Cost figure here is wrong or zero, it can be corrected without undoing the final — Finalized Jobs or Delivered Jobs → row actions → Correct Costs. See 'Correcting a Cost on a Job'.",
+			},
+		],
+		faqs: [
+			{
+				q: "Can I edit anything from Job Final Info?",
+				a: "No. It's strictly read-only — to change parts, charges, or prices, use Final a Job → Undo (if already finalized) → re-open and edit there.",
+			},
+			{
+				q: "Why don't I see Sale Price or GST columns?",
+				a: "The job is UNDER_WARRANTY. Warranty jobs never charge the customer, so only Cost Price is shown and the Total is always ₹0.00.",
+			},
+			{
+				q: "Where else can I open this besides Job View?",
+				a: "From the Technician Profit Report: drill into any technician/month cell, then click a job row in the list to see that job's full parts/charges breakdown.",
+			},
+		],
+	},
 
-    {
-        id: "job-final-info",
-        category: "Jobs",
-        title: "Job Final Info (Read-Only Charges View)",
-        summary: "A read-only breakdown of a job's parts, charges, cost, and sale — viewable without opening the finalize form.",
-        tags: ["job final info", "final info", "charges detail", "read only", "cost price", "selling price", "profit", "GST", "technician profit report"],
-        content: [
-            { type: "para", text: "Job Final Info is a read-only view of everything Finalize recorded for a job — parts used, additional charges, cost price, selling price, and profit — without opening (or risking edits to) the finalize form. It's the same 'Charges Detail' view used inside Final a Job and Job Control, just wrapped for standalone use." },
-            { type: "heading", text: "Opening it" },
-            { type: "bullets", items: [
-                "Job View / Job Details → click the 'Job Final Info' pill in the action row.",
-                "Technician Profit Report → drill into a technician/month cell → click any row in the job list.",
-            ]},
-            { type: "para", text: "Either path opens the same modal for that job's id — there's nothing to configure, and closing it never affects the screen you opened it from." },
-            { type: "heading", text: "What it shows" },
-            { type: "table", headers: ["Section", "Contents"], rows: [
-                ["Parts Used",         "Every part on the job with Qty, Cost, Sale, GST% (GST divisions only), and line Amount"],
-                ["Additional Charges", "Every charge with the same Qty/Cost/Sale/GST/Amount breakdown"],
-                ["Grand Summary",      "Totals for Profit, Qty, CGST/SGST or IGST, Parts, Charges, and the job's overall Total"],
-            ]},
-            { type: "note", text: "Columns adapt automatically: warranty jobs hide Sale/GST columns (only Cost is tracked, Total shows ₹0.00); non-GST divisions hide the GST% and HSN columns entirely." },
-            { type: "note", text: "If a Cost figure here is wrong or zero, it can be corrected without undoing the final — Finalized Jobs or Delivered Jobs → row actions → Correct Costs. See 'Correcting a Cost on a Job'." },
-        ],
-        faqs: [
-            { q: "Can I edit anything from Job Final Info?", a: "No. It's strictly read-only — to change parts, charges, or prices, use Final a Job → Undo (if already finalized) → re-open and edit there." },
-            { q: "Why don't I see Sale Price or GST columns?", a: "The job is UNDER_WARRANTY. Warranty jobs never charge the customer, so only Cost Price is shown and the Total is always ₹0.00." },
-            { q: "Where else can I open this besides Job View?", a: "From the Technician Profit Report: drill into any technician/month cell, then click a job row in the list to see that job's full parts/charges breakdown." },
-        ],
-    },
+	{
+		id: "correct-job-cost",
+		category: "Jobs",
+		title: "Correcting a Cost on a Job",
+		summary:
+			"Fix a wrong or missing cost price on a job's parts and charges — at any stage, including delivered and posted jobs.",
+		tags: [
+			"correct cost",
+			"cost correction",
+			"cost price",
+			"missing cost",
+			"profit",
+			"posted job",
+			"delivered job",
+			"manager",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Cost price is what a part or spare charge actually cost you. It never appears on the customer's invoice — it exists so profit reports are truthful. When a part is booked in a hurry the cost is sometimes left at zero or typed wrong, and the mistake is usually only noticed later, once the job is already delivered and closed. Correct Costs is how you fix that without disturbing anything the customer has seen.",
+			},
+			{ type: "heading", text: "Opening it" },
+			{
+				type: "bullets",
+				items: [
+					"Jobs → Deliver Job → Delivered Jobs tab → row actions (⋮) → Correct Costs.",
+					"Jobs → Final a Job → Finalized Jobs tab → row actions (⋮) → Correct Costs.",
+					"Jobs → Job Control → Delivered tab → row actions (⋮) → Correct Costs.",
+				],
+			},
+			{
+				type: "para",
+				text: "There is no separate menu item — the action lives on the grids where finished jobs are listed. All three open the same editor. Unlike Revise Final and Undo Final, it is deliberately not blocked on a posted job.",
+			},
+			{ type: "heading", text: "Spotting jobs that need it" },
+			{
+				type: "para",
+				text: "The Delivered Jobs and Finalized Jobs grids show an amber '<n> missing cost' badge beside the job number when that job has lines with no cost recorded (Job Control does not show the badge — the action is there, the flag is not). A part line always needs a cost; a charge line only counts when it is really a spare/parts charge — labour, diagnostic and similar charges legitimately have none, and are never flagged.",
+			},
+			{ type: "heading", text: "Making the correction" },
+			{
+				type: "steps",
+				items: [
+					"Open the modal — it lists every part and charge already on the job, parts first.",
+					"Edit the Cost column. Every other column is read-only, and no rows can be added or deleted.",
+					"A cost of zero shows a red border. Save stays disabled until every flagged line has a cost above zero and at least one value has actually changed.",
+					"Click Save Costs. The grid reloads and the badge updates.",
+				],
+			},
+			{
+				type: "warning",
+				text: "What you cannot do here: add a part, remove a part, change a quantity, or change a selling price. If any of those are wrong, the job needs Undo Final and a proper re-finalize instead — not a cost correction.",
+			},
+			{ type: "heading", text: "What it does not touch" },
+			{
+				type: "table",
+				headers: ["Area", "Effect"],
+				rows: [
+					["Invoice and invoice lines", "Unchanged — the customer's document is never re-issued or altered"],
+					["Money receipts and payments", "Unchanged"],
+					[
+						"Job amount and selling prices",
+						"Unchanged — cost is edited on its own, with no markup recalculation",
+					],
+					["Stock and stock transactions", "Unchanged — no part movement is created or reversed"],
+					["Profit reports", "These do change — that is the whole point of the correction"],
+				],
+			},
+			{
+				type: "note",
+				text: "Requires the Correct Job Cost access right. Managers have it; Receptionists and Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown.",
+			},
+			{
+				type: "warning",
+				text: "Corrections are not recorded anywhere. There is no history, no audit entry, and no reason field — the old cost is simply overwritten. Note the change yourself if your process needs a trail.",
+			},
+		],
+		faqs: [
+			{
+				q: "Will the customer see anything change?",
+				a: "No. Cost price never appears on an invoice or receipt. The invoice, its line items, the amount due, and every recorded payment are left exactly as they were.",
+			},
+			{
+				q: "Can I correct a cost on a job already posted to accounts?",
+				a: "Yes — this is the one job action that deliberately still works on a posted job. Revise Final and Undo Final remain blocked on posted jobs.",
+			},
+			{
+				q: "Why is Save disabled?",
+				a: "Either nothing has been changed yet, or at least one line that needs a cost still has zero. Lines needing a cost show a red border.",
+			},
+			{
+				q: "Why can't I set a cost of 0?",
+				a: "Zero is what the feature exists to fix, so it is rejected both in the screen and on the server. A line that genuinely has no cost — labour, for example — is not flagged and does not need one.",
+			},
+			{
+				q: "Can I see who corrected a cost, and when?",
+				a: "No. Nothing is recorded — no audit row, no timestamp shown, no reason captured. This is a deliberate choice, not an oversight.",
+			},
+			{
+				q: "The menu item is there but saving fails with an authorization error.",
+				a: "Your role does not have the Correct Job Cost right. It is granted to Managers only. Ask a Business Admin to run the job under a manager login.",
+			},
+			{
+				q: "My profit report still looks wrong after correcting.",
+				a: "Check that every line was corrected, not just the one you noticed — the missing-cost badge counts all flagged lines on the job. Also re-run the report; cached report views do not refresh on their own.",
+			},
+		],
+	},
 
-    {
-        id: "correct-job-cost",
-        category: "Jobs",
-        title: "Correcting a Cost on a Job",
-        summary: "Fix a wrong or missing cost price on a job's parts and charges — at any stage, including delivered and posted jobs.",
-        tags: ["correct cost", "cost correction", "cost price", "missing cost", "profit", "posted job", "delivered job", "manager"],
-        content: [
-            { type: "para", text: "Cost price is what a part or spare charge actually cost you. It never appears on the customer's invoice — it exists so profit reports are truthful. When a part is booked in a hurry the cost is sometimes left at zero or typed wrong, and the mistake is usually only noticed later, once the job is already delivered and closed. Correct Costs is how you fix that without disturbing anything the customer has seen." },
-            { type: "heading", text: "Opening it" },
-            { type: "bullets", items: [
-                "Jobs → Deliver Job → Delivered Jobs tab → row actions (⋮) → Correct Costs.",
-                "Jobs → Final a Job → Finalized Jobs tab → row actions (⋮) → Correct Costs.",
-                "Jobs → Job Control → Delivered tab → row actions (⋮) → Correct Costs.",
-            ]},
-            { type: "para", text: "There is no separate menu item — the action lives on the grids where finished jobs are listed. All three open the same editor. Unlike Revise Final and Undo Final, it is deliberately not blocked on a posted job." },
-            { type: "heading", text: "Spotting jobs that need it" },
-            { type: "para", text: "The Delivered Jobs and Finalized Jobs grids show an amber '<n> missing cost' badge beside the job number when that job has lines with no cost recorded (Job Control does not show the badge — the action is there, the flag is not). A part line always needs a cost; a charge line only counts when it is really a spare/parts charge — labour, diagnostic and similar charges legitimately have none, and are never flagged." },
-            { type: "heading", text: "Making the correction" },
-            { type: "steps", items: [
-                "Open the modal — it lists every part and charge already on the job, parts first.",
-                "Edit the Cost column. Every other column is read-only, and no rows can be added or deleted.",
-                "A cost of zero shows a red border. Save stays disabled until every flagged line has a cost above zero and at least one value has actually changed.",
-                "Click Save Costs. The grid reloads and the badge updates.",
-            ]},
-            { type: "warning", text: "What you cannot do here: add a part, remove a part, change a quantity, or change a selling price. If any of those are wrong, the job needs Undo Final and a proper re-finalize instead — not a cost correction." },
-            { type: "heading", text: "What it does not touch" },
-            { type: "table", headers: ["Area", "Effect"], rows: [
-                ["Invoice and invoice lines", "Unchanged — the customer's document is never re-issued or altered"],
-                ["Money receipts and payments", "Unchanged"],
-                ["Job amount and selling prices", "Unchanged — cost is edited on its own, with no markup recalculation"],
-                ["Stock and stock transactions", "Unchanged — no part movement is created or reversed"],
-                ["Profit reports", "These do change — that is the whole point of the correction"],
-            ]},
-            { type: "note", text: "Requires the Correct Job Cost access right. Managers have it; Receptionists and Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
-            { type: "warning", text: "Corrections are not recorded anywhere. There is no history, no audit entry, and no reason field — the old cost is simply overwritten. Note the change yourself if your process needs a trail." },
-        ],
-        faqs: [
-            { q: "Will the customer see anything change?", a: "No. Cost price never appears on an invoice or receipt. The invoice, its line items, the amount due, and every recorded payment are left exactly as they were." },
-            { q: "Can I correct a cost on a job already posted to accounts?", a: "Yes — this is the one job action that deliberately still works on a posted job. Revise Final and Undo Final remain blocked on posted jobs." },
-            { q: "Why is Save disabled?", a: "Either nothing has been changed yet, or at least one line that needs a cost still has zero. Lines needing a cost show a red border." },
-            { q: "Why can't I set a cost of 0?", a: "Zero is what the feature exists to fix, so it is rejected both in the screen and on the server. A line that genuinely has no cost — labour, for example — is not flagged and does not need one." },
-            { q: "Can I see who corrected a cost, and when?", a: "No. Nothing is recorded — no audit row, no timestamp shown, no reason captured. This is a deliberate choice, not an oversight." },
-            { q: "The menu item is there but saving fails with an authorization error.", a: "Your role does not have the Correct Job Cost right. It is granted to Managers only. Ask a Business Admin to run the job under a manager login." },
-            { q: "My profit report still looks wrong after correcting.", a: "Check that every line was corrected, not just the one you noticed — the missing-cost badge counts all flagged lines on the job. Also re-run the report; cached report views do not refresh on their own." },
-        ],
-    },
+	{
+		id: "part-used",
+		category: "Jobs",
+		title: "Part Used (Job)",
+		summary: "Record spare parts consumed on a job and reduce stock — outside the finalization form.",
+		tags: ["part used", "parts", "consumption", "stock", "spare parts", "warranty", "job parts"],
+		content: [
+			{
+				type: "para",
+				text: "Jobs → Part Used (Job) is a quick way to book the spare parts a technician consumed on a job without opening the full finalization screen. Each part booked here reduces branch stock through a Consumption stock transaction.",
+			},
+			{ type: "heading", text: "Booking parts" },
+			{
+				type: "steps",
+				items: [
+					"Go to Jobs → Part Used (Job) → New.",
+					"Select the job — its type, status, and date load for reference.",
+					"Add one line per part: pick the part, set the quantity. Cost price fills from the part master and selling price applies the configured markup.",
+					"Click Save. Stock is decremented and a Consumption transaction is recorded on the job's date.",
+				],
+			},
+			{
+				type: "note",
+				text: "For UNDER_WARRANTY jobs the selling price of every part is forced to ₹0 — only cost is tracked internally.",
+			},
+			{ type: "heading", text: "Reviewing and editing" },
+			{
+				type: "para",
+				text: "Switch to View to see consumption grouped by job. Search by job no, part code, or part name. Edit or delete a line from the row actions — both are disabled once the job is Closed or Final, since its parts are locked.",
+			},
+			{
+				type: "note",
+				text: "A job that is On Hold cannot be selected for a new Part Used entry either, in addition to jobs that are Closed or Final.",
+			},
+		],
+		faqs: [
+			{
+				q: "What is the difference between Part Used and the parts on the Finalize screen?",
+				a: "They write to the same job parts list. Part Used (Job) is a fast entry point for consumption during the repair; Finalize is where you also set charges and the final invoice amount. Parts booked in either place appear in both.",
+			},
+			{
+				q: "Can I edit a part after the job is finalized?",
+				a: "No. Once the job is Closed or Final its parts are locked. Undo Final first (Final a Job → Finalized Jobs), then edit.",
+			},
+			{
+				q: "Does booking a part here affect stock immediately?",
+				a: "Yes. Saving creates a Consumption stock transaction and reduces the part's quantity at the current branch right away.",
+			},
+			{
+				q: "Why is the selling price ₹0 and greyed out?",
+				a: "The job type is UNDER_WARRANTY. Warranty jobs never charge the customer, so selling prices are fixed at ₹0.",
+			},
+		],
+	},
 
-    {
-        id: "part-used",
-        category: "Jobs",
-        title: "Part Used (Job)",
-        summary: "Record spare parts consumed on a job and reduce stock — outside the finalization form.",
-        tags: ["part used", "parts", "consumption", "stock", "spare parts", "warranty", "job parts"],
-        content: [
-            { type: "para", text: "Jobs → Part Used (Job) is a quick way to book the spare parts a technician consumed on a job without opening the full finalization screen. Each part booked here reduces branch stock through a Consumption stock transaction." },
-            { type: "heading", text: "Booking parts" },
-            { type: "steps", items: [
-                "Go to Jobs → Part Used (Job) → New.",
-                "Select the job — its type, status, and date load for reference.",
-                "Add one line per part: pick the part, set the quantity. Cost price fills from the part master and selling price applies the configured markup.",
-                "Click Save. Stock is decremented and a Consumption transaction is recorded on the job's date.",
-            ]},
-            { type: "note", text: "For UNDER_WARRANTY jobs the selling price of every part is forced to ₹0 — only cost is tracked internally." },
-            { type: "heading", text: "Reviewing and editing" },
-            { type: "para", text: "Switch to View to see consumption grouped by job. Search by job no, part code, or part name. Edit or delete a line from the row actions — both are disabled once the job is Closed or Final, since its parts are locked." },
-            { type: "note", text: "A job that is On Hold cannot be selected for a new Part Used entry either, in addition to jobs that are Closed or Final." },
-        ],
-        faqs: [
-            { q: "What is the difference between Part Used and the parts on the Finalize screen?", a: "They write to the same job parts list. Part Used (Job) is a fast entry point for consumption during the repair; Finalize is where you also set charges and the final invoice amount. Parts booked in either place appear in both." },
-            { q: "Can I edit a part after the job is finalized?", a: "No. Once the job is Closed or Final its parts are locked. Undo Final first (Final a Job → Finalized Jobs), then edit." },
-            { q: "Does booking a part here affect stock immediately?", a: "Yes. Saving creates a Consumption stock transaction and reduces the part's quantity at the current branch right away." },
-            { q: "Why is the selling price ₹0 and greyed out?", a: "The job type is UNDER_WARRANTY. Warranty jobs never charge the customer, so selling prices are fixed at ₹0." },
-        ],
-    },
+	{
+		id: "deliver-job",
+		category: "Jobs",
+		title: "Delivering a Job",
+		summary: "4-step process: invoice creation, payment collection, delivery details, and closure.",
+		tags: ["deliver", "delivery", "invoice", "receipt", "payment", "close", "IGST", "CGST", "SGST"],
+		content: [
+			{
+				type: "para",
+				text: "Go to Jobs → Deliver Job. Select one or more finalized, not-yet-closed jobs and proceed through 4 steps.",
+			},
+			{ type: "heading", text: "Step 1 — Selected Jobs" },
+			{
+				type: "para",
+				text: "Any job with is_final = true that is not yet closed can be picked here — job status itself is not restricted. The summary panel shows Total Amount, Received Amount, and Due Amount. Due shows in red if payment is outstanding.",
+			},
+			{
+				type: "note",
+				text: "Each job in the list has an editable customer GSTIN field (pre-filled from that job's customer). It is optional, but an invalid value blocks delivery, and any edit is saved back to the customer. See 'Customer GSTIN on Jobs'.",
+			},
+			{ type: "heading", text: "Step 2 — Money Receipts" },
+			{
+				type: "para",
+				text: "For each job with an outstanding balance, you can click 'Add Receipt' here ahead of time. Fill the amount, payment mode (Cash, Card, UPI, Cheque, Online Transfer, or Other), date, and reference number. Multiple receipts per job are permitted. You don't have to clear the balance here — see Step 4.",
+			},
+			{ type: "heading", text: "Step 3 — Service Invoice" },
+			{
+				type: "para",
+				text: "Invoices are not created manually here — they are generated automatically as part of the single delivery action in Step 4. A job becomes invoiceable once it reaches DELIVERED_OK or DELIVERED_NOT_OK; UNDER_WARRANTY, RETURN, and CANCELLED jobs are excluded. Invoice numbers come from the SERVICE_INVOICE document sequence.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"Print individual invoices using the print icon on each row, once created.",
+					"Delete an invoice using the trash icon (only if not posted to accounts).",
+					"Regenerate an invoice (only if not posted) using the refresh icon.",
+				],
+			},
+			{ type: "heading", text: "Step 4 — Delivery Details" },
+			{
+				type: "steps",
+				items: [
+					"Select Delivery Manner (Hand Delivery, Courier, Customer Pickup, etc.).",
+					"Set Delivery Date (defaults to today).",
+					"Add optional Remarks.",
+					"Click the combined 'Receipts + Delivery + Invoice' button. If a selected job still has an outstanding balance, a receipt-collection dialog opens automatically before continuing.",
+				],
+			},
+			{
+				type: "note",
+				text: "The button runs all three actions in one click, showing its progress inline ('Collecting Receipts…' → 'Delivering…' → 'Invoice is being made…'). There is no separate manual step to create invoices or a separate 'close' action — delivering and invoicing happen together.",
+			},
+			{ type: "heading", text: "Print Options" },
+			{
+				type: "table",
+				headers: ["Button", "Output"],
+				rows: [
+					["Delivery Note PDF", "A delivery slip listing all jobs being handed over"],
+					["Invoice + Receipt PDF", "Combined PDF: all invoices + all receipts for the selected jobs"],
+				],
+			},
+			{ type: "heading", text: "Handing over without paper" },
+			{
+				type: "para",
+				text: "Once the jobs are delivered, a 'Whatsapp Delivery' button appears beside the print buttons. It sends the customer the delivery note and invoice as WhatsApp links plus a 4-digit code they read back to you, which you enter via 'Verify Code' to record the collection. If they have no valid mobile number the button is disabled — print instead. Full walkthrough in 'Paperless Job Delivery'.",
+			},
+			{
+				type: "note",
+				text: "The print buttons are unchanged and always available. The WhatsApp path is an addition, not a replacement, and confirming a code does not gate delivery, invoicing, or accounts posting in any way.",
+			},
+			{ type: "heading", text: "After delivery — Delivered Jobs row actions" },
+			{
+				type: "table",
+				headers: ["Action", "What it does"],
+				rows: [
+					["Invoice + Receipts", "Re-print the combined invoice and receipt PDF"],
+					["Send Invoice via WhatsApp", "Re-send the invoice link to the customer"],
+					["Delivery Note", "Re-print the delivery slip"],
+					[
+						"Correct Costs",
+						"Fix a wrong or missing cost price on the job's parts and charges — works even on a posted job, and changes nothing the customer sees. See 'Correcting a Cost on a Job'.",
+					],
+					["Undo Delivery", "Reverse the delivery (blocked once the invoice is posted to accounts)"],
+				],
+			},
+			{
+				type: "note",
+				text: "Requires the Deliver Job access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown.",
+			},
+		],
+		faqs: [
+			{
+				q: "The delivery button is greyed out — why?",
+				a: "Delivery Manner is not selected, or Delivery Date is empty. An outstanding balance does not grey out the button — clicking it opens a receipt dialog automatically. An invalid customer GSTIN blocks delivery with a toast when you click, rather than disabling the button in advance.",
+			},
+			{
+				q: "Can I deliver multiple jobs at once?",
+				a: "Yes. Select all eligible jobs before proceeding. Receipts, delivery, and invoices are handled per job; all complete in one combined action.",
+			},
+			{
+				q: "Can I regenerate an invoice after it was posted to accounts?",
+				a: "No. You must unpost it first from Admin → Post/Unpost, then regenerate from the Deliver Job screen.",
+			},
+			{
+				q: "The customer paid by cheque and it bounced — what do I do?",
+				a: "Delete the cheque receipt entry, note the dishonour in job remarks, and add a new receipt when a replacement payment clears.",
+			},
+			{
+				q: "Can I deliver a job that was not fixed (RETURN status)?",
+				a: "Yes. It becomes DELIVERED_NOT_OK. You can still invoice for diagnostic or inspection charges.",
+			},
+			{
+				q: "What is 'Invoice + Receipt PDF'?",
+				a: "A single combined PDF containing all invoices and all receipts for the selected jobs — useful to give the customer a complete record.",
+			},
+			{
+				q: "Can I re-send the invoice after the job is closed and off this screen?",
+				a: "Yes — 'Send Invoice via WhatsApp' in the row actions of either the Delivered Jobs grid or Job Control's Delivered tab. See 'Sending a Money Receipt or Invoice by WhatsApp'.",
+			},
+		],
+	},
 
-    {
-        id: "deliver-job",
-        category: "Jobs",
-        title: "Delivering a Job",
-        summary: "4-step process: invoice creation, payment collection, delivery details, and closure.",
-        tags: ["deliver", "delivery", "invoice", "receipt", "payment", "close", "IGST", "CGST", "SGST"],
-        content: [
-            { type: "para", text: "Go to Jobs → Deliver Job. Select one or more finalized, not-yet-closed jobs and proceed through 4 steps." },
-            { type: "heading", text: "Step 1 — Selected Jobs" },
-            { type: "para", text: "Any job with is_final = true that is not yet closed can be picked here — job status itself is not restricted. The summary panel shows Total Amount, Received Amount, and Due Amount. Due shows in red if payment is outstanding." },
-            { type: "note", text: "Each job in the list has an editable customer GSTIN field (pre-filled from that job's customer). It is optional, but an invalid value blocks delivery, and any edit is saved back to the customer. See 'Customer GSTIN on Jobs'." },
-            { type: "heading", text: "Step 2 — Money Receipts" },
-            { type: "para", text: "For each job with an outstanding balance, you can click 'Add Receipt' here ahead of time. Fill the amount, payment mode (Cash, Card, UPI, Cheque, Online Transfer, or Other), date, and reference number. Multiple receipts per job are permitted. You don't have to clear the balance here — see Step 4." },
-            { type: "heading", text: "Step 3 — Service Invoice" },
-            { type: "para", text: "Invoices are not created manually here — they are generated automatically as part of the single delivery action in Step 4. A job becomes invoiceable once it reaches DELIVERED_OK or DELIVERED_NOT_OK; UNDER_WARRANTY, RETURN, and CANCELLED jobs are excluded. Invoice numbers come from the SERVICE_INVOICE document sequence." },
-            { type: "bullets", items: [
-                "Print individual invoices using the print icon on each row, once created.",
-                "Delete an invoice using the trash icon (only if not posted to accounts).",
-                "Regenerate an invoice (only if not posted) using the refresh icon.",
-            ]},
-            { type: "heading", text: "Step 4 — Delivery Details" },
-            { type: "steps", items: [
-                "Select Delivery Manner (Hand Delivery, Courier, Customer Pickup, etc.).",
-                "Set Delivery Date (defaults to today).",
-                "Add optional Remarks.",
-                "Click the combined 'Receipts + Delivery + Invoice' button. If a selected job still has an outstanding balance, a receipt-collection dialog opens automatically before continuing.",
-            ]},
-            { type: "note", text: "The button runs all three actions in one click, showing its progress inline ('Collecting Receipts…' → 'Delivering…' → 'Invoice is being made…'). There is no separate manual step to create invoices or a separate 'close' action — delivering and invoicing happen together." },
-            { type: "heading", text: "Print Options" },
-            { type: "table", headers: ["Button", "Output"], rows: [
-                ["Delivery Note PDF",        "A delivery slip listing all jobs being handed over"],
-                ["Invoice + Receipt PDF",    "Combined PDF: all invoices + all receipts for the selected jobs"],
-            ]},
-            { type: "heading", text: "Handing over without paper" },
-            { type: "para", text: "Once the jobs are delivered, a 'Whatsapp Delivery' button appears beside the print buttons. It sends the customer the delivery note and invoice as WhatsApp links plus a 4-digit code they read back to you, which you enter via 'Verify Code' to record the collection. If they have no valid mobile number the button is disabled — print instead. Full walkthrough in 'Paperless Job Delivery'." },
-            { type: "note", text: "The print buttons are unchanged and always available. The WhatsApp path is an addition, not a replacement, and confirming a code does not gate delivery, invoicing, or accounts posting in any way." },
-            { type: "heading", text: "After delivery — Delivered Jobs row actions" },
-            { type: "table", headers: ["Action", "What it does"], rows: [
-                ["Invoice + Receipts",         "Re-print the combined invoice and receipt PDF"],
-                ["Send Invoice via WhatsApp",  "Re-send the invoice link to the customer"],
-                ["Delivery Note",              "Re-print the delivery slip"],
-                ["Correct Costs",              "Fix a wrong or missing cost price on the job's parts and charges — works even on a posted job, and changes nothing the customer sees. See 'Correcting a Cost on a Job'."],
-                ["Undo Delivery",              "Reverse the delivery (blocked once the invoice is posted to accounts)"],
-            ]},
-            { type: "note", text: "Requires the Deliver Job access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
-        ],
-        faqs: [
-            { q: "The delivery button is greyed out — why?", a: "Delivery Manner is not selected, or Delivery Date is empty. An outstanding balance does not grey out the button — clicking it opens a receipt dialog automatically. An invalid customer GSTIN blocks delivery with a toast when you click, rather than disabling the button in advance." },
-            { q: "Can I deliver multiple jobs at once?", a: "Yes. Select all eligible jobs before proceeding. Receipts, delivery, and invoices are handled per job; all complete in one combined action." },
-            { q: "Can I regenerate an invoice after it was posted to accounts?", a: "No. You must unpost it first from Admin → Post/Unpost, then regenerate from the Deliver Job screen." },
-            { q: "The customer paid by cheque and it bounced — what do I do?", a: "Delete the cheque receipt entry, note the dishonour in job remarks, and add a new receipt when a replacement payment clears." },
-            { q: "Can I deliver a job that was not fixed (RETURN status)?", a: "Yes. It becomes DELIVERED_NOT_OK. You can still invoice for diagnostic or inspection charges." },
-            { q: "What is 'Invoice + Receipt PDF'?", a: "A single combined PDF containing all invoices and all receipts for the selected jobs — useful to give the customer a complete record." },
-            { q: "Can I re-send the invoice after the job is closed and off this screen?", a: "Yes — 'Send Invoice via WhatsApp' in the row actions of either the Delivered Jobs grid or Job Control's Delivered tab. See 'Sending a Money Receipt or Invoice by WhatsApp'." },
-        ],
-    },
+	{
+		id: "whatsapp-integration",
+		category: "WhatsApp",
+		title: "WhatsApp Integration",
+		summary:
+			"Five WhatsApp messages across a job's life — intake, ready-for-pickup, delivery (with a confirmation code), money receipt, and invoice — each tracked to real delivery by Meta, not just accepted by the server.",
+		tags: [
+			"whatsapp",
+			"whatsapp integration",
+			"customer connect",
+			"job intake",
+			"job creation",
+			"job completion",
+			"job delivery",
+			"money receipt",
+			"invoice",
+			"mobile number",
+			"delivery status",
+			"status link",
+			"job slip",
+			"whatsapp_notifications",
+			"switch off",
+			"disable",
+			"paperless",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Service+ sends WhatsApp messages at five points in a job's life. There is no SMS or email option — WhatsApp is the only channel. Every message is sent to the customer's mobile number on the job, and every send is tracked to a real delivery status, not just \"we handed it to Meta\".",
+			},
+			{
+				type: "table",
+				headers: ["Message", "Sent from", "When", "What the customer gets"],
+				rows: [
+					[
+						"Job Intake Notice",
+						"New Job / Batch Job, or the job's detail view",
+						"The moment the device is dropped off — no status filter",
+						"Branch and job (or batch) reference, plus \u201cCheck Repair Status\u201d and \u201cDownload Job Slip\u201d buttons",
+					],
+					[
+						"Job Completed",
+						"Jobs \u2192 Customer Connect",
+						"Once the job is finalized at COMPLETED_OK",
+						"\u201cYour device is ready for collection\u201d, with job numbers and amount",
+					],
+					[
+						"Job Delivery",
+						"Deliver Job (and Batch Warranty Jobs)",
+						"Once the job reaches Delivered",
+						"A delivery summary with \u201cDownload Delivery Note\u201d and \u201cDownload Invoice\u201d buttons \u2014 plus a second message carrying a 4-digit confirmation code",
+					],
+					[
+						"Money Receipt",
+						"Jobs \u2192 Receipts, row actions",
+						"Whenever you choose, for one recorded payment",
+						"Amount, mode, date and receipt reference, with a \u201cDownload Money Receipt\u201d button",
+					],
+					[
+						"Invoice",
+						"Deliver Job \u2192 Delivered Jobs, row actions",
+						"Any time after the job is closed",
+						"Invoice reference, with a \u201cDownload Invoice\u201d button (the same PDF also lists the payments received)",
+					],
+				],
+			},
+			{
+				type: "note",
+				text: "None of these messages carry a PDF as a WhatsApp attachment. Every document is a button that opens a freshly generated page or PDF — nothing has to be stored or attached ahead of time, and the links keep working long after delivery.",
+			},
+			{ type: "heading", text: 'What counts as "sent"' },
+			{
+				type: "para",
+				text: "A send only means the message was handed to Meta — it does not yet mean the customer received it. Every send is tracked through Meta's own delivery webhook to a real status, and only Delivered (or Read) means it actually reached the customer's phone.",
+			},
+			{
+				type: "table",
+				headers: ["Status", "Meaning"],
+				rows: [
+					["Accepted", "Meta has accepted the send request — nothing further confirmed yet"],
+					["Sent", "Left Meta's servers toward the customer's phone"],
+					["Delivered", "Reached the customer's device — the bar for a successful notification"],
+					["Read", "The customer opened it (WhatsApp read receipts permitting)"],
+					["Failed", "Could not be delivered — see the error on hover"],
+				],
+			},
+			{
+				type: "note",
+				text: "Status only ever moves forward along this list — a later, lower-ranked update (e.g. a delayed 'Sent' arriving after 'Delivered' already showed) is ignored, never shown as a regression. All five message types share this same tracking, shown as their own status pill wherever each appears.",
+			},
+			{ type: "heading", text: "Every send is kept, not just the last one" },
+			{
+				type: "para",
+				text: "A customer can be messaged about the same job more than once — a resend after a failure, or a nudge before pickup. Where the status pill appears, a job messaged more than once shows an \"N sends\" list of every attempt with its own time and outcome, instead of only the most recent one. See 'Customer Connect' for how to read it.",
+			},
+			{ type: "heading", text: "Grouping" },
+			{
+				type: "para",
+				text: "The Job Intake, Job Completed and Job Delivery messages are grouped by customer and sent as one message per customer, covering all of that customer's selected jobs — never one message per job. A batch is just several jobs for one customer, so it already gets exactly one message. Money Receipt and Invoice are never grouped: each is about one specific payment or one specific invoice.",
+			},
+			{ type: "heading", text: "Access" },
+			{
+				type: "para",
+				text: "The Customer Connect menu item has its own access right, separate from the rest of Jobs — see 'Roles' in Access Management for exactly who has it. The other four sends carry no separate right of their own: if you can reach the screen that triggers them (create a job, deliver a job, manage receipts), you can send from it.",
+			},
+			{ type: "heading", text: "Turning an event off entirely" },
+			{
+				type: "para",
+				text: "Configurations → App Settings → whatsapp_notifications has one on/off switch per event — Job Intake Message, Job Completed, Job Delivery, Money Receipt, and Invoice. Only Job Completed is on by default; the rest must be switched on deliberately. When an event is off, clicking Send doesn't fail or error — it simply doesn't go out, and you'll see a message saying that event is currently switched off.",
+			},
+		],
+		faqs: [
+			{ q: "Can I send an SMS or email instead of WhatsApp?", a: "No — WhatsApp is the only messaging channel." },
+			{
+				q: "Why don't the messages have the PDF attached directly?",
+				a: "Every document is served through a button in the message instead — the page or PDF is generated the moment the customer taps it, so it always reflects current data and nothing has to be stored or attached in advance.",
+			},
+			{
+				q: "A customer's status shows 'Sent' and never moves further — is that stuck?",
+				a: "Not necessarily — Meta's own delivery confirmation can take anywhere from seconds to longer on a busy day. Refresh the grid; if it stays on 'Sent' for an extended period the message may simply not have been opened, since 'Read' depends on the customer's own WhatsApp settings.",
+			},
+			{
+				q: "Why is a customer's row not selectable?",
+				a: "Their mobile number is missing or not a valid 10-digit Indian number. Fix it on the customer record in Masters → Customer, then Refresh.",
+			},
+			{
+				q: "I clicked Send and nothing seems to have happened — no success, no error grid — why?",
+				a: "Check Configurations → App Settings → whatsapp_notifications first — that event may be switched off. If it's on, check the results banner/grid for a per-customer error instead.",
+			},
+			{
+				q: "Which of these messages needs the customer to do something back?",
+				a: "Only Job Delivery. It carries a 4-digit code the customer reads out to you at the counter, which you enter to confirm the handover — see 'Paperless Job Delivery'. The other four are one-way notifications.",
+			},
+		],
+	},
 
-    {
-        id: "whatsapp-integration",
-        category: "WhatsApp",
-        title: "WhatsApp Integration",
-        summary: "Five WhatsApp messages across a job's life — intake, ready-for-pickup, delivery (with a confirmation code), money receipt, and invoice — each tracked to real delivery by Meta, not just accepted by the server.",
-        tags: ["whatsapp", "whatsapp integration", "customer connect", "job intake", "job creation", "job completion", "job delivery", "money receipt", "invoice", "mobile number", "delivery status", "status link", "job slip", "whatsapp_notifications", "switch off", "disable", "paperless"],
-        content: [
-            { type: "para", text: "Service+ sends WhatsApp messages at five points in a job's life. There is no SMS or email option — WhatsApp is the only channel. Every message is sent to the customer's mobile number on the job, and every send is tracked to a real delivery status, not just \"we handed it to Meta\"." },
-            { type: "table", headers: ["Message", "Sent from", "When", "What the customer gets"], rows: [
-                ["Job Intake Notice",   "New Job / Batch Job, or the job's detail view",   "The moment the device is dropped off — no status filter", "Branch and job (or batch) reference, plus \u201cCheck Repair Status\u201d and \u201cDownload Job Slip\u201d buttons"],
-                ["Job Completed",       "Jobs \u2192 Customer Connect",                    "Once the job is finalized at COMPLETED_OK",              "\u201cYour device is ready for collection\u201d, with job numbers and amount"],
-                ["Job Delivery",        "Deliver Job (and Batch Warranty Jobs)",           "Once the job reaches Delivered",                         "A delivery summary with \u201cDownload Delivery Note\u201d and \u201cDownload Invoice\u201d buttons \u2014 plus a second message carrying a 4-digit confirmation code"],
-                ["Money Receipt",       "Jobs \u2192 Receipts, row actions",                "Whenever you choose, for one recorded payment",          "Amount, mode, date and receipt reference, with a \u201cDownload Money Receipt\u201d button"],
-                ["Invoice",             "Deliver Job \u2192 Delivered Jobs, row actions",   "Any time after the job is closed",                       "Invoice reference, with a \u201cDownload Invoice\u201d button (the same PDF also lists the payments received)"],
-            ]},
-            { type: "note", text: "None of these messages carry a PDF as a WhatsApp attachment. Every document is a button that opens a freshly generated page or PDF — nothing has to be stored or attached ahead of time, and the links keep working long after delivery." },
-            { type: "heading", text: "What counts as \"sent\"" },
-            { type: "para", text: "A send only means the message was handed to Meta — it does not yet mean the customer received it. Every send is tracked through Meta's own delivery webhook to a real status, and only Delivered (or Read) means it actually reached the customer's phone." },
-            { type: "table", headers: ["Status", "Meaning"], rows: [
-                ["Accepted",  "Meta has accepted the send request — nothing further confirmed yet"],
-                ["Sent",      "Left Meta's servers toward the customer's phone"],
-                ["Delivered", "Reached the customer's device — the bar for a successful notification"],
-                ["Read",      "The customer opened it (WhatsApp read receipts permitting)"],
-                ["Failed",    "Could not be delivered — see the error on hover"],
-            ]},
-            { type: "note", text: "Status only ever moves forward along this list — a later, lower-ranked update (e.g. a delayed 'Sent' arriving after 'Delivered' already showed) is ignored, never shown as a regression. All five message types share this same tracking, shown as their own status pill wherever each appears." },
-            { type: "heading", text: "Every send is kept, not just the last one" },
-            { type: "para", text: "A customer can be messaged about the same job more than once — a resend after a failure, or a nudge before pickup. Where the status pill appears, a job messaged more than once shows an \"N sends\" list of every attempt with its own time and outcome, instead of only the most recent one. See 'Customer Connect' for how to read it." },
-            { type: "heading", text: "Grouping" },
-            { type: "para", text: "The Job Intake, Job Completed and Job Delivery messages are grouped by customer and sent as one message per customer, covering all of that customer's selected jobs — never one message per job. A batch is just several jobs for one customer, so it already gets exactly one message. Money Receipt and Invoice are never grouped: each is about one specific payment or one specific invoice." },
-            { type: "heading", text: "Access" },
-            { type: "para", text: "The Customer Connect menu item has its own access right, separate from the rest of Jobs — see 'Roles' in Access Management for exactly who has it. The other four sends carry no separate right of their own: if you can reach the screen that triggers them (create a job, deliver a job, manage receipts), you can send from it." },
-            { type: "heading", text: "Turning an event off entirely" },
-            { type: "para", text: "Configurations → App Settings → whatsapp_notifications has one on/off switch per event — Job Intake Message, Job Completed, Job Delivery, Money Receipt, and Invoice. Only Job Completed is on by default; the rest must be switched on deliberately. When an event is off, clicking Send doesn't fail or error — it simply doesn't go out, and you'll see a message saying that event is currently switched off." },
-        ],
-        faqs: [
-            { q: "Can I send an SMS or email instead of WhatsApp?", a: "No — WhatsApp is the only messaging channel." },
-            { q: "Why don't the messages have the PDF attached directly?", a: "Every document is served through a button in the message instead — the page or PDF is generated the moment the customer taps it, so it always reflects current data and nothing has to be stored or attached in advance." },
-            { q: "A customer's status shows 'Sent' and never moves further — is that stuck?", a: "Not necessarily — Meta's own delivery confirmation can take anywhere from seconds to longer on a busy day. Refresh the grid; if it stays on 'Sent' for an extended period the message may simply not have been opened, since 'Read' depends on the customer's own WhatsApp settings." },
-            { q: "Why is a customer's row not selectable?", a: "Their mobile number is missing or not a valid 10-digit Indian number. Fix it on the customer record in Masters → Customer, then Refresh." },
-            { q: "I clicked Send and nothing seems to have happened — no success, no error grid — why?", a: "Check Configurations → App Settings → whatsapp_notifications first — that event may be switched off. If it's on, check the results banner/grid for a per-customer error instead." },
-            { q: "Which of these messages needs the customer to do something back?", a: "Only Job Delivery. It carries a 4-digit code the customer reads out to you at the counter, which you enter to confirm the handover — see 'Paperless Job Delivery'. The other four are one-way notifications." },
-        ],
-    },
+	{
+		id: "job-intake-notice",
+		category: "WhatsApp",
+		title: "Job Intake Notice",
+		summary:
+			"The WhatsApp message sent the moment a job or batch is created, with a no-login status link and a downloadable job slip PDF.",
+		tags: [
+			"job intake",
+			"job intake notice",
+			"job slip",
+			"status link",
+			"check repair status",
+			"download job slip",
+			"batch",
+			"whatsapp",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Right after Creating a New Job (single or batch), a WhatsApp button lets you send the customer a Job Intake Notice — the paperless stand-in for the printed job slip. The same button appears again on the job's detail view for resending later.",
+			},
+			{ type: "heading", text: "What the customer receives" },
+			{
+				type: "para",
+				text: "A short WhatsApp message naming the branch and either the job number (single job) or the batch number plus every job number in it (batch, up to 3 listed then '…and N more'), with two buttons:",
+			},
+			{
+				type: "table",
+				headers: ["Button", "What it opens"],
+				rows: [
+					[
+						"Check Repair Status",
+						"A web page — no app, no login — listing every item covered by that message and its current status. It keeps working after the job is delivered, so it's safe to bookmark or forward.",
+					],
+					[
+						"Download Job Slip",
+						"The same information as a PDF, generated on the spot — nothing to attach or store ahead of time.",
+					],
+				],
+			},
+			{ type: "heading", text: "When it fires and how it groups" },
+			{
+				type: "para",
+				text: "There is no status filter — the intake notice is meant to go out the moment the device is dropped off, so it fires regardless of the job's stage. A batch drop-off for one customer is already one drop-off event, so it's sent as a single message listing every item, not one message per job.",
+			},
+			{ type: "heading", text: "Resending" },
+			{
+				type: "para",
+				text: "Open the job (or any job in the batch) and use the same WhatsApp action to resend — useful if the number was wrong the first time or the customer says they never got it. Each attempt is tracked independently; resending doesn't erase the history of earlier attempts.",
+			},
+			{
+				type: "note",
+				text: "This is a separate message from the completion notice sent later from Customer Connect — sending one has no effect on the other, and a job's intake and completion status are shown as two separate indicators.",
+			},
+		],
+		faqs: [
+			{
+				q: "Does the status page require the customer to log in or install anything?",
+				a: "No — the link in the message is the only credential needed. It's meant to be as easy as looking at a printed slip.",
+			},
+			{
+				q: "Does the link expire?",
+				a: "It's built to last as long as a customer might reasonably need it — well beyond typical delivery timelines — so it keeps working if they check back later, not just in the first few days.",
+			},
+			{
+				q: "I sent the intake notice for a batch of 12 — how many messages went out?",
+				a: "One, to that batch's customer, listing the item count and every job number (truncated to the first 3 plus a count of the rest if there are more).",
+			},
+			{
+				q: "Can I send this for a job that's already finalized or delivered?",
+				a: "Yes — there's no status restriction on the intake notice, and the status page/PDF keep working after delivery too.",
+			},
+		],
+	},
 
-    {
-        id: "job-intake-notice",
-        category: "WhatsApp",
-        title: "Job Intake Notice",
-        summary: "The WhatsApp message sent the moment a job or batch is created, with a no-login status link and a downloadable job slip PDF.",
-        tags: ["job intake", "job intake notice", "job slip", "status link", "check repair status", "download job slip", "batch", "whatsapp"],
-        content: [
-            { type: "para", text: "Right after Creating a New Job (single or batch), a WhatsApp button lets you send the customer a Job Intake Notice — the paperless stand-in for the printed job slip. The same button appears again on the job's detail view for resending later." },
-            { type: "heading", text: "What the customer receives" },
-            { type: "para", text: "A short WhatsApp message naming the branch and either the job number (single job) or the batch number plus every job number in it (batch, up to 3 listed then '…and N more'), with two buttons:" },
-            { type: "table", headers: ["Button", "What it opens"], rows: [
-                ["Check Repair Status", "A web page — no app, no login — listing every item covered by that message and its current status. It keeps working after the job is delivered, so it's safe to bookmark or forward."],
-                ["Download Job Slip",   "The same information as a PDF, generated on the spot — nothing to attach or store ahead of time."],
-            ]},
-            { type: "heading", text: "When it fires and how it groups" },
-            { type: "para", text: "There is no status filter — the intake notice is meant to go out the moment the device is dropped off, so it fires regardless of the job's stage. A batch drop-off for one customer is already one drop-off event, so it's sent as a single message listing every item, not one message per job." },
-            { type: "heading", text: "Resending" },
-            { type: "para", text: "Open the job (or any job in the batch) and use the same WhatsApp action to resend — useful if the number was wrong the first time or the customer says they never got it. Each attempt is tracked independently; resending doesn't erase the history of earlier attempts." },
-            { type: "note", text: "This is a separate message from the completion notice sent later from Customer Connect — sending one has no effect on the other, and a job's intake and completion status are shown as two separate indicators." },
-        ],
-        faqs: [
-            { q: "Does the status page require the customer to log in or install anything?", a: "No — the link in the message is the only credential needed. It's meant to be as easy as looking at a printed slip." },
-            { q: "Does the link expire?", a: "It's built to last as long as a customer might reasonably need it — well beyond typical delivery timelines — so it keeps working if they check back later, not just in the first few days." },
-            { q: "I sent the intake notice for a batch of 12 — how many messages went out?", a: "One, to that batch's customer, listing the item count and every job number (truncated to the first 3 plus a count of the rest if there are more)." },
-            { q: "Can I send this for a job that's already finalized or delivered?", a: "Yes — there's no status restriction on the intake notice, and the status page/PDF keep working after delivery too." },
-        ],
-    },
+	{
+		id: "customer-connect",
+		category: "WhatsApp",
+		title: "Customer Connect (Bulk Completion Messages + Message Log)",
+		summary:
+			"Send the 'job ready for pickup' WhatsApp message to many finalized customers at once, and browse the full send history of every other WhatsApp message across five tabs.",
+		tags: [
+			"customer connect",
+			"whatsapp",
+			"bulk",
+			"completion message",
+			"delivery status",
+			"select all",
+			"message log",
+			"history",
+			"sends",
+			"tabs",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Jobs → Customer Connect has five tabs. The first one sends; the other four are read-only logs of messages sent from elsewhere in the app.",
+			},
+			{
+				type: "table",
+				headers: ["Tab", "What it is"],
+				rows: [
+					[
+						"Job Completion",
+						"The only tab that sends. Every job at COMPLETED_OK that has been finalized — the customers you can tell 'your device is ready for pickup'.",
+					],
+					["Job Intake", "Log of Job Intake Notices sent from New Job / Batch Job. One row per job."],
+					[
+						"Job Delivery",
+						"Log of delivery messages — but only those the customer actually confirmed, by code or by an in-person override. A delivery message that was sent and never confirmed does not appear here.",
+					],
+					[
+						"Money Receipt",
+						"Log of receipt messages sent from Jobs → Receipts. One row per receipt sent, not per job, since a job can have several payments.",
+					],
+					["Invoice", "Log of invoice messages sent from the Delivered Jobs grid. One row per job."],
+				],
+			},
+			{
+				type: "note",
+				text: "The four log tabs have no send controls and no checkboxes — they are history, not a second way to send. Each is triggered from its own screen. They also do not update live: use Refresh to pull the latest statuses.",
+			},
+			{ type: "heading", text: "Job Completion — why a separate screen instead of a button on Final a Job" },
+			{
+				type: "para",
+				text: "A customer can have several jobs finalized on the same day. Customer Connect groups every selected job by customer and sends exactly one WhatsApp message per customer — never one per job — even when you select jobs across multiple customers at once.",
+			},
+			{ type: "heading", text: "The grid" },
+			{
+				type: "table",
+				headers: ["Column", "Meaning"],
+				rows: [
+					["☑", "Selection checkbox — see Selection rules below"],
+					["Job No / Date", "The finalized job and its intake date"],
+					["Customer / Mobile", "Who the message goes to"],
+					["Device Details / Job Type / Status", "Same job info shown elsewhere in Jobs"],
+					[
+						"Amount",
+						"This job's final amount — summed per customer in the message preview when a customer has more than one selected job",
+					],
+					[
+						"Whatsapp",
+						"How many sends have succeeded/failed for this job, and the full send history — see 'Reading the Whatsapp column' below",
+					],
+				],
+			},
+			{ type: "heading", text: "Reading the Whatsapp column" },
+			{
+				type: "para",
+				text: "The column shows the success/failure counts, then one numbered line per send attempt — newest first — each with the time it went out and its status (Accepted, Sent, Delivered, Read, or Failed). Hover any line to see when that outcome arrived and, for a failure, why.",
+			},
+			{
+				type: "para",
+				text: 'A job messaged more than once also gets an "N sends" heading above the list — use the arrow beside it to collapse the history down to a single line when you are scanning the grid rather than investigating one customer.',
+			},
+			{
+				type: "note",
+				text: "Per-send history only starts from the release that introduced it. A job messaged repeatedly before then shows its most recent send plus a line like '+ 2 earlier sends — not recorded': the counts are real, but those older attempts' times and outcomes were never stored and cannot be recovered.",
+			},
+			{ type: "heading", text: "Why some rows are disabled" },
+			{
+				type: "para",
+				text: "A row's checkbox is disabled, unchecked, and shown muted when the customer has no mobile number or an invalid one (not a 10-digit Indian number) — there is no channel to send to. Fix the customer's mobile in Masters → Customer, then Refresh.",
+			},
+			{ type: "heading", text: "Selection rules" },
+			{
+				type: "bullets",
+				items: [
+					"Every eligible row is checked by default when its page loads.",
+					"A row with any prior send attempt starts unchecked instead — including one you just sent and is still awaiting delivery confirmation, not only a settled success or failure; resending is always a deliberate click.",
+					"The header checkbox checks/unchecks every eligible row on the current page only.",
+					"Selecting every eligible row on a page reveals a 'Select all N matching' link that extends the selection to every job matching the current search across all pages, not just the visible ones.",
+					"Selection survives paging and changing the search box — it only resets if you clear it yourself or click Refresh.",
+				],
+			},
+			{ type: "heading", text: "Sending" },
+			{
+				type: "para",
+				text: "Click Send Messages to open a confirmation screen showing exactly what will be sent, one preview block per customer, with a job count and customer count. You can drop a single customer out of the batch here without cancelling the whole send. Confirming dispatches everything in one request.",
+			},
+			{ type: "heading", text: "After you click Send" },
+			{
+				type: "para",
+				text: "A banner above the grid stays up until you dismiss it — it doesn't auto-disappear like a toast. It starts by reporting what was dispatched: '12 dispatched to 9 customers. Awaiting delivery confirmation…' As Meta's delivery webhooks arrive, both the banner and the grid's Whatsapp column update live — no refresh needed, for as long as this screen stays open. The banner's own dispatched/delivered/pending/failed counts stop rolling up after a couple of minutes (or once every message in that batch has settled, whichever is first) as a safety net, but the grid itself keeps updating live beyond that — including a Read status that can arrive well after the banner has stopped, once the customer actually opens the message.",
+			},
+			{
+				type: "note",
+				text: "Requires the Customer Connect access right, separate from the rights on Final a Job / Deliver Job / Receipts — a role can be allowed to finalize jobs without being allowed to bulk-message customers, or vice versa. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown.",
+			},
+		],
+		faqs: [
+			{
+				q: "I selected 3 jobs from 2 different customers — how many messages go out?",
+				a: "Two. Jobs are grouped by customer before sending, so one customer with 2 selected jobs still gets a single combined message listing both job numbers and the total amount due.",
+			},
+			{
+				q: "A row I already messaged is unchecked — is that a bug?",
+				a: "No. Any row with a prior send attempt — successful or failed — starts unchecked on purpose, so a resend is always something you choose.",
+			},
+			{
+				q: "Why does 'Select all' only grab the current page?",
+				a: "The header checkbox is a page-local convenience. Use the 'Select all N matching' link that appears once the whole page is checked to extend selection to every job matching your current search, across every page.",
+			},
+			{
+				q: "Can I remove one customer after opening the send confirmation?",
+				a: "Yes — each customer in the confirmation list has a drop action. Dropping one doesn't cancel the rest; only the remaining customers are sent when you confirm.",
+			},
+			{
+				q: "The banner says 'dispatched', not 'sent' — what's the difference?",
+				a: "Dispatched means the server handed the message to Meta; it says nothing yet about whether the customer received it. The banner updates itself to a delivered/pending/failed breakdown once Meta's delivery webhooks come back — that's the number that actually matters.",
+			},
+			{
+				q: "A job shows Failed in the Whatsapp column — will it retry automatically?",
+				a: "No. Failed is terminal for that attempt — select the row again and click Send Messages to retry. The failed attempt stays in that job's send history; a retry adds to it rather than replacing it.",
+			},
+			{
+				q: "Can I send the delivery, receipt or invoice messages from here?",
+				a: "No — the four log tabs are read-only. Job Delivery is sent from Deliver Job, Money Receipt from Jobs → Receipts, Invoice from the Delivered Jobs grid, and Job Intake from New Job / Batch Job. Customer Connect only sends the completion notice.",
+			},
+			{
+				q: "A delivery I definitely sent isn't in the Job Delivery tab — why?",
+				a: "That tab lists confirmed deliveries only. Until the customer's code is verified (or you record an in-person override), the message doesn't appear there. Check the job in Deliver Job instead.",
+			},
+			{
+				q: "Why does the Money Receipt tab show the same job more than once?",
+				a: "It has one row per receipt sent, not per job. A job with three payments messaged to the customer appears three times, each with its own receipt number, amount and status.",
+			},
+		],
+	},
 
-    {
-        id: "customer-connect",
-        category: "WhatsApp",
-        title: "Customer Connect (Bulk Completion Messages + Message Log)",
-        summary: "Send the 'job ready for pickup' WhatsApp message to many finalized customers at once, and browse the full send history of every other WhatsApp message across five tabs.",
-        tags: ["customer connect", "whatsapp", "bulk", "completion message", "delivery status", "select all", "message log", "history", "sends", "tabs"],
-        content: [
-            { type: "para", text: "Jobs → Customer Connect has five tabs. The first one sends; the other four are read-only logs of messages sent from elsewhere in the app." },
-            { type: "table", headers: ["Tab", "What it is"], rows: [
-                ["Job Completion", "The only tab that sends. Every job at COMPLETED_OK that has been finalized — the customers you can tell 'your device is ready for pickup'."],
-                ["Job Intake",     "Log of Job Intake Notices sent from New Job / Batch Job. One row per job."],
-                ["Job Delivery",   "Log of delivery messages — but only those the customer actually confirmed, by code or by an in-person override. A delivery message that was sent and never confirmed does not appear here."],
-                ["Money Receipt",  "Log of receipt messages sent from Jobs → Receipts. One row per receipt sent, not per job, since a job can have several payments."],
-                ["Invoice",        "Log of invoice messages sent from the Delivered Jobs grid. One row per job."],
-            ]},
-            { type: "note", text: "The four log tabs have no send controls and no checkboxes — they are history, not a second way to send. Each is triggered from its own screen. They also do not update live: use Refresh to pull the latest statuses." },
-            { type: "heading", text: "Job Completion — why a separate screen instead of a button on Final a Job" },
-            { type: "para", text: "A customer can have several jobs finalized on the same day. Customer Connect groups every selected job by customer and sends exactly one WhatsApp message per customer — never one per job — even when you select jobs across multiple customers at once." },
-            { type: "heading", text: "The grid" },
-            { type: "table", headers: ["Column", "Meaning"], rows: [
-                ["☑",            "Selection checkbox — see Selection rules below"],
-                ["Job No / Date", "The finalized job and its intake date"],
-                ["Customer / Mobile", "Who the message goes to"],
-                ["Device Details / Job Type / Status", "Same job info shown elsewhere in Jobs"],
-                ["Amount",        "This job's final amount — summed per customer in the message preview when a customer has more than one selected job"],
-                ["Whatsapp",      "How many sends have succeeded/failed for this job, and the full send history — see 'Reading the Whatsapp column' below"],
-            ]},
-            { type: "heading", text: "Reading the Whatsapp column" },
-            { type: "para", text: "The column shows the success/failure counts, then one numbered line per send attempt — newest first — each with the time it went out and its status (Accepted, Sent, Delivered, Read, or Failed). Hover any line to see when that outcome arrived and, for a failure, why." },
-            { type: "para", text: "A job messaged more than once also gets an \"N sends\" heading above the list — use the arrow beside it to collapse the history down to a single line when you are scanning the grid rather than investigating one customer." },
-            { type: "note", text: "Per-send history only starts from the release that introduced it. A job messaged repeatedly before then shows its most recent send plus a line like '+ 2 earlier sends — not recorded': the counts are real, but those older attempts' times and outcomes were never stored and cannot be recovered." },
-            { type: "heading", text: "Why some rows are disabled" },
-            { type: "para", text: "A row's checkbox is disabled, unchecked, and shown muted when the customer has no mobile number or an invalid one (not a 10-digit Indian number) — there is no channel to send to. Fix the customer's mobile in Masters → Customer, then Refresh." },
-            { type: "heading", text: "Selection rules" },
-            { type: "bullets", items: [
-                "Every eligible row is checked by default when its page loads.",
-                "A row with any prior send attempt starts unchecked instead — including one you just sent and is still awaiting delivery confirmation, not only a settled success or failure; resending is always a deliberate click.",
-                "The header checkbox checks/unchecks every eligible row on the current page only.",
-                "Selecting every eligible row on a page reveals a 'Select all N matching' link that extends the selection to every job matching the current search across all pages, not just the visible ones.",
-                "Selection survives paging and changing the search box — it only resets if you clear it yourself or click Refresh.",
-            ]},
-            { type: "heading", text: "Sending" },
-            { type: "para", text: "Click Send Messages to open a confirmation screen showing exactly what will be sent, one preview block per customer, with a job count and customer count. You can drop a single customer out of the batch here without cancelling the whole send. Confirming dispatches everything in one request." },
-            { type: "heading", text: "After you click Send" },
-            { type: "para", text: "A banner above the grid stays up until you dismiss it — it doesn't auto-disappear like a toast. It starts by reporting what was dispatched: '12 dispatched to 9 customers. Awaiting delivery confirmation…' As Meta's delivery webhooks arrive, both the banner and the grid's Whatsapp column update live — no refresh needed, for as long as this screen stays open. The banner's own dispatched/delivered/pending/failed counts stop rolling up after a couple of minutes (or once every message in that batch has settled, whichever is first) as a safety net, but the grid itself keeps updating live beyond that — including a Read status that can arrive well after the banner has stopped, once the customer actually opens the message." },
-            { type: "note", text: "Requires the Customer Connect access right, separate from the rights on Final a Job / Deliver Job / Receipts — a role can be allowed to finalize jobs without being allowed to bulk-message customers, or vice versa. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
-        ],
-        faqs: [
-            { q: "I selected 3 jobs from 2 different customers — how many messages go out?", a: "Two. Jobs are grouped by customer before sending, so one customer with 2 selected jobs still gets a single combined message listing both job numbers and the total amount due." },
-            { q: "A row I already messaged is unchecked — is that a bug?", a: "No. Any row with a prior send attempt — successful or failed — starts unchecked on purpose, so a resend is always something you choose." },
-            { q: "Why does 'Select all' only grab the current page?", a: "The header checkbox is a page-local convenience. Use the 'Select all N matching' link that appears once the whole page is checked to extend selection to every job matching your current search, across every page." },
-            { q: "Can I remove one customer after opening the send confirmation?", a: "Yes — each customer in the confirmation list has a drop action. Dropping one doesn't cancel the rest; only the remaining customers are sent when you confirm." },
-            { q: "The banner says 'dispatched', not 'sent' — what's the difference?", a: "Dispatched means the server handed the message to Meta; it says nothing yet about whether the customer received it. The banner updates itself to a delivered/pending/failed breakdown once Meta's delivery webhooks come back — that's the number that actually matters." },
-            { q: "A job shows Failed in the Whatsapp column — will it retry automatically?", a: "No. Failed is terminal for that attempt — select the row again and click Send Messages to retry. The failed attempt stays in that job's send history; a retry adds to it rather than replacing it." },
-            { q: "Can I send the delivery, receipt or invoice messages from here?", a: "No — the four log tabs are read-only. Job Delivery is sent from Deliver Job, Money Receipt from Jobs → Receipts, Invoice from the Delivered Jobs grid, and Job Intake from New Job / Batch Job. Customer Connect only sends the completion notice." },
-            { q: "A delivery I definitely sent isn't in the Job Delivery tab — why?", a: "That tab lists confirmed deliveries only. Until the customer's code is verified (or you record an in-person override), the message doesn't appear there. Check the job in Deliver Job instead." },
-            { q: "Why does the Money Receipt tab show the same job more than once?", a: "It has one row per receipt sent, not per job. A job with three payments messaged to the customer appears three times, each with its own receipt number, amount and status." },
-        ],
-    },
+	{
+		id: "paperless-delivery",
+		category: "WhatsApp",
+		title: "Paperless Job Delivery",
+		summary:
+			"Hand the device over without paper: WhatsApp sends the delivery note, the invoice, and a 4-digit code the customer reads back to you as proof of collection.",
+		tags: [
+			"paperless",
+			"delivery",
+			"job delivery",
+			"otp",
+			"code",
+			"confirmation",
+			"verify code",
+			"delivery note",
+			"download invoice",
+			"proof of delivery",
+			"manual override",
+			"confirmed in person",
+			"whatsapp",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Once a job reaches Delivered, the Deliver Job screen offers a 'Whatsapp Delivery' button beside the existing print buttons. It replaces the printed delivery note and invoice with WhatsApp links, and adds something paper never gave you: a recorded confirmation that the customer actually collected the device.",
+			},
+			{ type: "heading", text: "What the customer receives" },
+			{ type: "para", text: "Two messages, one after the other:" },
+			{
+				type: "table",
+				headers: ["Message", "Contents"],
+				rows: [
+					[
+						"Delivery summary",
+						"The job numbers being handed over, amount paid and balance, and two buttons — \u201cDownload Delivery Note\u201d (one row per job with its device and serial number) and \u201cDownload Invoice\u201d (the line-item bill with GST, total and balance).",
+					],
+					[
+						"Confirmation code",
+						"A 4-digit code on its own, in WhatsApp's standard verification-message wording.",
+					],
+				],
+			},
+			{
+				type: "note",
+				text: "Two messages rather than one is not a mistake — WhatsApp does not permit a confirmation code inside the same message as the delivery summary, so the code is sent separately.",
+			},
+			{ type: "heading", text: "Confirming the handover" },
+			{
+				type: "steps",
+				items: [
+					"Click 'Whatsapp Delivery'. Both messages go out to the customer's number on the job.",
+					"Ask the customer to read out the 4-digit code from their phone.",
+					"Click 'Verify Code' — it appears next to the send button while a code is still waiting — and enter what they read out.",
+					"On a match, the delivery is recorded as confirmed, with your name against it.",
+				],
+			},
+			{
+				type: "bullets",
+				items: [
+					"The code is valid for 15 minutes.",
+					"Five wrong attempts locks it — send again to get a fresh code.",
+					"Sending again always replaces the previous code; the old one stops working immediately.",
+					"The code is never shown to staff anywhere in the app. It only exists on the customer's phone, which is what makes reading it back meaningful.",
+				],
+			},
+			{ type: "heading", text: "When there is no WhatsApp" },
+			{
+				type: "para",
+				text: "If the customer has no valid mobile number, never received the message, or simply has no phone to hand, record the handover in person instead — the confirmation is stored the same way, marked as confirmed in person rather than by code. Use this rather than leaving a real delivery unconfirmed.",
+			},
+			{
+				type: "note",
+				text: "If there's no valid mobile number on file, the 'Whatsapp Delivery' button is disabled and says so — use the existing Delivery Note and Invoice + Receipt print buttons instead. Those are unchanged and always available.",
+			},
+			{ type: "heading", text: "Where it can be triggered" },
+			{
+				type: "para",
+				text: "From Deliver Job after delivering, and from Batch Warranty Jobs, which can deliver several existing warranty jobs at once. Delivering several jobs together sends one message covering all of them, with one shared code.",
+			},
+			{ type: "heading", text: "Checking later" },
+			{
+				type: "para",
+				text: "Jobs → Customer Connect → Job Delivery lists confirmed deliveries. A delivery that was messaged but never confirmed does not appear there — that tab is the record of collections, not of sends.",
+			},
+		],
+		faqs: [
+			{
+				q: "What is the code actually proving?",
+				a: "That the person holding the customer's phone was standing in front of your staff member when the device was handed over, and that a named staff member recorded it. It is stronger than a signature on a slip, but it is not identity verification — anyone with access to that phone could read the code out.",
+			},
+			{
+				q: "The customer says the code never arrived.",
+				a: "Check the delivery status on the job first — the message may have failed. You can send again for a fresh code, or record the handover in person instead. Don't leave a completed handover unconfirmed.",
+			},
+			{
+				q: "The code expired while the customer was looking for their phone.",
+				a: "Send again. A new code is issued and the expired one is discarded; there is no separate 'resend' action to find.",
+			},
+			{
+				q: "We entered the code wrong five times.",
+				a: "The code locks after five wrong attempts, for the same reason a bank card does. Send again to issue a fresh one.",
+			},
+			{
+				q: "Does confirming the code close the job or post it to accounts?",
+				a: "No. Delivery, invoicing, and accounts posting happen exactly as they always did. The confirmation is a record of collection alongside them, and nothing waits on it.",
+			},
+			{
+				q: "We delivered 40 jobs to one customer at once — did they get one code?",
+				a: "Very large deliveries are split into more than one message, and each one carries its own code. For a handover that size, recording it in person is usually simpler.",
+			},
+			{
+				q: "Do the Download links stop working after a while?",
+				a: "They are built to last well beyond any normal delivery timeline, so a customer can come back to the delivery note or invoice months later.",
+			},
+		],
+	},
 
-    {
-        id: "paperless-delivery",
-        category: "WhatsApp",
-        title: "Paperless Job Delivery",
-        summary: "Hand the device over without paper: WhatsApp sends the delivery note, the invoice, and a 4-digit code the customer reads back to you as proof of collection.",
-        tags: ["paperless", "delivery", "job delivery", "otp", "code", "confirmation", "verify code", "delivery note", "download invoice", "proof of delivery", "manual override", "confirmed in person", "whatsapp"],
-        content: [
-            { type: "para", text: "Once a job reaches Delivered, the Deliver Job screen offers a 'Whatsapp Delivery' button beside the existing print buttons. It replaces the printed delivery note and invoice with WhatsApp links, and adds something paper never gave you: a recorded confirmation that the customer actually collected the device." },
-            { type: "heading", text: "What the customer receives" },
-            { type: "para", text: "Two messages, one after the other:" },
-            { type: "table", headers: ["Message", "Contents"], rows: [
-                ["Delivery summary", "The job numbers being handed over, amount paid and balance, and two buttons — \u201cDownload Delivery Note\u201d (one row per job with its device and serial number) and \u201cDownload Invoice\u201d (the line-item bill with GST, total and balance)."],
-                ["Confirmation code", "A 4-digit code on its own, in WhatsApp's standard verification-message wording."],
-            ]},
-            { type: "note", text: "Two messages rather than one is not a mistake — WhatsApp does not permit a confirmation code inside the same message as the delivery summary, so the code is sent separately." },
-            { type: "heading", text: "Confirming the handover" },
-            { type: "steps", items: [
-                "Click 'Whatsapp Delivery'. Both messages go out to the customer's number on the job.",
-                "Ask the customer to read out the 4-digit code from their phone.",
-                "Click 'Verify Code' — it appears next to the send button while a code is still waiting — and enter what they read out.",
-                "On a match, the delivery is recorded as confirmed, with your name against it.",
-            ]},
-            { type: "bullets", items: [
-                "The code is valid for 15 minutes.",
-                "Five wrong attempts locks it — send again to get a fresh code.",
-                "Sending again always replaces the previous code; the old one stops working immediately.",
-                "The code is never shown to staff anywhere in the app. It only exists on the customer's phone, which is what makes reading it back meaningful.",
-            ]},
-            { type: "heading", text: "When there is no WhatsApp" },
-            { type: "para", text: "If the customer has no valid mobile number, never received the message, or simply has no phone to hand, record the handover in person instead — the confirmation is stored the same way, marked as confirmed in person rather than by code. Use this rather than leaving a real delivery unconfirmed." },
-            { type: "note", text: "If there's no valid mobile number on file, the 'Whatsapp Delivery' button is disabled and says so — use the existing Delivery Note and Invoice + Receipt print buttons instead. Those are unchanged and always available." },
-            { type: "heading", text: "Where it can be triggered" },
-            { type: "para", text: "From Deliver Job after delivering, and from Batch Warranty Jobs, which can deliver several existing warranty jobs at once. Delivering several jobs together sends one message covering all of them, with one shared code." },
-            { type: "heading", text: "Checking later" },
-            { type: "para", text: "Jobs → Customer Connect → Job Delivery lists confirmed deliveries. A delivery that was messaged but never confirmed does not appear there — that tab is the record of collections, not of sends." },
-        ],
-        faqs: [
-            { q: "What is the code actually proving?", a: "That the person holding the customer's phone was standing in front of your staff member when the device was handed over, and that a named staff member recorded it. It is stronger than a signature on a slip, but it is not identity verification — anyone with access to that phone could read the code out." },
-            { q: "The customer says the code never arrived.", a: "Check the delivery status on the job first — the message may have failed. You can send again for a fresh code, or record the handover in person instead. Don't leave a completed handover unconfirmed." },
-            { q: "The code expired while the customer was looking for their phone.", a: "Send again. A new code is issued and the expired one is discarded; there is no separate 'resend' action to find." },
-            { q: "We entered the code wrong five times.", a: "The code locks after five wrong attempts, for the same reason a bank card does. Send again to issue a fresh one." },
-            { q: "Does confirming the code close the job or post it to accounts?", a: "No. Delivery, invoicing, and accounts posting happen exactly as they always did. The confirmation is a record of collection alongside them, and nothing waits on it." },
-            { q: "We delivered 40 jobs to one customer at once — did they get one code?", a: "Very large deliveries are split into more than one message, and each one carries its own code. For a handover that size, recording it in person is usually simpler." },
-            { q: "Do the Download links stop working after a while?", a: "They are built to last well beyond any normal delivery timeline, so a customer can come back to the delivery note or invoice months later." },
-        ],
-    },
+	{
+		id: "whatsapp-receipt-invoice",
+		category: "WhatsApp",
+		title: "Sending a Money Receipt or Invoice by WhatsApp",
+		summary:
+			"Send a customer their payment receipt from the Receipts grid, or re-send an invoice from a delivered job's row actions, as a WhatsApp link rather than a printout.",
+		tags: [
+			"money receipt",
+			"receipt",
+			"invoice",
+			"whatsapp",
+			"send receipt",
+			"send invoice",
+			"delivered jobs",
+			"job control",
+			"resend",
+			"download",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Two separate one-click sends, both fire-and-forget: no code to verify, nothing for the customer to do but tap the button if they want the document.",
+			},
+			{ type: "heading", text: "Money Receipt — from Jobs → Receipts" },
+			{
+				type: "para",
+				text: "Open the row actions on any receipt and choose 'Send Receipt via WhatsApp'. You'll be asked to confirm before anything goes out. The customer receives the amount, payment mode, date, and job/receipt reference, plus a 'Download Money Receipt' button.",
+			},
+			{
+				type: "note",
+				text: "The send covers exactly the one payment on that row — not the job's whole payment history. A job paid in three instalments needs three sends if the customer wants all three receipts.",
+			},
+			{ type: "heading", text: "Invoice — from a delivered job's row actions" },
+			{
+				type: "para",
+				text: "Open the row actions on a delivered job and choose 'Send Invoice via WhatsApp'. The customer receives the invoice reference and a 'Download Invoice' button. The option only appears once the job actually has an invoice.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"Jobs → Deliver Job → Delivered Jobs tab → row actions (⋮).",
+					"Jobs → Job Control → Delivered tab → row actions (⋮).",
+				],
+			},
+			{
+				type: "note",
+				text: "Both do exactly the same thing — use whichever screen you are already on. Either way you are asked to confirm before anything goes out.",
+			},
+			{
+				type: "note",
+				text: "The invoice PDF also lists the payments received against that job, so a single send covers 'invoice' and 'what has been paid' together — you don't need to send receipts separately just to show the balance.",
+			},
+			{ type: "heading", text: "Why the invoice send lives on the delivered grids" },
+			{
+				type: "para",
+				text: "The Deliver Job screen already offers a Download Invoice button while you're handing the device over. This one exists for afterwards — a customer who lost the message, changed their number, or asks for the bill again weeks later. Delivered Jobs and Job Control's Delivered tab are the screens that still list a job once it's closed.",
+			},
+			{ type: "heading", text: "Checking what was sent" },
+			{
+				type: "para",
+				text: "Jobs → Customer Connect has a Money Receipt tab and an Invoice tab, both read-only. Money Receipt shows one row per receipt sent, with its receipt number, amount, mode and status. Invoice shows one row per job.",
+			},
+			{
+				type: "note",
+				text: "Both events are switched off by default. If nothing appears to happen when you send, check Configurations → App Settings → whatsapp_notifications.",
+			},
+		],
+		faqs: [
+			{
+				q: "Can I send all of a job's receipts in one message?",
+				a: "No — one send covers one payment. If the customer wants the full picture including the balance, send the invoice instead: that PDF lists every payment received against the job.",
+			},
+			{
+				q: "Can I send an invoice for a job that hasn't been delivered yet?",
+				a: "Not from here. Both entry points list delivered jobs only. While you're still delivering, the Deliver Job screen's own Whatsapp Delivery message already carries a Download Invoice button.",
+			},
+			{
+				q: "The 'Send Invoice via WhatsApp' option isn't in the menu.",
+				a: "That job has no invoice yet — there is nothing to send. Invoices are generated as part of the delivery action.",
+			},
+			{
+				q: "Does re-sending an invoice create a new invoice or change the numbering?",
+				a: "No. It sends a link to the invoice that already exists. Nothing is regenerated and no number is consumed.",
+			},
+			{
+				q: "Does the customer need an app or a login to open the documents?",
+				a: "No — the button in the message is the only credential needed, the same as the job status link on the intake notice.",
+			},
+		],
+	},
 
-    {
-        id: "whatsapp-receipt-invoice",
-        category: "WhatsApp",
-        title: "Sending a Money Receipt or Invoice by WhatsApp",
-        summary: "Send a customer their payment receipt from the Receipts grid, or re-send an invoice from a delivered job's row actions, as a WhatsApp link rather than a printout.",
-        tags: ["money receipt", "receipt", "invoice", "whatsapp", "send receipt", "send invoice", "delivered jobs", "job control", "resend", "download"],
-        content: [
-            { type: "para", text: "Two separate one-click sends, both fire-and-forget: no code to verify, nothing for the customer to do but tap the button if they want the document." },
-            { type: "heading", text: "Money Receipt — from Jobs → Receipts" },
-            { type: "para", text: "Open the row actions on any receipt and choose 'Send Receipt via WhatsApp'. You'll be asked to confirm before anything goes out. The customer receives the amount, payment mode, date, and job/receipt reference, plus a 'Download Money Receipt' button." },
-            { type: "note", text: "The send covers exactly the one payment on that row — not the job's whole payment history. A job paid in three instalments needs three sends if the customer wants all three receipts." },
-            { type: "heading", text: "Invoice — from a delivered job's row actions" },
-            { type: "para", text: "Open the row actions on a delivered job and choose 'Send Invoice via WhatsApp'. The customer receives the invoice reference and a 'Download Invoice' button. The option only appears once the job actually has an invoice." },
-            { type: "bullets", items: [
-                "Jobs → Deliver Job → Delivered Jobs tab → row actions (⋮).",
-                "Jobs → Job Control → Delivered tab → row actions (⋮).",
-            ]},
-            { type: "note", text: "Both do exactly the same thing — use whichever screen you are already on. Either way you are asked to confirm before anything goes out." },
-            { type: "note", text: "The invoice PDF also lists the payments received against that job, so a single send covers 'invoice' and 'what has been paid' together — you don't need to send receipts separately just to show the balance." },
-            { type: "heading", text: "Why the invoice send lives on the delivered grids" },
-            { type: "para", text: "The Deliver Job screen already offers a Download Invoice button while you're handing the device over. This one exists for afterwards — a customer who lost the message, changed their number, or asks for the bill again weeks later. Delivered Jobs and Job Control's Delivered tab are the screens that still list a job once it's closed." },
-            { type: "heading", text: "Checking what was sent" },
-            { type: "para", text: "Jobs → Customer Connect has a Money Receipt tab and an Invoice tab, both read-only. Money Receipt shows one row per receipt sent, with its receipt number, amount, mode and status. Invoice shows one row per job." },
-            { type: "note", text: "Both events are switched off by default. If nothing appears to happen when you send, check Configurations → App Settings → whatsapp_notifications." },
-        ],
-        faqs: [
-            { q: "Can I send all of a job's receipts in one message?", a: "No — one send covers one payment. If the customer wants the full picture including the balance, send the invoice instead: that PDF lists every payment received against the job." },
-            { q: "Can I send an invoice for a job that hasn't been delivered yet?", a: "Not from here. Both entry points list delivered jobs only. While you're still delivering, the Deliver Job screen's own Whatsapp Delivery message already carries a Download Invoice button." },
-            { q: "The 'Send Invoice via WhatsApp' option isn't in the menu.", a: "That job has no invoice yet — there is nothing to send. Invoices are generated as part of the delivery action." },
-            { q: "Does re-sending an invoice create a new invoice or change the numbering?", a: "No. It sends a link to the invoice that already exists. Nothing is regenerated and no number is consumed." },
-            { q: "Does the customer need an app or a login to open the documents?", a: "No — the button in the message is the only credential needed, the same as the job status link on the intake notice." },
-        ],
-    },
+	{
+		id: "receipts",
+		category: "Jobs",
+		title: "Receipts (Job Payments)",
+		summary: "Record, edit, print, and delete customer payments against jobs independently of delivery.",
+		tags: ["receipts", "payment", "money receipt", "cash", "card", "upi", "cheque", "advance", "refund"],
+		content: [
+			{
+				type: "para",
+				text: "Jobs → Receipts is a standalone ledger of customer payments against jobs. Use it to take an advance before delivery, record part-payments over time, or manage receipts without going through the Deliver Job flow. Receipt numbers come from the MONEY_RECEIPT document sequence.",
+			},
+			{ type: "heading", text: "Recording a receipt" },
+			{
+				type: "steps",
+				items: [
+					"Click '+ New Receipt'.",
+					"Select the job the payment is for.",
+					"Enter the payment date, amount, and payment mode (Bank Transfer, Card, Cash, Cheque, Others, or UPI).",
+					"Add a reference number (e.g., cheque or UPI ref) and remarks if needed.",
+					"Save. The receipt appears in the list and counts toward the job's received amount.",
+				],
+			},
+			{ type: "heading", text: "The list" },
+			{
+				type: "bullets",
+				items: [
+					"Search by job no, receipt no, customer, mode, or reference number.",
+					"The footer shows the total of the receipts on the current page.",
+					"When accounts integration is on, each row shows a Posted / Not Posted indicator.",
+					"Row actions: View Job, Print Receipt (PDF), Send Receipt via WhatsApp, Edit, Delete.",
+				],
+			},
+			{ type: "heading", text: "Sending a receipt to the customer" },
+			{
+				type: "para",
+				text: "'Send Receipt via WhatsApp' in the row actions messages the customer the amount, mode, date and reference for that one payment, with a button to download the receipt PDF. It asks you to confirm first, and covers only the payment on that row — not the job's other payments. See 'Sending a Money Receipt or Invoice by WhatsApp'.",
+			},
+			{
+				type: "warning",
+				text: "Editing and deleting are restricted. A receipt cannot be edited or deleted when its job is in a restricted status (Closed, Final, or On Hold), and a receipt that has been posted to accounts cannot be deleted. New receipts also cannot be recorded against an UNDER_WARRANTY job or one in ESTIMATE_REJECTED status.",
+			},
+			{
+				type: "note",
+				text: "Requires the Receipts access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown.",
+			},
+		],
+		faqs: [
+			{
+				q: "What is the difference between adding a receipt here and in Deliver Job?",
+				a: "They create the same job payment records. Deliver Job collects payment as part of closing the job; the Receipts screen lets you record or manage payments any time — including advances taken before the job is completed.",
+			},
+			{
+				q: "Can I take an advance payment before a job is finished?",
+				a: "Yes. Create a receipt against the job at any point. It is stored as a payment and reduces the balance due at delivery.",
+			},
+			{
+				q: "Why can't I delete a receipt?",
+				a: "Either the job is in a restricted status (Closed, Final, or On Hold) or the receipt has already been posted to accounts. The screen shows a dialog explaining which condition applies.",
+			},
+			{
+				q: "A cheque bounced — how do I handle it?",
+				a: "Delete the original cheque receipt if it is not yet posted, note the dishonour in remarks, and record a fresh receipt when the replacement payment clears.",
+			},
+			{
+				q: "Nothing happens when I click 'Send Receipt via WhatsApp'.",
+				a: "That event is switched off by default. Turn on Money Receipt in Configurations → App Settings → whatsapp_notifications.",
+			},
+		],
+	},
 
-    {
-        id: "receipts",
-        category: "Jobs",
-        title: "Receipts (Job Payments)",
-        summary: "Record, edit, print, and delete customer payments against jobs independently of delivery.",
-        tags: ["receipts", "payment", "money receipt", "cash", "card", "upi", "cheque", "advance", "refund"],
-        content: [
-            { type: "para", text: "Jobs → Receipts is a standalone ledger of customer payments against jobs. Use it to take an advance before delivery, record part-payments over time, or manage receipts without going through the Deliver Job flow. Receipt numbers come from the MONEY_RECEIPT document sequence." },
-            { type: "heading", text: "Recording a receipt" },
-            { type: "steps", items: [
-                "Click '+ New Receipt'.",
-                "Select the job the payment is for.",
-                "Enter the payment date, amount, and payment mode (Bank Transfer, Card, Cash, Cheque, Others, or UPI).",
-                "Add a reference number (e.g., cheque or UPI ref) and remarks if needed.",
-                "Save. The receipt appears in the list and counts toward the job's received amount.",
-            ]},
-            { type: "heading", text: "The list" },
-            { type: "bullets", items: [
-                "Search by job no, receipt no, customer, mode, or reference number.",
-                "The footer shows the total of the receipts on the current page.",
-                "When accounts integration is on, each row shows a Posted / Not Posted indicator.",
-                "Row actions: View Job, Print Receipt (PDF), Send Receipt via WhatsApp, Edit, Delete.",
-            ]},
-            { type: "heading", text: "Sending a receipt to the customer" },
-            { type: "para", text: "'Send Receipt via WhatsApp' in the row actions messages the customer the amount, mode, date and reference for that one payment, with a button to download the receipt PDF. It asks you to confirm first, and covers only the payment on that row — not the job's other payments. See 'Sending a Money Receipt or Invoice by WhatsApp'." },
-            { type: "warning", text: "Editing and deleting are restricted. A receipt cannot be edited or deleted when its job is in a restricted status (Closed, Final, or On Hold), and a receipt that has been posted to accounts cannot be deleted. New receipts also cannot be recorded against an UNDER_WARRANTY job or one in ESTIMATE_REJECTED status." },
-            { type: "note", text: "Requires the Receipts access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
-        ],
-        faqs: [
-            { q: "What is the difference between adding a receipt here and in Deliver Job?", a: "They create the same job payment records. Deliver Job collects payment as part of closing the job; the Receipts screen lets you record or manage payments any time — including advances taken before the job is completed." },
-            { q: "Can I take an advance payment before a job is finished?", a: "Yes. Create a receipt against the job at any point. It is stored as a payment and reduces the balance due at delivery." },
-            { q: "Why can't I delete a receipt?", a: "Either the job is in a restricted status (Closed, Final, or On Hold) or the receipt has already been posted to accounts. The screen shows a dialog explaining which condition applies." },
-            { q: "A cheque bounced — how do I handle it?", a: "Delete the original cheque receipt if it is not yet posted, note the dishonour in remarks, and record a fresh receipt when the replacement payment clears." },
-            { q: "Nothing happens when I click 'Send Receipt via WhatsApp'.", a: "That event is switched off by default. Turn on Money Receipt in Configurations → App Settings → whatsapp_notifications." },
-        ],
-    },
+	{
+		id: "printing-documents",
+		category: "Jobs",
+		title: "Printing & Documents",
+		summary: "What documents can be printed and how to generate them.",
+		tags: ["print", "PDF", "invoice", "receipt", "job sheet", "delivery note", "batch sheet"],
+		content: [
+			{
+				type: "table",
+				headers: ["Document", "How to Generate", "When"],
+				rows: [
+					["Job Sheet", "Single Job → Print button", "After creating or editing a job"],
+					[
+						"Service Invoice",
+						"Deliver Job → Step 2 → Print icon on invoice row",
+						"After generating the invoice",
+					],
+					["Money Receipt", "Deliver Job → Step 3 → Print icon on receipt row", "After adding a payment"],
+					["Delivery Note", "Deliver Job → 'Delivery Note PDF' button", "At the delivery step"],
+					["Invoice + Receipt PDF", "Deliver Job → 'Invoice + Receipt PDF' button", "At the delivery step"],
+					["Batch Sheet", "Batch Jobs → Print button", "After saving a batch"],
+				],
+			},
+			{
+				type: "note",
+				text: "Print copy count is controlled by App Settings: 'no_of_job_sheets_per_print' for job sheets and 'no_of_job_invoices_per_print' for invoices.",
+			},
+			{ type: "heading", text: "PDF not opening?" },
+			{
+				type: "para",
+				text: "If clicking a print button does nothing or the PDF doesn't appear, your browser may be blocking pop-ups. Allow pop-ups for this site in your browser settings, then try again.",
+			},
+		],
+		faqs: [
+			{
+				q: "Can I print a job sheet after the job is delivered?",
+				a: "Yes — open the job from Single Job or Job Pipeline (View Details) and click Print.",
+			},
+			{
+				q: "Can I reprint a receipt?",
+				a: "Yes — go to Deliver Job, select the delivered job, open the receipts step, and print any existing receipt.",
+			},
+			{
+				q: "How do I change the number of invoice copies?",
+				a: "Go to Configurations → App Settings and update 'no_of_job_invoices_per_print'.",
+			},
+		],
+	},
 
-    {
-        id: "printing-documents",
-        category: "Jobs",
-        title: "Printing & Documents",
-        summary: "What documents can be printed and how to generate them.",
-        tags: ["print", "PDF", "invoice", "receipt", "job sheet", "delivery note", "batch sheet"],
-        content: [
-            { type: "table", headers: ["Document", "How to Generate", "When"], rows: [
-                ["Job Sheet",            "Single Job → Print button",                       "After creating or editing a job"],
-                ["Service Invoice",      "Deliver Job → Step 2 → Print icon on invoice row","After generating the invoice"],
-                ["Money Receipt",        "Deliver Job → Step 3 → Print icon on receipt row","After adding a payment"],
-                ["Delivery Note",        "Deliver Job → 'Delivery Note PDF' button",        "At the delivery step"],
-                ["Invoice + Receipt PDF","Deliver Job → 'Invoice + Receipt PDF' button",    "At the delivery step"],
-                ["Batch Sheet",          "Batch Jobs → Print button",                       "After saving a batch"],
-            ]},
-            { type: "note", text: "Print copy count is controlled by App Settings: 'no_of_job_sheets_per_print' for job sheets and 'no_of_job_invoices_per_print' for invoices." },
-            { type: "heading", text: "PDF not opening?" },
-            { type: "para", text: "If clicking a print button does nothing or the PDF doesn't appear, your browser may be blocking pop-ups. Allow pop-ups for this site in your browser settings, then try again." },
-        ],
-        faqs: [
-            { q: "Can I print a job sheet after the job is delivered?", a: "Yes — open the job from Single Job or Job Pipeline (View Details) and click Print." },
-            { q: "Can I reprint a receipt?", a: "Yes — go to Deliver Job, select the delivered job, open the receipts step, and print any existing receipt." },
-            { q: "How do I change the number of invoice copies?", a: "Go to Configurations → App Settings and update 'no_of_job_invoices_per_print'." },
-        ],
-    },
+	{
+		id: "accounts-posting",
+		category: "Jobs",
+		title: "Accounts Posting (Trace Plus)",
+		summary: "Push money receipts and invoices to the Trace Plus accounting system.",
+		tags: ["accounts posting", "trace plus", "post", "money receipts", "invoices", "accounting", "integration"],
+		content: [
+			{
+				type: "para",
+				text: "Jobs → Accounts Posting sends your unposted financial documents to the Trace Plus accounting system. It appears only when accounts integration is enabled (the 'post data to accounts' app setting).",
+			},
+			{ type: "heading", text: "What it shows" },
+			{
+				type: "para",
+				text: "A table of unposted record counts for the current branch, broken down by division and document type: Money Receipts, Purchase Invoices, Sales Invoices, and Job Invoices, with a totals row.",
+			},
+			{ type: "heading", text: "Posting" },
+			{
+				type: "steps",
+				items: [
+					"Select the branch whose records you want to post.",
+					"Review the counts. Click Refresh to reload them.",
+					"Click 'Post data to Trace Plus'.",
+					"Watch the live progress bar — it shows records processed, the current division, the percentage complete, and any failures.",
+					"On success the counts reload and should drop to zero.",
+				],
+			},
+			{
+				type: "note",
+				text: "When there is nothing left to send, the screen shows 'Everything is posted' and the post button is disabled.",
+			},
+			{
+				type: "note",
+				text: "Also requires the Accounts Posting access right, on top of the app setting above. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why don't I see Accounts Posting in the Jobs menu?",
+				a: "It is only visible when accounts integration is turned on. Enable 'post data to accounts' in Configurations → App Settings (or ask your administrator).",
+			},
+			{
+				q: "What gets posted?",
+				a: "Money Receipts, Purchase Invoices, Sales Invoices, and Job Invoices that have not yet been sent to Trace Plus for the selected branch.",
+			},
+			{
+				q: "Some records failed to post — what now?",
+				a: "The progress bar shows a failed count. Fix the underlying data issue (for example a missing GSTIN or master mapping) and run the posting again; only the still-unposted records are retried.",
+			},
+			{
+				q: "Can I post from more than one branch at once?",
+				a: "No. Posting is per branch. Switch the branch in the top nav and post each one separately.",
+			},
+		],
+	},
 
-    {
-        id: "accounts-posting",
-        category: "Jobs",
-        title: "Accounts Posting (Trace Plus)",
-        summary: "Push money receipts and invoices to the Trace Plus accounting system.",
-        tags: ["accounts posting", "trace plus", "post", "money receipts", "invoices", "accounting", "integration"],
-        content: [
-            { type: "para", text: "Jobs → Accounts Posting sends your unposted financial documents to the Trace Plus accounting system. It appears only when accounts integration is enabled (the 'post data to accounts' app setting)." },
-            { type: "heading", text: "What it shows" },
-            { type: "para", text: "A table of unposted record counts for the current branch, broken down by division and document type: Money Receipts, Purchase Invoices, Sales Invoices, and Job Invoices, with a totals row." },
-            { type: "heading", text: "Posting" },
-            { type: "steps", items: [
-                "Select the branch whose records you want to post.",
-                "Review the counts. Click Refresh to reload them.",
-                "Click 'Post data to Trace Plus'.",
-                "Watch the live progress bar — it shows records processed, the current division, the percentage complete, and any failures.",
-                "On success the counts reload and should drop to zero.",
-            ]},
-            { type: "note", text: "When there is nothing left to send, the screen shows 'Everything is posted' and the post button is disabled." },
-            { type: "note", text: "Also requires the Accounts Posting access right, on top of the app setting above. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
-        ],
-        faqs: [
-            { q: "Why don't I see Accounts Posting in the Jobs menu?", a: "It is only visible when accounts integration is turned on. Enable 'post data to accounts' in Configurations → App Settings (or ask your administrator)." },
-            { q: "What gets posted?", a: "Money Receipts, Purchase Invoices, Sales Invoices, and Job Invoices that have not yet been sent to Trace Plus for the selected branch." },
-            { q: "Some records failed to post — what now?", a: "The progress bar shows a failed count. Fix the underlying data issue (for example a missing GSTIN or master mapping) and run the posting again; only the still-unposted records are retried." },
-            { q: "Can I post from more than one branch at once?", a: "No. Posting is per branch. Switch the branch in the top nav and post each one separately." },
-        ],
-    },
+	// ── Category 3: Inventory ────────────────────────────────────────────────
 
-    // ── Category 3: Inventory ────────────────────────────────────────────────
+	{
+		id: "stock-overview",
+		category: "Inventory",
+		title: "Stock Overview",
+		summary: "View current stock quantities and values per part.",
+		tags: ["stock", "inventory", "parts", "quantity", "value", "overview"],
+		content: [
+			{
+				type: "para",
+				text: "Inventory → Stock Overview shows the current stock quantity and cost value for every part at the current branch.",
+			},
+			{ type: "heading", text: "What you can do" },
+			{
+				type: "bullets",
+				items: [
+					"Filter by Brand using the brand dropdown.",
+					"Search by Part Name, Part Code, or Category.",
+					"Sort any column by clicking its header (ascending/descending).",
+					"Navigate pages — 50 items per page.",
+				],
+			},
+			{
+				type: "note",
+				text: "Stock Overview shows quantities only. For a complete movement history (what came in or went out and when), use Reports → Stock Ledger.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why doesn't my new part appear in Stock Overview?",
+				a: "Parts appear only once they have stock — i.e., after a Purchase Entry, Opening Stock entry, or Branch Transfer receives them.",
+			},
+			{
+				q: "What does 'Stock Value' mean?",
+				a: "Stock Value = Current Quantity × Cost Price per unit (as recorded in the part master).",
+			},
+			{
+				q: "How do I see stock across all branches?",
+				a: "Stock Overview is branch-scoped. To see another branch, switch to that branch from the branch switcher in the top nav.",
+			},
+		],
+	},
 
-    {
-        id: "stock-overview",
-        category: "Inventory",
-        title: "Stock Overview",
-        summary: "View current stock quantities and values per part.",
-        tags: ["stock", "inventory", "parts", "quantity", "value", "overview"],
-        content: [
-            { type: "para", text: "Inventory → Stock Overview shows the current stock quantity and cost value for every part at the current branch." },
-            { type: "heading", text: "What you can do" },
-            { type: "bullets", items: [
-                "Filter by Brand using the brand dropdown.",
-                "Search by Part Name, Part Code, or Category.",
-                "Sort any column by clicking its header (ascending/descending).",
-                "Navigate pages — 50 items per page.",
-            ]},
-            { type: "note", text: "Stock Overview shows quantities only. For a complete movement history (what came in or went out and when), use Reports → Stock Ledger." },
-        ],
-        faqs: [
-            { q: "Why doesn't my new part appear in Stock Overview?", a: "Parts appear only once they have stock — i.e., after a Purchase Entry, Opening Stock entry, or Branch Transfer receives them." },
-            { q: "What does 'Stock Value' mean?", a: "Stock Value = Current Quantity × Cost Price per unit (as recorded in the part master)." },
-            { q: "How do I see stock across all branches?", a: "Stock Overview is branch-scoped. To see another branch, switch to that branch from the branch switcher in the top nav." },
-        ],
-    },
+	{
+		id: "purchase-entry",
+		category: "Inventory",
+		title: "Purchase Entry",
+		summary: "Record spare parts received from a supplier to increase stock.",
+		tags: ["purchase", "supplier", "vendor", "invoice", "stock in", "HSN", "GST", "CGST", "SGST"],
+		content: [
+			{
+				type: "para",
+				text: "Go to Inventory → Purchase Entry → New Invoice to record parts received from a vendor.",
+			},
+			{
+				type: "steps",
+				items: [
+					"Select the Supplier from the dropdown.",
+					"Select the Division (determines GST treatment).",
+					"Enter the Vendor's Invoice Number and Invoice Date.",
+					"Add line items: enter Part Code (auto-fills Name, UOM, HSN, Cost Price), Quantity, and Unit Price.",
+					"In a GST division, verify the HSN code on each line (mandatory). CGST / SGST / IGST auto-calculate.",
+					"Click Save. A Physical Invoice Verification dialog appears.",
+					"Compare the system totals with your physical invoice. Confirm to save and increase stock.",
+				],
+			},
+			{ type: "heading", text: "Duplicate Detection" },
+			{
+				type: "para",
+				text: "The system checks for the same Supplier + Invoice Number (case-insensitive) across all purchase invoices ever entered for that supplier — invoice date and financial year are not part of the check. If a match is found, the save is blocked with a duplicate warning.",
+			},
+			{ type: "heading", text: "After Saving" },
+			{
+				type: "bullets",
+				items: [
+					"Stock quantity is incremented at the current branch.",
+					"Download Excel — exports all line items to XLSX.",
+					"Generate PDF — prints the purchase invoice summary.",
+					"Post to Accounts — transfers the entry to the accounting system (if enabled).",
+				],
+			},
+			{
+				type: "note",
+				text: "Requires the Purchase Entry access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown.",
+			},
+		],
+		faqs: [
+			{
+				q: "'Invoice already exists' error — what does it mean?",
+				a: "A purchase entry with the same supplier + invoice number already exists — the check applies system-wide, across all financial years, not just the current one. Check for a duplicate entry before saving again.",
+			},
+			{
+				q: "Can I edit a purchase invoice after posting to accounts?",
+				a: "No. Unpost it first from Admin → Post/Unpost, then edit.",
+			},
+			{
+				q: "What is the Physical Invoice Verification step?",
+				a: "The system asks you to enter the totals from your paper invoice and compares them against the system's calculated totals. This catches data-entry errors before stock is updated.",
+			},
+			{
+				q: "What if the part is not in the master?",
+				a: "You can type a part name directly without a master entry. However, cost price, HSN, and UOM will not auto-fill; enter them manually. Consider adding the part to Masters → Parts for future use.",
+			},
+		],
+	},
 
-    {
-        id: "purchase-entry",
-        category: "Inventory",
-        title: "Purchase Entry",
-        summary: "Record spare parts received from a supplier to increase stock.",
-        tags: ["purchase", "supplier", "vendor", "invoice", "stock in", "HSN", "GST", "CGST", "SGST"],
-        content: [
-            { type: "para", text: "Go to Inventory → Purchase Entry → New Invoice to record parts received from a vendor." },
-            { type: "steps", items: [
-                "Select the Supplier from the dropdown.",
-                "Select the Division (determines GST treatment).",
-                "Enter the Vendor's Invoice Number and Invoice Date.",
-                "Add line items: enter Part Code (auto-fills Name, UOM, HSN, Cost Price), Quantity, and Unit Price.",
-                "In a GST division, verify the HSN code on each line (mandatory). CGST / SGST / IGST auto-calculate.",
-                "Click Save. A Physical Invoice Verification dialog appears.",
-                "Compare the system totals with your physical invoice. Confirm to save and increase stock.",
-            ]},
-            { type: "heading", text: "Duplicate Detection" },
-            { type: "para", text: "The system checks for the same Supplier + Invoice Number (case-insensitive) across all purchase invoices ever entered for that supplier — invoice date and financial year are not part of the check. If a match is found, the save is blocked with a duplicate warning." },
-            { type: "heading", text: "After Saving" },
-            { type: "bullets", items: [
-                "Stock quantity is incremented at the current branch.",
-                "Download Excel — exports all line items to XLSX.",
-                "Generate PDF — prints the purchase invoice summary.",
-                "Post to Accounts — transfers the entry to the accounting system (if enabled).",
-            ]},
-            { type: "note", text: "Requires the Purchase Entry access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
-        ],
-        faqs: [
-            { q: "'Invoice already exists' error — what does it mean?", a: "A purchase entry with the same supplier + invoice number already exists — the check applies system-wide, across all financial years, not just the current one. Check for a duplicate entry before saving again." },
-            { q: "Can I edit a purchase invoice after posting to accounts?", a: "No. Unpost it first from Admin → Post/Unpost, then edit." },
-            { q: "What is the Physical Invoice Verification step?", a: "The system asks you to enter the totals from your paper invoice and compares them against the system's calculated totals. This catches data-entry errors before stock is updated." },
-            { q: "What if the part is not in the master?", a: "You can type a part name directly without a master entry. However, cost price, HSN, and UOM will not auto-fill; enter them manually. Consider adding the part to Masters → Parts for future use." },
-        ],
-    },
+	{
+		id: "sales-entry",
+		category: "Inventory",
+		title: "Sales Entry",
+		summary: "Sell spare parts directly to customers — not linked to a service job.",
+		tags: ["sales", "sell parts", "direct sale", "inventory out", "GST", "HSN", "apply", "target amount"],
+		content: [
+			{
+				type: "para",
+				text: "Use Sales Entry when selling parts directly (counter sales) without a service job. Go to Inventory → Sales Entry → New Invoice.",
+			},
+			{
+				type: "steps",
+				items: [
+					"Select the Division (determines GST or non-GST treatment).",
+					"Search or type a Customer — this is required, and that customer must have a State set on their record, or Save is blocked.",
+					"Set the Invoice Date.",
+					"Add line items: Part Code, Quantity, Unit Price (selling price).",
+					"In a GST division, verify HSN on each taxable line. GST auto-calculates.",
+					"Click Save. Stock is decremented.",
+				],
+			},
+			{ type: "heading", text: "Apply (Target Amount)" },
+			{
+				type: "para",
+				text: "Enter a target total amount in the 'Target Amount' field and click Apply. The system adjusts the Selling Price of every line item so the invoice total exactly matches your target. If the target already equals the current total, nothing changes.",
+			},
+			{
+				type: "para",
+				text: "The change is split across lines in proportion to each line's current Selling Price relative to the invoice total — GST rates on each line are left as configured.",
+			},
+			{
+				type: "table",
+				headers: ["Situation", "What happens"],
+				rows: [
+					[
+						"Target is higher than the current total",
+						"The increase is applied proportionally across all line items.",
+					],
+					[
+						"Target is lower — within cost price",
+						"Line prices are reduced proportionally, down to each line's Cost Price floor. A line that would drop below cost is pinned at cost, and the leftover reduction is redistributed proportionally across the remaining lines that still have room.",
+					],
+					[
+						"Target is lower — below cost price",
+						"If every line is already pinned at its cost price and the target is still not reached, prices are reduced again — below cost this time — until the target is met exactly. That row's profit figure turns red as the signal — there's no separate warning toast.",
+					],
+				],
+			},
+			{
+				type: "note",
+				text: "The recalculated total will never go negative. A target you type but never click Apply on is ignored when you click Save — the invoice is saved with the actual line-item total instead.",
+			},
+			{
+				type: "note",
+				text: "Once applied, the footer's 'Total' is an exact copy of the target you clicked Apply on — not the recomputed line sum. 'Calculated' shows that real line total alongside it, and 'Diff' is the (normally ₹0.00) gap between the two.",
+			},
+			{
+				type: "note",
+				text: "Sales Entry reduces stock. If you need to record a part sale that is linked to a specific service job, use the Parts Used section in the job finalization instead.",
+			},
+			{
+				type: "note",
+				text: "Requires the Sales Entry access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown.",
+			},
+		],
+		faqs: [
+			{
+				q: "Can I edit a sales invoice after saving?",
+				a: "Yes, if it is not yet posted to accounts. Unpost from Admin → Post/Unpost first if needed.",
+			},
+			{
+				q: "Can I export a sales invoice to Excel?",
+				a: "Yes — open the invoice in View mode and click 'Download Excel'.",
+			},
+			{
+				q: "Does a sales entry create a money receipt?",
+				a: "No. Sales Entry creates an inventory invoice only. Record the payment separately if you need a receipt trail.",
+			},
+			{
+				q: "What is Apply (Target Amount) in Sales Entry?",
+				a: "You set a target total and click Apply — the system scales every line item's Selling Price proportionally to reach it. Decreases reduce prices down to cost price first, and only push below cost as a last resort if the target still isn't met.",
+			},
+			{
+				q: "I typed a Target Amount but didn't click Apply — will it be saved?",
+				a: "No. An unapplied target is ignored on Save; the invoice total saved is always the actual sum of the line items.",
+			},
+		],
+	},
 
-    {
-        id: "sales-entry",
-        category: "Inventory",
-        title: "Sales Entry",
-        summary: "Sell spare parts directly to customers — not linked to a service job.",
-        tags: ["sales", "sell parts", "direct sale", "inventory out", "GST", "HSN", "apply", "target amount"],
-        content: [
-            { type: "para", text: "Use Sales Entry when selling parts directly (counter sales) without a service job. Go to Inventory → Sales Entry → New Invoice." },
-            { type: "steps", items: [
-                "Select the Division (determines GST or non-GST treatment).",
-                "Search or type a Customer — this is required, and that customer must have a State set on their record, or Save is blocked.",
-                "Set the Invoice Date.",
-                "Add line items: Part Code, Quantity, Unit Price (selling price).",
-                "In a GST division, verify HSN on each taxable line. GST auto-calculates.",
-                "Click Save. Stock is decremented.",
-            ]},
-            { type: "heading", text: "Apply (Target Amount)" },
-            { type: "para", text: "Enter a target total amount in the 'Target Amount' field and click Apply. The system adjusts the Selling Price of every line item so the invoice total exactly matches your target. If the target already equals the current total, nothing changes." },
-            { type: "para", text: "The change is split across lines in proportion to each line's current Selling Price relative to the invoice total — GST rates on each line are left as configured." },
-            { type: "table", headers: ["Situation", "What happens"], rows: [
-                ["Target is higher than the current total", "The increase is applied proportionally across all line items."],
-                ["Target is lower — within cost price", "Line prices are reduced proportionally, down to each line's Cost Price floor. A line that would drop below cost is pinned at cost, and the leftover reduction is redistributed proportionally across the remaining lines that still have room."],
-                ["Target is lower — below cost price", "If every line is already pinned at its cost price and the target is still not reached, prices are reduced again — below cost this time — until the target is met exactly. That row's profit figure turns red as the signal — there's no separate warning toast."],
-            ]},
-            { type: "note", text: "The recalculated total will never go negative. A target you type but never click Apply on is ignored when you click Save — the invoice is saved with the actual line-item total instead." },
-            { type: "note", text: "Once applied, the footer's 'Total' is an exact copy of the target you clicked Apply on — not the recomputed line sum. 'Calculated' shows that real line total alongside it, and 'Diff' is the (normally ₹0.00) gap between the two." },
-            { type: "note", text: "Sales Entry reduces stock. If you need to record a part sale that is linked to a specific service job, use the Parts Used section in the job finalization instead." },
-            { type: "note", text: "Requires the Sales Entry access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
-        ],
-        faqs: [
-            { q: "Can I edit a sales invoice after saving?", a: "Yes, if it is not yet posted to accounts. Unpost from Admin → Post/Unpost first if needed." },
-            { q: "Can I export a sales invoice to Excel?", a: "Yes — open the invoice in View mode and click 'Download Excel'." },
-            { q: "Does a sales entry create a money receipt?", a: "No. Sales Entry creates an inventory invoice only. Record the payment separately if you need a receipt trail." },
-            { q: "What is Apply (Target Amount) in Sales Entry?", a: "You set a target total and click Apply — the system scales every line item's Selling Price proportionally to reach it. Decreases reduce prices down to cost price first, and only push below cost as a last resort if the target still isn't met." },
-            { q: "I typed a Target Amount but didn't click Apply — will it be saved?", a: "No. An unapplied target is ignored on Save; the invoice total saved is always the actual sum of the line items." },
-        ],
-    },
+	{
+		id: "stock-transactions",
+		category: "Inventory",
+		title: "Stock Adjustments, Transfers & More",
+		summary: "Adjust stock, transfer between branches, record loans, and set part locations.",
+		tags: ["stock adjustment", "branch transfer", "loan entry", "opening stock", "part location", "set location"],
+		content: [
+			{ type: "heading", text: "Stock Adjustment" },
+			{
+				type: "para",
+				text: "Correct stock counts for damage, theft, obsolescence, or physical count discrepancies.",
+			},
+			{
+				type: "steps",
+				items: [
+					"Inventory → Stock Adjustment → New.",
+					"Set Adjustment Date and enter a Reason (free text).",
+					"Add parts with a quantity and an IN/OUT toggle per line — IN increases stock, OUT decreases it. Quantity is always entered as a positive number.",
+					"Save. This is a quantity-only correction with no financial posting.",
+				],
+			},
+			{ type: "heading", text: "Branch Transfer" },
+			{ type: "para", text: "Move stock from the current branch to another location." },
+			{
+				type: "steps",
+				items: [
+					"Inventory → Branch Transfer → New.",
+					"Select the Destination Branch and Transfer Date.",
+					"Add parts and quantities to transfer.",
+					"Save. Stock is immediately debited from source and credited to destination.",
+				],
+			},
+			{ type: "heading", text: "Loan Entry" },
+			{
+				type: "para",
+				text: "Record parts loaned to a customer or another party temporarily, using the same per-line IN/OUT toggle as Stock Adjustment. There is no separate 'Loan Return' screen — to record a part coming back, add a new line on the same Loan Entry screen and set it to IN instead of OUT.",
+			},
+			{ type: "heading", text: "Opening Stock" },
+			{
+				type: "para",
+				text: "Enter initial inventory balances when setting up the system for the first time. Go to Inventory → Opening Stock. This uses the 'Opening Stock' stock transaction type.",
+			},
+			{ type: "heading", text: "Set Part Location" },
+			{
+				type: "para",
+				text: "Assign warehouse bin or shelf codes to parts for physical organization. Go to Inventory → Set Part Location. Location codes are unique per branch.",
+			},
+			{
+				type: "note",
+				text: "Stock Adjustment, Branch Transfer, Opening Stock, and Set Part Location each require their own access right (Managers and Receptionists have all of them by default; Technicians do not). Loan Entry is the one exception on this page — it needs no access right and is open to every role. See 'Roles' in Access Management for the full role/feature breakdown.",
+			},
+		],
+		faqs: [
+			{
+				q: "Does a branch transfer need approval from the receiving branch?",
+				a: "No. The transfer is immediate on both sides — stock is debited from source and credited to destination in real time.",
+			},
+			{
+				q: "Can I cancel a branch transfer?",
+				a: "Only if it has not been posted. Delete the transfer entry before posting to reverse it.",
+			},
+			{
+				q: "What is the difference between Opening Stock and Stock Adjustment?",
+				a: "Opening Stock is for initial balances when first setting up. Stock Adjustment is for ongoing corrections to existing stock quantities.",
+			},
+			{
+				q: "Why can I use Loan Entry but not Stock Adjustment?",
+				a: "Loan Entry has no access-right restriction and is open to every role, including Technician. Stock Adjustment, Branch Transfer, Opening Stock, and Set Part Location each require their own access right that Technicians don't have by default.",
+			},
+		],
+	},
 
-    {
-        id: "stock-transactions",
-        category: "Inventory",
-        title: "Stock Adjustments, Transfers & More",
-        summary: "Adjust stock, transfer between branches, record loans, and set part locations.",
-        tags: ["stock adjustment", "branch transfer", "loan entry", "opening stock", "part location", "set location"],
-        content: [
-            { type: "heading", text: "Stock Adjustment" },
-            { type: "para", text: "Correct stock counts for damage, theft, obsolescence, or physical count discrepancies." },
-            { type: "steps", items: [
-                "Inventory → Stock Adjustment → New.",
-                "Set Adjustment Date and enter a Reason (free text).",
-                "Add parts with a quantity and an IN/OUT toggle per line — IN increases stock, OUT decreases it. Quantity is always entered as a positive number.",
-                "Save. This is a quantity-only correction with no financial posting.",
-            ]},
-            { type: "heading", text: "Branch Transfer" },
-            { type: "para", text: "Move stock from the current branch to another location." },
-            { type: "steps", items: [
-                "Inventory → Branch Transfer → New.",
-                "Select the Destination Branch and Transfer Date.",
-                "Add parts and quantities to transfer.",
-                "Save. Stock is immediately debited from source and credited to destination.",
-            ]},
-            { type: "heading", text: "Loan Entry" },
-            { type: "para", text: "Record parts loaned to a customer or another party temporarily, using the same per-line IN/OUT toggle as Stock Adjustment. There is no separate 'Loan Return' screen — to record a part coming back, add a new line on the same Loan Entry screen and set it to IN instead of OUT." },
-            { type: "heading", text: "Opening Stock" },
-            { type: "para", text: "Enter initial inventory balances when setting up the system for the first time. Go to Inventory → Opening Stock. This uses the 'Opening Stock' stock transaction type." },
-            { type: "heading", text: "Set Part Location" },
-            { type: "para", text: "Assign warehouse bin or shelf codes to parts for physical organization. Go to Inventory → Set Part Location. Location codes are unique per branch." },
-            { type: "note", text: "Stock Adjustment, Branch Transfer, Opening Stock, and Set Part Location each require their own access right (Managers and Receptionists have all of them by default; Technicians do not). Loan Entry is the one exception on this page — it needs no access right and is open to every role. See 'Roles' in Access Management for the full role/feature breakdown." },
-        ],
-        faqs: [
-            { q: "Does a branch transfer need approval from the receiving branch?", a: "No. The transfer is immediate on both sides — stock is debited from source and credited to destination in real time." },
-            { q: "Can I cancel a branch transfer?", a: "Only if it has not been posted. Delete the transfer entry before posting to reverse it." },
-            { q: "What is the difference between Opening Stock and Stock Adjustment?", a: "Opening Stock is for initial balances when first setting up. Stock Adjustment is for ongoing corrections to existing stock quantities." },
-            { q: "Why can I use Loan Entry but not Stock Adjustment?", a: "Loan Entry has no access-right restriction and is open to every role, including Technician. Stock Adjustment, Branch Transfer, Opening Stock, and Set Part Location each require their own access right that Technicians don't have by default." },
-        ],
-    },
+	// ── Category 4: Masters ──────────────────────────────────────────────────
 
-    // ── Category 4: Masters ──────────────────────────────────────────────────
+	{
+		id: "customers",
+		category: "Masters",
+		title: "Managing Customers",
+		summary: "Add, edit, and manage customer records including validation rules.",
+		tags: ["customer", "mobile", "GSTIN", "address", "customer type", "contact"],
+		content: [
+			{ type: "para", text: "Go to Masters → Customer to manage customer records." },
+			{ type: "heading", text: "Required Fields" },
+			{
+				type: "table",
+				headers: ["Field", "Validation"],
+				rows: [
+					["Full Name", "Required, any text"],
+					["Mobile", "Required, 10 digits, must start with 6, 7, 8, or 9"],
+					["Address Line 1", "Required"],
+					["State", "Required, select from the state list"],
+					["Customer Type", "Required, select from the type list (Retail, Corporate, Warranty, etc.)"],
+				],
+			},
+			{ type: "heading", text: "Optional Fields" },
+			{
+				type: "table",
+				headers: ["Field", "Notes"],
+				rows: [
+					["Alternate Mobile", "Same 10-digit format as Mobile"],
+					["Email", "Standard email format"],
+					[
+						"GSTIN",
+						"15-character India GST format — for B2B customers only. Can also be added or edited from the job screens; all stages share this same customer field.",
+					],
+					["Address Line 2", "Any text"],
+					["City, Landmark", "Any text"],
+					["Postal Code", "6 digits, must start with 1–9"],
+					["Remarks", "Internal notes"],
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Mobile number not accepted — why?",
+				a: "Indian mobile numbers must be exactly 10 digits and start with 6, 7, 8, or 9 (numbers starting with 0, 1–5 are not valid mobile numbers).",
+			},
+			{
+				q: "When should I fill the customer's GSTIN?",
+				a: "Only for B2B customers who need GST tax invoices addressed to their company (with their GSTIN on the invoice). Leave blank for individual/retail customers.",
+			},
+			{
+				q: "Can I add a customer's GSTIN without coming to Masters?",
+				a: "Yes. The GSTIN field also appears when creating, finalizing, and delivering a job. Editing it there updates this same customer record. See 'Customer GSTIN on Jobs'.",
+			},
+			{
+				q: "Can I delete a customer?",
+				a: "Only if no jobs, invoices, or receipts reference that customer. The system will block deletion and show an error if the customer is in use.",
+			},
+			{
+				q: "Is customer data shared across branches?",
+				a: "Yes. Customer records are global — the same customer can be used by any branch.",
+			},
+		],
+	},
 
-    {
-        id: "customers",
-        category: "Masters",
-        title: "Managing Customers",
-        summary: "Add, edit, and manage customer records including validation rules.",
-        tags: ["customer", "mobile", "GSTIN", "address", "customer type", "contact"],
-        content: [
-            { type: "para", text: "Go to Masters → Customer to manage customer records." },
-            { type: "heading", text: "Required Fields" },
-            { type: "table", headers: ["Field", "Validation"], rows: [
-                ["Full Name",      "Required, any text"],
-                ["Mobile",         "Required, 10 digits, must start with 6, 7, 8, or 9"],
-                ["Address Line 1", "Required"],
-                ["State",          "Required, select from the state list"],
-                ["Customer Type",  "Required, select from the type list (Retail, Corporate, Warranty, etc.)"],
-            ]},
-            { type: "heading", text: "Optional Fields" },
-            { type: "table", headers: ["Field", "Notes"], rows: [
-                ["Alternate Mobile", "Same 10-digit format as Mobile"],
-                ["Email",            "Standard email format"],
-                ["GSTIN",            "15-character India GST format — for B2B customers only. Can also be added or edited from the job screens; all stages share this same customer field."],
-                ["Address Line 2",   "Any text"],
-                ["City, Landmark",   "Any text"],
-                ["Postal Code",      "6 digits, must start with 1–9"],
-                ["Remarks",          "Internal notes"],
-            ]},
-        ],
-        faqs: [
-            { q: "Mobile number not accepted — why?", a: "Indian mobile numbers must be exactly 10 digits and start with 6, 7, 8, or 9 (numbers starting with 0, 1–5 are not valid mobile numbers)." },
-            { q: "When should I fill the customer's GSTIN?", a: "Only for B2B customers who need GST tax invoices addressed to their company (with their GSTIN on the invoice). Leave blank for individual/retail customers." },
-            { q: "Can I add a customer's GSTIN without coming to Masters?", a: "Yes. The GSTIN field also appears when creating, finalizing, and delivering a job. Editing it there updates this same customer record. See 'Customer GSTIN on Jobs'." },
-            { q: "Can I delete a customer?", a: "Only if no jobs, invoices, or receipts reference that customer. The system will block deletion and show an error if the customer is in use." },
-            { q: "Is customer data shared across branches?", a: "Yes. Customer records are global — the same customer can be used by any branch." },
-        ],
-    },
+	{
+		id: "technicians",
+		category: "Masters",
+		title: "Managing Technicians",
+		summary: "Add and manage repair technicians, their codes, and branch assignment.",
+		tags: ["technician", "code", "branch", "leaving date", "specialization"],
+		content: [
+			{ type: "para", text: "Go to Masters → Technician to manage your repair staff." },
+			{ type: "heading", text: "Fields" },
+			{
+				type: "table",
+				headers: ["Field", "Notes"],
+				rows: [
+					["Branch", "Required. Technicians are branch-scoped."],
+					[
+						"Code",
+						"Required. Unique per branch. Alphanumeric + underscore only. Max 20 characters. Auto-uppercased.",
+					],
+					["Name", "Required. Min 2 characters."],
+					["Phone", "Optional."],
+					["Email", "Optional. Standard email format."],
+					["Specialization", "Optional. Free text (e.g., 'Mobile repair, AC service')."],
+					["Leaving Date", "Optional. Set when a technician leaves instead of deleting them."],
+				],
+			},
+			{
+				type: "note",
+				text: "Technician Code uniqueness is checked in real time as you type. A checkmark means the code is available; a red indicator means it is already taken in this branch.",
+			},
+		],
+		faqs: [
+			{
+				q: "Can two branches have the same technician code?",
+				a: "Yes. Codes are unique only within a branch, not across the entire system.",
+			},
+			{
+				q: "How do I remove a technician who has left?",
+				a: "Set their Leaving Date rather than deleting. If they are linked to past jobs, deletion is blocked anyway.",
+			},
+			{
+				q: "My technician code shows red — what do I do?",
+				a: "That code is already in use by another technician in this branch. Choose a different code.",
+			},
+			{
+				q: "Can I assign a technician to multiple branches?",
+				a: "No. Each technician record belongs to one branch. If the same person works at two branches, create a technician record in each.",
+			},
+		],
+	},
 
-    {
-        id: "technicians",
-        category: "Masters",
-        title: "Managing Technicians",
-        summary: "Add and manage repair technicians, their codes, and branch assignment.",
-        tags: ["technician", "code", "branch", "leaving date", "specialization"],
-        content: [
-            { type: "para", text: "Go to Masters → Technician to manage your repair staff." },
-            { type: "heading", text: "Fields" },
-            { type: "table", headers: ["Field", "Notes"], rows: [
-                ["Branch",         "Required. Technicians are branch-scoped."],
-                ["Code",           "Required. Unique per branch. Alphanumeric + underscore only. Max 20 characters. Auto-uppercased."],
-                ["Name",           "Required. Min 2 characters."],
-                ["Phone",          "Optional."],
-                ["Email",          "Optional. Standard email format."],
-                ["Specialization", "Optional. Free text (e.g., 'Mobile repair, AC service')."],
-                ["Leaving Date",   "Optional. Set when a technician leaves instead of deleting them."],
-            ]},
-            { type: "note", text: "Technician Code uniqueness is checked in real time as you type. A checkmark means the code is available; a red indicator means it is already taken in this branch." },
-        ],
-        faqs: [
-            { q: "Can two branches have the same technician code?", a: "Yes. Codes are unique only within a branch, not across the entire system." },
-            { q: "How do I remove a technician who has left?", a: "Set their Leaving Date rather than deleting. If they are linked to past jobs, deletion is blocked anyway." },
-            { q: "My technician code shows red — what do I do?", a: "That code is already in use by another technician in this branch. Choose a different code." },
-            { q: "Can I assign a technician to multiple branches?", a: "No. Each technician record belongs to one branch. If the same person works at two branches, create a technician record in each." },
-        ],
-    },
+	{
+		id: "parts",
+		category: "Masters",
+		title: "Spare Parts Master",
+		summary: "Add and manage spare parts, pricing, HSN codes, and bulk import.",
+		tags: [
+			"parts",
+			"spare parts",
+			"HSN",
+			"GST rate",
+			"cost price",
+			"selling price",
+			"UOM",
+			"bulk import",
+			"brand",
+			"category",
+		],
+		content: [
+			{ type: "para", text: "Go to Masters → Parts to manage the spare parts catalog." },
+			{ type: "heading", text: "Key Fields" },
+			{
+				type: "table",
+				headers: ["Field", "Notes"],
+				rows: [
+					["Brand", "Required. Determines which brand this part belongs to."],
+					[
+						"Part Code",
+						"Required. Unique per Brand (the same code can be reused under a different brand). Auto-uppercased.",
+					],
+					["Part Name", "Required. Descriptive name."],
+					["UOM", "Required. Unit of Measure. Default 'NOS' (numbers). Others: KG, Litre, Set, Pair."],
+					["Cost Price", "Optional. What the part costs you. Used for profit calculations."],
+					["Selling Price", "Optional. Default selling price. Used as baseline on job finalization."],
+					["MRP", "Optional. Must be greater than Cost Price if both are set."],
+					["HSN Code", "Optional but required for GST invoices. Must be exactly 4, 6, or 8 digits."],
+					["GST Rate", "Optional, 0% up to but not including 60%. Used for tax calculations on invoices."],
+				],
+			},
+			{ type: "heading", text: "Bulk Import" },
+			{
+				type: "para",
+				text: "Parts master supports importing from CSV or XLSX files. Click 'Bulk Import', upload your file, map your column headers to system fields, and import. Useful for initial setup with hundreds of parts.",
+			},
+			{ type: "heading", text: "How markup works" },
+			{
+				type: "para",
+				text: "When a part is selected during job finalization, if no custom selling price is set, the selling price is calculated as: Cost Price × (1 + markup% / 100), using the 'markup_percent_over_cost' app setting.",
+			},
+		],
+		faqs: [
+			{
+				q: "What does UOM mean?",
+				a: "Unit of Measure — how the part is counted. 'NOS' means each unit counted individually. Other examples: KG (kilograms), Litre, Set, Pair.",
+			},
+			{
+				q: "What is an HSN code?",
+				a: "Harmonized System of Nomenclature — a standardized classification code for goods under GST, required on all GST tax invoices. Check your supplier invoices or the official GST HSN directory for the correct code.",
+			},
+			{
+				q: "HSN validation is failing — what are valid lengths?",
+				a: "Only 4, 6, or 8 digit codes are accepted. 5-digit and 7-digit codes are invalid.",
+			},
+			{
+				q: "Can I set a default HSN for parts that don't have one?",
+				a: "Yes — set 'Default HSN for Spare Part' in Configurations → App Settings. It is used as a fallback when a part has no specific HSN.",
+			},
+			{
+				q: "MRP validation error — why?",
+				a: "If you enter both MRP and Cost Price, MRP must be strictly greater than Cost Price. Either leave MRP blank or ensure it exceeds the cost.",
+			},
+		],
+	},
 
-    {
-        id: "parts",
-        category: "Masters",
-        title: "Spare Parts Master",
-        summary: "Add and manage spare parts, pricing, HSN codes, and bulk import.",
-        tags: ["parts", "spare parts", "HSN", "GST rate", "cost price", "selling price", "UOM", "bulk import", "brand", "category"],
-        content: [
-            { type: "para", text: "Go to Masters → Parts to manage the spare parts catalog." },
-            { type: "heading", text: "Key Fields" },
-            { type: "table", headers: ["Field", "Notes"], rows: [
-                ["Brand",         "Required. Determines which brand this part belongs to."],
-                ["Part Code",     "Required. Unique per Brand (the same code can be reused under a different brand). Auto-uppercased."],
-                ["Part Name",     "Required. Descriptive name."],
-                ["UOM",           "Required. Unit of Measure. Default 'NOS' (numbers). Others: KG, Litre, Set, Pair."],
-                ["Cost Price",    "Optional. What the part costs you. Used for profit calculations."],
-                ["Selling Price", "Optional. Default selling price. Used as baseline on job finalization."],
-                ["MRP",           "Optional. Must be greater than Cost Price if both are set."],
-                ["HSN Code",      "Optional but required for GST invoices. Must be exactly 4, 6, or 8 digits."],
-                ["GST Rate",      "Optional, 0% up to but not including 60%. Used for tax calculations on invoices."],
-            ]},
-            { type: "heading", text: "Bulk Import" },
-            { type: "para", text: "Parts master supports importing from CSV or XLSX files. Click 'Bulk Import', upload your file, map your column headers to system fields, and import. Useful for initial setup with hundreds of parts." },
-            { type: "heading", text: "How markup works" },
-            { type: "para", text: "When a part is selected during job finalization, if no custom selling price is set, the selling price is calculated as: Cost Price × (1 + markup% / 100), using the 'markup_percent_over_cost' app setting." },
-        ],
-        faqs: [
-            { q: "What does UOM mean?", a: "Unit of Measure — how the part is counted. 'NOS' means each unit counted individually. Other examples: KG (kilograms), Litre, Set, Pair." },
-            { q: "What is an HSN code?", a: "Harmonized System of Nomenclature — a standardized classification code for goods under GST, required on all GST tax invoices. Check your supplier invoices or the official GST HSN directory for the correct code." },
-            { q: "HSN validation is failing — what are valid lengths?", a: "Only 4, 6, or 8 digit codes are accepted. 5-digit and 7-digit codes are invalid." },
-            { q: "Can I set a default HSN for parts that don't have one?", a: "Yes — set 'Default HSN for Spare Part' in Configurations → App Settings. It is used as a fallback when a part has no specific HSN." },
-            { q: "MRP validation error — why?", a: "If you enter both MRP and Cost Price, MRP must be strictly greater than Cost Price. Either leave MRP blank or ensure it exceeds the cost." },
-        ],
-    },
+	{
+		id: "spare-parts-web",
+		category: "Masters",
+		title: "Spare Parts Web",
+		summary:
+			"Customer-facing parts catalog per branch — optionally linked to a Parts Master entry, with its own photos. Live on the public company website; orders arrive by email.",
+		tags: [
+			"spare parts web",
+			"web catalogue",
+			"web parts",
+			"customer catalog",
+			"brand",
+			"part code",
+			"photos",
+			"price",
+			"public website",
+			"orders",
+			"web order notify email",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Go to Masters → Spare Parts Web to manage the branch's customer-facing parts listing. This is a separate list from Spare Parts Master — it's what customers see, not what's used for job costing and stock.",
+			},
+			{
+				type: "warning",
+				text: "Whatever is listed here and marked Active is live on the public company website immediately — there is no separate publish step. Double-check price and photos before activating a row.",
+			},
+			{ type: "heading", text: "Key Fields" },
+			{
+				type: "table",
+				headers: ["Field", "Notes"],
+				rows: [
+					[
+						"Brand + Part Code",
+						"Optional. Pick a Brand, then search/select a Part Code to link this listing to a Parts Master record — its name, model and HSN pre-fill and stay in sync for reference. Leave both empty for a market-sourced part with no Parts Master entry.",
+					],
+					["Part Name", "Required. The name shown to customers."],
+					["Description", "Optional. Shown under the part name in the grid's Part Details column."],
+					["Price", "Required, greater than 0. The indicative price shown to customers."],
+					["Model", "Optional. Free text, e.g. the device model this part fits."],
+					["HSN Code", "Optional. Must be exactly 4, 6, or 8 digits if entered."],
+				],
+			},
+			{
+				type: "note",
+				text: "A Parts Master part can be linked to only one Spare Parts Web listing per branch. Once linked, selecting it again elsewhere in the same branch is blocked.",
+			},
+			{ type: "heading", text: "Photos" },
+			{
+				type: "para",
+				text: "Photos are managed separately from Add/Edit — open the row's Actions menu and choose Photos to upload, reorder, or remove images for that part. The first photo becomes its thumbnail in the grid.",
+			},
+			{ type: "heading", text: "Grid Columns" },
+			{
+				type: "bullets",
+				items: [
+					"Photo — thumbnail, or a placeholder icon if none uploaded",
+					"Brand — from the linked Parts Master entry, if any",
+					"Part Code — from the linked Parts Master entry, if any",
+					"Part Details — Part Name with Description underneath",
+					"Model, Price, HSN, Status (Active/Inactive)",
+				],
+			},
+			{ type: "heading", text: "Deleting a Part" },
+			{
+				type: "para",
+				text: "Delete asks you to type a confirmation value before proceeding, prioritized in this order so it's never blank: Part Code (if linked), otherwise Model, otherwise Part Name. The dialog states exactly which field to type. Deleting a part also removes its photos from storage — there's nothing extra to clean up.",
+			},
+			{ type: "heading", text: "This catalog is per branch, and it's public" },
+			{
+				type: "para",
+				text: "Each branch keeps its own separate catalog — the same part sold at two branches is two separate rows, with independently set prices and photos, because pricing genuinely can differ by branch. A part listed for one branch never appears when a customer is browsing another.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"A company with only one branch shows customers a plain catalog page — no branch picker at all.",
+					"A company with several branches shows customers a branch dropdown, defaulting to the first branch, and switching it swaps the whole catalog.",
+					"Deactivating a branch (Masters → Branches) hides that branch's whole catalog from the public site with no separate switch — worth remembering since it isn't obviously a website setting.",
+				],
+			},
+			{ type: "heading", text: "How customer orders reach you" },
+			{
+				type: "para",
+				text: "There is no online payment and no cart-to-invoice automation — a customer picks parts, submits their name/mobile/remarks, and staff take it from there by phone, exactly like a walk-in inquiry. Delivery and billing both happen manually, outside the app.",
+			},
+			{
+				type: "para",
+				text: "Each order emails the branch it was placed against, so the branch that will actually fulfill it is the one notified. The recipient is resolved in this order: the branch's own email address (Masters → Branches) → the App Settings 'web_order_notify_email' address for the business unit, if set → the head office branch's email as a last resort. Set at least one of these per business unit, or order notifications have nowhere to go (the order itself is still saved either way — nothing is lost, but nobody gets pinged).",
+			},
+			{
+				type: "note",
+				text: "There is no in-app screen listing web orders yet — check the notification email, or ask your administrator to query the order records directly, until one is built.",
+			},
+			{ type: "heading", text: "What the customer sees on the public site" },
+			{
+				type: "para",
+				text: "Prices are shown with a persistent 'indicative, subject to change' disclaimer, and the order confirmation states plainly that there's no online payment and no return/replacement once an order ships. The selected branch's phone number is shown throughout, so a customer can just call instead.",
+			},
+		],
+		faqs: [
+			{
+				q: "What's the difference between Spare Parts Master and Spare Parts Web?",
+				a: "Spare Parts Master (Masters → Parts) is the system-wide costing/stock catalog used in job finalization and inventory. Spare Parts Web (this article) is a separate, per-branch customer-facing listing with its own price and photos — linking it to a Parts Master part is optional.",
+			},
+			{
+				q: "Why can't I select a part code — it's disabled in the picker?",
+				a: "That Parts Master part is already linked to another Spare Parts Web listing in this branch. Each part can be linked at most once per branch.",
+			},
+			{
+				q: "Do I have to link a Parts Master part?",
+				a: "No. Leave Brand and Part Code empty for a part sourced from the open market that has no Parts Master record — just fill in Part Name and Price.",
+			},
+			{
+				q: "Where do I add or change photos?",
+				a: "Not in the Add/Edit dialog — open the row's Actions menu (⋯) and choose Photos. It has its own upload/reorder/remove screen.",
+			},
+			{
+				q: "What do I need to type to confirm a delete?",
+				a: "Whatever the dialog asks for — Part Code if the part is linked, otherwise Model, otherwise Part Name. It's shown in the confirmation prompt so you don't have to guess.",
+			},
+			{
+				q: "A part is marked Active but customers say they can't see it — why?",
+				a: "Check that the branch it belongs to is itself Active in Masters → Branches — deactivating a branch hides its entire web catalog, parts included, with no separate toggle.",
+			},
+			{
+				q: "Where do web orders actually go — is there stock deducted automatically?",
+				a: "No automatic stock or invoice effect at all. An order just triggers a notification email to the branch (or the fallback address in App Settings); staff follow up, deliver, and bill manually, and may create a normal Sales Invoice by hand afterward if the part happens to be linked to Parts Master.",
+			},
+			{
+				q: "Who receives the order notification email if the branch has none set?",
+				a: "The App Settings 'web_order_notify_email' address for that business unit, and if that's also empty, the head office branch's email. Set at least one so orders don't go unnoticed.",
+			},
+		],
+	},
 
-    {
-        id: "spare-parts-web",
-        category: "Masters",
-        title: "Spare Parts Web",
-        summary: "Customer-facing parts catalog per branch — optionally linked to a Parts Master entry, with its own photos. Live on the public company website; orders arrive by email.",
-        tags: ["spare parts web", "web catalogue", "web parts", "customer catalog", "brand", "part code", "photos", "price", "public website", "orders", "web order notify email"],
-        content: [
-            { type: "para", text: "Go to Masters → Spare Parts Web to manage the branch's customer-facing parts listing. This is a separate list from Spare Parts Master — it's what customers see, not what's used for job costing and stock." },
-            { type: "warning", text: "Whatever is listed here and marked Active is live on the public company website immediately — there is no separate publish step. Double-check price and photos before activating a row." },
-            { type: "heading", text: "Key Fields" },
-            { type: "table", headers: ["Field", "Notes"], rows: [
-                ["Brand + Part Code", "Optional. Pick a Brand, then search/select a Part Code to link this listing to a Parts Master record — its name, model and HSN pre-fill and stay in sync for reference. Leave both empty for a market-sourced part with no Parts Master entry."],
-                ["Part Name",         "Required. The name shown to customers."],
-                ["Description",       "Optional. Shown under the part name in the grid's Part Details column."],
-                ["Price",             "Required, greater than 0. The indicative price shown to customers."],
-                ["Model",             "Optional. Free text, e.g. the device model this part fits."],
-                ["HSN Code",          "Optional. Must be exactly 4, 6, or 8 digits if entered."],
-            ]},
-            { type: "note", text: "A Parts Master part can be linked to only one Spare Parts Web listing per branch. Once linked, selecting it again elsewhere in the same branch is blocked." },
-            { type: "heading", text: "Photos" },
-            { type: "para", text: "Photos are managed separately from Add/Edit — open the row's Actions menu and choose Photos to upload, reorder, or remove images for that part. The first photo becomes its thumbnail in the grid." },
-            { type: "heading", text: "Grid Columns" },
-            { type: "bullets", items: [
-                "Photo — thumbnail, or a placeholder icon if none uploaded",
-                "Brand — from the linked Parts Master entry, if any",
-                "Part Code — from the linked Parts Master entry, if any",
-                "Part Details — Part Name with Description underneath",
-                "Model, Price, HSN, Status (Active/Inactive)",
-            ]},
-            { type: "heading", text: "Deleting a Part" },
-            { type: "para", text: "Delete asks you to type a confirmation value before proceeding, prioritized in this order so it's never blank: Part Code (if linked), otherwise Model, otherwise Part Name. The dialog states exactly which field to type. Deleting a part also removes its photos from storage — there's nothing extra to clean up." },
-            { type: "heading", text: "This catalog is per branch, and it's public" },
-            { type: "para", text: "Each branch keeps its own separate catalog — the same part sold at two branches is two separate rows, with independently set prices and photos, because pricing genuinely can differ by branch. A part listed for one branch never appears when a customer is browsing another." },
-            { type: "bullets", items: [
-                "A company with only one branch shows customers a plain catalog page — no branch picker at all.",
-                "A company with several branches shows customers a branch dropdown, defaulting to the first branch, and switching it swaps the whole catalog.",
-                "Deactivating a branch (Masters → Branches) hides that branch's whole catalog from the public site with no separate switch — worth remembering since it isn't obviously a website setting.",
-            ]},
-            { type: "heading", text: "How customer orders reach you" },
-            { type: "para", text: "There is no online payment and no cart-to-invoice automation — a customer picks parts, submits their name/mobile/remarks, and staff take it from there by phone, exactly like a walk-in inquiry. Delivery and billing both happen manually, outside the app." },
-            { type: "para", text: "Each order emails the branch it was placed against, so the branch that will actually fulfill it is the one notified. The recipient is resolved in this order: the branch's own email address (Masters → Branches) → the App Settings 'web_order_notify_email' address for the business unit, if set → the head office branch's email as a last resort. Set at least one of these per business unit, or order notifications have nowhere to go (the order itself is still saved either way — nothing is lost, but nobody gets pinged)." },
-            { type: "note", text: "There is no in-app screen listing web orders yet — check the notification email, or ask your administrator to query the order records directly, until one is built." },
-            { type: "heading", text: "What the customer sees on the public site" },
-            { type: "para", text: "Prices are shown with a persistent 'indicative, subject to change' disclaimer, and the order confirmation states plainly that there's no online payment and no return/replacement once an order ships. The selected branch's phone number is shown throughout, so a customer can just call instead." },
-        ],
-        faqs: [
-            { q: "What's the difference between Spare Parts Master and Spare Parts Web?", a: "Spare Parts Master (Masters → Parts) is the system-wide costing/stock catalog used in job finalization and inventory. Spare Parts Web (this article) is a separate, per-branch customer-facing listing with its own price and photos — linking it to a Parts Master part is optional." },
-            { q: "Why can't I select a part code — it's disabled in the picker?", a: "That Parts Master part is already linked to another Spare Parts Web listing in this branch. Each part can be linked at most once per branch." },
-            { q: "Do I have to link a Parts Master part?", a: "No. Leave Brand and Part Code empty for a part sourced from the open market that has no Parts Master record — just fill in Part Name and Price." },
-            { q: "Where do I add or change photos?", a: "Not in the Add/Edit dialog — open the row's Actions menu (⋯) and choose Photos. It has its own upload/reorder/remove screen." },
-            { q: "What do I need to type to confirm a delete?", a: "Whatever the dialog asks for — Part Code if the part is linked, otherwise Model, otherwise Part Name. It's shown in the confirmation prompt so you don't have to guess." },
-            { q: "A part is marked Active but customers say they can't see it — why?", a: "Check that the branch it belongs to is itself Active in Masters → Branches — deactivating a branch hides its entire web catalog, parts included, with no separate toggle." },
-            { q: "Where do web orders actually go — is there stock deducted automatically?", a: "No automatic stock or invoice effect at all. An order just triggers a notification email to the branch (or the fallback address in App Settings); staff follow up, deliver, and bill manually, and may create a normal Sales Invoice by hand afterward if the part happens to be linked to Parts Master." },
-            { q: "Who receives the order notification email if the branch has none set?", a: "The App Settings 'web_order_notify_email' address for that business unit, and if that's also empty, the head office branch's email. Set at least one so orders don't go unnoticed." },
-        ],
-    },
+	{
+		id: "brands-models",
+		category: "Masters",
+		title: "Brands, Products & Models",
+		summary: "Set up the product hierarchy required for job creation.",
+		tags: ["brand", "product", "model", "hierarchy", "device"],
+		content: [
+			{
+				type: "para",
+				text: "Jobs require a three-level hierarchy to identify the device: Brand → Product → Model.",
+			},
+			{
+				type: "table",
+				headers: ["Level", "Example"],
+				rows: [
+					["Brand", "Samsung"],
+					["Product", "Mobile Phone"],
+					["Model", "Galaxy S24"],
+				],
+			},
+			{
+				type: "steps",
+				items: [
+					"Add the Brand (Masters → Brand).",
+					"Add the Product (Masters → Product) — this is a global category, not linked to any specific brand.",
+					"Add the Model, choosing both the Brand and the Product together (Masters → Model) — this is where the Brand↔Product relationship is actually formed.",
+					"Now the model appears in the job creation form.",
+				],
+			},
+			{
+				type: "note",
+				text: "If the model dropdown is empty when creating a job, it means no models exist for the selected brand + product combination. Add the model in Masters → Model first.",
+			},
+		],
+		faqs: [
+			{
+				q: "Can the same model exist under two brands?",
+				a: "Yes. A model is linked to a specific Brand + Product combination, so the same model name can exist under different brands.",
+			},
+			{
+				q: "Can I delete a brand that has existing jobs?",
+				a: "No. Deletion is blocked if the brand (or its models) is referenced by jobs, parts, or invoices.",
+			},
+		],
+	},
 
-    {
-        id: "brands-models",
-        category: "Masters",
-        title: "Brands, Products & Models",
-        summary: "Set up the product hierarchy required for job creation.",
-        tags: ["brand", "product", "model", "hierarchy", "device"],
-        content: [
-            { type: "para", text: "Jobs require a three-level hierarchy to identify the device: Brand → Product → Model." },
-            { type: "table", headers: ["Level", "Example"], rows: [
-                ["Brand",   "Samsung"],
-                ["Product", "Mobile Phone"],
-                ["Model",   "Galaxy S24"],
-            ]},
-            { type: "steps", items: [
-                "Add the Brand (Masters → Brand).",
-                "Add the Product (Masters → Product) — this is a global category, not linked to any specific brand.",
-                "Add the Model, choosing both the Brand and the Product together (Masters → Model) — this is where the Brand↔Product relationship is actually formed.",
-                "Now the model appears in the job creation form.",
-            ]},
-            { type: "note", text: "If the model dropdown is empty when creating a job, it means no models exist for the selected brand + product combination. Add the model in Masters → Model first." },
-        ],
-        faqs: [
-            { q: "Can the same model exist under two brands?", a: "Yes. A model is linked to a specific Brand + Product combination, so the same model name can exist under different brands." },
-            { q: "Can I delete a brand that has existing jobs?", a: "No. Deletion is blocked if the brand (or its models) is referenced by jobs, parts, or invoices." },
-        ],
-    },
+	{
+		id: "vendors-branches",
+		category: "Masters",
+		title: "Vendors, Branches & Financial Years",
+		summary: "Manage suppliers, service center locations, and accounting periods.",
+		tags: ["vendor", "supplier", "branch", "financial year", "head office"],
+		content: [
+			{ type: "heading", text: "Vendors (Suppliers)" },
+			{
+				type: "para",
+				text: "Masters → Vendor. Vendors are used in Purchase Entry. Vendor name must be unique system-wide — vendors are shared across all branches, not branch-scoped. Vendors cannot be deleted if they are referenced by purchase invoices.",
+			},
+			{ type: "heading", text: "Branches" },
+			{
+				type: "para",
+				text: "Masters → Branch. A Branch is a physical service center location. All jobs, inventory, technicians, and document sequences are scoped to a branch.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"At least one branch is required.",
+					"The Head Office branch cannot be deleted.",
+					"Users are assigned to specific branches, controlling which branch's data they can access.",
+				],
+			},
+			{ type: "heading", text: "Financial Years" },
+			{
+				type: "para",
+				text: "Masters → Financial Year. Defines your accounting periods (India standard: April 1 – March 31). Date ranges must not overlap between years. All date filters in the system default to the current financial year.",
+			},
+		],
+		faqs: [
+			{
+				q: "Can I have the same vendor name at two branches?",
+				a: "No. Vendor names must be unique system-wide — vendors are not branch-scoped and are shared across all branches.",
+			},
+			{
+				q: "What happens if I delete a branch?",
+				a: "Deletion is blocked if the branch has jobs, inventory, or users linked to it. Branches cannot be deleted if they contain data.",
+			},
+			{
+				q: "Can I change the financial year start date?",
+				a: "Yes, but overlapping years are not allowed. Changing the current year's dates may affect existing reports.",
+			},
+		],
+	},
 
-    {
-        id: "vendors-branches",
-        category: "Masters",
-        title: "Vendors, Branches & Financial Years",
-        summary: "Manage suppliers, service center locations, and accounting periods.",
-        tags: ["vendor", "supplier", "branch", "financial year", "head office"],
-        content: [
-            { type: "heading", text: "Vendors (Suppliers)" },
-            { type: "para", text: "Masters → Vendor. Vendors are used in Purchase Entry. Vendor name must be unique system-wide — vendors are shared across all branches, not branch-scoped. Vendors cannot be deleted if they are referenced by purchase invoices." },
-            { type: "heading", text: "Branches" },
-            { type: "para", text: "Masters → Branch. A Branch is a physical service center location. All jobs, inventory, technicians, and document sequences are scoped to a branch." },
-            { type: "bullets", items: [
-                "At least one branch is required.",
-                "The Head Office branch cannot be deleted.",
-                "Users are assigned to specific branches, controlling which branch's data they can access.",
-            ]},
-            { type: "heading", text: "Financial Years" },
-            { type: "para", text: "Masters → Financial Year. Defines your accounting periods (India standard: April 1 – March 31). Date ranges must not overlap between years. All date filters in the system default to the current financial year." },
-        ],
-        faqs: [
-            { q: "Can I have the same vendor name at two branches?", a: "No. Vendor names must be unique system-wide — vendors are not branch-scoped and are shared across all branches." },
-            { q: "What happens if I delete a branch?", a: "Deletion is blocked if the branch has jobs, inventory, or users linked to it. Branches cannot be deleted if they contain data." },
-            { q: "Can I change the financial year start date?", a: "Yes, but overlapping years are not allowed. Changing the current year's dates may affect existing reports." },
-        ],
-    },
+	// ── Category 5: Configurations ───────────────────────────────────────────
 
-    // ── Category 5: Configurations ───────────────────────────────────────────
+	{
+		id: "divisions",
+		category: "Configurations",
+		title: "Divisions Setup",
+		summary: "Create and configure billing entities — GST and non-GST divisions.",
+		tags: ["division", "GSTIN", "GST", "non-GST", "billing entity", "IGST", "CGST", "SGST", "state code"],
+		content: [
+			{
+				type: "para",
+				text: "Configurations → Divisions. A Division is your billing entity — every invoice is issued from a division. You can have multiple divisions (e.g., GST and non-GST, or separate divisions for different states).",
+			},
+			{ type: "heading", text: "GST vs Non-GST Division" },
+			{
+				type: "table",
+				headers: ["Setting", "GST Division", "Non-GST Division"],
+				rows: [
+					["GSTIN", "Filled (15-char India format)", "Left blank"],
+					["Invoices", "Show CGST + SGST (or IGST) breakdown", "Show total only"],
+					["HSN", "Mandatory on all invoice lines", "Not required"],
+					["Tax rates", "From part master or default setting", "All ₹0"],
+				],
+			},
+			{ type: "heading", text: "Setup Steps" },
+			{
+				type: "steps",
+				items: [
+					"Go to Configurations → Divisions → New.",
+					"Enter Code and Name (both unique per branch).",
+					"Fill Address and State (required for invoice supply details).",
+					"For a GST division: enter GSTIN in the GSTIN field.",
+					"For a non-GST division: leave GSTIN blank.",
+					"Save.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Can I have both GST and non-GST divisions?",
+				a: "Yes. Create one division per billing entity. Each job is linked to one division, so you can issue GST invoices from one division and non-GST invoices from another.",
+			},
+			{
+				q: "What is Force IGST?",
+				a: "For inter-state supplies (customer is in a different state from your division). Check 'Force IGST' on the job finalization form. This applies the full GST rate as IGST instead of splitting into CGST + SGST.",
+			},
+			{
+				q: "Can I change a division's GSTIN?",
+				a: "Yes. Edit the division and update the GSTIN. Only future invoices are affected. Existing invoices retain the GSTIN at the time of creation.",
+			},
+			{
+				q: "Why does the division affect invoice calculation?",
+				a: "The division's GSTIN determines whether the invoice is GST-compliant (with tax breakdown) or non-GST (total only). Each division can have different GST registration for different billing scenarios.",
+			},
+		],
+	},
 
-    {
-        id: "divisions",
-        category: "Configurations",
-        title: "Divisions Setup",
-        summary: "Create and configure billing entities — GST and non-GST divisions.",
-        tags: ["division", "GSTIN", "GST", "non-GST", "billing entity", "IGST", "CGST", "SGST", "state code"],
-        content: [
-            { type: "para", text: "Configurations → Divisions. A Division is your billing entity — every invoice is issued from a division. You can have multiple divisions (e.g., GST and non-GST, or separate divisions for different states)." },
-            { type: "heading", text: "GST vs Non-GST Division" },
-            { type: "table", headers: ["Setting", "GST Division", "Non-GST Division"], rows: [
-                ["GSTIN",     "Filled (15-char India format)",     "Left blank"],
-                ["Invoices",  "Show CGST + SGST (or IGST) breakdown", "Show total only"],
-                ["HSN",       "Mandatory on all invoice lines",    "Not required"],
-                ["Tax rates", "From part master or default setting", "All ₹0"],
-            ]},
-            { type: "heading", text: "Setup Steps" },
-            { type: "steps", items: [
-                "Go to Configurations → Divisions → New.",
-                "Enter Code and Name (both unique per branch).",
-                "Fill Address and State (required for invoice supply details).",
-                "For a GST division: enter GSTIN in the GSTIN field.",
-                "For a non-GST division: leave GSTIN blank.",
-                "Save.",
-            ]},
-        ],
-        faqs: [
-            { q: "Can I have both GST and non-GST divisions?", a: "Yes. Create one division per billing entity. Each job is linked to one division, so you can issue GST invoices from one division and non-GST invoices from another." },
-            { q: "What is Force IGST?", a: "For inter-state supplies (customer is in a different state from your division). Check 'Force IGST' on the job finalization form. This applies the full GST rate as IGST instead of splitting into CGST + SGST." },
-            { q: "Can I change a division's GSTIN?", a: "Yes. Edit the division and update the GSTIN. Only future invoices are affected. Existing invoices retain the GSTIN at the time of creation." },
-            { q: "Why does the division affect invoice calculation?", a: "The division's GSTIN determines whether the invoice is GST-compliant (with tax breakdown) or non-GST (total only). Each division can have different GST registration for different billing scenarios." },
-        ],
-    },
+	{
+		id: "document-sequences",
+		category: "Configurations",
+		title: "Document Sequences",
+		summary: "Configure auto-numbering for jobs, invoices, and receipts.",
+		tags: [
+			"document sequence",
+			"job number",
+			"invoice number",
+			"receipt number",
+			"prefix",
+			"sequence",
+			"numbering",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Configurations → Document Sequence. Document sequences control how numbers are automatically generated for jobs and invoices.",
+			},
+			{ type: "heading", text: "Required Sequences" },
+			{
+				type: "table",
+				headers: ["Sequence", "Used For", "Required Before"],
+				rows: [
+					["JOB_SHEET", "Job numbers (e.g., SVC-0001)", "Creating any job"],
+					["SERVICE_INVOICE", "Service invoice numbers", "Delivering a job and creating an invoice"],
+					["MONEY_RECEIPT", "Payment receipt numbers", "Adding a payment receipt"],
+					["SALES_INVOICE", "Direct parts sales invoice numbers", "Inventory → Sales Entry"],
+				],
+			},
+			{ type: "heading", text: "Setup Steps" },
+			{
+				type: "steps",
+				items: [
+					"Go to Configurations → Numbering / Auto Series.",
+					"Switch between the Branch tab and a specific Division tab, depending on the sequence.",
+					"Edit the Prefix / Separator / Padding / Next Number fields directly in the table — there is no per-row Edit button, the table is always editable.",
+					"Click 'Save Sequences' at the bottom to save all changes on that tab at once.",
+				],
+			},
+			{
+				type: "warning",
+				text: "Without configured sequences, you will see an error such as 'Job Sheet document sequence is not configured or has no prefix.' — go to Configurations → Numbering / Auto Series and set the prefix. (The in-app message text currently says 'Settings → Document Sequence', which is stale wording; the real path is Configurations → Numbering / Auto Series.)",
+			},
+		],
+		faqs: [
+			{
+				q: "I get a 'document sequence is not configured' error — what do I do?",
+				a: "Go to Configurations → Numbering / Auto Series. Find the sequence named in the error (JOB_SHEET, SERVICE_INVOICE, etc.) and set a Prefix, then click 'Save Sequences'.",
+			},
+			{
+				q: "Can I reset the sequence number?",
+				a: "Yes — change the 'Next Number' field in the table and click 'Save Sequences'. Be careful not to create duplicate numbers if you lower it.",
+			},
+			{
+				q: "Can different divisions have different numbering?",
+				a: "Only for Service Invoice, Money Receipt, and Sales Invoice sequences — those are configured per division. Job Sheet and Purchase Invoice numbering is always branch-wide and shared across all divisions in that branch.",
+			},
+			{
+				q: "Can I use letters in the prefix?",
+				a: "Yes. Prefixes are free text. Common examples: 'SVC', 'JOB', 'INV', 'RCT'.",
+			},
+		],
+	},
 
-    {
-        id: "document-sequences",
-        category: "Configurations",
-        title: "Document Sequences",
-        summary: "Configure auto-numbering for jobs, invoices, and receipts.",
-        tags: ["document sequence", "job number", "invoice number", "receipt number", "prefix", "sequence", "numbering"],
-        content: [
-            { type: "para", text: "Configurations → Document Sequence. Document sequences control how numbers are automatically generated for jobs and invoices." },
-            { type: "heading", text: "Required Sequences" },
-            { type: "table", headers: ["Sequence", "Used For", "Required Before"], rows: [
-                ["JOB_SHEET",      "Job numbers (e.g., SVC-0001)",              "Creating any job"],
-                ["SERVICE_INVOICE","Service invoice numbers",                   "Delivering a job and creating an invoice"],
-                ["MONEY_RECEIPT",  "Payment receipt numbers",                   "Adding a payment receipt"],
-                ["SALES_INVOICE",  "Direct parts sales invoice numbers",        "Inventory → Sales Entry"],
-            ]},
-            { type: "heading", text: "Setup Steps" },
-            { type: "steps", items: [
-                "Go to Configurations → Numbering / Auto Series.",
-                "Switch between the Branch tab and a specific Division tab, depending on the sequence.",
-                "Edit the Prefix / Separator / Padding / Next Number fields directly in the table — there is no per-row Edit button, the table is always editable.",
-                "Click 'Save Sequences' at the bottom to save all changes on that tab at once.",
-            ]},
-            { type: "warning", text: "Without configured sequences, you will see an error such as 'Job Sheet document sequence is not configured or has no prefix.' — go to Configurations → Numbering / Auto Series and set the prefix. (The in-app message text currently says 'Settings → Document Sequence', which is stale wording; the real path is Configurations → Numbering / Auto Series.)" },
-        ],
-        faqs: [
-            { q: "I get a 'document sequence is not configured' error — what do I do?", a: "Go to Configurations → Numbering / Auto Series. Find the sequence named in the error (JOB_SHEET, SERVICE_INVOICE, etc.) and set a Prefix, then click 'Save Sequences'." },
-            { q: "Can I reset the sequence number?", a: "Yes — change the 'Next Number' field in the table and click 'Save Sequences'. Be careful not to create duplicate numbers if you lower it." },
-            { q: "Can different divisions have different numbering?", a: "Only for Service Invoice, Money Receipt, and Sales Invoice sequences — those are configured per division. Job Sheet and Purchase Invoice numbering is always branch-wide and shared across all divisions in that branch." },
-            { q: "Can I use letters in the prefix?", a: "Yes. Prefixes are free text. Common examples: 'SVC', 'JOB', 'INV', 'RCT'." },
-        ],
-    },
+	{
+		id: "app-settings",
+		category: "Configurations",
+		title: "App Settings",
+		summary: "Key application settings controlling defaults, print copies, and integrations.",
+		tags: [
+			"app settings",
+			"default GST rate",
+			"default HSN",
+			"markup",
+			"print copies",
+			"post to accounts",
+			"force GST",
+			"whatsapp_notifications",
+			"whatsapp toggle",
+		],
+		content: [
+			{ type: "para", text: "Configurations → App Settings. These settings control system-wide defaults." },
+			{
+				type: "table",
+				headers: ["Setting", "What It Controls"],
+				rows: [
+					["default_gst_rate", "GST rate used when a part has no specific GST rate"],
+					["default_hsn_for_spare_part", "Fallback HSN code for parts without a specific HSN"],
+					["default_hsn_for_service_charge", "Fallback HSN for service charge lines"],
+					["no_of_job_sheets_per_print", "Number of job sheet copies printed per job"],
+					["no_of_job_invoices_per_print", "Number of invoice copies printed"],
+					[
+						"show_parts_in_job_invoice",
+						"A JSON object controlling the default 'Show Parts in Invoice' toggle plus the fallback combined-line label, HSN, and GST rate used when parts are merged into one invoice line",
+					],
+					["markup_percent_over_cost", "Auto-calculates selling price = cost × (1 + markup%)"],
+					["post_data_to_accounts", "Enables accounting system integration (Post to Accounts)"],
+					[
+						"whatsapp_notifications",
+						"Turns outbound WhatsApp messages on or off, one switch per event (Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, Extended Warranty) — see 'Turning WhatsApp messages on or off' below",
+					],
+					[
+						"extended_warranty",
+						"Extended Warranty settings, in their own dialog. The Enabled switch shows or hides the whole add-on (the Custom menu); sending also needs the Extended Warranty switch above. The rest is which day-buckets get a reminder, the daily send cap, the phone and WhatsApp numbers printed in the customer message, the staff number that receives lead alerts, and the email notified",
+					],
+				],
+			},
+			{ type: "heading", text: "Turning WhatsApp messages on or off" },
+			{
+				type: "para",
+				text: "The whatsapp_notifications setting opens its own dialog instead of the usual text/JSON editor — a toggle for each of the five events: Job Intake Message, Job Completed, Job Delivery, Money Receipt, and Invoice. By default only Job Completed is switched on; the other four must be turned on deliberately before their screens will actually send anything. See 'WhatsApp Integration' for what each message contains and where it is sent from.",
+			},
+			{
+				type: "note",
+				text: "Switching an event off doesn't error when a matching action is used — it just skips sending, and the person clicking Send sees a message saying that event is currently switched off, not a failure.",
+			},
+			{ type: "heading", text: "Extended Warranty settings" },
+			{
+				type: "para",
+				text: "The extended_warranty setting also opens its own dialog rather than the usual text/JSON editor. Enabled is the master switch for the whole add-on. Auto send is not in effect yet — reminders are sent from the Due tab. Reminder days before expiry is the list of stages (30 days, 7 days and on expiry by default); add or remove a bucket here and the Due tab, the funnel and the message log all follow it. Daily send cap limits how many messages a single run may send, per business unit. The three numbers are the contact phone and WhatsApp number printed in the customer's message, and the staff number that receives lead alerts.",
+			},
+		],
+		faqs: [
+			{
+				q: "How does markup_percent_over_cost work?",
+				a: "When a part is added to a job, if no selling price is set on the part master, selling price is calculated as: Cost Price × (1 + markup% / 100). For example, 20% markup on ₹100 cost = ₹120 selling price.",
+			},
+			{
+				q: "Why can't I edit some settings?",
+				a: "Some settings are marked as non-editable (system-fixed). These are managed by the platform administrator and cannot be changed from the UI.",
+			},
+			{
+				q: "I clicked send but no WhatsApp message went out, and there's no error — why?",
+				a: "Check Configurations → App Settings → whatsapp_notifications. That event's toggle may be switched off — turn it on to resume sending.",
+			},
+		],
+	},
 
-    {
-        id: "app-settings",
-        category: "Configurations",
-        title: "App Settings",
-        summary: "Key application settings controlling defaults, print copies, and integrations.",
-        tags: ["app settings", "default GST rate", "default HSN", "markup", "print copies", "post to accounts", "force GST", "whatsapp_notifications", "whatsapp toggle"],
-        content: [
-            { type: "para", text: "Configurations → App Settings. These settings control system-wide defaults." },
-            { type: "table", headers: ["Setting", "What It Controls"], rows: [
-                ["default_gst_rate",                       "GST rate used when a part has no specific GST rate"],
-                ["default_hsn_for_spare_part",             "Fallback HSN code for parts without a specific HSN"],
-                ["default_hsn_for_service_charge",         "Fallback HSN for service charge lines"],
-                ["no_of_job_sheets_per_print",             "Number of job sheet copies printed per job"],
-                ["no_of_job_invoices_per_print",           "Number of invoice copies printed"],
-                ["show_parts_in_job_invoice",               "A JSON object controlling the default 'Show Parts in Invoice' toggle plus the fallback combined-line label, HSN, and GST rate used when parts are merged into one invoice line"],
-                ["markup_percent_over_cost",               "Auto-calculates selling price = cost × (1 + markup%)"],
-                ["post_data_to_accounts",                  "Enables accounting system integration (Post to Accounts)"],
-                ["whatsapp_notifications",                 "Turns outbound WhatsApp messages on or off, one switch per event (Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, Extended Warranty) — see 'Turning WhatsApp messages on or off' below"],
-                ["extended_warranty_notifications_enabled", "Shows or hides the whole Extended Warranty add-on (the Custom menu). Sending also needs the EXTENDED_WARRANTY switch above — see 'Extended Warranty Reminders'"],
-                ["extended_warranty",                      "Extended Warranty settings: which day-buckets get a reminder, the daily send cap, the phone and WhatsApp numbers printed in the customer message, the staff number that receives lead alerts, and the email notified"],
-            ]},
-            { type: "heading", text: "Turning WhatsApp messages on or off" },
-            { type: "para", text: "The whatsapp_notifications setting opens its own dialog instead of the usual text/JSON editor — a toggle for each of the five events: Job Intake Message, Job Completed, Job Delivery, Money Receipt, and Invoice. By default only Job Completed is switched on; the other four must be turned on deliberately before their screens will actually send anything. See 'WhatsApp Integration' for what each message contains and where it is sent from." },
-            { type: "note", text: "Switching an event off doesn't error when a matching action is used — it just skips sending, and the person clicking Send sees a message saying that event is currently switched off, not a failure." },
-        ],
-        faqs: [
-            { q: "How does markup_percent_over_cost work?", a: "When a part is added to a job, if no selling price is set on the part master, selling price is calculated as: Cost Price × (1 + markup% / 100). For example, 20% markup on ₹100 cost = ₹120 selling price." },
-            { q: "Why can't I edit some settings?", a: "Some settings are marked as non-editable (system-fixed). These are managed by the platform administrator and cannot be changed from the UI." },
-            { q: "I clicked send but no WhatsApp message went out, and there's no error — why?", a: "Check Configurations → App Settings → whatsapp_notifications. That event's toggle may be switched off — turn it on to resume sending." },
-        ],
-    },
+	{
+		id: "extended-warranty",
+		category: "WhatsApp",
+		title: "Extended Warranty Reminders",
+		summary: "Remind customers whose warranty is about to end, and follow up the ones who are interested.",
+		tags: ["extended warranty", "warranty", "reminder", "custom", "add-on", "lead", "follow up", "renewal"],
+		content: [
+			{
+				type: "para",
+				text: "Custom → Extended Warranty. This is for device owners whose warranty data comes from the manufacturer's own system rather than from a job — people who are not in your customer master and never will be. You enter them here, the system WhatsApps them before their warranty ends, and anyone who taps 'I am interested' becomes a lead you can follow up and close.",
+			},
+			{ type: "heading", text: "Before it will send anything" },
+			{
+				type: "para",
+				text: "Two switches must both be on, and both start off. Configurations → App Settings → extended_warranty → Enabled shows the menu and the screens. Configurations → App Settings → whatsapp_notifications → Extended Warranty allows messages to actually go out. They are separate on purpose, so you can enter and check your list before a single message leaves.",
+			},
+			{
+				type: "para",
+				text: "Then open the extended_warranty setting and fill in your contact phone, your WhatsApp number, and the staff WhatsApp number that should receive lead alerts.",
+			},
+			{ type: "heading", text: "Adding records" },
+			{
+				type: "para",
+				text: "Customers tab → Add record. Enter the mobile first: if that number is already in your customer master or already has a warranty record, the rest of the form fills itself in. Name, mobile, brand and warranty end date are required; everything else is optional.",
+			},
+			{
+				type: "note",
+				text: "A warranty end date in the past is rejected. A record whose warranty has already lapsed can never enter a reminder window, so it would sit in the list doing nothing.",
+			},
+			{ type: "heading", text: "Sending reminders" },
+			{
+				type: "para",
+				text: "Due Reminders shows everyone who has fallen into a reminder bucket and not yet been sent that one, grouped by bucket (30 days, 7 days, on expiry by default). Tick the ones you want and click Send reminders. Rows with an invalid mobile are shown but cannot be ticked.",
+			},
+			{
+				type: "note",
+				text: "Each customer gets each bucket once. If two people click Send at the same moment, only one message goes out. A message that failed can be sent again; one that succeeded cannot be duplicated.",
+			},
+			{ type: "heading", text: "What the customer sees" },
+			{
+				type: "para",
+				text: "A WhatsApp message naming their brand, product and expiry date, with a button reading 'I'm interested — contact me'. Tapping it opens a short page where they choose whether they would like a call or a WhatsApp reply and can add a note. There is also an unsubscribe link — anyone who uses it drops out of the due list permanently.",
+			},
+			{ type: "heading", text: "Two ways to follow up" },
+			{
+				type: "para",
+				text: "The moment a customer taps that button, two things happen at once. Your staff WhatsApp number gets the full lead — name, mobile, address, device, expiry, what they prefer and their own note — with an 'Open in Service+' button that takes you straight to that customer's follow-up box. At the same time the lead appears in the Interest tab and on the notification bell.",
+			},
+			{
+				type: "para",
+				text: "Both routes end in the same place, so it does not matter which you use. Record what you did (called, WhatsApped, visited) and where it stands — still following up, converted, not interested, or unreachable. Every action is kept, so a second and third follow-up build a history rather than overwriting the first.",
+			},
+			{
+				type: "note",
+				text: "If the staff WhatsApp alert fails to send, the lead is still safe — it is saved before any alert is attempted. The Interest tab shows the alert's status per lead and offers a Resend button.",
+			},
+			{ type: "heading", text: "Reading the dashboard" },
+			{
+				type: "para",
+				text: "The Dashboard tab shows how many are due, how many were messaged, how many replied, and how many converted. Every number and every bar is clickable — click one to see exactly which customers it counts.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why can't I see the Custom menu?",
+				a: "Either the add-on is switched off (Configurations → App Settings → extended_warranty → Enabled), or your role does not have the Extended Warranty access right. The Custom tab is hidden entirely rather than shown greyed out when there is nothing in it.",
+			},
+			{
+				q: "I clicked Send and some rows said 'skipped' — why?",
+				a: "A skipped row either has no valid mobile number, or that bucket had already been sent to that customer. Neither is an error.",
+			},
+			{
+				q: "Can I reply to the staff alert on WhatsApp to close the lead?",
+				a: "No. Use the 'Open in Service+' button on the alert instead — a WhatsApp reply carries nothing that tells us which lead or which branch it belongs to.",
+			},
+			{
+				q: "The customer says they never got the message.",
+				a: "Check the Message Log tab. It shows the delivery status for every send — Sent, Delivered, Read or Failed, with the reason on a failure.",
+			},
+		],
+	},
 
-    {
-        id: "extended-warranty",
-        category: "WhatsApp",
-        title: "Extended Warranty Reminders",
-        summary: "Remind customers whose warranty is about to end, and follow up the ones who are interested.",
-        tags: ["extended warranty", "warranty", "reminder", "custom", "add-on", "lead", "follow up", "renewal"],
-        content: [
-            { type: "para", text: "Custom → Extended Warranty. This is for device owners whose warranty data comes from the manufacturer's own system rather than from a job — people who are not in your customer master and never will be. You enter them here, the system WhatsApps them before their warranty ends, and anyone who taps 'I am interested' becomes a lead you can follow up and close." },
-            { type: "heading", text: "Before it will send anything" },
-            { type: "para", text: "Two switches must both be on, and both start off. Configurations → App Settings → extended_warranty_notifications_enabled shows the menu and the screens. Configurations → App Settings → whatsapp_notifications → Extended Warranty allows messages to actually go out. They are separate on purpose, so you can enter and check your list before a single message leaves." },
-            { type: "para", text: "Then open the extended_warranty setting and fill in your contact phone, your WhatsApp number, and the staff WhatsApp number that should receive lead alerts." },
-            { type: "heading", text: "Adding records" },
-            { type: "para", text: "Customers tab → Add record. Enter the mobile first: if that number is already in your customer master or already has a warranty record, the rest of the form fills itself in. Name, mobile, brand and warranty end date are required; everything else is optional." },
-            { type: "note", text: "A warranty end date in the past is rejected. A record whose warranty has already lapsed can never enter a reminder window, so it would sit in the list doing nothing." },
-            { type: "heading", text: "Sending reminders" },
-            { type: "para", text: "Due Reminders shows everyone who has fallen into a reminder bucket and not yet been sent that one, grouped by bucket (30 days, 7 days, on expiry by default). Tick the ones you want and click Send reminders. Rows with an invalid mobile are shown but cannot be ticked." },
-            { type: "note", text: "Each customer gets each bucket once. If two people click Send at the same moment, only one message goes out. A message that failed can be sent again; one that succeeded cannot be duplicated." },
-            { type: "heading", text: "What the customer sees" },
-            { type: "para", text: "A WhatsApp message naming their brand, product and expiry date, with a button reading 'I'm interested — contact me'. Tapping it opens a short page where they choose whether they would like a call or a WhatsApp reply and can add a note. There is also an unsubscribe link — anyone who uses it drops out of the due list permanently." },
-            { type: "heading", text: "Two ways to follow up" },
-            { type: "para", text: "The moment a customer taps that button, two things happen at once. Your staff WhatsApp number gets the full lead — name, mobile, address, device, expiry, what they prefer and their own note — with an 'Open in Service+' button that takes you straight to that customer's follow-up box. At the same time the lead appears in the Interest tab and on the notification bell." },
-            { type: "para", text: "Both routes end in the same place, so it does not matter which you use. Record what you did (called, WhatsApped, visited) and where it stands — still following up, converted, not interested, or unreachable. Every action is kept, so a second and third follow-up build a history rather than overwriting the first." },
-            { type: "note", text: "If the staff WhatsApp alert fails to send, the lead is still safe — it is saved before any alert is attempted. The Interest tab shows the alert's status per lead and offers a Resend button." },
-            { type: "heading", text: "Reading the dashboard" },
-            { type: "para", text: "The Dashboard tab shows how many are due, how many were messaged, how many replied, and how many converted. Every number and every bar is clickable — click one to see exactly which customers it counts." },
-        ],
-        faqs: [
-            { q: "Why can't I see the Custom menu?", a: "Either the add-on is switched off (Configurations → App Settings → extended_warranty_notifications_enabled), or your role does not have the Extended Warranty access right. The Custom tab is hidden entirely rather than shown greyed out when there is nothing in it." },
-            { q: "I clicked Send and some rows said 'skipped' — why?", a: "A skipped row either has no valid mobile number, or that bucket had already been sent to that customer. Neither is an error." },
-            { q: "Can I reply to the staff alert on WhatsApp to close the lead?", a: "No. Use the 'Open in Service+' button on the alert instead — a WhatsApp reply carries nothing that tells us which lead or which branch it belongs to." },
-            { q: "The customer says they never got the message.", a: "Check the Message Log tab. It shows the delivery status for every send — Sent, Delivered, Read or Failed, with the reason on a failure." },
-        ],
-    },
+	{
+		id: "gst-checklist",
+		category: "Configurations",
+		title: "GST Configuration Checklist",
+		summary: "Everything to set up before issuing your first GST invoice.",
+		tags: ["GST", "GSTIN", "HSN", "checklist", "configuration", "invoice", "setup"],
+		content: [
+			{ type: "para", text: "Before your first GST invoice, verify all these items are configured." },
+			{
+				type: "steps",
+				items: [
+					"Division → GSTIN field filled (15-character India GST format: two digits + five letters + four digits + letter + digit + Z + alphanumeric).",
+					"Division → State is set (required for supply state code on invoices).",
+					"Parts Master → HSN code set on each part (or Default HSN for Spare Part set in App Settings as fallback).",
+					"Parts Master → GST Rate set on each part (or Default GST Rate set in App Settings as fallback).",
+					"Additional Charges Master → HSN set for each service charge type.",
+					"Document Sequence → SERVICE_INVOICE prefix configured.",
+					"Document Sequence → MONEY_RECEIPT prefix configured.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "What is the GSTIN format?",
+				a: "15 characters: 2-digit state code + 5-letter PAN + 4-digit sequential number + 1 letter + 1 digit + 'Z' + 1 alphanumeric check digit. Example: 27AAPFU0939F1ZV",
+			},
+			{
+				q: "Where do I find my GSTIN?",
+				a: "On your GST registration certificate, on previous GST invoices issued to you, or on the GST portal at gstin.gov.in.",
+			},
+			{
+				q: "What HSN code should I use for general service charges?",
+				a: "SAC code 9987 is commonly used for repair and maintenance services. Consult your CA for the correct code for your specific service type.",
+			},
+		],
+	},
 
-    {
-        id: "gst-checklist",
-        category: "Configurations",
-        title: "GST Configuration Checklist",
-        summary: "Everything to set up before issuing your first GST invoice.",
-        tags: ["GST", "GSTIN", "HSN", "checklist", "configuration", "invoice", "setup"],
-        content: [
-            { type: "para", text: "Before your first GST invoice, verify all these items are configured." },
-            { type: "steps", items: [
-                "Division → GSTIN field filled (15-character India GST format: two digits + five letters + four digits + letter + digit + Z + alphanumeric).",
-                "Division → State is set (required for supply state code on invoices).",
-                "Parts Master → HSN code set on each part (or Default HSN for Spare Part set in App Settings as fallback).",
-                "Parts Master → GST Rate set on each part (or Default GST Rate set in App Settings as fallback).",
-                "Additional Charges Master → HSN set for each service charge type.",
-                "Document Sequence → SERVICE_INVOICE prefix configured.",
-                "Document Sequence → MONEY_RECEIPT prefix configured.",
-            ]},
-        ],
-        faqs: [
-            { q: "What is the GSTIN format?", a: "15 characters: 2-digit state code + 5-letter PAN + 4-digit sequential number + 1 letter + 1 digit + 'Z' + 1 alphanumeric check digit. Example: 27AAPFU0939F1ZV" },
-            { q: "Where do I find my GSTIN?", a: "On your GST registration certificate, on previous GST invoices issued to you, or on the GST portal at gstin.gov.in." },
-            { q: "What HSN code should I use for general service charges?", a: "SAC code 9987 is commonly used for repair and maintenance services. Consult your CA for the correct code for your specific service type." },
-        ],
-    },
+	// ── Category 6: Reports ──────────────────────────────────────────────────
 
-    // ── Category 6: Reports ──────────────────────────────────────────────────
+	{
+		id: "job-reports",
+		category: "Reports",
+		title: "Job Reports",
+		summary: "Reports for jobs received/repaired/delivered, aging, and transaction history.",
+		tags: [
+			"job reports",
+			"received",
+			"repaired",
+			"delivered",
+			"aging",
+			"pipeline",
+			"ledger",
+			"trend",
+			"event tracking",
+			"jobs summary",
+			"combined",
+			"combined chart",
+			"graph",
+			"revenue",
+			"profit",
+		],
+		content: [
+			{
+				type: "table",
+				headers: ["Report", "What It Shows", "Best Used For"],
+				rows: [
+					[
+						"Event Tracking",
+						"Counts of Received / Status Change / Finalize / Deliver events, across fixed periods (Today/This Week/.../YTD)",
+						"Monitor job-lifecycle activity volume over time",
+					],
+					[
+						"Jobs Summary",
+						"Six tabs — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Combined, Combined Chart, Job Transactions — each one row per product category (Job Transactions: one row per job status, in workflow order) and one column per fixed period (Today/This Week/.../YTD); each cell shows the total with an orange Warranty / emerald Out-of-Warranty split below it, plus a Total row summing each period across categories",
+						"Monitor inflow, repair output, delivery volume, and status-change activity",
+					],
+					[
+						"Jobs Summary → Combined",
+						"The fourth tab: received, repaired (OK) and delivered (OK) merged into one grid — three stage rows under every product category, same fixed period columns, with Warranty / Out-of-Warranty split plus revenue and profit toggles (revenue and profit appear on the Jobs Delivered (OK) row only), and three TOTAL rows at the bottom",
+						"Compare inflow vs. repair output vs. delivery and earnings in a single view",
+					],
+					[
+						"Jobs Summary → Combined Chart",
+						"The fifth tab: the same combined figures drawn as charts — KPI cards for the selected period, grouped bars per period (all categories together) and grouped bars per product category for a period you pick, with revenue and profit as lines on a right-hand ₹ axis",
+						"Spot trends and category outliers at a glance",
+					],
+					[
+						"Delivered Jobs - Detailed",
+						"Per-job delivery info with amounts, custom date range (default this month)",
+						"Customer billing audit",
+					],
+					[
+						"Job Transaction Ledger",
+						"Full status-change history per job, custom date range (default this month)",
+						"Dispute resolution, audit trail",
+					],
+					["Job Pipeline / Aging", "How long jobs sit in each status", "Identify operational bottlenecks"],
+					[
+						"Job Status Trend",
+						"Distribution of statuses over a selectable trailing period (3/6/12/24 months)",
+						"Operations health monitoring",
+					],
+				],
+			},
+			{
+				type: "note",
+				text: "Only Delivered Jobs – Detailed and Job Transaction Ledger have a date-range picker (defaulting to the current month). The other reports show fixed standard views — bucket matrices (Today/This Week/.../YTD) or a trailing-months selector — with no custom date range.",
+			},
+			{ type: "heading", text: "Drilling Down to Job Lists" },
+			{
+				type: "para",
+				text: "On Event Tracking and every tab of Jobs Summary except Combined Chart, any non-zero cell is clickable — it opens a dialog listing the individual jobs behind that count, titled with the exact report and period it came from.",
+			},
+			{
+				type: "table",
+				headers: ["Report / Tab", "Financials shown in the job list?"],
+				rows: [
+					[
+						"Event Tracking — Finalize / Deliver",
+						"Yes — Cost, Sale and Profit columns, with a totals footer",
+					],
+					[
+						"Event Tracking — Received / Status Change",
+						"No — those events happen before a job is costed and invoiced",
+					],
+					["Jobs Summary — Jobs Delivered (OK)", "Yes — Cost, Sale, Profit"],
+					["Jobs Summary — Jobs Received / Repaired (OK) / Job Transactions", "No"],
+					[
+						"Jobs Summary — Combined",
+						"Yes, on the Jobs Delivered (OK) row only; no on the Received/Repaired rows",
+					],
+				],
+			},
+			{
+				type: "steps",
+				items: [
+					"Click any non-empty cell to open its job list.",
+					"Click any row in that list to open Job Final Info for the full parts/charges/cost/sale breakdown of that job.",
+					"Close the job list to return to the report grid.",
+				],
+			},
+			{
+				type: "note",
+				text: "Combined Chart has no drill-down — it's a pure visualization. Use the Combined (table) tab for clickable cells.",
+			},
+		],
+		faqs: [
+			{
+				q: "How do I see how long a specific job has been open?",
+				a: "Run Job Pipeline / Aging. It shows each job's age in days. Alternatively, the Job Transaction Ledger shows all status changes with timestamps for a specific job.",
+			},
+			{
+				q: "Can I export job reports?",
+				a: "Yes. Most reports have an Export button that downloads a PDF or XLSX file.",
+			},
+			{
+				q: "Why doesn't a job appear in the delivered report?",
+				a: "The job must have completed the Deliver Job workflow (status = DELIVERED_OK or DELIVERED_NOT_OK) within the selected date range.",
+			},
+			{
+				q: 'What counts as an "event" in Event Tracking?',
+				a: "Received (job created), Finalize (Final a Job step), Deliver (Deliver Job — OK or Not OK), and Status Change (any other intermediate status update). Return, Cancel, and Disposed are intentionally not tracked in this report.",
+			},
+			{
+				q: "Does Event Tracking's Received count match Jobs Summary and the Dashboard?",
+				a: "Yes — Received in Event Tracking, Jobs Summary, and the Dashboard's job counts are all based on the job's creation date (Job Date), so all three always agree for the same period.",
+			},
+			{
+				q: "Can I see the individual jobs behind a report cell?",
+				a: "Yes — on Event Tracking and on the Received, Repaired (OK), Delivered (OK), Job Transactions and Combined tabs of Jobs Summary, click any non-zero cell to open a job list scoped to that exact category and period. Combined Chart has no drill-down since it's a chart, not a grid.",
+			},
+			{
+				q: "Why do some drill-down lists show Cost/Sale/Profit and others don't?",
+				a: "Those columns only appear where the underlying jobs have been costed and invoiced — Finalize/Deliver events in Event Tracking, and the Delivered (OK) tab (and the Delivered row of Combined) in Jobs Summary. Received, Status Change, Repaired (OK) and Job Transactions drill-downs list the jobs without financials.",
+			},
+			{
+				q: "Where do I see received, repaired and delivered jobs together?",
+				a: "Open Jobs Summary and pick the fourth tab, Combined. It stacks the three stages as rows under each product category, over the same fixed period columns, and its figures match the individual tabs exactly.",
+			},
+			{
+				q: "Is there a chart version of the Combined tab?",
+				a: "Yes — the Combined Chart tab, right after it. Bars show received / repaired / delivered counts, and Revenue and Profit toggle on as lines against a right-hand ₹ axis. The period selector in the header controls the per-category chart and the KPI cards; the first chart always shows every period.",
+			},
+			{
+				q: "Why is revenue or profit blank on the received and repaired rows of the Combined tab?",
+				a: "Revenue and profit are booked from the job invoice at delivery, so they exist only for delivered jobs. The Combined tab therefore shows them on the Jobs Delivered (OK) row only.",
+			},
+		],
+	},
 
-    {
-        id: "job-reports",
-        category: "Reports",
-        title: "Job Reports",
-        summary: "Reports for jobs received/repaired/delivered, aging, and transaction history.",
-        tags: ["job reports", "received", "repaired", "delivered", "aging", "pipeline", "ledger", "trend", "event tracking", "jobs summary", "combined", "combined chart", "graph", "revenue", "profit"],
-        content: [
-            { type: "table", headers: ["Report", "What It Shows", "Best Used For"], rows: [
-                ["Event Tracking",           "Counts of Received / Status Change / Finalize / Deliver events, across fixed periods (Today/This Week/.../YTD)", "Monitor job-lifecycle activity volume over time"],
-                ["Jobs Summary",             "Six tabs — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Combined, Combined Chart, Job Transactions — each one row per product category (Job Transactions: one row per job status, in workflow order) and one column per fixed period (Today/This Week/.../YTD); each cell shows the total with an orange Warranty / emerald Out-of-Warranty split below it, plus a Total row summing each period across categories", "Monitor inflow, repair output, delivery volume, and status-change activity"],
-                ["Jobs Summary → Combined",  "The fourth tab: received, repaired (OK) and delivered (OK) merged into one grid — three stage rows under every product category, same fixed period columns, with Warranty / Out-of-Warranty split plus revenue and profit toggles (revenue and profit appear on the Jobs Delivered (OK) row only), and three TOTAL rows at the bottom", "Compare inflow vs. repair output vs. delivery and earnings in a single view"],
-                ["Jobs Summary → Combined Chart", "The fifth tab: the same combined figures drawn as charts — KPI cards for the selected period, grouped bars per period (all categories together) and grouped bars per product category for a period you pick, with revenue and profit as lines on a right-hand ₹ axis", "Spot trends and category outliers at a glance"],
-                ["Delivered Jobs - Detailed","Per-job delivery info with amounts, custom date range (default this month)", "Customer billing audit"],
-                ["Job Transaction Ledger",   "Full status-change history per job, custom date range (default this month)", "Dispute resolution, audit trail"],
-                ["Job Pipeline / Aging",     "How long jobs sit in each status",                "Identify operational bottlenecks"],
-                ["Job Status Trend",         "Distribution of statuses over a selectable trailing period (3/6/12/24 months)", "Operations health monitoring"],
-            ]},
-            { type: "note", text: "Only Delivered Jobs – Detailed and Job Transaction Ledger have a date-range picker (defaulting to the current month). The other reports show fixed standard views — bucket matrices (Today/This Week/.../YTD) or a trailing-months selector — with no custom date range." },
-            { type: "heading", text: "Drilling Down to Job Lists" },
-            { type: "para", text: "On Event Tracking and every tab of Jobs Summary except Combined Chart, any non-zero cell is clickable — it opens a dialog listing the individual jobs behind that count, titled with the exact report and period it came from." },
-            { type: "table", headers: ["Report / Tab", "Financials shown in the job list?"], rows: [
-                ["Event Tracking — Finalize / Deliver",                              "Yes — Cost, Sale and Profit columns, with a totals footer"],
-                ["Event Tracking — Received / Status Change",                        "No — those events happen before a job is costed and invoiced"],
-                ["Jobs Summary — Jobs Delivered (OK)",                               "Yes — Cost, Sale, Profit"],
-                ["Jobs Summary — Jobs Received / Repaired (OK) / Job Transactions",  "No"],
-                ["Jobs Summary — Combined",                                          "Yes, on the Jobs Delivered (OK) row only; no on the Received/Repaired rows"],
-            ]},
-            { type: "steps", items: [
-                "Click any non-empty cell to open its job list.",
-                "Click any row in that list to open Job Final Info for the full parts/charges/cost/sale breakdown of that job.",
-                "Close the job list to return to the report grid.",
-            ]},
-            { type: "note", text: "Combined Chart has no drill-down — it's a pure visualization. Use the Combined (table) tab for clickable cells." },
-        ],
-        faqs: [
-            { q: "How do I see how long a specific job has been open?", a: "Run Job Pipeline / Aging. It shows each job's age in days. Alternatively, the Job Transaction Ledger shows all status changes with timestamps for a specific job." },
-            { q: "Can I export job reports?", a: "Yes. Most reports have an Export button that downloads a PDF or XLSX file." },
-            { q: "Why doesn't a job appear in the delivered report?", a: "The job must have completed the Deliver Job workflow (status = DELIVERED_OK or DELIVERED_NOT_OK) within the selected date range." },
-            { q: "What counts as an \"event\" in Event Tracking?", a: "Received (job created), Finalize (Final a Job step), Deliver (Deliver Job — OK or Not OK), and Status Change (any other intermediate status update). Return, Cancel, and Disposed are intentionally not tracked in this report." },
-            { q: "Does Event Tracking's Received count match Jobs Summary and the Dashboard?", a: "Yes — Received in Event Tracking, Jobs Summary, and the Dashboard's job counts are all based on the job's creation date (Job Date), so all three always agree for the same period." },
-            { q: "Can I see the individual jobs behind a report cell?", a: "Yes — on Event Tracking and on the Received, Repaired (OK), Delivered (OK), Job Transactions and Combined tabs of Jobs Summary, click any non-zero cell to open a job list scoped to that exact category and period. Combined Chart has no drill-down since it's a chart, not a grid." },
-            { q: "Why do some drill-down lists show Cost/Sale/Profit and others don't?", a: "Those columns only appear where the underlying jobs have been costed and invoiced — Finalize/Deliver events in Event Tracking, and the Delivered (OK) tab (and the Delivered row of Combined) in Jobs Summary. Received, Status Change, Repaired (OK) and Job Transactions drill-downs list the jobs without financials." },
-            { q: "Where do I see received, repaired and delivered jobs together?", a: "Open Jobs Summary and pick the fourth tab, Combined. It stacks the three stages as rows under each product category, over the same fixed period columns, and its figures match the individual tabs exactly." },
-            { q: "Is there a chart version of the Combined tab?", a: "Yes — the Combined Chart tab, right after it. Bars show received / repaired / delivered counts, and Revenue and Profit toggle on as lines against a right-hand ₹ axis. The period selector in the header controls the per-category chart and the KPI cards; the first chart always shows every period." },
-            { q: "Why is revenue or profit blank on the received and repaired rows of the Combined tab?", a: "Revenue and profit are booked from the job invoice at delivery, so they exist only for delivered jobs. The Combined tab therefore shows them on the Jobs Delivered (OK) row only." },
-        ],
-    },
+	{
+		id: "financial-reports",
+		category: "Reports",
+		title: "Financial Reports",
+		summary: "Profit, revenue, cash register, sales, and GST summary reports.",
+		tags: ["financial", "profit", "revenue", "cash register", "sales", "GST summary", "CGST", "SGST", "IGST"],
+		content: [
+			{
+				type: "table",
+				headers: ["Report", "What It Shows"],
+				rows: [
+					["Profit Summary", "Revenue minus cost by period — shows gross profit"],
+					["Revenue Report", "Job Invoice vs Sales Invoice revenue, with a monthly revenue trend"],
+					["Cash Register", "Log of all money-receipt payments, by mode (Cash, Cheque, UPI, Transfer, Card)"],
+					["Sales Report", "Parts sold directly via Sales Entry"],
+					["GST Summary", "CGST, SGST, IGST collected, by month — for GST return filing"],
+				],
+			},
+			{ type: "heading", text: "Using GST Summary for GST Returns" },
+			{
+				type: "steps",
+				items: [
+					"Go to Reports → Financial Reports → GST Summary.",
+					"Set the date range to the GST return period (monthly or quarterly).",
+					"The report shows CGST, SGST, IGST, and the aggregate taxable amount, broken down by month.",
+					"Use these figures to fill your GSTR-1 and GSTR-3B returns.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "How do I prepare data for my GST return?",
+				a: "Financial Reports → GST Summary → set the return period date range. The report shows CGST, SGST, IGST, and the aggregate taxable amount, broken down by month (not by GST rate).",
+			},
+			{
+				q: "Why does Profit show as negative?",
+				a: "Profit = Selling Price − Cost Price. If cost prices are set higher than selling prices on some jobs, or if cost data is incomplete, profit can appear negative. Check the individual job finalization data.",
+			},
+			{
+				q: "What is the Cash Register report?",
+				a: "A day-by-day log of all money receipts received. Useful for daily cash reconciliation and tracking payment modes (Cash, Cheque, Transfer).",
+			},
+		],
+	},
 
-    {
-        id: "financial-reports",
-        category: "Reports",
-        title: "Financial Reports",
-        summary: "Profit, revenue, cash register, sales, and GST summary reports.",
-        tags: ["financial", "profit", "revenue", "cash register", "sales", "GST summary", "CGST", "SGST", "IGST"],
-        content: [
-            { type: "table", headers: ["Report", "What It Shows"], rows: [
-                ["Profit Summary",  "Revenue minus cost by period — shows gross profit"],
-                ["Revenue Report",  "Job Invoice vs Sales Invoice revenue, with a monthly revenue trend"],
-                ["Cash Register",   "Log of all money-receipt payments, by mode (Cash, Cheque, UPI, Transfer, Card)"],
-                ["Sales Report",    "Parts sold directly via Sales Entry"],
-                ["GST Summary",     "CGST, SGST, IGST collected, by month — for GST return filing"],
-            ]},
-            { type: "heading", text: "Using GST Summary for GST Returns" },
-            { type: "steps", items: [
-                "Go to Reports → Financial Reports → GST Summary.",
-                "Set the date range to the GST return period (monthly or quarterly).",
-                "The report shows CGST, SGST, IGST, and the aggregate taxable amount, broken down by month.",
-                "Use these figures to fill your GSTR-1 and GSTR-3B returns.",
-            ]},
-        ],
-        faqs: [
-            { q: "How do I prepare data for my GST return?", a: "Financial Reports → GST Summary → set the return period date range. The report shows CGST, SGST, IGST, and the aggregate taxable amount, broken down by month (not by GST rate)." },
-            { q: "Why does Profit show as negative?", a: "Profit = Selling Price − Cost Price. If cost prices are set higher than selling prices on some jobs, or if cost data is incomplete, profit can appear negative. Check the individual job finalization data." },
-            { q: "What is the Cash Register report?", a: "A day-by-day log of all money receipts received. Useful for daily cash reconciliation and tracking payment modes (Cash, Cheque, Transfer)." },
-        ],
-    },
+	{
+		id: "technician-reports",
+		category: "Reports",
+		title: "Technician Performance Reports",
+		summary: "Scorecard, productivity, and revenue attribution per technician.",
+		tags: ["technician", "performance", "scorecard", "productivity", "heatmap", "revenue"],
+		content: [
+			{
+				type: "table",
+				headers: ["Report", "What It Shows"],
+				rows: [
+					["Technician Scorecard", "Jobs assigned, completed, and delivered per technician"],
+					["Repaired vs Delivered", "What percentage of repaired jobs are actually delivered"],
+					["Profit & Revenue Attribution", "Revenue and profit attributed to each technician"],
+					["Productivity Heatmap", "Time-based activity patterns — busiest days and hours"],
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "How is revenue attributed to a technician?",
+				a: "Revenue is attributed to whichever technician is currently assigned on the job record — not a snapshot from delivery time. Reassigning a technician after delivery moves that job's historical revenue to the new technician.",
+			},
+			{
+				q: "What does the Productivity Heatmap show?",
+				a: "A calendar-style grid showing which days and hours have the most job completions — useful for staffing decisions.",
+			},
+		],
+	},
 
-    {
-        id: "technician-reports",
-        category: "Reports",
-        title: "Technician Performance Reports",
-        summary: "Scorecard, productivity, and revenue attribution per technician.",
-        tags: ["technician", "performance", "scorecard", "productivity", "heatmap", "revenue"],
-        content: [
-            { type: "table", headers: ["Report", "What It Shows"], rows: [
-                ["Technician Scorecard",       "Jobs assigned, completed, and delivered per technician"],
-                ["Repaired vs Delivered",      "What percentage of repaired jobs are actually delivered"],
-                ["Profit & Revenue Attribution","Revenue and profit attributed to each technician"],
-                ["Productivity Heatmap",       "Time-based activity patterns — busiest days and hours"],
-            ]},
-        ],
-        faqs: [
-            { q: "How is revenue attributed to a technician?", a: "Revenue is attributed to whichever technician is currently assigned on the job record — not a snapshot from delivery time. Reassigning a technician after delivery moves that job's historical revenue to the new technician." },
-            { q: "What does the Productivity Heatmap show?", a: "A calendar-style grid showing which days and hours have the most job completions — useful for staffing decisions." },
-        ],
-    },
+	{
+		id: "technician-profit-report",
+		category: "Reports",
+		title: "Technician Profit Report",
+		summary:
+			"Technician × month matrix of jobs delivered OK, profit, and sale, for a selectable fiscal year — with per-job drill-down.",
+		tags: [
+			"profit reports",
+			"technician profit report",
+			"profit",
+			"sale",
+			"fiscal year",
+			"FY",
+			"delivered OK",
+			"drill down",
+			"GST",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Reports → Profit Reports → Technician Profit Report. Rows are technicians; columns are the 12 months of a fiscal year (April → March), picked from the Fiscal Year selector in the toolbar.",
+			},
+			{ type: "heading", text: "Reading a Cell" },
+			{
+				type: "table",
+				headers: ["Figure", "Meaning"],
+				rows: [
+					["Top number (bold)", "Count of jobs Delivered OK for that technician in that month"],
+					["Middle number (bold, green)", "Profit — pre-tax sale amount minus parts cost minus charges cost"],
+					[
+						"Bottom number in ( ), light",
+						"Sale — the job's pre-tax invoice amount (GST excluded from both figures)",
+					],
+				],
+			},
+			{
+				type: "note",
+				text: "Only jobs with a non-zero invoice amount count. A cell shows '—' when the technician had no qualifying delivered jobs that month. Row and column totals, and a grand total, are shown alongside the grid.",
+			},
+			{ type: "heading", text: "Drilling Down" },
+			{
+				type: "steps",
+				items: [
+					"Click any non-empty cell to open the job list for that technician and month.",
+					"The list shows delivery date, job no, customer, sale, and profit for every qualifying job.",
+					"Click any row in that list to open Job Final Info for the full parts/charges/cost/sale breakdown of that job.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Why is Profit sometimes different from what I expect vs. the invoice amount shown elsewhere?",
+				a: "Profit and Sale here both use the job's pre-tax invoice amount, deliberately excluding GST — so GST rate changes never affect either figure. Other screens that show the GST-inclusive invoice total will differ from Sale by the GST amount.",
+			},
+			{
+				q: "Can I view a previous fiscal year?",
+				a: "Yes — use the Fiscal Year selector in the top toolbar; it lists the current FY and several prior years.",
+			},
+			{
+				q: "Why does a job I know was delivered not appear?",
+				a: "Either its invoice amount is ₹0 (excluded by design), or its delivery date falls outside the selected fiscal year.",
+			},
+		],
+	},
 
-    {
-        id: "technician-profit-report",
-        category: "Reports",
-        title: "Technician Profit Report",
-        summary: "Technician × month matrix of jobs delivered OK, profit, and sale, for a selectable fiscal year — with per-job drill-down.",
-        tags: ["profit reports", "technician profit report", "profit", "sale", "fiscal year", "FY", "delivered OK", "drill down", "GST"],
-        content: [
-            { type: "para", text: "Reports → Profit Reports → Technician Profit Report. Rows are technicians; columns are the 12 months of a fiscal year (April → March), picked from the Fiscal Year selector in the toolbar." },
-            { type: "heading", text: "Reading a Cell" },
-            { type: "table", headers: ["Figure", "Meaning"], rows: [
-                ["Top number (bold)",       "Count of jobs Delivered OK for that technician in that month"],
-                ["Middle number (bold, green)", "Profit — pre-tax sale amount minus parts cost minus charges cost"],
-                ["Bottom number in ( ), light", "Sale — the job's pre-tax invoice amount (GST excluded from both figures)"],
-            ]},
-            { type: "note", text: "Only jobs with a non-zero invoice amount count. A cell shows '—' when the technician had no qualifying delivered jobs that month. Row and column totals, and a grand total, are shown alongside the grid." },
-            { type: "heading", text: "Drilling Down" },
-            { type: "steps", items: [
-                "Click any non-empty cell to open the job list for that technician and month.",
-                "The list shows delivery date, job no, customer, sale, and profit for every qualifying job.",
-                "Click any row in that list to open Job Final Info for the full parts/charges/cost/sale breakdown of that job.",
-            ]},
-        ],
-        faqs: [
-            { q: "Why is Profit sometimes different from what I expect vs. the invoice amount shown elsewhere?", a: "Profit and Sale here both use the job's pre-tax invoice amount, deliberately excluding GST — so GST rate changes never affect either figure. Other screens that show the GST-inclusive invoice total will differ from Sale by the GST amount." },
-            { q: "Can I view a previous fiscal year?", a: "Yes — use the Fiscal Year selector in the top toolbar; it lists the current FY and several prior years." },
-            { q: "Why does a job I know was delivered not appear?", a: "Either its invoice amount is ₹0 (excluded by design), or its delivery date falls outside the selected fiscal year." },
-        ],
-    },
+	{
+		id: "inventory-reports",
+		category: "Reports",
+		title: "Inventory Reports",
+		summary: "Stock ledger, aging, slow movers, consumption, and reorder suggestions.",
+		tags: [
+			"inventory reports",
+			"stock ledger",
+			"aging",
+			"slow movers",
+			"consumption",
+			"reorder",
+			"movement",
+			"spare parts ledger",
+		],
+		content: [
+			{
+				type: "table",
+				headers: ["Report", "What It Shows"],
+				rows: [
+					["Stock Ledger", "All stock movements (in/out) for every part"],
+					["Spare Parts Ledger", "Opening → debits → credits → closing stock per part"],
+					["Spare Parts Aging", "How long stock has been sitting (5 age buckets)"],
+					["Slow Movers (> 1 year)", "Parts with no movement in 12+ months"],
+					["Parts Consumption Detailed", "Which parts were used in which service jobs"],
+					["Stock Movement Summary", "Aggregate in/out totals by period"],
+					["Reorder Suggestions", "Parts that need restocking based on consumption rate"],
+				],
+			},
+			{ type: "heading", text: "Spare Parts Aging Buckets" },
+			{
+				type: "bullets",
+				items: [
+					"0–30 days: Fresh stock",
+					"31–90 days: Normal",
+					"91–180 days: Moderate age",
+					"181–365 days: Getting old",
+					"> 365 days: Slow mover / consider write-off",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "How do I investigate an unexpected stock change?",
+				a: "Run Reports → Inventory → Stock Ledger for the specific part. Every movement is recorded with its date, transaction type (Purchase, Consumption, Adjustment, Transfer), and reference number.",
+			},
+			{
+				q: "What is a Slow Mover?",
+				a: "A part with no stock receipt (purchase/inflow) in the last 12+ months — this is based only on the last inbound movement, so a part with steady consumption but no recent purchase will still show as a Slow Mover. Review these for write-off, return to vendor, or reclassification.",
+			},
+			{
+				q: "How is Spare Parts Aging calculated?",
+				a: "Based on the 'Last In Date' — the last time stock was received (purchase/inflow). Outbound/consumption movement is not factored in, so aging reflects restocking recency, not overall activity.",
+			},
+		],
+	},
 
-    {
-        id: "inventory-reports",
-        category: "Reports",
-        title: "Inventory Reports",
-        summary: "Stock ledger, aging, slow movers, consumption, and reorder suggestions.",
-        tags: ["inventory reports", "stock ledger", "aging", "slow movers", "consumption", "reorder", "movement", "spare parts ledger"],
-        content: [
-            { type: "table", headers: ["Report", "What It Shows"], rows: [
-                ["Stock Ledger",               "All stock movements (in/out) for every part"],
-                ["Spare Parts Ledger",         "Opening → debits → credits → closing stock per part"],
-                ["Spare Parts Aging",          "How long stock has been sitting (5 age buckets)"],
-                ["Slow Movers (> 1 year)",     "Parts with no movement in 12+ months"],
-                ["Parts Consumption Detailed", "Which parts were used in which service jobs"],
-                ["Stock Movement Summary",     "Aggregate in/out totals by period"],
-                ["Reorder Suggestions",        "Parts that need restocking based on consumption rate"],
-            ]},
-            { type: "heading", text: "Spare Parts Aging Buckets" },
-            { type: "bullets", items: [
-                "0–30 days: Fresh stock",
-                "31–90 days: Normal",
-                "91–180 days: Moderate age",
-                "181–365 days: Getting old",
-                "> 365 days: Slow mover / consider write-off",
-            ]},
-        ],
-        faqs: [
-            { q: "How do I investigate an unexpected stock change?", a: "Run Reports → Inventory → Stock Ledger for the specific part. Every movement is recorded with its date, transaction type (Purchase, Consumption, Adjustment, Transfer), and reference number." },
-            { q: "What is a Slow Mover?", a: "A part with no stock receipt (purchase/inflow) in the last 12+ months — this is based only on the last inbound movement, so a part with steady consumption but no recent purchase will still show as a Slow Mover. Review these for write-off, return to vendor, or reclassification." },
-            { q: "How is Spare Parts Aging calculated?", a: "Based on the 'Last In Date' — the last time stock was received (purchase/inflow). Outbound/consumption movement is not factored in, so aging reflects restocking recency, not overall activity." },
-        ],
-    },
+	// ── Category 7: GST & Invoicing ──────────────────────────────────────────
 
-    // ── Category 7: GST & Invoicing ──────────────────────────────────────────
+	{
+		id: "gst-invoicing",
+		category: "GST & Invoicing",
+		title: "GST vs Non-GST: How It Works",
+		summary: "Understand the difference between GST and non-GST invoicing modes.",
+		tags: ["GST", "non-GST", "CGST", "SGST", "IGST", "invoice", "HSN", "tax", "division"],
+		content: [
+			{ type: "heading", text: "GST Division (GSTIN is filled)" },
+			{
+				type: "bullets",
+				items: [
+					"Service invoices break each line into: Taxable Amount + CGST + SGST (or IGST for inter-state).",
+					"HSN code is mandatory on every invoice line.",
+					"GST rate comes from the part master; falls back to the App Settings default if not set.",
+					"Force IGST option is available for inter-state supplies.",
+				],
+			},
+			{ type: "heading", text: "Non-GST Division (GSTIN is blank)" },
+			{
+				type: "bullets",
+				items: [
+					"Invoices show a single total amount — no tax breakdown.",
+					"HSN codes are not required.",
+					"All amounts are treated as the final price; no GST is calculated.",
+				],
+			},
+			{ type: "heading", text: "Switching modes mid-job" },
+			{
+				type: "para",
+				text: "You can change the division on a job right up until a service invoice is created. Once an invoice exists, the division is locked for that job. To switch after invoicing: delete the invoice first, change the division, then regenerate the invoice.",
+			},
+			{ type: "heading", text: "CGST vs SGST vs IGST" },
+			{
+				type: "table",
+				headers: ["Tax Type", "When Applied"],
+				rows: [
+					["CGST + SGST", "Default for intra-state supply (customer in the same state as your division)"],
+					[
+						"IGST",
+						"For inter-state supply (customer in a different state). Use 'Force IGST' checkbox on the finalization form.",
+					],
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Can the same job have both GST and non-GST charges?",
+				a: "No. A job is linked to one division, which is either GST or non-GST. All parts and charges on that job follow the same tax mode.",
+			},
+			{
+				q: "What if my customer is in a different state?",
+				a: "Check 'Force IGST' on the job finalization form. This changes CGST+SGST to IGST for inter-state tax compliance.",
+			},
+			{
+				q: "What is supply state code on the invoice?",
+				a: "It is the two-digit code of the state where your division is registered (from your GSTIN's first two digits). It is required on GST invoices for B2B transactions.",
+			},
+		],
+	},
 
-    {
-        id: "gst-invoicing",
-        category: "GST & Invoicing",
-        title: "GST vs Non-GST: How It Works",
-        summary: "Understand the difference between GST and non-GST invoicing modes.",
-        tags: ["GST", "non-GST", "CGST", "SGST", "IGST", "invoice", "HSN", "tax", "division"],
-        content: [
-            { type: "heading", text: "GST Division (GSTIN is filled)" },
-            { type: "bullets", items: [
-                "Service invoices break each line into: Taxable Amount + CGST + SGST (or IGST for inter-state).",
-                "HSN code is mandatory on every invoice line.",
-                "GST rate comes from the part master; falls back to the App Settings default if not set.",
-                "Force IGST option is available for inter-state supplies.",
-            ]},
-            { type: "heading", text: "Non-GST Division (GSTIN is blank)" },
-            { type: "bullets", items: [
-                "Invoices show a single total amount — no tax breakdown.",
-                "HSN codes are not required.",
-                "All amounts are treated as the final price; no GST is calculated.",
-            ]},
-            { type: "heading", text: "Switching modes mid-job" },
-            { type: "para", text: "You can change the division on a job right up until a service invoice is created. Once an invoice exists, the division is locked for that job. To switch after invoicing: delete the invoice first, change the division, then regenerate the invoice." },
-            { type: "heading", text: "CGST vs SGST vs IGST" },
-            { type: "table", headers: ["Tax Type", "When Applied"], rows: [
-                ["CGST + SGST", "Default for intra-state supply (customer in the same state as your division)"],
-                ["IGST",        "For inter-state supply (customer in a different state). Use 'Force IGST' checkbox on the finalization form."],
-            ]},
-        ],
-        faqs: [
-            { q: "Can the same job have both GST and non-GST charges?", a: "No. A job is linked to one division, which is either GST or non-GST. All parts and charges on that job follow the same tax mode." },
-            { q: "What if my customer is in a different state?", a: "Check 'Force IGST' on the job finalization form. This changes CGST+SGST to IGST for inter-state tax compliance." },
-            { q: "What is supply state code on the invoice?", a: "It is the two-digit code of the state where your division is registered (from your GSTIN's first two digits). It is required on GST invoices for B2B transactions." },
-        ],
-    },
+	{
+		id: "customer-gstin",
+		category: "GST & Invoicing",
+		title: "Customer GSTIN on Jobs",
+		summary: "Capture, validate, and edit a customer's GSTIN at job creation, finalization, and delivery.",
+		tags: ["gstin", "customer gstin", "B2B", "tax invoice", "validation", "GST", "trace plus", "auto-fill"],
+		content: [
+			{
+				type: "para",
+				text: "A customer's GSTIN can be entered or updated directly from the job screens — you no longer have to open Masters → Customer first. The GSTIN is stored once on the customer record and reused everywhere, so it is a single source of truth.",
+			},
+			{
+				type: "note",
+				text: "This is the CUSTOMER's GSTIN (the B2B buyer's registration that appears on the tax invoice). It is different from the DIVISION GSTIN, which is your own business's registration. See 'Divisions Setup' and 'GST vs Non-GST' for the division side.",
+			},
+			{ type: "heading", text: "Where you can enter it" },
+			{
+				type: "table",
+				headers: ["Stage", "Where", "Validation"],
+				rows: [
+					["Job creation", "New Single Job / Batch Jobs form", "Optional — saved with the job's customer"],
+					[
+						"Finalization",
+						"Final a Job → Finalize form",
+						"Optional, but an invalid value blocks 'Save & Mark Final'",
+					],
+					[
+						"Delivery",
+						"Deliver Job → per-job field",
+						"Optional, but an invalid value blocks the combined Receipts + Delivery + Invoice action",
+					],
+				],
+			},
+			{ type: "heading", text: "How it behaves" },
+			{
+				type: "bullets",
+				items: [
+					"Auto-fills — selecting a customer fills the GSTIN field from that customer's stored value; clearing the customer clears the field.",
+					"Optional everywhere — a blank GSTIN is always valid, so retail/individual customers need nothing here.",
+					"Validated when filled — a non-empty value must be a valid 15-character GSTIN (example: 27AAPFU0939F1ZV).",
+					"Auto-formatted — input is trimmed and converted to uppercase as you type.",
+					"Saved back to the customer — editing it at any stage updates the customer master, so the next job for that customer is pre-filled.",
+					"Per job on delivery — when delivering several jobs at once, each job's GSTIN is editable independently against its own customer.",
+				],
+			},
+			{
+				type: "warning",
+				text: "At finalization and delivery the GSTIN is hard-validated: if the field contains an invalid value, the action (Save & Mark Final, or the combined Receipts + Delivery + Invoice action) is blocked until you either correct it to a valid 15-character GSTIN or clear the field.",
+			},
+			{ type: "heading", text: "Where it is used" },
+			{
+				type: "para",
+				text: "When a job invoice is posted to Trace Plus, the customer's stored GSTIN is sent automatically — there is no separate step. Whatever GSTIN is on the customer at that point (from creation, finalize, or delivery) flows through to the posted invoice.",
+			},
+		],
+		faqs: [
+			{
+				q: "Do I have to enter a GSTIN?",
+				a: "No. GSTIN is optional everywhere. Leave it blank for retail or individual customers. Fill it only for B2B customers who need their GSTIN on the tax invoice.",
+			},
+			{
+				q: "I edited the GSTIN while delivering — did it change the customer?",
+				a: "Yes. The GSTIN is stored on the customer record, not the job. Editing it at creation, finalize, or delivery updates the customer master, so future jobs for that customer pick up the new value.",
+			},
+			{
+				q: "Finalize or Deliver is blocked with a GSTIN error — why?",
+				a: "The GSTIN field has a value that is not a valid 15-character GSTIN. Either fix it to the correct format or clear the field (blank is allowed), then try again.",
+			},
+			{
+				q: "What's the difference between this and the Division GSTIN?",
+				a: "The Division GSTIN is your own business's registration and drives whether the invoice is GST or non-GST. The Customer GSTIN is the buyer's registration printed on the invoice for B2B sales. They are separate fields.",
+			},
+			{
+				q: "The save toast said updating the customer's GSTIN failed — was my job lost?",
+				a: "No. Saving the GSTIN to the customer is best-effort. If it fails you'll see a toast, but the job action (create / finalize / deliver) still completes. Re-enter the GSTIN later from the customer or the next job screen.",
+			},
+		],
+	},
 
-    {
-        id: "customer-gstin",
-        category: "GST & Invoicing",
-        title: "Customer GSTIN on Jobs",
-        summary: "Capture, validate, and edit a customer's GSTIN at job creation, finalization, and delivery.",
-        tags: ["gstin", "customer gstin", "B2B", "tax invoice", "validation", "GST", "trace plus", "auto-fill"],
-        content: [
-            { type: "para", text: "A customer's GSTIN can be entered or updated directly from the job screens — you no longer have to open Masters → Customer first. The GSTIN is stored once on the customer record and reused everywhere, so it is a single source of truth." },
-            { type: "note", text: "This is the CUSTOMER's GSTIN (the B2B buyer's registration that appears on the tax invoice). It is different from the DIVISION GSTIN, which is your own business's registration. See 'Divisions Setup' and 'GST vs Non-GST' for the division side." },
-            { type: "heading", text: "Where you can enter it" },
-            { type: "table", headers: ["Stage", "Where", "Validation"], rows: [
-                ["Job creation",   "New Single Job / Batch Jobs form", "Optional — saved with the job's customer"],
-                ["Finalization",   "Final a Job → Finalize form",      "Optional, but an invalid value blocks 'Save & Mark Final'"],
-                ["Delivery",       "Deliver Job → per-job field",      "Optional, but an invalid value blocks the combined Receipts + Delivery + Invoice action"],
-            ]},
-            { type: "heading", text: "How it behaves" },
-            { type: "bullets", items: [
-                "Auto-fills — selecting a customer fills the GSTIN field from that customer's stored value; clearing the customer clears the field.",
-                "Optional everywhere — a blank GSTIN is always valid, so retail/individual customers need nothing here.",
-                "Validated when filled — a non-empty value must be a valid 15-character GSTIN (example: 27AAPFU0939F1ZV).",
-                "Auto-formatted — input is trimmed and converted to uppercase as you type.",
-                "Saved back to the customer — editing it at any stage updates the customer master, so the next job for that customer is pre-filled.",
-                "Per job on delivery — when delivering several jobs at once, each job's GSTIN is editable independently against its own customer.",
-            ]},
-            { type: "warning", text: "At finalization and delivery the GSTIN is hard-validated: if the field contains an invalid value, the action (Save & Mark Final, or the combined Receipts + Delivery + Invoice action) is blocked until you either correct it to a valid 15-character GSTIN or clear the field." },
-            { type: "heading", text: "Where it is used" },
-            { type: "para", text: "When a job invoice is posted to Trace Plus, the customer's stored GSTIN is sent automatically — there is no separate step. Whatever GSTIN is on the customer at that point (from creation, finalize, or delivery) flows through to the posted invoice." },
-        ],
-        faqs: [
-            { q: "Do I have to enter a GSTIN?", a: "No. GSTIN is optional everywhere. Leave it blank for retail or individual customers. Fill it only for B2B customers who need their GSTIN on the tax invoice." },
-            { q: "I edited the GSTIN while delivering — did it change the customer?", a: "Yes. The GSTIN is stored on the customer record, not the job. Editing it at creation, finalize, or delivery updates the customer master, so future jobs for that customer pick up the new value." },
-            { q: "Finalize or Deliver is blocked with a GSTIN error — why?", a: "The GSTIN field has a value that is not a valid 15-character GSTIN. Either fix it to the correct format or clear the field (blank is allowed), then try again." },
-            { q: "What's the difference between this and the Division GSTIN?", a: "The Division GSTIN is your own business's registration and drives whether the invoice is GST or non-GST. The Customer GSTIN is the buyer's registration printed on the invoice for B2B sales. They are separate fields." },
-            { q: "The save toast said updating the customer's GSTIN failed — was my job lost?", a: "No. Saving the GSTIN to the customer is best-effort. If it fails you'll see a toast, but the job action (create / finalize / deliver) still completes. Re-enter the GSTIN later from the customer or the next job screen." },
-        ],
-    },
+	{
+		id: "invoice-troubleshooting",
+		category: "GST & Invoicing",
+		title: "Invoice Troubleshooting",
+		summary: "Common invoice errors and how to resolve them.",
+		tags: ["invoice", "error", "troubleshoot", "regenerate", "delete", "posted", "HSN error", "GST rate error"],
+		content: [
+			{
+				type: "table",
+				headers: ["Problem", "Likely Cause", "Resolution"],
+				rows: [
+					[
+						"Cannot create invoice",
+						"SERVICE_INVOICE sequence has no prefix",
+						"Configurations → Document Sequence → add SERVICE_INVOICE prefix",
+					],
+					[
+						"Invoice shows wrong total",
+						"Parts/charges changed after invoice was created",
+						"Delete invoice → regenerate from Deliver Job Step 2",
+					],
+					[
+						"'Cannot regenerate' error",
+						"Invoice is posted to accounts",
+						"Admin → Post/Unpost → unpost → then regenerate",
+					],
+					[
+						"'HSN required' error on save",
+						"Missing HSN on one or more finalization rows",
+						"Final a Job → add HSN on every row showing a red border",
+					],
+					[
+						"'GST rate must be > 0' error",
+						"A line has GST rate = 0 in a GST division",
+						"Set GST rate on each line, or set a default in App Settings",
+					],
+					[
+						"Delivery action opens a receipt dialog unexpectedly",
+						"A selected job has an outstanding balance",
+						"This is expected — collect the receipt in the dialog, then delivery continues automatically",
+					],
+					[
+						"Division locked on job",
+						"Change would flip the job between GST and non-GST while a service invoice exists",
+						"Void the invoice first, then change division, then regenerate",
+					],
+					[
+						"Invoice amount ≠ finalization total",
+						"Apply target was used",
+						"This is correct — invoice uses the target total, not the line sum",
+					],
+					[
+						"Finalize/Deliver blocked by GSTIN",
+						"Customer GSTIN field has an invalid value",
+						"Enter a valid 15-character GSTIN or clear the field (blank is allowed)",
+					],
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Can I delete an invoice that has been posted to accounts?",
+				a: "No. Unpost it first from Admin → Post/Unpost, then delete it.",
+			},
+			{
+				q: "Can I issue a zero-value GST invoice?",
+				a: "Yes — warranty jobs generate invoices with ₹0 selling prices. The invoice still has GST fields but with zero amounts.",
+			},
+		],
+	},
 
-    {
-        id: "invoice-troubleshooting",
-        category: "GST & Invoicing",
-        title: "Invoice Troubleshooting",
-        summary: "Common invoice errors and how to resolve them.",
-        tags: ["invoice", "error", "troubleshoot", "regenerate", "delete", "posted", "HSN error", "GST rate error"],
-        content: [
-            { type: "table", headers: ["Problem", "Likely Cause", "Resolution"], rows: [
-                ["Cannot create invoice",              "SERVICE_INVOICE sequence has no prefix",         "Configurations → Document Sequence → add SERVICE_INVOICE prefix"],
-                ["Invoice shows wrong total",           "Parts/charges changed after invoice was created","Delete invoice → regenerate from Deliver Job Step 2"],
-                ["'Cannot regenerate' error",           "Invoice is posted to accounts",                  "Admin → Post/Unpost → unpost → then regenerate"],
-                ["'HSN required' error on save",        "Missing HSN on one or more finalization rows",   "Final a Job → add HSN on every row showing a red border"],
-                ["'GST rate must be > 0' error",       "A line has GST rate = 0 in a GST division",      "Set GST rate on each line, or set a default in App Settings"],
-                ["Delivery action opens a receipt dialog unexpectedly", "A selected job has an outstanding balance", "This is expected — collect the receipt in the dialog, then delivery continues automatically"],
-                ["Division locked on job",              "Change would flip the job between GST and non-GST while a service invoice exists", "Void the invoice first, then change division, then regenerate"],
-                ["Invoice amount ≠ finalization total", "Apply target was used",                          "This is correct — invoice uses the target total, not the line sum"],
-                ["Finalize/Deliver blocked by GSTIN",   "Customer GSTIN field has an invalid value",      "Enter a valid 15-character GSTIN or clear the field (blank is allowed)"],
-            ]},
-        ],
-        faqs: [
-            { q: "Can I delete an invoice that has been posted to accounts?", a: "No. Unpost it first from Admin → Post/Unpost, then delete it." },
-            { q: "Can I issue a zero-value GST invoice?", a: "Yes — warranty jobs generate invoices with ₹0 selling prices. The invoice still has GST fields but with zero amounts." },
-        ],
-    },
+	// ── Category 8: Admin & Users ────────────────────────────────────────────
 
-    // ── Category 8: Admin & Users ────────────────────────────────────────────
+	{
+		id: "user-management",
+		category: "Admin & Users",
+		title: "Managing Users",
+		summary: "Create, edit, and manage business user accounts in Admin Mode.",
+		tags: [
+			"users",
+			"business users",
+			"admin",
+			"password",
+			"role",
+			"business unit",
+			"activate",
+			"deactivate",
+			"credentials",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Switch to Admin Mode using the ShieldCheck icon at the bottom of the left-hand activity bar (available to Type A users). Go to Admin → Business Users.",
+			},
+			{ type: "heading", text: "Creating a User" },
+			{
+				type: "steps",
+				items: [
+					"Admin → Business Users → Add Business User.",
+					"Enter Email (must be unique across the platform), Username (unique), Full Name, and Mobile.",
+					"Save. The user has no access yet at this point — see 'Granting Access: Associate BU / Role' in the Access Management category for the next step.",
+				],
+			},
+			{ type: "heading", text: "User Types" },
+			{
+				type: "table",
+				headers: ["Type", "Access"],
+				rows: [
+					["Type A (Business Admin)", "Client Mode + Admin Mode (user management, audit logs)"],
+					["Type B (Regular User)", "Client Mode only (daily operations: jobs, inventory, reports)"],
+				],
+			},
+			{
+				type: "note",
+				text: "Deactivating a user prevents them from logging in without deleting their history or records. Reactivate at any time.",
+			},
+		],
+		faqs: [
+			{
+				q: "A user forgot their password — what do I do?",
+				a: "Admin → Business Users → find the user → row menu → 'Reset password and mail'. This sends a password reset link to their email.",
+			},
+			{
+				q: "Can I restrict a user to specific companies?",
+				a: "Yes, but access is scoped by Business Unit, not Branch — use 'Associate BU / Role' on the Business Users page to control which Business Units a user can see. See 'Granting Access: Associate BU / Role' in the Access Management category.",
+			},
+			{
+				q: "What is the difference between Type A and Type B users?",
+				a: "Type A (Business Admin) can access Admin Mode to manage users and audit logs. Type B (Regular User) can only access Client Mode for day-to-day operations.",
+			},
+			{
+				q: "Can I change a user's role after creation?",
+				a: "Yes. Edit the user and select a different role. The change takes effect on their next login.",
+			},
+		],
+	},
 
-    {
-        id: "user-management",
-        category: "Admin & Users",
-        title: "Managing Users",
-        summary: "Create, edit, and manage business user accounts in Admin Mode.",
-        tags: ["users", "business users", "admin", "password", "role", "business unit", "activate", "deactivate", "credentials"],
-        content: [
-            { type: "para", text: "Switch to Admin Mode using the ShieldCheck icon at the bottom of the left-hand activity bar (available to Type A users). Go to Admin → Business Users." },
-            { type: "heading", text: "Creating a User" },
-            { type: "steps", items: [
-                "Admin → Business Users → Add Business User.",
-                "Enter Email (must be unique across the platform), Username (unique), Full Name, and Mobile.",
-                "Save. The user has no access yet at this point — see 'Granting Access: Associate BU / Role' in the Access Management category for the next step.",
-            ]},
-            { type: "heading", text: "User Types" },
-            { type: "table", headers: ["Type", "Access"], rows: [
-                ["Type A (Business Admin)", "Client Mode + Admin Mode (user management, audit logs)"],
-                ["Type B (Regular User)",  "Client Mode only (daily operations: jobs, inventory, reports)"],
-            ]},
-            { type: "note", text: "Deactivating a user prevents them from logging in without deleting their history or records. Reactivate at any time." },
-        ],
-        faqs: [
-            { q: "A user forgot their password — what do I do?", a: "Admin → Business Users → find the user → row menu → 'Reset password and mail'. This sends a password reset link to their email." },
-            { q: "Can I restrict a user to specific companies?", a: "Yes, but access is scoped by Business Unit, not Branch — use 'Associate BU / Role' on the Business Users page to control which Business Units a user can see. See 'Granting Access: Associate BU / Role' in the Access Management category." },
-            { q: "What is the difference between Type A and Type B users?", a: "Type A (Business Admin) can access Admin Mode to manage users and audit logs. Type B (Regular User) can only access Client Mode for day-to-day operations." },
-            { q: "Can I change a user's role after creation?", a: "Yes. Edit the user and select a different role. The change takes effect on their next login." },
-        ],
-    },
+	{
+		id: "audit-logs",
+		category: "Admin & Users",
+		title: "Audit Logs",
+		summary: "Track all create, edit, and delete actions across the system.",
+		tags: ["audit", "audit log", "history", "compliance", "who changed", "tracking"],
+		content: [
+			{
+				type: "para",
+				text: "Admin → Audit Logs (in Admin Mode). This records administrative and security actions — user and Business Unit management, login/logout, and platform provisioning events. It does not audit day-to-day Client Mode activity (jobs, customers, parts, invoices, etc.).",
+			},
+			{ type: "heading", text: "Each log entry includes" },
+			{
+				type: "bullets",
+				items: [
+					"User who performed the action",
+					"A specific action constant (e.g. LOGIN, LOGIN_FAILED, CREATE_BUSINESS_USER, SET_USER_BU_ROLE, CREATE_BU_SCHEMA, PASSWORD_RESET) rather than a generic Create/Update/Delete category",
+					"Record affected, where applicable",
+					"Timestamp",
+				],
+			},
+			{ type: "heading", text: "Filtering and Export" },
+			{
+				type: "bullets",
+				items: [
+					"Filter by date range",
+					"Free-text Search — matches action, resource, or detail (there is no dedicated 'filter by user' control)",
+					"Filter by action type",
+					"Filter by Outcome (Success / Failure)",
+					"Export to CSV for compliance or investigation",
+				],
+			},
+			{
+				type: "note",
+				text: "Log entries are retained for 90 days by default (configurable) and are automatically purged after that.",
+			},
+		],
+		faqs: [
+			{
+				q: "Can I see who deleted a business user?",
+				a: "Yes. Search or filter by the relevant action (e.g. DELETE_BUSINESS_USER). The log shows the user who performed it and when.",
+			},
+			{
+				q: "How far back do audit logs go?",
+				a: "Entries are retained for 90 days by default, then automatically purged — this is not permanent history.",
+			},
+			{
+				q: "Are Client Mode changes (jobs, invoices, parts) audited here?",
+				a: "No. Audit Logs only cover administrative/security actions in Admin Mode — user and Business Unit management, logins, and provisioning. Ordinary Client Mode CRUD is not recorded.",
+			},
+			{
+				q: "Can a regular user see audit logs?",
+				a: "No. Audit logs are accessible only in Admin Mode, which requires a Type A (Business Admin) account.",
+			},
+		],
+	},
 
-    {
-        id: "audit-logs",
-        category: "Admin & Users",
-        title: "Audit Logs",
-        summary: "Track all create, edit, and delete actions across the system.",
-        tags: ["audit", "audit log", "history", "compliance", "who changed", "tracking"],
-        content: [
-            { type: "para", text: "Admin → Audit Logs (in Admin Mode). This records administrative and security actions — user and Business Unit management, login/logout, and platform provisioning events. It does not audit day-to-day Client Mode activity (jobs, customers, parts, invoices, etc.)." },
-            { type: "heading", text: "Each log entry includes" },
-            { type: "bullets", items: [
-                "User who performed the action",
-                "A specific action constant (e.g. LOGIN, LOGIN_FAILED, CREATE_BUSINESS_USER, SET_USER_BU_ROLE, CREATE_BU_SCHEMA, PASSWORD_RESET) rather than a generic Create/Update/Delete category",
-                "Record affected, where applicable",
-                "Timestamp",
-            ]},
-            { type: "heading", text: "Filtering and Export" },
-            { type: "bullets", items: [
-                "Filter by date range",
-                "Free-text Search — matches action, resource, or detail (there is no dedicated 'filter by user' control)",
-                "Filter by action type",
-                "Filter by Outcome (Success / Failure)",
-                "Export to CSV for compliance or investigation",
-            ]},
-            { type: "note", text: "Log entries are retained for 90 days by default (configurable) and are automatically purged after that." },
-        ],
-        faqs: [
-            { q: "Can I see who deleted a business user?", a: "Yes. Search or filter by the relevant action (e.g. DELETE_BUSINESS_USER). The log shows the user who performed it and when." },
-            { q: "How far back do audit logs go?", a: "Entries are retained for 90 days by default, then automatically purged — this is not permanent history." },
-            { q: "Are Client Mode changes (jobs, invoices, parts) audited here?", a: "No. Audit Logs only cover administrative/security actions in Admin Mode — user and Business Unit management, logins, and provisioning. Ordinary Client Mode CRUD is not recorded." },
-            { q: "Can a regular user see audit logs?", a: "No. Audit logs are accessible only in Admin Mode, which requires a Type A (Business Admin) account." },
-        ],
-    },
+	// ── Category 9: Access Management ────────────────────────────────────────
 
-    // ── Category 9: Access Management ────────────────────────────────────────
+	{
+		id: "access-overview",
+		category: "Access Management",
+		title: "Access Management Overview",
+		summary: "How Admin Mode, Business Units, Roles, and Business Users fit together to control who can see what.",
+		tags: ["access management", "admin mode", "overview", "business unit", "branch", "roles", "business users"],
+		content: [
+			{
+				type: "para",
+				text: "Access Management is everything under Admin Mode that controls who can log in and which client company's data they can see. Switch to Admin Mode using the ShieldCheck icon at the bottom of the left-hand activity bar — this switch is only available to Type A users. Admin Mode has four sections: Business Users, Business Units, Roles, and Audit Logs.",
+			},
+			{ type: "heading", text: "The mental model" },
+			{
+				type: "table",
+				headers: ["Concept", "Answers", "Where"],
+				rows: [
+					["Business Unit", "Which client company's data?", "Admin → Business Units"],
+					["Role", "What is this person allowed to do?", "Admin → Roles (view-only)"],
+					["Business User", "Who is logging in?", "Admin → Business Users"],
+					[
+						"Associate BU / Role",
+						"The grant that ties the three together",
+						"Admin → Business Users → row menu",
+					],
+				],
+			},
+			{
+				type: "para",
+				text: "None of these four pieces does anything on its own. A Business User with no Business Unit and Role associated can log in but see nothing; a Business Unit with no schema provisioned can't be used at all. See the other Access Management articles for the detail on each piece.",
+			},
+			{ type: "heading", text: "Business Unit vs Branch — don't confuse these" },
+			{
+				type: "para",
+				text: "A Business Unit is a separate client company (tenant) on the platform, each with its own database schema, created and provisioned from Admin Mode. A Branch is a physical service-center location that exists inside one client's business, created in Client Mode → Masters → Branch. They sound similar but are unrelated: one client company (one Business Unit / one database) can have many Branches inside it.",
+			},
+		],
+		faqs: [
+			{
+				q: "What's the difference between a Business Unit and a Branch?",
+				a: "A Business Unit is a separate client company/tenant on the platform (Admin Mode concept, each with its own database schema). A Branch is a physical service location inside one client's business (Client Mode → Masters → Branch). A single Business Unit can contain many Branches.",
+			},
+			{
+				q: "Who can access Admin Mode?",
+				a: "Only Type A (Business Admin) users see the ShieldCheck switch. Type B (Regular) users never see Admin Mode.",
+			},
+			{
+				q: "I'm new to this — where do I start?",
+				a: "Create the Business Unit first (with its schema), then create the Business User, then run Associate BU / Role to connect them. See 'Business Units — Provisioning a Client Company' and 'Granting Access: Associate BU / Role'.",
+			},
+		],
+	},
 
-    {
-        id: "access-overview",
-        category: "Access Management",
-        title: "Access Management Overview",
-        summary: "How Admin Mode, Business Units, Roles, and Business Users fit together to control who can see what.",
-        tags: ["access management", "admin mode", "overview", "business unit", "branch", "roles", "business users"],
-        content: [
-            { type: "para", text: "Access Management is everything under Admin Mode that controls who can log in and which client company's data they can see. Switch to Admin Mode using the ShieldCheck icon at the bottom of the left-hand activity bar — this switch is only available to Type A users. Admin Mode has four sections: Business Users, Business Units, Roles, and Audit Logs." },
-            { type: "heading", text: "The mental model" },
-            { type: "table", headers: ["Concept", "Answers", "Where"], rows: [
-                ["Business Unit", "Which client company's data?", "Admin → Business Units"],
-                ["Role",          "What is this person allowed to do?", "Admin → Roles (view-only)"],
-                ["Business User", "Who is logging in?",              "Admin → Business Users"],
-                ["Associate BU / Role", "The grant that ties the three together", "Admin → Business Users → row menu"],
-            ]},
-            { type: "para", text: "None of these four pieces does anything on its own. A Business User with no Business Unit and Role associated can log in but see nothing; a Business Unit with no schema provisioned can't be used at all. See the other Access Management articles for the detail on each piece." },
-            { type: "heading", text: "Business Unit vs Branch — don't confuse these" },
-            { type: "para", text: "A Business Unit is a separate client company (tenant) on the platform, each with its own database schema, created and provisioned from Admin Mode. A Branch is a physical service-center location that exists inside one client's business, created in Client Mode → Masters → Branch. They sound similar but are unrelated: one client company (one Business Unit / one database) can have many Branches inside it." },
-        ],
-        faqs: [
-            { q: "What's the difference between a Business Unit and a Branch?", a: "A Business Unit is a separate client company/tenant on the platform (Admin Mode concept, each with its own database schema). A Branch is a physical service location inside one client's business (Client Mode → Masters → Branch). A single Business Unit can contain many Branches." },
-            { q: "Who can access Admin Mode?", a: "Only Type A (Business Admin) users see the ShieldCheck switch. Type B (Regular) users never see Admin Mode." },
-            { q: "I'm new to this — where do I start?", a: "Create the Business Unit first (with its schema), then create the Business User, then run Associate BU / Role to connect them. See 'Business Units — Provisioning a Client Company' and 'Granting Access: Associate BU / Role'." },
-        ],
-    },
+	{
+		id: "access-roles",
+		category: "Access Management",
+		title: "Roles",
+		summary: "System-defined permission sets you assign to business users — view-only, cannot be customized.",
+		tags: [
+			"roles",
+			"permissions",
+			"system role",
+			"custom role",
+			"access management",
+			"manager",
+			"technician",
+			"receptionist",
+			"masters",
+			"configurations",
+			"admin",
+			"receipts",
+			"opening jobs",
+			"accounts posting",
+			"deliver job",
+			"purchase entry",
+			"sales entry",
+			"stock adjustment",
+			"branch transfer",
+			"opening stock",
+			"set part location",
+			"customer connect",
+			"whatsapp",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Admin → Roles lists every role available for assignment to a business user. Each row shows a Code, Name, Description, and a badge: System (seeded by the platform) or Custom.",
+			},
+			{
+				type: "warning",
+				text: "Roles are entirely view-only from this screen — there is no Add, Edit, or Delete action anywhere on the Roles page. You cannot define a new permission set or change what an existing role allows; you can only pick from what already exists when associating a role to a user.",
+			},
+			{
+				type: "para",
+				text: "Use the Refresh button to reload the list if roles were changed at the platform level outside the UI.",
+			},
+			{ type: "heading", text: "What each role can access in Client Mode" },
+			{
+				type: "para",
+				text: "Beyond the coarse Type A / Type B distinction, the three seeded roles below gate a specific set of Client Mode features. A user without the right sees the item or tab still there, but dimmed and non-clickable, with a tooltip explaining why — nothing is ever hidden outright.",
+			},
+			{
+				type: "table",
+				headers: ["Feature", "Manager", "Technician", "Receptionist"],
+				rows: [
+					["Jobs → Receipts", "✅", "❌", "✅"],
+					["Jobs → Opening Jobs", "✅", "❌", "✅"],
+					["Jobs → Accounts Posting", "✅", "❌", "✅"],
+					["Jobs → Deliver Job", "✅", "❌", "✅"],
+					["Jobs → Customer Connect", "✅", "❌", "✅"],
+					["Masters tab (whole tab)", "✅", "❌", "✅"],
+					["Configurations tab (whole tab)", "✅", "❌", "❌"],
+					["Admin tab / Post-Unpost", "✅", "❌", "❌"],
+					["Inventory → Purchase Entry", "✅", "❌", "✅"],
+					["Inventory → Sales Entry", "✅", "❌", "✅"],
+					["Inventory → Stock Adjustment", "✅", "❌", "✅"],
+					["Inventory → Branch Transfer", "✅", "❌", "✅"],
+					["Inventory → Opening Stock", "✅", "❌", "✅"],
+					["Inventory → Set Part Location", "✅", "❌", "✅"],
+				],
+			},
+			{
+				type: "note",
+				text: "Everything not listed above — the rest of Jobs (Single Job, Batch Jobs, Job Control, Job Pipeline, Final a Job, Part Used), Inventory's Stock Overview, Loan Entry, and Part Finder, and all of Reports — is open to every role with no restriction. A Type A (Business Admin) or Super Admin account bypasses every restriction in this table, regardless of which role they also hold.",
+			},
+		],
+		faqs: [
+			{
+				q: "Can I create a custom role with different permissions?",
+				a: "No. Roles are system-defined and seeded — the UI only lets you view them and assign an existing one to a user.",
+			},
+			{
+				q: "What does the System vs Custom badge mean?",
+				a: "It labels how the role was created (platform-seeded vs otherwise) — it does not change how you use it. Either type is assigned to users the same way, via Associate BU / Role.",
+			},
+			{
+				q: "A role I need doesn't exist — what do I do?",
+				a: "Roles cannot be created from the UI. Contact your platform administrator to have a new role seeded.",
+			},
+			{
+				q: "A menu item is greyed out for me — why?",
+				a: "Your role doesn't include that specific access right. Hover over the dimmed item for a tooltip naming what's required, or see the role/feature table above. A Business Admin or Manager can check your assigned role under Admin → Business Users → Associate BU / Role.",
+			},
+			{
+				q: "Why can a Receptionist see Masters but not Configurations?",
+				a: "That split is intentional: Masters holds day-to-day reference data (customers, parts, technicians) that front-desk staff maintain, while Configurations controls system-wide behavior (divisions, numbering, app settings) reserved for Managers.",
+			},
+		],
+	},
 
-    {
-        id: "access-roles",
-        category: "Access Management",
-        title: "Roles",
-        summary: "System-defined permission sets you assign to business users — view-only, cannot be customized.",
-        tags: ["roles", "permissions", "system role", "custom role", "access management", "manager", "technician", "receptionist", "masters", "configurations", "admin", "receipts", "opening jobs", "accounts posting", "deliver job", "purchase entry", "sales entry", "stock adjustment", "branch transfer", "opening stock", "set part location", "customer connect", "whatsapp"],
-        content: [
-            { type: "para", text: "Admin → Roles lists every role available for assignment to a business user. Each row shows a Code, Name, Description, and a badge: System (seeded by the platform) or Custom." },
-            { type: "warning", text: "Roles are entirely view-only from this screen — there is no Add, Edit, or Delete action anywhere on the Roles page. You cannot define a new permission set or change what an existing role allows; you can only pick from what already exists when associating a role to a user." },
-            { type: "para", text: "Use the Refresh button to reload the list if roles were changed at the platform level outside the UI." },
-            { type: "heading", text: "What each role can access in Client Mode" },
-            { type: "para", text: "Beyond the coarse Type A / Type B distinction, the three seeded roles below gate a specific set of Client Mode features. A user without the right sees the item or tab still there, but dimmed and non-clickable, with a tooltip explaining why — nothing is ever hidden outright." },
-            { type: "table", headers: ["Feature", "Manager", "Technician", "Receptionist"], rows: [
-                ["Jobs → Receipts",           "✅", "❌", "✅"],
-                ["Jobs → Opening Jobs",       "✅", "❌", "✅"],
-                ["Jobs → Accounts Posting",   "✅", "❌", "✅"],
-                ["Jobs → Deliver Job",        "✅", "❌", "✅"],
-                ["Jobs → Customer Connect",   "✅", "❌", "✅"],
-                ["Masters tab (whole tab)",   "✅", "❌", "✅"],
-                ["Configurations tab (whole tab)", "✅", "❌", "❌"],
-                ["Admin tab / Post-Unpost",   "✅", "❌", "❌"],
-                ["Inventory → Purchase Entry",     "✅", "❌", "✅"],
-                ["Inventory → Sales Entry",        "✅", "❌", "✅"],
-                ["Inventory → Stock Adjustment",   "✅", "❌", "✅"],
-                ["Inventory → Branch Transfer",    "✅", "❌", "✅"],
-                ["Inventory → Opening Stock",       "✅", "❌", "✅"],
-                ["Inventory → Set Part Location",  "✅", "❌", "✅"],
-            ]},
-            { type: "note", text: "Everything not listed above — the rest of Jobs (Single Job, Batch Jobs, Job Control, Job Pipeline, Final a Job, Part Used), Inventory's Stock Overview, Loan Entry, and Part Finder, and all of Reports — is open to every role with no restriction. A Type A (Business Admin) or Super Admin account bypasses every restriction in this table, regardless of which role they also hold." },
-        ],
-        faqs: [
-            { q: "Can I create a custom role with different permissions?", a: "No. Roles are system-defined and seeded — the UI only lets you view them and assign an existing one to a user." },
-            { q: "What does the System vs Custom badge mean?", a: "It labels how the role was created (platform-seeded vs otherwise) — it does not change how you use it. Either type is assigned to users the same way, via Associate BU / Role." },
-            { q: "A role I need doesn't exist — what do I do?", a: "Roles cannot be created from the UI. Contact your platform administrator to have a new role seeded." },
-            { q: "A menu item is greyed out for me — why?", a: "Your role doesn't include that specific access right. Hover over the dimmed item for a tooltip naming what's required, or see the role/feature table above. A Business Admin or Manager can check your assigned role under Admin → Business Users → Associate BU / Role." },
-            { q: "Why can a Receptionist see Masters but not Configurations?", a: "That split is intentional: Masters holds day-to-day reference data (customers, parts, technicians) that front-desk staff maintain, while Configurations controls system-wide behavior (divisions, numbering, app settings) reserved for Managers." },
-        ],
-    },
+	{
+		id: "access-business-units",
+		category: "Access Management",
+		title: "Business Units — Provisioning a Client Company",
+		summary:
+			"Create a client company, provision its database schema and seed data, then activate, edit, or retire it.",
+		tags: [
+			"business unit",
+			"schema",
+			"seed data",
+			"provisioning",
+			"activate",
+			"deactivate",
+			"delete",
+			"orphaned schema",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Admin → Business Units lists every client company on the platform. Each row shows an Active/Inactive badge and a Schema Exists/Missing badge — a new Business Unit starts with both a missing schema and no seed data, and is unusable until provisioned.",
+			},
+			{ type: "heading", text: "1. Create the Business Unit" },
+			{
+				type: "steps",
+				items: [
+					"Click 'Add Business Unit'.",
+					"Enter a Code: 3–30 characters, letters/numbers/underscores only (no spaces or hyphens), automatically lowercased.",
+					"Enter a Name: at least 3 characters, letters/numbers/spaces only.",
+					"Save. The new row shows 'Schema: Missing' — it cannot be used yet.",
+				],
+			},
+			{ type: "heading", text: "2. Provision the schema" },
+			{
+				type: "para",
+				text: "Open the row menu and choose 'Create Schema & Seed Data'. This runs a single combined step that creates the company's dedicated database schema and loads its initial reference data. A progress dialog shows while it runs, with a Retry button if it fails.",
+			},
+			{
+				type: "note",
+				text: "If schema creation succeeds but seeding data fails partway (schema exists, seed data doesn't), the row menu instead offers 'Add Seed Data' — a narrower action that retries only the seeding step without recreating the schema.",
+			},
+			{ type: "heading", text: "3. Edit, Activate, Deactivate" },
+			{
+				type: "table",
+				headers: ["Action", "Availability", "Effect"],
+				rows: [
+					["Edit", "Only while the BU is Active (disabled otherwise)", "Update name/details"],
+					["Deactivate", "Only while Active", "Blocks access to this company's data without deleting it"],
+					["Activate", "Only while Inactive", "Restores access"],
+				],
+			},
+			{ type: "heading", text: "4. Delete" },
+			{
+				type: "para",
+				text: "Delete only appears once a Business Unit is Inactive — deactivate it first. The confirmation dialog requires typing the Business Unit's exact Code before the Delete button is enabled, since this removes the company record. There is no separate step shown here for dropping its database schema from this dialog.",
+			},
+			{ type: "heading", text: "Orphaned Schemas (maintenance)" },
+			{
+				type: "para",
+				text: "The 'Orphaned Schemas' button at the top of the page opens a separate maintenance tool listing database schemas that have no matching Business Unit record — for example, left over from a Business Unit record that was deleted without cleaning up its schema. You can select one or more and delete them, each requiring its own typed confirmation. This is a destructive, admin-only cleanup action — only use it if you're certain a schema is truly unused.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why is Edit disabled on a Business Unit?",
+				a: "Edit is only available while the Business Unit is Active. Activate it first if it's currently Inactive.",
+			},
+			{
+				q: "Why don't I see a Delete option?",
+				a: "Delete only appears once a Business Unit is Inactive. Deactivate it first, then Delete appears in the row menu.",
+			},
+			{
+				q: "What does 'Schema: Missing' mean, and can I still use the Business Unit?",
+				a: "No — a Business Unit with a missing schema has no database to store data in yet. Run 'Create Schema & Seed Data' from the row menu before assigning any users to it.",
+			},
+			{
+				q: "'Create Schema & Seed Data' failed partway — what now?",
+				a: "If the schema itself was created but seeding failed, the row menu will show 'Add Seed Data' instead — use that to retry just the seed step. If the schema creation itself failed, retry 'Create Schema & Seed Data' from the error dialog.",
+			},
+			{
+				q: "What is an Orphaned Schema?",
+				a: "A database schema on the server with no corresponding Business Unit record — usually left behind after incomplete cleanup. The Orphaned Schemas tool (top of the Business Units page) lets an admin review and delete these, each with a typed confirmation.",
+			},
+		],
+	},
 
-    {
-        id: "access-business-units",
-        category: "Access Management",
-        title: "Business Units — Provisioning a Client Company",
-        summary: "Create a client company, provision its database schema and seed data, then activate, edit, or retire it.",
-        tags: ["business unit", "schema", "seed data", "provisioning", "activate", "deactivate", "delete", "orphaned schema"],
-        content: [
-            { type: "para", text: "Admin → Business Units lists every client company on the platform. Each row shows an Active/Inactive badge and a Schema Exists/Missing badge — a new Business Unit starts with both a missing schema and no seed data, and is unusable until provisioned." },
-            { type: "heading", text: "1. Create the Business Unit" },
-            { type: "steps", items: [
-                "Click 'Add Business Unit'.",
-                "Enter a Code: 3–30 characters, letters/numbers/underscores only (no spaces or hyphens), automatically lowercased.",
-                "Enter a Name: at least 3 characters, letters/numbers/spaces only.",
-                "Save. The new row shows 'Schema: Missing' — it cannot be used yet.",
-            ]},
-            { type: "heading", text: "2. Provision the schema" },
-            { type: "para", text: "Open the row menu and choose 'Create Schema & Seed Data'. This runs a single combined step that creates the company's dedicated database schema and loads its initial reference data. A progress dialog shows while it runs, with a Retry button if it fails." },
-            { type: "note", text: "If schema creation succeeds but seeding data fails partway (schema exists, seed data doesn't), the row menu instead offers 'Add Seed Data' — a narrower action that retries only the seeding step without recreating the schema." },
-            { type: "heading", text: "3. Edit, Activate, Deactivate" },
-            { type: "table", headers: ["Action", "Availability", "Effect"], rows: [
-                ["Edit",       "Only while the BU is Active (disabled otherwise)", "Update name/details"],
-                ["Deactivate", "Only while Active",                                "Blocks access to this company's data without deleting it"],
-                ["Activate",   "Only while Inactive",                              "Restores access"],
-            ]},
-            { type: "heading", text: "4. Delete" },
-            { type: "para", text: "Delete only appears once a Business Unit is Inactive — deactivate it first. The confirmation dialog requires typing the Business Unit's exact Code before the Delete button is enabled, since this removes the company record. There is no separate step shown here for dropping its database schema from this dialog." },
-            { type: "heading", text: "Orphaned Schemas (maintenance)" },
-            { type: "para", text: "The 'Orphaned Schemas' button at the top of the page opens a separate maintenance tool listing database schemas that have no matching Business Unit record — for example, left over from a Business Unit record that was deleted without cleaning up its schema. You can select one or more and delete them, each requiring its own typed confirmation. This is a destructive, admin-only cleanup action — only use it if you're certain a schema is truly unused." },
-        ],
-        faqs: [
-            { q: "Why is Edit disabled on a Business Unit?", a: "Edit is only available while the Business Unit is Active. Activate it first if it's currently Inactive." },
-            { q: "Why don't I see a Delete option?", a: "Delete only appears once a Business Unit is Inactive. Deactivate it first, then Delete appears in the row menu." },
-            { q: "What does 'Schema: Missing' mean, and can I still use the Business Unit?", a: "No — a Business Unit with a missing schema has no database to store data in yet. Run 'Create Schema & Seed Data' from the row menu before assigning any users to it." },
-            { q: "'Create Schema & Seed Data' failed partway — what now?", a: "If the schema itself was created but seeding failed, the row menu will show 'Add Seed Data' instead — use that to retry just the seed step. If the schema creation itself failed, retry 'Create Schema & Seed Data' from the error dialog." },
-            { q: "What is an Orphaned Schema?", a: "A database schema on the server with no corresponding Business Unit record — usually left behind after incomplete cleanup. The Orphaned Schemas tool (top of the Business Units page) lets an admin review and delete these, each with a typed confirmation." },
-        ],
-    },
+	{
+		id: "access-associate",
+		category: "Access Management",
+		title: "Granting Access: Associate BU / Role",
+		summary: "The step that actually grants a business user access — pick their Business Unit(s) and one Role.",
+		tags: ["associate", "grant access", "business unit", "role", "business user", "access management"],
+		content: [
+			{
+				type: "para",
+				text: "Creating a Business User (Admin → Business Users → Add Business User) only creates the login — it grants no access by itself. Access is a separate, explicit step.",
+			},
+			{ type: "heading", text: "Granting access" },
+			{
+				type: "steps",
+				items: [
+					"Go to Admin → Business Users.",
+					"Open the row menu for the user and choose 'Associate BU / Role'.",
+					"Check one or more Business Units the user should be able to access.",
+					"Pick exactly one Role — required as soon as at least one Business Unit is checked.",
+					"Save.",
+				],
+			},
+			{
+				type: "note",
+				text: "A user can be associated with multiple Business Units at once, but only a single Role applies across all of them — you cannot give someone a different role per company.",
+			},
+			{ type: "heading", text: "Other access controls on the Business User row" },
+			{
+				type: "bullets",
+				items: [
+					"'Reset password and mail' — sends a password reset link to the user's email (opens a 'Send password reset link' dialog).",
+					"Deactivate — blocks login immediately without deleting the account or its history; Activate reverses it.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "I created a Business User but they say they have no access — why?",
+				a: "New users have no Business Units or Role associated until you run 'Associate BU / Role' on them. Creating the account alone grants nothing.",
+			},
+			{
+				q: "Can one user access multiple client companies?",
+				a: "Yes — check multiple Business Units in the Associate BU / Role dialog. The single Role you pick applies across all of them.",
+			},
+			{
+				q: "Can I give a user different permissions in different companies?",
+				a: "No. Role is a single selection per user, shared across every Business Unit they're associated with.",
+			},
+			{
+				q: "The Role dropdown won't let me save — why?",
+				a: "Role becomes required as soon as you check at least one Business Unit. Pick a role before saving.",
+			},
+		],
+	},
 
-    {
-        id: "access-associate",
-        category: "Access Management",
-        title: "Granting Access: Associate BU / Role",
-        summary: "The step that actually grants a business user access — pick their Business Unit(s) and one Role.",
-        tags: ["associate", "grant access", "business unit", "role", "business user", "access management"],
-        content: [
-            { type: "para", text: "Creating a Business User (Admin → Business Users → Add Business User) only creates the login — it grants no access by itself. Access is a separate, explicit step." },
-            { type: "heading", text: "Granting access" },
-            { type: "steps", items: [
-                "Go to Admin → Business Users.",
-                "Open the row menu for the user and choose 'Associate BU / Role'.",
-                "Check one or more Business Units the user should be able to access.",
-                "Pick exactly one Role — required as soon as at least one Business Unit is checked.",
-                "Save.",
-            ]},
-            { type: "note", text: "A user can be associated with multiple Business Units at once, but only a single Role applies across all of them — you cannot give someone a different role per company." },
-            { type: "heading", text: "Other access controls on the Business User row" },
-            { type: "bullets", items: [
-                "'Reset password and mail' — sends a password reset link to the user's email (opens a 'Send password reset link' dialog).",
-                "Deactivate — blocks login immediately without deleting the account or its history; Activate reverses it.",
-            ]},
-        ],
-        faqs: [
-            { q: "I created a Business User but they say they have no access — why?", a: "New users have no Business Units or Role associated until you run 'Associate BU / Role' on them. Creating the account alone grants nothing." },
-            { q: "Can one user access multiple client companies?", a: "Yes — check multiple Business Units in the Associate BU / Role dialog. The single Role you pick applies across all of them." },
-            { q: "Can I give a user different permissions in different companies?", a: "No. Role is a single selection per user, shared across every Business Unit they're associated with." },
-            { q: "The Role dropdown won't let me save — why?", a: "Role becomes required as soon as you check at least one Business Unit. Pick a role before saving." },
-        ],
-    },
+	// ── Category 10: Troubleshooting ─────────────────────────────────────────
 
-    // ── Category 10: Troubleshooting ─────────────────────────────────────────
-
-    {
-        id: "common-errors",
-        category: "Troubleshooting",
-        title: "Common Errors & Resolutions",
-        summary: "Quick reference for the most frequent error messages and how to fix them.",
-        tags: ["error", "troubleshoot", "fix", "problem", "document sequence", "finalized", "invoice", "delete", "HSN", "GST", "duplicate"],
-        content: [
-            { type: "table", headers: ["Error / Symptom", "Cause", "Resolution"], rows: [
-                ["'Job Sheet document sequence is not configured or has no prefix'", "JOB_SHEET / SERVICE_INVOICE / etc. has no prefix", "Configurations → Numbering / Auto Series → set the prefix"],
-                ["'Job is finalized — edit not allowed'",     "Job has is_final = true",                            "Final a Job → Finalized Jobs → Undo → then re-edit"],
-                ["'Invoice must be regenerated due to GST status change. Please void the existing invoice first.'", "Division change would flip the job between GST and non-GST while an invoice exists", "Deliver Job → void the invoice → change division → regenerate"],
-                ["'Cannot delete — referenced by records'",   "Customer / Part / Technician is in use",             "Remove all references first, or deactivate instead of deleting"],
-                ["Invoice number field shows 'Already exists'", "Duplicate purchase invoice entry (same Supplier + Invoice Number, any date)", "Check existing Purchase Entry for that vendor before re-entering"],
-                ["'HSN is required for all parts and charges'", "Missing HSN on one or more finalization rows",     "Final a Job → fill HSN on every row with a red border"],
-                ["'GST rate must be greater than 0 for all parts and charges in a GST invoice'", "Zero GST rate line in a GST invoice", "Set GST rate on each line or set a default in App Settings"],
-                ["'Invalid GSTIN' on finalize/deliver",       "Customer GSTIN field has a malformed value",         "Enter a valid 15-character GSTIN or clear the field"],
-                ["Editing a batch job silently redirects you", "Job belongs to a batch — no error is shown, it auto-navigates", "You'll land in Batch Jobs — edit the job there instead of Single Job"],
-                ["Model dropdown is empty",                   "No models exist for selected brand + product",       "Masters → Model → add the missing model first"],
-                ["Jobs not in Final a Job pending list",      "Job status is not exactly COMPLETED_OK, or it's already final", "Move the job to COMPLETED_OK in Job Control first"],
-                ["PDF not opening after clicking Print",      "Browser is blocking pop-ups",                        "Allow pop-ups for this site in browser settings"],
-                ["'Stock transaction type not loaded'",       "CONSUMPTION type not seeded in reference data",      "Contact system administrator to reseed transaction types"],
-            ]},
-        ],
-        faqs: [
-            { q: "The screen is stuck loading — what do I do?", a: "Refresh the page (F5 or Ctrl+R). If the problem persists, check your internet connection and try again. If it continues for more than a few minutes, contact your system administrator." },
-            { q: "I made a mistake on a finalized job — how do I fix it?", a: "Go to Final a Job → Finalized Jobs tab → Undo on the job. This reverts is_final to false. If an invoice was generated, delete it first. Then re-open and correct the finalization form." },
-            { q: "I accidentally deleted a record — can it be recovered?", a: "Deletions are permanent in Service+. For important records (customers, jobs), the system blocks deletion if there are references, so accidental deletion of in-use records is prevented. Contact your administrator if data recovery is needed." },
-        ],
-    },
+	{
+		id: "common-errors",
+		category: "Troubleshooting",
+		title: "Common Errors & Resolutions",
+		summary: "Quick reference for the most frequent error messages and how to fix them.",
+		tags: [
+			"error",
+			"troubleshoot",
+			"fix",
+			"problem",
+			"document sequence",
+			"finalized",
+			"invoice",
+			"delete",
+			"HSN",
+			"GST",
+			"duplicate",
+		],
+		content: [
+			{
+				type: "table",
+				headers: ["Error / Symptom", "Cause", "Resolution"],
+				rows: [
+					[
+						"'Job Sheet document sequence is not configured or has no prefix'",
+						"JOB_SHEET / SERVICE_INVOICE / etc. has no prefix",
+						"Configurations → Numbering / Auto Series → set the prefix",
+					],
+					[
+						"'Job is finalized — edit not allowed'",
+						"Job has is_final = true",
+						"Final a Job → Finalized Jobs → Undo → then re-edit",
+					],
+					[
+						"'Invoice must be regenerated due to GST status change. Please void the existing invoice first.'",
+						"Division change would flip the job between GST and non-GST while an invoice exists",
+						"Deliver Job → void the invoice → change division → regenerate",
+					],
+					[
+						"'Cannot delete — referenced by records'",
+						"Customer / Part / Technician is in use",
+						"Remove all references first, or deactivate instead of deleting",
+					],
+					[
+						"Invoice number field shows 'Already exists'",
+						"Duplicate purchase invoice entry (same Supplier + Invoice Number, any date)",
+						"Check existing Purchase Entry for that vendor before re-entering",
+					],
+					[
+						"'HSN is required for all parts and charges'",
+						"Missing HSN on one or more finalization rows",
+						"Final a Job → fill HSN on every row with a red border",
+					],
+					[
+						"'GST rate must be greater than 0 for all parts and charges in a GST invoice'",
+						"Zero GST rate line in a GST invoice",
+						"Set GST rate on each line or set a default in App Settings",
+					],
+					[
+						"'Invalid GSTIN' on finalize/deliver",
+						"Customer GSTIN field has a malformed value",
+						"Enter a valid 15-character GSTIN or clear the field",
+					],
+					[
+						"Editing a batch job silently redirects you",
+						"Job belongs to a batch — no error is shown, it auto-navigates",
+						"You'll land in Batch Jobs — edit the job there instead of Single Job",
+					],
+					[
+						"Model dropdown is empty",
+						"No models exist for selected brand + product",
+						"Masters → Model → add the missing model first",
+					],
+					[
+						"Jobs not in Final a Job pending list",
+						"Job status is not exactly COMPLETED_OK, or it's already final",
+						"Move the job to COMPLETED_OK in Job Control first",
+					],
+					[
+						"PDF not opening after clicking Print",
+						"Browser is blocking pop-ups",
+						"Allow pop-ups for this site in browser settings",
+					],
+					[
+						"'Stock transaction type not loaded'",
+						"CONSUMPTION type not seeded in reference data",
+						"Contact system administrator to reseed transaction types",
+					],
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "The screen is stuck loading — what do I do?",
+				a: "Refresh the page (F5 or Ctrl+R). If the problem persists, check your internet connection and try again. If it continues for more than a few minutes, contact your system administrator.",
+			},
+			{
+				q: "I made a mistake on a finalized job — how do I fix it?",
+				a: "Go to Final a Job → Finalized Jobs tab → Undo on the job. This reverts is_final to false. If an invoice was generated, delete it first. Then re-open and correct the finalization form.",
+			},
+			{
+				q: "I accidentally deleted a record — can it be recovered?",
+				a: "Deletions are permanent in Service+. For important records (customers, jobs), the system blocks deletion if there are references, so accidental deletion of in-use records is prevented. Contact your administrator if data recovery is needed.",
+			},
+		],
+	},
 ];
 
 export const HELP_CATEGORIES = [
-    "Getting Started",
-    "Jobs",
-    "WhatsApp",
-    "Inventory",
-    "Masters",
-    "Configurations",
-    "Reports",
-    "GST & Invoicing",
-    "Admin & Users",
-    "Access Management",
-    "Troubleshooting",
+	"Getting Started",
+	"Jobs",
+	"WhatsApp",
+	"Inventory",
+	"Masters",
+	"Configurations",
+	"Reports",
+	"GST & Invoicing",
+	"Admin & Users",
+	"Access Management",
+	"Troubleshooting",
 ] as const;
 
 // ─── Category style map (Client Mode / end-user content) ──────────────────────
 
 export const CLIENT_CAT_STYLE: Record<string, CategoryStyleType> = {
-    "Getting Started": {
-        emoji:    "🚀",
-        gradient: "from-violet-500 to-purple-600",
-        pill:     "bg-violet-100 dark:bg-violet-900/40",
-        pillText: "text-violet-700 dark:text-violet-300",
-        stepBg:   "bg-violet-500",
-        stepText: "text-white",
-        border:   "border-violet-300 dark:border-violet-700",
-    },
-    "Jobs": {
-        emoji:    "🔧",
-        gradient: "from-blue-500 to-sky-600",
-        pill:     "bg-blue-100 dark:bg-blue-900/40",
-        pillText: "text-blue-700 dark:text-blue-300",
-        stepBg:   "bg-blue-500",
-        stepText: "text-white",
-        border:   "border-blue-300 dark:border-blue-700",
-    },
-    "WhatsApp": {
-        emoji:    "💬",
-        icon:     WhatsAppIcon,
-        gradient: "from-green-500 to-emerald-600",
-        pill:     "bg-green-100 dark:bg-green-900/40",
-        pillText: "text-green-700 dark:text-green-300",
-        stepBg:   "bg-green-500",
-        stepText: "text-white",
-        border:   "border-green-300 dark:border-green-700",
-    },
-    "Inventory": {
-        emoji:    "📦",
-        gradient: "from-emerald-500 to-teal-600",
-        pill:     "bg-emerald-100 dark:bg-emerald-900/40",
-        pillText: "text-emerald-700 dark:text-emerald-300",
-        stepBg:   "bg-emerald-500",
-        stepText: "text-white",
-        border:   "border-emerald-300 dark:border-emerald-700",
-    },
-    "Masters": {
-        emoji:    "📋",
-        gradient: "from-amber-500 to-yellow-500",
-        pill:     "bg-amber-100 dark:bg-amber-900/40",
-        pillText: "text-amber-700 dark:text-amber-300",
-        stepBg:   "bg-amber-500",
-        stepText: "text-white",
-        border:   "border-amber-300 dark:border-amber-700",
-    },
-    "Configurations": {
-        emoji:    "⚙️",
-        gradient: "from-orange-500 to-amber-600",
-        pill:     "bg-orange-100 dark:bg-orange-900/40",
-        pillText: "text-orange-700 dark:text-orange-300",
-        stepBg:   "bg-orange-500",
-        stepText: "text-white",
-        border:   "border-orange-300 dark:border-orange-700",
-    },
-    "Reports": {
-        emoji:    "📊",
-        gradient: "from-cyan-500 to-blue-500",
-        pill:     "bg-cyan-100 dark:bg-cyan-900/40",
-        pillText: "text-cyan-700 dark:text-cyan-300",
-        stepBg:   "bg-cyan-500",
-        stepText: "text-white",
-        border:   "border-cyan-300 dark:border-cyan-700",
-    },
-    "GST & Invoicing": {
-        emoji:    "🧾",
-        gradient: "from-teal-500 to-cyan-600",
-        pill:     "bg-teal-100 dark:bg-teal-900/40",
-        pillText: "text-teal-700 dark:text-teal-300",
-        stepBg:   "bg-teal-500",
-        stepText: "text-white",
-        border:   "border-teal-300 dark:border-teal-700",
-    },
-    "Admin & Users": {
-        emoji:    "👤",
-        gradient: "from-indigo-500 to-violet-600",
-        pill:     "bg-indigo-100 dark:bg-indigo-900/40",
-        pillText: "text-indigo-700 dark:text-indigo-300",
-        stepBg:   "bg-indigo-500",
-        stepText: "text-white",
-        border:   "border-indigo-300 dark:border-indigo-700",
-    },
-    "Access Management": {
-        emoji:    "🔐",
-        gradient: "from-rose-500 to-pink-600",
-        pill:     "bg-rose-100 dark:bg-rose-900/40",
-        pillText: "text-rose-700 dark:text-rose-300",
-        stepBg:   "bg-rose-500",
-        stepText: "text-white",
-        border:   "border-rose-300 dark:border-rose-700",
-    },
-    "Troubleshooting": {
-        emoji:    "🆘",
-        gradient: "from-fuchsia-500 to-purple-600",
-        pill:     "bg-fuchsia-100 dark:bg-fuchsia-900/40",
-        pillText: "text-fuchsia-700 dark:text-fuchsia-300",
-        stepBg:   "bg-fuchsia-500",
-        stepText: "text-white",
-        border:   "border-fuchsia-300 dark:border-fuchsia-700",
-    },
+	"Getting Started": {
+		emoji: "🚀",
+		gradient: "from-violet-500 to-purple-600",
+		pill: "bg-violet-100 dark:bg-violet-900/40",
+		pillText: "text-violet-700 dark:text-violet-300",
+		stepBg: "bg-violet-500",
+		stepText: "text-white",
+		border: "border-violet-300 dark:border-violet-700",
+	},
+	Jobs: {
+		emoji: "🔧",
+		gradient: "from-blue-500 to-sky-600",
+		pill: "bg-blue-100 dark:bg-blue-900/40",
+		pillText: "text-blue-700 dark:text-blue-300",
+		stepBg: "bg-blue-500",
+		stepText: "text-white",
+		border: "border-blue-300 dark:border-blue-700",
+	},
+	WhatsApp: {
+		emoji: "💬",
+		icon: WhatsAppIcon,
+		gradient: "from-green-500 to-emerald-600",
+		pill: "bg-green-100 dark:bg-green-900/40",
+		pillText: "text-green-700 dark:text-green-300",
+		stepBg: "bg-green-500",
+		stepText: "text-white",
+		border: "border-green-300 dark:border-green-700",
+	},
+	Inventory: {
+		emoji: "📦",
+		gradient: "from-emerald-500 to-teal-600",
+		pill: "bg-emerald-100 dark:bg-emerald-900/40",
+		pillText: "text-emerald-700 dark:text-emerald-300",
+		stepBg: "bg-emerald-500",
+		stepText: "text-white",
+		border: "border-emerald-300 dark:border-emerald-700",
+	},
+	Masters: {
+		emoji: "📋",
+		gradient: "from-amber-500 to-yellow-500",
+		pill: "bg-amber-100 dark:bg-amber-900/40",
+		pillText: "text-amber-700 dark:text-amber-300",
+		stepBg: "bg-amber-500",
+		stepText: "text-white",
+		border: "border-amber-300 dark:border-amber-700",
+	},
+	Configurations: {
+		emoji: "⚙️",
+		gradient: "from-orange-500 to-amber-600",
+		pill: "bg-orange-100 dark:bg-orange-900/40",
+		pillText: "text-orange-700 dark:text-orange-300",
+		stepBg: "bg-orange-500",
+		stepText: "text-white",
+		border: "border-orange-300 dark:border-orange-700",
+	},
+	Reports: {
+		emoji: "📊",
+		gradient: "from-cyan-500 to-blue-500",
+		pill: "bg-cyan-100 dark:bg-cyan-900/40",
+		pillText: "text-cyan-700 dark:text-cyan-300",
+		stepBg: "bg-cyan-500",
+		stepText: "text-white",
+		border: "border-cyan-300 dark:border-cyan-700",
+	},
+	"GST & Invoicing": {
+		emoji: "🧾",
+		gradient: "from-teal-500 to-cyan-600",
+		pill: "bg-teal-100 dark:bg-teal-900/40",
+		pillText: "text-teal-700 dark:text-teal-300",
+		stepBg: "bg-teal-500",
+		stepText: "text-white",
+		border: "border-teal-300 dark:border-teal-700",
+	},
+	"Admin & Users": {
+		emoji: "👤",
+		gradient: "from-indigo-500 to-violet-600",
+		pill: "bg-indigo-100 dark:bg-indigo-900/40",
+		pillText: "text-indigo-700 dark:text-indigo-300",
+		stepBg: "bg-indigo-500",
+		stepText: "text-white",
+		border: "border-indigo-300 dark:border-indigo-700",
+	},
+	"Access Management": {
+		emoji: "🔐",
+		gradient: "from-rose-500 to-pink-600",
+		pill: "bg-rose-100 dark:bg-rose-900/40",
+		pillText: "text-rose-700 dark:text-rose-300",
+		stepBg: "bg-rose-500",
+		stepText: "text-white",
+		border: "border-rose-300 dark:border-rose-700",
+	},
+	Troubleshooting: {
+		emoji: "🆘",
+		gradient: "from-fuchsia-500 to-purple-600",
+		pill: "bg-fuchsia-100 dark:bg-fuchsia-900/40",
+		pillText: "text-fuchsia-700 dark:text-fuchsia-300",
+		stepBg: "bg-fuchsia-500",
+		stepText: "text-white",
+		border: "border-fuchsia-300 dark:border-fuchsia-700",
+	},
 };
 
 // ─── Popular articles shown on the Help Center home view ──────────────────────
 
-export const CLIENT_POPULAR_IDS = ["first-time-setup", "create-job", "job-control", "finalize-job", "deliver-job", "customer-gstin"];
+export const CLIENT_POPULAR_IDS = [
+	"first-time-setup",
+	"create-job",
+	"job-control",
+	"finalize-job",
+	"deliver-job",
+	"customer-gstin",
+];
