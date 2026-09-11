@@ -571,8 +571,8 @@ export const MESSAGES = {
 	ERROR_EW_SETTINGS_SAVE_FAILED: "Failed to update the extended warranty settings. Please try again.",
 	INFO_EW_AUTO_SEND_INERT:
 		"Not in effect yet — reminders are sent from the Due tab. Automatic daily sending is not built.",
-	INFO_EW_ENABLED_HINT:
-		"Shows the Custom, Extended Warranty menu. Sending also needs the Extended Warranty switch under WhatsApp notifications.",
+	INFO_EW_ENABLED_HINT: "Enable or disable Extended Warranty",
+	INFO_EW_SEND_SWITCH_HINT: "Also needs the App Settings → Extended Warranty to be switched on.",
 	INFO_EW_SETTINGS_INTRO:
 		"Reminder stages, sending limits and the numbers printed in the customer message, for this business unit.",
 	SUCCESS_EW_SETTINGS_SAVED: "Extended warranty settings updated.",

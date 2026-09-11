@@ -122,7 +122,7 @@ CROSS JOIN LATERAL jsonb_each(c.stages) AS s(key, value);
 INSERT INTO app_setting (id, setting_key, setting_value, description, is_editable) VALUES
     (16, 'extended_warranty',
      '{"auto_send_enabled": false, "contact_phone": "", "daily_send_cap": 250, "enabled": false, "notify_email": "", "reminder_days_before": [30, 7, 0], "staff_whatsapp_number": "", "whatsapp_number": ""}',
-     'Extended Warranty configuration. `enabled` is the master switch: it shows the Custom -> Extended Warranty menu. Sending also requires whatsapp_notifications.EXTENDED_WARRANTY. The rest is reminder stages, daily send cap, the phone/WhatsApp numbers printed in the customer message, and the staff number that receives lead alerts.', true)
+     'Extended Warranty settings. `enabled` shows the Custom → Extended Warranty menu; sending also needs whatsapp_notifications.EXTENDED_WARRANTY.', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Add the EXTENDED_WARRANTY key to row 15 without disturbing the other event switches,

@@ -3,6 +3,26 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-11 13:37 (main)
+Extended Warranty: shorten the settings switch hints
+
+- Settings dialog: the Enabled switch's hint is now just "Enable or disable
+  Extended Warranty" — the two-switch caveat it used to carry moves to the
+  WhatsApp notifications dialog, which is the switch that actually gates sending.
+- WhatsApp notifications dialog: the Extended Warranty row's note drops the
+  marketing/non-opt-in paragraph and reads "Also needs the App Settings →
+  Extended Warranty to be switched on." It also moves out of the component into
+  constants/messages.ts, per the convention for text over two words.
+- Seed and ew_delta.sql: the extended_warranty row's description is cut from
+  ~50 words to one sentence and uses the → arrow, matching the UI strings. Live
+  rows in all three BU schemas were updated by hand to the same text and verified
+  to match byte-for-byte.
+- Most of this diff's volume is prettier reformatting
+  edit-whatsapp-notifications-dialog.tsx, which was not format-clean before; the
+  real change there is three lines.
+
+Files: 4 changed (+132 / -143) — Base: fbe4434
+
 ## 2026-09-11 13:07 (main)
 Extended Warranty: fold the feature flag into extended_warranty.enabled
 
