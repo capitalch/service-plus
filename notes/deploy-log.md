@@ -3,6 +3,33 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-11 15:27 (main)
+WhatsApp: keep Meta's error code, add a privacy policy page
+
+- Webhook failures now record Meta's numeric code, not just its title:
+  "131049: This message was not delivered to maintain healthy ecosystem
+  engagement." A marketing throttle and a permissions failure had identical-
+  looking titles, so the Message Log could not tell "wait it out" from "fix the
+  config" — a distinction that matters once the app is Live.
+- The extraction was duplicated in the EW and job callback paths; both now call
+  one _format_webhook_error(), which also folds in error_data.details, drops the
+  details when Meta repeats the title verbatim, and returns None rather than
+  raising on a malformed or empty payload.
+- New public/privacy-policy.html: a real server-rendered page, required before a
+  WhatsApp app can go Live. Meta reads the HTML source without running
+  JavaScript, so the existing SPA route answered 200 with an empty shell and was
+  rejected. Ships in dist automatically. Three placeholders — entity name,
+  address, contact email — still need filling before submission.
+- notes/Deployment.md: nginx `location = /privacy-policy` serving that file at a
+  clean extensionless URL, with =404 rather than an SPA fallback so a missing
+  file fails loudly instead of returning an empty 200.
+- ew_enabled_merge.sql: a fifth statement brings the extended_warranty row's
+  description in line with the merged shape. Guarded with IS DISTINCT FROM and
+  verified a no-op against all three live schemas.
+- notes/todo.md: one line added by the user, unrelated to the above.
+
+Files: 4 changed (+52 / -10) — Base: bb23e3d
+
 ## 2026-09-11 15:00 (main)
 Chore: untrack deployment/ so it stops being pushed
 

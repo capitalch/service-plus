@@ -1,6 +1,7 @@
 # To Do
 - Invoice
 	- Intimation of warranty over message for renew
+		- privacy policy update. Also set nginx.
 	- Intimation for immediate collection of your set
 	- One internal remarks, not printable, for internal working
 	- Estimate approval process through whatsapp

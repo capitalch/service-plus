@@ -55,6 +55,17 @@ WHERE setting_key = 'extended_warranty'
   AND id <> 16
   AND NOT EXISTS (SELECT 1 FROM app_setting a WHERE a.id = 16);
 
+-- ── 5. Bring the description in line with the new shape ──────────────────────
+-- The row still carried its pre-consolidation description, which describes it as
+-- configuration only and never mentions `enabled` — now its most important field. The
+-- description column is shown in the App Settings grid, so a stale one is user-visible.
+-- Written on one line: a line break inside the literal ends up stored in the value.
+UPDATE app_setting
+SET description = 'Extended Warranty settings. `enabled` shows the Custom → Extended Warranty menu; sending also needs whatsapp_notifications.EXTENDED_WARRANTY.',
+    updated_at  = now()
+WHERE setting_key = 'extended_warranty'
+  AND description IS DISTINCT FROM 'Extended Warranty settings. `enabled` shows the Custom → Extended Warranty menu; sending also needs whatsapp_notifications.EXTENDED_WARRANTY.';
+
 -- ── Verify ───────────────────────────────────────────────────────────────────
 -- Step 4 is the one statement that can silently skip, so check every schema after running:
 --

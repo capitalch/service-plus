@@ -128,6 +128,33 @@ _EVENT_KEY_BY_CODE = {
 _EW_EVENT_KEYS = {"EXTENDED_WARRANTY", "EXTENDED_WARRANTY_LEAD"}
 
 
+def _format_webhook_error(msg_status: dict) -> str | None:
+    """Meta's failure reason, with its numeric code kept.
+
+    The code is the only part that reliably distinguishes *why* a send failed: the
+    titles read alike, and a marketing-throttle drop ("This message was not delivered
+    to maintain healthy ecosystem engagement.", seen 2026-09-11) is a policy outcome to
+    wait out, while a permissions failure is a configuration problem to fix. Storing the
+    title alone made those indistinguishable in the Message Log.
+
+    Shape: `<code>: <title> — <details>`, with any part omitted when Meta does not send
+    it. Returns None when there is no error to record."""
+    errors = msg_status.get("errors") or []
+    if not errors:
+        return None
+    err = errors[0] or {}
+    code = err.get("code")
+    title = err.get("title") or err.get("message")
+    details = (err.get("error_data") or {}).get("details")
+    # Meta sometimes repeats the title verbatim in details; don't print it twice.
+    if details and title and details.strip() == title.strip():
+        details = None
+    head = f"{code}: {title}" if code is not None and title else (title or (str(code) if code is not None else None))
+    if not head:
+        return None
+    return f"{head} — {details}" if details else head
+
+
 def _decode_callback_data(callback_data: str) -> tuple[str, str, str, list[int]] | None:
     """`db_name|schema|event_code|job_id,job_id,…` (current format) or the legacy
     3-part `db_name|schema|job_id,job_id,…` — any message already in flight when the
@@ -175,11 +202,7 @@ async def _apply_ew_status_callback(
     ew_customer_id, stage = ids[0], ids[1]
 
     settled_at = datetime.now(timezone.utc).isoformat()
-    error_message = None
-    if raw_status == "FAILED":
-        errors = msg_status.get("errors") or []
-        if errors:
-            error_message = errors[0].get("title") or errors[0].get("message")
+    error_message = _format_webhook_error(msg_status) if raw_status == "FAILED" else None
 
     is_lead_alert = event_key == "EXTENDED_WARRANTY_LEAD"
     try:
@@ -278,11 +301,7 @@ async def _apply_status_callback(msg_status: dict) -> None:
     # comparable in the Customer Connect log.
     settled_at = datetime.now(timezone.utc).isoformat()
 
-    error_message = None
-    if raw_status == "FAILED":
-        errors = msg_status.get("errors") or []
-        if errors:
-            error_message = errors[0].get("title") or errors[0].get("message")
+    error_message = _format_webhook_error(msg_status) if raw_status == "FAILED" else None
 
     for job_id in job_ids:
         try:

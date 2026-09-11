@@ -105,6 +105,17 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # Privacy policy — a real static file, served at a clean extensionless URL.
+    # Meta requires a publicly reachable Privacy Policy URL before a WhatsApp app can
+    # go Live, and it reads the HTML source without running JavaScript. The SPA
+    # fallback below would answer 200 with an empty shell for this path, which reads
+    # as "no policy" and fails their check — hence an exact-match location that
+    # resolves the real file, and 404s rather than falling through if it is missing.
+    location = /privacy-policy {
+        default_type text/html;
+        try_files /privacy-policy.html =404;
+    }
+
     # GraphQL — WebSocket upgrade required for subscriptions
     location /graphql/ {
         proxy_pass http://127.0.0.1:8000/graphql/;
