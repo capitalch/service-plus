@@ -3,6 +3,32 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-11 13:56 (main)
+Docs: add the Extended Warranty developer article, fix stale WhatsApp facts
+
+- dev-help-content.ts: new "Extended Warranty Reminders — Implementation" article
+  in the WhatsApp category — the single-table JSONB model and why it beat four
+  normalised tables, ew_stage_v, the exactly-once claim via RETURNING id, the two
+  status ladders, lead-first/notify-after ordering, the eight moving-part files,
+  and the four-places access-right trap.
+- dev-help-content.ts: correct six claims the feature made wrong — the event and
+  template counts, TemplateSpec's button_count (documented as a named
+  button_params list it no longer has), the third signing pair sign_ew/verify_ew,
+  what _is_event_enabled gates, and the mutation/template/router/toggle tally.
+  Added extended_warranty to the app_setting list and to whatsapp_notifications'
+  keys.
+- help-content.ts: the two places that still said five WhatsApp events now say
+  six and name Extended Warranty, with a pointer to its own add-on switch.
+- CLAUDE.md: the help rule now requires BOTH help files on every change, with a
+  table splitting the two audiences and an instruction to re-check sibling
+  articles for drifting counts — the exact way the developer help ended up with
+  no mention of a 66-file feature.
+- Most of dev-help-content.ts's diff volume is prettier reformatting a file that
+  was not format-clean before; the real change is one new article plus the eight
+  corrections above.
+
+Files: 3 changed (+3303 / -1440) — Base: 530a962
+
 ## 2026-09-11 13:37 (main)
 Extended Warranty: shorten the settings switch hints
 

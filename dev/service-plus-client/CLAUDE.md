@@ -85,7 +85,28 @@ The folder tree under `features/client/components/` mirrors the app's menu hiera
 
 ## In-app help system
 
-`features/client/components/help/help-content.ts` (client) and `features/super-admin/components/help/dev-help-content.ts` (developer) are structured `HelpArticle[]` data rendered by the shared engine in `components/shared/help/`. **When a code change alters user-visible behaviour, update the corresponding help article in the same change.**
+`features/client/components/help/help-content.ts` (client) and
+`features/super-admin/components/help/dev-help-content.ts` (developer) are structured
+`HelpArticle[]` data rendered by the shared engine in `components/shared/help/`.
+
+**Every code change updates BOTH help files in the same change — this is not optional and
+not deferred to a follow-up.** They have different audiences, so the same change is written
+twice, differently:
+
+| File | Audience | Update it when the change alters… |
+|---|---|---|
+| `help-content.ts` | staff using the app | what someone sees, clicks, or must switch on — screens, fields, settings, what a message says, why something is hidden |
+| `dev-help-content.ts` | whoever maintains this codebase | schema, SQL ids, resolvers, templates, tokens, routes, access rights, settings keys, gating logic, or any invariant a future change could break |
+
+A change that looks purely internal still usually needs the developer article: a new
+`sqlId`, a new access right, a renamed settings key or a changed default are all things the
+next person will otherwise rediscover by grep.
+
+When adding a feature, add **one new developer article** for it rather than scattering
+facts across existing ones, and **re-check the articles it makes stale** — counts ("the
+five events"), key lists, and field names in sibling articles drift silently and are the
+most common form of wrong documentation here. Grep for the neighbouring feature's name
+before assuming nothing else refers to what you changed.
 
 ## Conventions (project-specific, enforced by review)
 

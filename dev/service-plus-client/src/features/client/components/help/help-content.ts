@@ -1376,7 +1376,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Turning an event off entirely" },
 			{
 				type: "para",
-				text: "Configurations → App Settings → whatsapp_notifications has one on/off switch per event — Job Intake Message, Job Completed, Job Delivery, Money Receipt, and Invoice. Only Job Completed is on by default; the rest must be switched on deliberately. When an event is off, clicking Send doesn't fail or error — it simply doesn't go out, and you'll see a message saying that event is currently switched off.",
+				text: "Configurations → App Settings → whatsapp_notifications has one on/off switch per event — Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, and Extended Warranty. Only Job Completed is on by default; the rest must be switched on deliberately. When an event is off, clicking Send doesn't fail or error — it simply doesn't go out, and you'll see a message saying that event is currently switched off.",
 			},
 		],
 		faqs: [
@@ -2871,7 +2871,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Turning WhatsApp messages on or off" },
 			{
 				type: "para",
-				text: "The whatsapp_notifications setting opens its own dialog instead of the usual text/JSON editor — a toggle for each of the five events: Job Intake Message, Job Completed, Job Delivery, Money Receipt, and Invoice. By default only Job Completed is switched on; the other four must be turned on deliberately before their screens will actually send anything. See 'WhatsApp Integration' for what each message contains and where it is sent from.",
+				text: "The whatsapp_notifications setting opens its own dialog instead of the usual text/JSON editor — a toggle for each of the six events: Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, and Extended Warranty. By default only Job Completed is switched on; the rest must be turned on deliberately before their screens will actually send anything. Extended Warranty additionally needs its own add-on switched on, in App Settings → extended_warranty → Enabled. See 'WhatsApp Integration' for what each message contains and where it is sent from.",
 			},
 			{
 				type: "note",
