@@ -3,6 +3,21 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-11 15:00 (main)
+Chore: untrack deployment/ so it stops being pushed
+
+- deployment/ was already the last line of .gitignore, but 112 files under it
+  had been tracked since the initial commit — .gitignore only applies to
+  untracked paths, so git kept committing them and every deploy that refreshed
+  that mirror showed up as repo changes.
+- git rm -r --cached deployment/ removes them from the index only. Every file
+  stays on disk untouched; the ignore rule now takes effect, so future deploys
+  into that folder are invisible to git.
+- Contents were never read, per the repo rule — this removes the 97 app-server
+  and 10 file-server mirror files plus the deploy/extract/startup scripts.
+
+Files: 112 changed (+0 / -23931) — Base: b53a7d2
+
 ## 2026-09-11 14:56 (main)
 Extended Warranty: cast the jsonb stage path to text in the stage writers
 
