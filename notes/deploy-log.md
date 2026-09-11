@@ -3,6 +3,31 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-11 14:56 (main)
+Extended Warranty: cast the jsonb stage path to text in the stage writers
+
+- APPEND_EW_FOLLOW_UP failed every follow-up with "function jsonb_set(jsonb,
+  smallint[], jsonb, boolean) does not exist". psycopg folds a repeated named
+  placeholder into ONE parameter, so Postgres unified %(stage)s across all its
+  uses and the `::smallint` on the log entry dragged the whole thing to smallint
+  — making the uncast ARRAY[%(stage)s] a smallint[]. Now cast to ::text.
+- A second bug was hidden behind it: `stages -> %(stage)s` with a smallint
+  resolves to `jsonb -> integer`, which is ARRAY indexing and returns NULL
+  against an object — so even once the crash was fixed the CASE would have
+  skipped and stage_status would never have advanced. Those lookups are cast too.
+- CLAIM_EW_REMINDER_STAGE carries the same shape and happens to resolve to text
+  today, which is why sending works. Hardened anyway: if that parameter ever
+  resolved to smallint, the WHERE's stage lookup would return NULL, COALESCE
+  would yield 'NONE', and the exactly-once guard would pass unconditionally —
+  duplicate customer messages, silently. Documented beside the existing warning.
+- Verified against the live demo1 schema: all five stage-keyed writers parse, and
+  a rolled-back transaction confirmed the follow-up now sets outcome,
+  outcome_at, follow_up_count and stage_status. Confirmed working in production.
+- The deployment/app-server mirror also changed in this upload (updated by a
+  deploy, contents not read).
+
+Files: 9 changed (+338 / -12) — Base: ea1b134
+
 ## 2026-09-11 14:04 (main)
 Chore: format the whole client with prettier (no behaviour change)
 

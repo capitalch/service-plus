@@ -42,11 +42,20 @@ class ExtendedWarrantySql:
     #
     # DO NOT edit this WHERE clause without re-running the concurrency test. A unique
     # index enforces itself; a WHERE clause only works while it is correct.
+    #
+    # Every %(stage)s is cast to ::text deliberately. psycopg folds the repeated named
+    # placeholder into ONE parameter, so Postgres unifies its type across all uses and the
+    # `::smallint` below can drag the whole thing to smallint — which turns ARRAY[...] into
+    # smallint[] (no jsonb_set overload; APPEND_EW_FOLLOW_UP failed exactly this way on
+    # 2026-09-11) and turns `stages -> %(stage)s` into ARRAY indexing, which returns NULL
+    # against an object. That second one is the dangerous half here: a NULL lookup makes
+    # COALESCE(...) = 'NONE', the guard passes unconditionally, and exactly-once is gone
+    # silently. The casts make the resolution explicit instead of order-dependent.
     CLAIM_EW_REMINDER_STAGE = """
         UPDATE ew_customer
         SET stages = jsonb_set(
                 COALESCE(stages, '{}'::jsonb),
-                ARRAY[%(stage)s],
+                ARRAY[%(stage)s::text],
                 jsonb_build_object(
                     'delivery_status', 'PENDING',
                     'stage_status',    'MESSAGE_SENT',
@@ -64,7 +73,7 @@ class ExtendedWarrantySql:
         WHERE id = %(ew_customer_id)s
           AND is_active
           AND NOT is_opted_out
-          AND COALESCE(stages -> %(stage)s ->> 'delivery_status', 'NONE') IN ('NONE', 'FAILED')
+          AND COALESCE(stages -> %(stage)s::text ->> 'delivery_status', 'NONE') IN ('NONE', 'FAILED')
         RETURNING id
     """
 
@@ -223,12 +232,19 @@ class ExtendedWarrantySql:
                 'outcome', %(outcome)s::text,
                 'remarks', %(remarks)s::text
             )),
+            -- Every %(stage)s here is cast explicitly. psycopg folds the repeated named
+            -- placeholder into ONE parameter, so Postgres unifies its type across all
+            -- uses: the `::smallint` above resolved the whole thing to smallint, and the
+            -- uncast ARRAY[...] became smallint[] — jsonb_set has no such overload, which
+            -- failed the mutation outright (2026-09-11). The `-> ` lookups need the cast
+            -- for a second reason: `jsonb -> integer` is ARRAY indexing, so an uncast
+            -- smallint would silently return NULL against an object and skip the update.
             stages = CASE
-                WHEN %(stage)s IS NULL OR jsonb_typeof(stages -> %(stage)s) <> 'object' THEN stages
+                WHEN %(stage)s IS NULL OR jsonb_typeof(stages -> %(stage)s::text) <> 'object' THEN stages
                 ELSE jsonb_set(
                     stages,
-                    ARRAY[%(stage)s],
-                    (stages -> %(stage)s)
+                    ARRAY[%(stage)s::text],
+                    (stages -> %(stage)s::text)
                     || jsonb_build_object('stage_status', %(stage_status)s::text),
                     true
                 )

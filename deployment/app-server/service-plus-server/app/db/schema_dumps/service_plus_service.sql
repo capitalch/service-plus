@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict ySu7OUo94P2nzNDgnPOeNgASf5rTKvgwZeA4bjFAKV3u2OTXTeKKnzC9JUZXp7V
+\restrict cOTQM8PASzIejA8ffI0rUGENfrULfAUdHPPYlYiMS3pIdvcslA8kcOPD4XkUn4y
 
 -- Dumped from database version 14.6
--- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
+-- Dumped by pg_dump version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -344,6 +344,92 @@ CREATE TABLE demo1.document_type (
 
 
 ALTER TABLE demo1.document_type OWNER TO webadmin;
+
+--
+-- Name: ew_customer; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.ew_customer (
+    id bigint NOT NULL,
+    branch_id bigint NOT NULL,
+    full_name text NOT NULL,
+    mobile text NOT NULL,
+    email text,
+    address text,
+    city text,
+    brand_id bigint NOT NULL,
+    product_id bigint,
+    model_name text,
+    serial_no text,
+    purchase_date date,
+    warranty_end_date date NOT NULL,
+    remarks text,
+    stages jsonb DEFAULT '{}'::jsonb NOT NULL,
+    follow_ups jsonb DEFAULT '[]'::jsonb NOT NULL,
+    outcome text DEFAULT 'OPEN'::text NOT NULL,
+    outcome_at timestamp with time zone,
+    last_stage_sent smallint,
+    last_sent_at timestamp with time zone,
+    interest_count integer DEFAULT 0 NOT NULL,
+    follow_up_count integer DEFAULT 0 NOT NULL,
+    is_opted_out boolean DEFAULT false NOT NULL,
+    opted_out_at timestamp with time zone,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ew_customer_outcome_chk CHECK ((outcome = ANY (ARRAY['OPEN'::text, 'CONVERTED'::text, 'NOT_INTERESTED'::text, 'UNREACHABLE'::text])))
+);
+
+
+ALTER TABLE demo1.ew_customer OWNER TO webadmin;
+
+--
+-- Name: ew_customer_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.ew_customer ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.ew_customer_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: ew_stage_v; Type: VIEW; Schema: demo1; Owner: webadmin
+--
+
+CREATE VIEW demo1.ew_stage_v AS
+ SELECT c.id AS ew_customer_id,
+    c.branch_id,
+    c.full_name,
+    c.mobile,
+    c.brand_id,
+    c.product_id,
+    c.model_name,
+    c.warranty_end_date,
+    c.outcome,
+    c.is_active,
+    c.is_opted_out,
+    (s.key)::smallint AS stage,
+    (s.value ->> 'delivery_status'::text) AS delivery_status,
+    (s.value ->> 'stage_status'::text) AS stage_status,
+    (s.value ->> 'wamid'::text) AS wamid,
+    ((s.value ->> 'sent_at'::text))::timestamp with time zone AS sent_at,
+    ((s.value ->> 'sent_by'::text))::bigint AS sent_by,
+    (s.value ->> 'error'::text) AS error,
+    (((s.value -> 'interest'::text) ->> 'expressed_at'::text))::timestamp with time zone AS interest_at,
+    ((s.value -> 'interest'::text) ->> 'preferred_contact'::text) AS preferred_contact,
+    ((s.value -> 'interest'::text) ->> 'customer_remarks'::text) AS customer_remarks,
+    (((s.value -> 'interest'::text) -> 'alert'::text) ->> 'delivery_status'::text) AS alert_status,
+    (((s.value -> 'interest'::text) -> 'alert'::text) ->> 'error'::text) AS alert_error
+   FROM (demo1.ew_customer c
+     CROSS JOIN LATERAL jsonb_each(c.stages) s(key, value));
+
+
+ALTER VIEW demo1.ew_stage_v OWNER TO webadmin;
 
 --
 -- Name: financial_year; Type: TABLE; Schema: demo1; Owner: webadmin
@@ -1983,6 +2069,14 @@ ALTER TABLE ONLY demo1.document_type
 
 
 --
+-- Name: ew_customer ew_customer_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.ew_customer
+    ADD CONSTRAINT ew_customer_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: financial_year financial_year_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -2610,6 +2704,48 @@ CREATE UNIQUE INDEX document_sequence_unique ON demo1.document_sequence USING bt
 
 
 --
+-- Name: ew_customer_branch_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX ew_customer_branch_idx ON demo1.ew_customer USING btree (branch_id);
+
+
+--
+-- Name: ew_customer_dedup_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE UNIQUE INDEX ew_customer_dedup_idx ON demo1.ew_customer USING btree (mobile, COALESCE(serial_no, ''::text), warranty_end_date);
+
+
+--
+-- Name: ew_customer_due_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX ew_customer_due_idx ON demo1.ew_customer USING btree (warranty_end_date) WHERE (is_active AND (NOT is_opted_out));
+
+
+--
+-- Name: ew_customer_mobile_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX ew_customer_mobile_idx ON demo1.ew_customer USING btree (mobile);
+
+
+--
+-- Name: ew_customer_outcome_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX ew_customer_outcome_idx ON demo1.ew_customer USING btree (outcome);
+
+
+--
+-- Name: ew_customer_stages_gin; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX ew_customer_stages_gin ON demo1.ew_customer USING gin (stages jsonb_path_ops);
+
+
+--
 -- Name: idx_customer_contact_mobile; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -3160,6 +3296,30 @@ ALTER TABLE ONLY demo1.document_sequence
 
 ALTER TABLE ONLY demo1.document_sequence
     ADD CONSTRAINT document_sequence_type_fk FOREIGN KEY (document_type_id) REFERENCES demo1.document_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: ew_customer ew_customer_branch_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.ew_customer
+    ADD CONSTRAINT ew_customer_branch_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: ew_customer ew_customer_brand_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.ew_customer
+    ADD CONSTRAINT ew_customer_brand_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id);
+
+
+--
+-- Name: ew_customer ew_customer_product_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.ew_customer
+    ADD CONSTRAINT ew_customer_product_fkey FOREIGN KEY (product_id) REFERENCES demo1.product(id);
 
 
 --
@@ -3814,5 +3974,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ySu7OUo94P2nzNDgnPOeNgASf5rTKvgwZeA4bjFAKV3u2OTXTeKKnzC9JUZXp7V
+\unrestrict cOTQM8PASzIejA8ffI0rUGENfrULfAUdHPPYlYiMS3pIdvcslA8kcOPD4XkUn4y
 
