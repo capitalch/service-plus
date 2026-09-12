@@ -76,7 +76,7 @@ function TreeItem({ disabled, icon: Icon, iconColor, label, title, helpArticleId
 				}}
 				title={disabled ? title : undefined}
 				aria-disabled={disabled}
-				className={`group flex flex-1 items-center gap-2 rounded px-2 py-2 transition-colors duration-150 ${
+				className={`group flex flex-1 items-center gap-2 rounded-md px-2 py-2 transition-colors duration-150 ${
 					disabled
 						? "cursor-not-allowed text-(--cl-text-muted) opacity-40"
 						: isActive

@@ -98,3 +98,60 @@ export function daysLeftLabel(daysLeft: number): string {
 	if (daysLeft === 0) return "Expires today";
 	return `${daysLeft}d left`;
 }
+
+/**
+ * The Due tab's selection checkboxes, which drive the only destructive-ish action in this
+ * screen — sending a marketing message to a real customer. The shared shadcn primitive
+ * fills a checked box with `--primary`, which is near-black (oklch 0.205), and draws an
+ * emerald tick on top of it: dark-on-dark, and easy to misread at a glance when you are
+ * about to send. These overrides make the checked state unmistakable — a filled emerald
+ * box with a white tick, one step larger, with a heavier unchecked border so an empty box
+ * is equally obvious. Set here rather than in components/ui/checkbox.tsx, which is
+ * generated and shared with every other screen.
+ */
+export const EW_CHECKBOX_CLASS =
+	"size-5 border-2 border-(--cl-text-muted)/40 transition-colors hover:border-emerald-500 " +
+	"data-checked:border-emerald-600 data-checked:bg-emerald-600 [&_svg]:text-white";
+
+export type EwBucketType = { label: string; max: number | null; min: number | null; value: number | null };
+
+/**
+ * Turn the configured `reminder_days_before` into the Leads screen's expiry chips, as
+ * days-left ranges. Derived from the setting and never a literal, so a tenant that adds a
+ * 60-day stage gets a 60 chip with no code change.
+ *
+ * Each chip covers "inside this window but outside the tighter one" — with [30, 7, 0] a
+ * lead 20 days out lands in the 30 chip, one 3 days out in the 7 chip. Overdue is bounded
+ * below by the send grace, so it holds only leads still worth pursuing.
+ */
+export function bucketsFromStages(stages: number[], graceDays: number): EwBucketType[] {
+	const sorted = [...new Set(stages)].sort((a, b) => b - a);
+	const chips: EwBucketType[] = sorted.map((stage, i) => {
+		const tighter = sorted[i + 1];
+		return {
+			label: stage === 0 ? "Expiring today" : `${stage} days`,
+			max: stage,
+			min: tighter == null ? 0 : tighter + 1,
+			value: stage,
+		};
+	});
+	chips.push({ label: "Overdue", max: -1, min: graceDays, value: -1 });
+	return chips;
+}
+
+/** The one-line status of a lead, in the order staff care about it. */
+export function leadStatusLabel(row: {
+	due_stage: number | null;
+	follow_up_count: number;
+	interest_at: string | null;
+	outcome: string;
+	sent_at: string | null;
+}): string {
+	if (row.outcome === "CONVERTED") return "Won";
+	if (row.outcome === "NOT_INTERESTED" || row.outcome === "UNREACHABLE") return "Lost";
+	if (row.interest_at) return "Interested";
+	if (row.follow_up_count > 0) return "Followed up";
+	if (row.due_stage != null) return "Due to message";
+	if (row.sent_at) return "Message sent";
+	return "Not messaged";
+}

@@ -15,7 +15,7 @@ export const ChartCard = ({ actions, children, className, description, title }: 
 	return (
 		<section
 			className={cn(
-				"flex flex-col rounded-lg border border-(--cl-border) bg-(--cl-surface-2) shadow-sm",
+				"flex flex-col rounded-xl border border-(--cl-border) bg-(--cl-surface-2) shadow-[0_1px_3px_rgba(0,0,0,0.08)]",
 				className,
 			)}
 		>

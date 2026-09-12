@@ -269,44 +269,6 @@ class ExtendedWarrantySql:
 
     # ── Reads — plain SQL over ew_stage_v or the flat columns ─────────────────
 
-    # `stages` here is the configured reminder_days_before list, passed as int[]; the
-    # lateral picks the SMALLEST configured bucket the customer has fallen into and not
-    # yet been sent, so someone 5 days from expiry gets the 7-day message rather than the
-    # 30-day one. `grace_days` (negative) bounds how far past expiry a record stays due,
-    # so a long-dormant list doesn't suddenly fire at everyone on stage 0.
-    GET_EW_DUE_CUSTOMERS = """
-        SELECT c.id                                        AS ew_customer_id,
-               c.full_name,
-               c.mobile,
-               c.address,
-               c.city,
-               c.brand_id,
-               b.name                                      AS brand_name,
-               c.product_id,
-               p.name                                      AS product_name,
-               c.model_name,
-               c.serial_no,
-               c.purchase_date,
-               c.warranty_end_date,
-               (c.warranty_end_date - CURRENT_DATE)        AS days_left,
-               due.stage,
-               COALESCE(c.stages -> due.stage::text ->> 'delivery_status', 'NONE') AS delivery_status
-        FROM ew_customer c
-        LEFT JOIN brand   b ON b.id = c.brand_id
-        LEFT JOIN product p ON p.id = c.product_id
-        CROSS JOIN LATERAL (
-            SELECT MIN(s.stage) AS stage
-            FROM unnest(%(stages)s::int[]) AS s(stage)
-            WHERE (c.warranty_end_date - CURRENT_DATE) <= s.stage
-              AND COALESCE(c.stages -> s.stage::text ->> 'delivery_status', 'NONE') IN ('NONE', 'FAILED')
-        ) due
-        WHERE c.is_active
-          AND NOT c.is_opted_out
-          AND due.stage IS NOT NULL
-          AND (c.warranty_end_date - CURRENT_DATE) >= %(grace_days)s
-          AND (%(branch_id)s::bigint IS NULL OR c.branch_id = %(branch_id)s)
-        ORDER BY c.warranty_end_date, c.full_name
-    """
 
     # Server-side re-filter for the send: never trusts the client's selection, exactly
     # like GET_JOBS_FOR_WHATSAPP_COMPLETION. branch_id is cross-checked here, so a list
@@ -364,45 +326,6 @@ class ExtendedWarrantySql:
         WHERE c.id = %(ew_customer_id)s
     """
 
-    GET_EW_CUSTOMERS_PAGED = """
-        SELECT c.id,
-               c.full_name,
-               c.mobile,
-               c.email,
-               c.address,
-               c.city,
-               c.brand_id,
-               b.name                               AS brand_name,
-               c.product_id,
-               p.name                               AS product_name,
-               c.model_name,
-               c.serial_no,
-               c.purchase_date,
-               c.warranty_end_date,
-               (c.warranty_end_date - CURRENT_DATE) AS days_left,
-               c.remarks,
-               c.outcome,
-               c.outcome_at,
-               c.last_stage_sent,
-               c.last_sent_at,
-               c.interest_count,
-               c.follow_up_count,
-               c.is_opted_out,
-               c.is_active,
-               COUNT(*) OVER ()                     AS total_count
-        FROM ew_customer c
-        LEFT JOIN brand   b ON b.id = c.brand_id
-        LEFT JOIN product p ON p.id = c.product_id
-        WHERE (%(branch_id)s::bigint IS NULL OR c.branch_id = %(branch_id)s)
-          AND (%(search)s::text IS NULL OR %(search)s = ''
-               OR c.full_name ILIKE '%%' || %(search)s || '%%'
-               OR c.mobile    ILIKE '%%' || %(search)s || '%%'
-               OR c.serial_no ILIKE '%%' || %(search)s || '%%')
-          AND (%(outcome)s::text IS NULL OR c.outcome = %(outcome)s)
-          AND (%(show_inactive)s::boolean OR c.is_active)
-        ORDER BY c.warranty_end_date, c.full_name
-        LIMIT %(limit)s OFFSET %(offset)s
-    """
 
     # The prompt's cross-lookup: one mobile, searched in the customer master AND the
     # extended-warranty table, so staff entering a repeat customer don't retype anything.
@@ -444,27 +367,121 @@ class ExtendedWarrantySql:
         LIMIT 5
     """
 
-    GET_EW_INTEREST_PAGED = """
-        SELECT v.ew_customer_id,
-               v.full_name,
-               v.mobile,
-               v.stage,
-               v.interest_at,
-               v.preferred_contact,
-               v.customer_remarks,
-               v.stage_status,
-               v.alert_status,
-               v.alert_error,
-               v.warranty_end_date,
-               v.outcome,
+
+    # The Leads screen's one read — replaces the three grids (Due / Interested /
+    # Customers) with a single CUSTOMER-level row. ew_stage_v is per customer x stage, so
+    # a customer with three stages would appear three times; the lateral below collapses
+    # that to one "current" stage:
+    #   1. the stage that carries interest (that is the one staff must act on), else
+    #   2. the most recent stage actually sent, else
+    #   3. nothing at all — a never-messaged lead, which has NO ew_stage_v row and would
+    #      be invisible to any query built on the view. That is why this reads FROM
+    #      ew_customer and joins the view sideways, not the other way round.
+    #
+    # `due_stage` answers "is a reminder owed right now" on the same row, so the Leads
+    # screen needs no second query. This is now the ONLY place that rule is expressed for
+    # reading — GET_EW_DUE_CUSTOMERS was deleted once the Leads screen replaced the Due
+    # grid. The authority for *sending* remains CLAIM_EW_REMINDER_STAGE's WHERE clause;
+    # this predicate only decides what the UI offers, and the claim still refuses anything
+    # already sent.
+    GET_EW_LEADS_PAGED = """
+        SELECT c.id                                        AS ew_customer_id,
+               c.full_name,
+               c.mobile,
+               c.email,
+               c.address,
+               c.city,
+               c.brand_id,
+               b.name                                      AS brand_name,
+               c.product_id,
+               COALESCE(NULLIF(c.model_name, ''), p.name, '') AS product_label,
+               c.serial_no,
+               c.purchase_date,
+               c.warranty_end_date,
+               (c.warranty_end_date - CURRENT_DATE)        AS days_left,
+               c.remarks,
+               c.outcome,
+               c.outcome_at,
+               c.interest_count,
                c.follow_up_count,
-               COUNT(*) OVER () AS total_count
-        FROM ew_stage_v v
-        JOIN ew_customer c ON c.id = v.ew_customer_id
-        WHERE v.interest_at IS NOT NULL
-          AND (%(branch_id)s::bigint IS NULL OR v.branch_id = %(branch_id)s)
-          AND (%(outcome)s::text IS NULL OR v.outcome = %(outcome)s)
-        ORDER BY v.interest_at DESC
+               c.is_opted_out,
+               cur.stage,
+               cur.stage_status,
+               cur.delivery_status,
+               cur.sent_at,
+               cur.error                                   AS delivery_error,
+               cur.interest_at,
+               cur.preferred_contact,
+               cur.customer_remarks,
+               cur.alert_status,
+               cur.alert_error,
+               due.stage                                   AS due_stage,
+               -- EVERY send for this customer, not just the current stage's. One stage is
+               -- one send (there is no attempts array here), so a customer messaged at 30
+               -- and again at 7 has two entries. Grids showed only the current stage
+               -- before, which made an earlier reminder look as though it never went out.
+               COALESCE(snd.sends, '[]'::jsonb)            AS sends,
+               COUNT(*) OVER ()                            AS total_count
+        FROM ew_customer c
+        LEFT JOIN brand   b ON b.id = c.brand_id
+        LEFT JOIN product p ON p.id = c.product_id
+        LEFT JOIN LATERAL (
+            SELECT v.stage, v.stage_status, v.delivery_status, v.sent_at, v.error,
+                   v.interest_at, v.preferred_contact, v.customer_remarks,
+                   v.alert_status, v.alert_error
+            FROM ew_stage_v v
+            WHERE v.ew_customer_id = c.id
+            ORDER BY (v.interest_at IS NOT NULL) DESC, v.sent_at DESC NULLS LAST, v.stage
+            LIMIT 1
+        ) cur ON true
+        LEFT JOIN LATERAL (
+            SELECT jsonb_agg(
+                       jsonb_build_object(
+                           'stage',           sv.stage,
+                           'delivery_status', sv.delivery_status,
+                           'stage_status',    sv.stage_status,
+                           'sent_at',         sv.sent_at,
+                           'error',           sv.error
+                       ) ORDER BY sv.stage DESC
+                   ) AS sends
+            FROM ew_stage_v sv
+            WHERE sv.ew_customer_id = c.id
+              AND sv.sent_at IS NOT NULL
+        ) snd ON true
+        LEFT JOIN LATERAL (
+            SELECT MIN(s.stage) AS stage
+            FROM unnest(%(stages)s::int[]) AS s(stage)
+            WHERE (c.warranty_end_date - CURRENT_DATE) <= s.stage
+              AND (c.warranty_end_date - CURRENT_DATE) >= %(grace_days)s
+              AND c.is_active AND NOT c.is_opted_out
+              AND COALESCE(c.stages -> s.stage::text ->> 'delivery_status', 'NONE') IN ('NONE', 'FAILED')
+        ) due ON true
+        WHERE c.is_active
+          AND (%(branch_id)s::bigint IS NULL OR c.branch_id = %(branch_id)s)
+          -- Search spans who they are AND what they own: staff look a lead up by whatever
+          -- the customer says on the phone, which is as often "the Sony 55-inch" or a
+          -- serial off the back of the set as it is a name.
+          AND (%(search)s::text IS NULL OR %(search)s = ''
+               OR c.full_name  ILIKE '%%' || %(search)s || '%%'
+               OR c.mobile     ILIKE '%%' || %(search)s || '%%'
+               OR c.serial_no  ILIKE '%%' || %(search)s || '%%'
+               OR c.model_name ILIKE '%%' || %(search)s || '%%'
+               OR b.name       ILIKE '%%' || %(search)s || '%%'
+               OR p.name       ILIKE '%%' || %(search)s || '%%')
+          AND (%(outcome)s::text IS NULL OR c.outcome = %(outcome)s)
+          -- Bucket bounds come from the client as days-left range; both optional.
+          AND (%(days_left_min)s::int IS NULL OR (c.warranty_end_date - CURRENT_DATE) >= %(days_left_min)s)
+          AND (%(days_left_max)s::int IS NULL OR (c.warranty_end_date - CURRENT_DATE) <= %(days_left_max)s)
+          -- One status filter, mapped here rather than in the client so the pill labels
+          -- stay presentation and the predicate stays a contract.
+          AND (%(status)s::text IS NULL
+               OR (%(status)s = 'DUE'        AND due.stage IS NOT NULL)
+               OR (%(status)s = 'MESSAGED'   AND cur.sent_at IS NOT NULL AND cur.interest_at IS NULL)
+               OR (%(status)s = 'INTERESTED' AND cur.interest_at IS NOT NULL AND c.outcome = 'OPEN')
+               OR (%(status)s = 'FOLLOWED_UP' AND c.follow_up_count > 0 AND c.outcome = 'OPEN')
+               OR (%(status)s = 'WON'        AND c.outcome = 'CONVERTED')
+               OR (%(status)s = 'LOST'       AND c.outcome IN ('NOT_INTERESTED', 'UNREACHABLE')))
+        ORDER BY c.warranty_end_date, c.full_name
         LIMIT %(limit)s OFFSET %(offset)s
     """
 
@@ -531,77 +548,75 @@ class ExtendedWarrantySql:
     # `due_in_window` and `not_contacted` come from ew_customer directly, NOT from
     # ew_stage_v: the view unnests `stages`, so a customer who has never been sent
     # anything has no rows in it at all.
-    GET_EW_DASHBOARD_KPIS = """
-        WITH sent AS (
+    # The rebuilt dashboard's single read. One row, so the whole screen costs one query.
+    #
+    # Two populations, deliberately counted from different places:
+    #  * LEAD buckets come from ew_customer, so a customer who has never been messaged is
+    #    counted. Anything built on ew_stage_v would miss exactly the leads most worth
+    #    chasing, because a never-messaged customer has no row there.
+    #  * Funnel counts (interested/won/lost/failed) come from ew_stage_v and are therefore
+    #    customer x STAGE, matching the existing funnel ladder. `followed_up` is the
+    #    exception: follow-ups are recorded at customer level, so it counts DISTINCT
+    #    customers. The two semantics are not interchangeable and the help says so.
+    #
+    # `lead_buckets` is a jsonb object keyed by stage rather than fixed columns, because
+    # the stage set is data (`reminder_days_before`) — fixed columns would hard-code it.
+    # A lead lands in the TIGHTEST bucket it has reached: MIN(stage) over the stages whose
+    # threshold its days-left has crossed. Leads further out than the widest stage are in
+    # no bucket at all, which is correct — nothing is owed to them yet.
+    #
+    # Message-sent counts are CUMULATIVE, not exclusive: "this week" includes today and
+    # "this month" includes this week, which is how the labels read. They do not sum.
+    GET_EW_DASHBOARD_OVERVIEW = """
+        WITH leads AS (
+            SELECT c.id,
+                   (c.warranty_end_date - CURRENT_DATE) AS days_left
+            FROM ew_customer c
+            WHERE c.is_active
+              AND NOT c.is_opted_out
+              AND (%(branch_id)s::bigint IS NULL OR c.branch_id = %(branch_id)s)
+        ),
+        bucketed AS (
+            SELECT (
+                SELECT MIN(s.stage)
+                FROM unnest(%(stages)s::int[]) AS s(stage)
+                WHERE l.days_left <= s.stage
+            ) AS bucket
+            FROM leads l
+            WHERE l.days_left >= 0
+        ),
+        stage_rows AS (
             SELECT v.*
             FROM ew_stage_v v
             WHERE (%(branch_id)s::bigint IS NULL OR v.branch_id = %(branch_id)s)
-              AND (%(date_from)s::date IS NULL OR v.sent_at::date >= %(date_from)s)
-              AND (%(date_to)s::date   IS NULL OR v.sent_at::date <= %(date_to)s)
         )
         SELECT
+            COALESCE(
+                (SELECT jsonb_object_agg(bucket::text, cnt)
+                 FROM (SELECT bucket, COUNT(*) AS cnt FROM bucketed WHERE bucket IS NOT NULL GROUP BY bucket) q),
+                '{}'::jsonb
+            )                                                                    AS lead_buckets,
+            (SELECT COUNT(*) FROM leads WHERE days_left < 0 AND days_left >= %(grace_days)s) AS leads_overdue,
+            (SELECT COUNT(*) FROM leads)                                         AS leads_total,
+            (SELECT COUNT(*) FROM stage_rows WHERE sent_at >= date_trunc('day', now()))   AS sent_today,
+            (SELECT COUNT(*) FROM stage_rows WHERE sent_at >= date_trunc('week', now()))  AS sent_week,
+            (SELECT COUNT(*) FROM stage_rows WHERE sent_at >= date_trunc('month', now())) AS sent_month,
+            (SELECT COUNT(*) FROM stage_rows WHERE sent_at <  date_trunc('month', now())) AS sent_older,
+            (SELECT COUNT(*) FROM stage_rows WHERE sent_at IS NOT NULL)          AS sent_total,
+            (SELECT COUNT(*) FROM stage_rows WHERE delivery_status = 'FAILED')   AS failed,
+            (SELECT COUNT(*) FROM stage_rows WHERE interest_at IS NOT NULL)      AS interested,
             (SELECT COUNT(*) FROM ew_customer c
-              WHERE c.is_active AND NOT c.is_opted_out
+              WHERE c.follow_up_count > 0
                 AND (%(branch_id)s::bigint IS NULL OR c.branch_id = %(branch_id)s)
-                AND (c.warranty_end_date - CURRENT_DATE) BETWEEN %(grace_days)s AND %(window_days)s
-            )                                                                    AS due_in_window,
-            (SELECT COUNT(*) FROM ew_customer c
-              WHERE c.is_active AND NOT c.is_opted_out AND c.stages = '{}'::jsonb
-                AND (%(branch_id)s::bigint IS NULL OR c.branch_id = %(branch_id)s)
-            )                                                                    AS not_contacted,
-            COUNT(*) FILTER (WHERE sent_at IS NOT NULL)                          AS messages_sent,
-            COUNT(*) FILTER (WHERE delivery_status IN ('DELIVERED', 'READ'))     AS delivered,
-            COUNT(*) FILTER (WHERE delivery_status = 'FAILED')                   AS failed,
-            COUNT(*) FILTER (WHERE interest_at IS NOT NULL)                      AS interested,
-            COUNT(*) FILTER (WHERE stage_status = 'FOLLOWED_UP')                 AS followed_up,
-            COUNT(*) FILTER (WHERE stage_status = 'CONVERTED')                   AS converted,
-            COUNT(*) FILTER (WHERE stage_status = 'NOT_INTERESTED')              AS not_interested,
-            COUNT(*) FILTER (WHERE stage_status = 'UNREACHABLE')                 AS unreachable,
-            (SELECT COUNT(*) FROM ew_customer c
-              WHERE c.is_opted_out
-                AND (%(branch_id)s::bigint IS NULL OR c.branch_id = %(branch_id)s)
-            )                                                                    AS opted_out
-        FROM sent
+            )                                                                    AS followed_up,
+            (SELECT COUNT(*) FROM stage_rows WHERE stage_status = 'CONVERTED')   AS won,
+            (SELECT COUNT(*) FROM stage_rows
+              WHERE stage_status IN ('NOT_INTERESTED', 'UNREACHABLE'))           AS lost
     """
 
-    GET_EW_FUNNEL_BY_STAGE = """
-        SELECT v.stage,
-               v.stage_status,
-               COUNT(*) AS cnt
-        FROM ew_stage_v v
-        WHERE (%(branch_id)s::bigint IS NULL OR v.branch_id = %(branch_id)s)
-          AND (%(date_from)s::date IS NULL OR v.sent_at::date >= %(date_from)s)
-          AND (%(date_to)s::date   IS NULL OR v.sent_at::date <= %(date_to)s)
-        GROUP BY v.stage, v.stage_status
-        ORDER BY v.stage DESC, v.stage_status
-    """
 
-    GET_EW_BY_BRAND = """
-        SELECT COALESCE(b.name, 'Unknown')                              AS brand_name,
-               COUNT(*)                                                 AS sent,
-               COUNT(*) FILTER (WHERE v.interest_at IS NOT NULL)        AS interested,
-               COUNT(*) FILTER (WHERE v.stage_status = 'CONVERTED')     AS converted
-        FROM ew_stage_v v
-        LEFT JOIN brand b ON b.id = v.brand_id
-        WHERE (%(branch_id)s::bigint IS NULL OR v.branch_id = %(branch_id)s)
-          AND (%(date_from)s::date IS NULL OR v.sent_at::date >= %(date_from)s)
-          AND (%(date_to)s::date   IS NULL OR v.sent_at::date <= %(date_to)s)
-        GROUP BY 1
-        ORDER BY sent DESC, brand_name
-    """
 
-    GET_EW_MONTHLY_TREND = """
-        SELECT to_char(date_trunc('month', v.sent_at), 'YYYY-MM')       AS month,
-               COUNT(*)                                                 AS sent,
-               COUNT(*) FILTER (WHERE v.interest_at IS NOT NULL)        AS interested,
-               COUNT(*) FILTER (WHERE v.stage_status = 'CONVERTED')     AS converted
-        FROM ew_stage_v v
-        WHERE v.sent_at IS NOT NULL
-          AND (%(branch_id)s::bigint IS NULL OR v.branch_id = %(branch_id)s)
-          AND v.sent_at >= date_trunc('month', now()) - make_interval(months => %(months)s)
-        GROUP BY 1
-        ORDER BY 1
-    """
+
 
     # One parameterised read behind every KPI card and every chart segment, so the whole
     # dashboard drills through a single dialog and a single sql id. Every filter is
@@ -618,9 +633,16 @@ class ExtendedWarrantySql:
                v.preferred_contact,
                v.warranty_end_date,
                v.outcome,
-               COALESCE(b.name, '')                                     AS brand_name
+               COALESCE(b.name, '')                                     AS brand_name,
+               -- Same column names GET_EW_LEADS_PAGED returns, so the one drill-down
+               -- dialog can render either source without branching on shape. serial_no
+               -- is not on ew_stage_v, hence the join back to the customer row.
+               COALESCE(NULLIF(v.model_name, ''), p.name, '')            AS product_label,
+               c.serial_no
         FROM ew_stage_v v
-        LEFT JOIN brand b ON b.id = v.brand_id
+        LEFT JOIN brand      b ON b.id = v.brand_id
+        LEFT JOIN product    p ON p.id = v.product_id
+        LEFT JOIN ew_customer c ON c.id = v.ew_customer_id
         WHERE (%(branch_id)s::bigint       IS NULL OR v.branch_id = %(branch_id)s)
           AND (%(date_from)s::date         IS NULL OR v.sent_at::date >= %(date_from)s)
           AND (%(date_to)s::date           IS NULL OR v.sent_at::date <= %(date_to)s)
@@ -629,6 +651,14 @@ class ExtendedWarrantySql:
           AND (%(delivery_status)s::text   IS NULL OR v.delivery_status = %(delivery_status)s)
           AND (%(brand_id)s::bigint        IS NULL OR v.brand_id = %(brand_id)s)
           AND (%(only_interested)s::boolean IS NOT TRUE OR v.interest_at IS NOT NULL)
+          -- `lost` groups the two terminal negatives, which the UI shows as one tile.
+          AND (%(lost)s::boolean IS NOT TRUE
+               OR v.stage_status IN ('NOT_INTERESTED', 'UNREACHABLE'))
+          -- follow-ups live on the customer, not the stage, hence the EXISTS rather than
+          -- a column on the view.
+          AND (%(has_follow_up)s::boolean IS NOT TRUE
+               OR EXISTS (SELECT 1 FROM ew_customer fc
+                           WHERE fc.id = v.ew_customer_id AND fc.follow_up_count > 0))
         ORDER BY v.sent_at DESC NULLS LAST, v.full_name
         LIMIT %(limit)s
     """

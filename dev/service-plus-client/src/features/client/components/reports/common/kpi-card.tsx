@@ -32,8 +32,9 @@ export const KpiCard = ({
 	return (
 		<div
 			className={cn(
-				"rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-4 shadow-sm",
-				onClick && "cursor-pointer transition-colors hover:bg-(--cl-hover)",
+				"rounded-xl border border-(--cl-border) bg-(--cl-surface-2) p-4 transition-all duration-200",
+				onClick &&
+					"cursor-pointer hover:bg-(--cl-hover) hover:-translate-y-0.5 hover:border-(--cl-accent)/25 hover:shadow-lg active:scale-[0.98]",
 			)}
 			role={onClick ? "button" : undefined}
 			tabIndex={onClick ? 0 : undefined}
@@ -52,13 +53,13 @@ export const KpiCard = ({
 			<div className="flex items-start justify-between gap-2">
 				<p className="text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted)">{label}</p>
 				{Icon && (
-					<span className={cn("rounded-md bg-(--cl-hover) p-1.5", accentClassName)}>
+					<span className={cn("rounded-lg bg-(--cl-hover) p-1.5 ring-1 ring-(--cl-border)", accentClassName)}>
 						<Icon className="h-3.5 w-3.5" />
 					</span>
 				)}
 			</div>
 			<div className="mt-2 flex items-end gap-2">
-				<span className={cn("text-2xl font-light text-(--cl-text)", loading && "opacity-40")}>
+				<span className={cn("text-2xl font-semibold tracking-tight text-(--cl-text)", loading && "opacity-40")}>
 					{loading ? "…" : value}
 				</span>
 				{!loading && subValue && <span className="pb-1 text-[11px] text-(--cl-text-muted)">{subValue}</span>}

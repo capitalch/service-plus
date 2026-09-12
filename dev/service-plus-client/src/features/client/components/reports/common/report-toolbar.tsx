@@ -46,7 +46,7 @@ export const ReportToolbar = ({
 	return (
 		<header
 			className={cn(
-				"flex flex-col gap-3 rounded-lg border border-(--cl-border) bg-(--cl-surface-2) px-4 py-3 shadow-sm",
+				"flex flex-col gap-3 rounded-xl border border-(--cl-border) bg-(--cl-surface-2) px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]",
 				className,
 			)}
 		>

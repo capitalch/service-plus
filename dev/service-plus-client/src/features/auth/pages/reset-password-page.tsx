@@ -91,7 +91,7 @@ export const ResetPasswordPage = () => {
 	}
 
 	return (
-		<div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+		<div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-violet-50 p-4">
 			<motion.div
 				animate={{ opacity: 1, y: 0 }}
 				className="w-full max-w-md"
@@ -99,7 +99,7 @@ export const ResetPasswordPage = () => {
 				transition={{ duration: 0.3 }}
 			>
 				{/* Card */}
-				<div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+				<div className="rounded-2xl border border-white/60 bg-white p-8 shadow-lg ring-1 ring-black/5">
 					{/* Header */}
 					<div className="mb-6 flex flex-col items-center gap-2 text-center">
 						<div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">

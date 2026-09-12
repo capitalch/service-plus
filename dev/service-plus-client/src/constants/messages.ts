@@ -576,7 +576,7 @@ export const MESSAGES = {
 	INFO_EW_SETTINGS_INTRO:
 		"Reminder stages, sending limits and the numbers printed in the customer message, for this business unit.",
 	SUCCESS_EW_SETTINGS_SAVED: "Extended warranty settings updated.",
-	CONFIRM_EW_DELETE_TITLE: "Delete this warranty record?",
+	CONFIRM_EW_DELETE_TITLE: "Delete this customer?",
 	CONFIRM_EW_DELETE_BODY:
 		"This removes the customer and their entire reminder and follow-up history. This cannot be undone.",
 } as const;

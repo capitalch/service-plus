@@ -41,7 +41,7 @@ type EditExtendedWarrantyDialogProps = {
 	record: AppSettingRecord;
 };
 
-const DEFAULT_STAGES = [30, 7, 0];
+const DEFAULT_STAGES = [60, 30, 7, 0];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -219,7 +219,7 @@ export const EditExtendedWarrantyDialog = ({
 									{day === 0 ? "On expiry" : `${day} days`}
 									<button
 										aria-label={`Remove ${day}`}
-										className="text-(--cl-text-muted) hover:text-(--cl-text) disabled:opacity-40"
+										className="cursor-pointer text-(--cl-text-muted) hover:text-(--cl-text) disabled:opacity-40"
 										disabled={value.reminder_days_before.length <= 1}
 										type="button"
 										onClick={() => removeStage(day)}

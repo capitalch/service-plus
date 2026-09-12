@@ -91,7 +91,7 @@ export const ForgotPasswordForm = ({ onBack, onSuccess }: ForgotPasswordFormProp
 			<Button
 				type="submit"
 				disabled={isLoading}
-				className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+				className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-md shadow-indigo-600/20"
 			>
 				{isLoading ? (
 					<>

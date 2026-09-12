@@ -1141,7 +1141,7 @@ _EW_DEFAULT_SETTINGS: dict[str, Any] = {
     # object all resolve to "off" — never enabled by omission.
     "enabled": False,
     "notify_email": "",
-    "reminder_days_before": [30, 7, 0],
+    "reminder_days_before": [60, 30, 7, 0],
     "staff_whatsapp_number": "",
     "whatsapp_number": "",
 }

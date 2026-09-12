@@ -1,4 +1,8 @@
 # To Do
+- Extended Warranty
+	- Leads -> Open Leads
+	- Everything in the card will show actions. With 0 value no actions navigate
+	
 - Invoice
 	- Intimation of warranty over message for renew
 		- privacy policy update. Also set nginx.

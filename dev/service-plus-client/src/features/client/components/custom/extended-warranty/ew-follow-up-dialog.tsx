@@ -21,18 +21,40 @@ import { selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 
 import { useGenericQuery } from "../../reports/common/use-generic-query";
-import { EW_FOLLOW_UP_ACTION_LABEL, EW_OUTCOME_LABEL, formatDateTime, stageLabel } from "./extended-warranty-helpers";
+import {
+	EW_FOLLOW_UP_ACTION_LABEL,
+	daysLeftLabel,
+	formatDate,
+	formatDateTime,
+	stageLabel,
+} from "./extended-warranty-helpers";
 import { addEwFollowUp } from "./send-ew-reminders";
 
 const ACTIONS = ["CALL", "WHATSAPP", "SMS", "VISIT", "OTHER"] as const;
-const OUTCOMES = ["IN_PROGRESS", "CONVERTED", "NOT_INTERESTED", "UNREACHABLE"] as const;
 
-const OUTCOME_LABEL: Record<(typeof OUTCOMES)[number], string> = {
-	CONVERTED: EW_OUTCOME_LABEL.CONVERTED,
-	IN_PROGRESS: "Still following up",
-	NOT_INTERESTED: EW_OUTCOME_LABEL.NOT_INTERESTED,
-	UNREACHABLE: EW_OUTCOME_LABEL.UNREACHABLE,
-};
+/**
+ * Closing a deal should be one tap, so the outcomes are a segmented choice in plain deal
+ * language rather than a select the user has to open and read. The stored values are
+ * unchanged — only the wording and the affordance move.
+ *
+ * Lost renders slate, never red: not-interested and unreachable are ordinary business
+ * outcomes, and red is reserved project-wide for errors.
+ */
+const OUTCOME_CHOICES = [
+	{ hint: "keep chasing", label: "Still following up", tone: "", value: "IN_PROGRESS" },
+	{ hint: "deal closed", label: "Won", tone: "emerald", value: "CONVERTED" },
+	{ hint: "said no", label: "Lost — not interested", tone: "slate", value: "NOT_INTERESTED" },
+	{ hint: "no response", label: "Lost — couldn't reach", tone: "slate", value: "UNREACHABLE" },
+] as const;
+
+function outcomeToneClass(tone: string, selected: boolean): string {
+	if (!selected) return "border-(--cl-border) text-(--cl-text-muted) hover:border-(--cl-text-muted)";
+	if (tone === "emerald")
+		return "border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
+	if (tone === "slate")
+		return "border-slate-500 bg-slate-100 text-slate-800 dark:bg-slate-800/60 dark:text-slate-200";
+	return "border-(--cl-accent) bg-(--cl-surface-2) text-(--cl-text)";
+}
 
 type FollowUpsRowType = {
 	follow_ups: EwFollowUpType[];
@@ -43,11 +65,15 @@ type FollowUpsRowType = {
 
 type Props = {
 	customerName: string;
+	/** Optional lead context, so the decision can be made without leaving the dialog. */
+	daysLeft?: number | null;
 	ewCustomerId: number;
 	onClose: () => void;
 	onSaved: () => void;
 	open: boolean;
 	stage: number | null;
+	statusLabel?: string | null;
+	warrantyEndDate?: string | null;
 };
 
 /**
@@ -56,7 +82,17 @@ type Props = {
  * button. Whichever way staff arrive, the outcome goes into the same `follow_ups`
  * array — there is one lead and one history, never two records to reconcile.
  */
-export const EwFollowUpDialog = ({ customerName, ewCustomerId, onClose, onSaved, open, stage }: Props) => {
+export const EwFollowUpDialog = ({
+	customerName,
+	daysLeft,
+	ewCustomerId,
+	onClose,
+	onSaved,
+	open,
+	stage,
+	statusLabel,
+	warrantyEndDate,
+}: Props) => {
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 
@@ -110,12 +146,29 @@ export const EwFollowUpDialog = ({ customerName, ewCustomerId, onClose, onSaved,
 		<Dialog open={open} onOpenChange={(v) => !v && onClose()}>
 			<DialogContent className="max-w-lg">
 				<DialogHeader>
-					<DialogTitle>Record a follow-up</DialogTitle>
+					<DialogTitle>Follow up / close</DialogTitle>
 					<DialogDescription>
 						{customerName}
-						{stage != null ? ` · ${stageLabel(stage)} reminder` : ""}
+						{stage != null ? ` · ${stageLabel(stage)} reminder` : " · not messaged yet"}
 					</DialogDescription>
 				</DialogHeader>
+
+				{/* Lead context, so staff can decide without going back to the grid. */}
+				{(warrantyEndDate || daysLeft != null || statusLabel) && (
+					<div className="flex flex-wrap gap-x-4 gap-y-1 rounded-lg border border-(--cl-border) bg-(--cl-surface-2) px-3 py-2 text-xs">
+						{warrantyEndDate && (
+							<span className="text-(--cl-text-muted)">
+								Warranty ends <span className="text-(--cl-text)">{formatDate(warrantyEndDate)}</span>
+							</span>
+						)}
+						{daysLeft != null && <span className="text-(--cl-text-muted)">{daysLeftLabel(daysLeft)}</span>}
+						{statusLabel && (
+							<span className="text-(--cl-text-muted)">
+								Status <span className="text-(--cl-text)">{statusLabel}</span>
+							</span>
+						)}
+					</div>
+				)}
 
 				<div className="space-y-3">
 					<div>
@@ -137,21 +190,25 @@ export const EwFollowUpDialog = ({ customerName, ewCustomerId, onClose, onSaved,
 					</div>
 
 					<div>
-						<Label htmlFor="ew-outcome">
+						<Label>
 							Where does it stand? <span className="text-red-600">*</span>
 						</Label>
-						<Select value={outcome} onValueChange={setOutcome}>
-							<SelectTrigger id="ew-outcome" className="mt-1">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{OUTCOMES.map((o) => (
-									<SelectItem key={o} value={o}>
-										{OUTCOME_LABEL[o]}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+						<div className="mt-1 grid grid-cols-2 gap-2">
+							{OUTCOME_CHOICES.map((choice) => (
+								<button
+									key={choice.value}
+									className={`cursor-pointer rounded-lg border px-3 py-2 text-left transition-colors ${outcomeToneClass(
+										choice.tone,
+										outcome === choice.value,
+									)}`}
+									onClick={() => setOutcome(choice.value)}
+									type="button"
+								>
+									<span className="block text-sm font-semibold">{choice.label}</span>
+									<span className="block text-[11px] opacity-70">{choice.hint}</span>
+								</button>
+							))}
+						</div>
 					</div>
 
 					<div>
@@ -191,7 +248,7 @@ export const EwFollowUpDialog = ({ customerName, ewCustomerId, onClose, onSaved,
 						Cancel
 					</Button>
 					<Button disabled={saving} onClick={handleSave}>
-						{saving ? "Saving…" : "Save follow-up"}
+						{saving ? "Saving…" : "Save"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

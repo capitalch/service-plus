@@ -191,7 +191,7 @@ export const EwCustomerDialog = ({ editing, onOpenChange, onSuccess, open }: Pro
 				setIfBlank("purchase_date", hit.purchase_date);
 				setLookupHint(
 					hit.source === "EW"
-						? "Found an existing warranty record for this number — details filled in."
+						? "Found an existing customer for this number — details filled in."
 						: "Found this number in the customer master — details filled in.",
 				);
 			})
@@ -235,7 +235,7 @@ export const EwCustomerDialog = ({ editing, onOpenChange, onSuccess, open }: Pro
 		} catch {
 			// The unique index on (mobile, serial_no, warranty_end_date) is the most
 			// likely rejection — say so rather than showing a raw constraint name.
-			toast.error("Could not save. A record with this mobile, serial no and warranty date may already exist.");
+			toast.error("Could not save. A customer with this mobile, serial no and warranty date may already exist.");
 		} finally {
 			setSaving(false);
 		}
@@ -245,7 +245,7 @@ export const EwCustomerDialog = ({ editing, onOpenChange, onSuccess, open }: Pro
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
 				<DialogHeader>
-					<DialogTitle>{editing ? "Edit warranty record" : "Add warranty record"}</DialogTitle>
+					<DialogTitle>{editing ? "Edit Customer" : "Add Customer"}</DialogTitle>
 				</DialogHeader>
 
 				<form className="grid gap-3 sm:grid-cols-2" onSubmit={form.handleSubmit(onSubmit)}>

@@ -132,6 +132,15 @@
     --cl-divider:     rgba(255, 255, 255, 0.05);
     --cl-accent:      #007acc;
     --cl-accent-text: #9fcaff;
+    /* Ambient accent glow: a soft radial tint on the app background so the shell
+       reads as dimensional rather than flat. Uses the accent color so it adapts to
+       dark and light automatically. Never sits above content (it is the element's
+       own paint layer, behind every child). */
+    background-image: radial-gradient(
+        1100px 600px at 100% 0%,
+        color-mix(in oklab, var(--cl-accent) 7%, transparent),
+        transparent 55%
+    );
 }
 
 .client-theme[data-theme="light"] {
@@ -186,6 +195,61 @@
     --cl-divider:     rgba(0, 0, 0, 0.08);
     --cl-accent:      #007acc;
     --cl-accent-text: #005fa3;
+}
+
+/* ── Shared chrome for the client shell and the help panel ──
+   Both scopes carry the same --cl-* tokens, so the same micro-details
+   (accent caret, tinted selection, thin scrollbars) apply to both. */
+.client-theme input,
+.client-theme textarea,
+.client-theme select,
+.sp-help-theme input,
+.sp-help-theme textarea,
+.sp-help-theme select {
+    caret-color: var(--cl-accent);
+}
+
+.client-theme ::selection,
+.sp-help-theme ::selection {
+    background-color: color-mix(in oklab, var(--cl-accent) 35%, transparent);
+}
+
+.client-theme ::-webkit-scrollbar,
+.sp-help-theme ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.client-theme ::-webkit-scrollbar-track,
+.sp-help-theme ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.client-theme ::-webkit-scrollbar-thumb,
+.sp-help-theme ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--cl-text) 18%, transparent);
+    border-radius: 9999px;
+}
+
+.client-theme ::-webkit-scrollbar-thumb:hover,
+.sp-help-theme ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--cl-text) 30%, transparent);
+}
+
+.client-theme,
+.sp-help-theme {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--cl-text) 25%, transparent) transparent;
+}
+
+/* Accent status bar: a gradient from the theme accent that adapts to both themes.
+   Applied as a class (not a Tailwind gradient utility) so it stays token-driven. */
+.client-theme .status-bar-accent {
+    background-image: linear-gradient(
+        90deg,
+        var(--cl-accent),
+        color-mix(in oklab, var(--cl-accent) 72%, white)
+    );
 }
 
 @layer base {

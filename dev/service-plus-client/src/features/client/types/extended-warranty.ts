@@ -46,41 +46,86 @@ export type EwCustomerType = {
 	warranty_end_date: string;
 };
 
-export type EwDueRowType = {
+/**
+ * One reminder actually sent, for one stage. A customer has one entry per stage they have
+ * been messaged at — there is no attempts array in this feature, so a stage is a send.
+ */
+export type EwLeadSendType = {
+	delivery_status: EwDeliveryStatusType | null;
+	error: string | null;
+	sent_at: string | null;
+	stage: number;
+	stage_status: EwStageStatusType | null;
+};
+
+/**
+ * One row of the Leads screen — CUSTOMER-level, not customer x stage. `stage` and the
+ * fields beside it describe the "current" stage the server picked (the interest-bearing
+ * one if any, else the most recently sent); they are all null for a lead that has never
+ * been messaged. `due_stage` is the bucket a reminder is owed for right now, or null.
+ */
+export type EwLeadRowType = {
 	address: string | null;
+	alert_error: string | null;
+	alert_status: string | null;
 	brand_id: number;
 	brand_name: string | null;
 	city: string | null;
-	days_left: number;
-	delivery_status: EwDeliveryStatusType | "NONE";
-	ew_customer_id: number;
-	full_name: string;
-	mobile: string;
-	model_name: string | null;
-	product_id: number | null;
-	product_name: string | null;
-	purchase_date: string | null;
-	serial_no: string | null;
-	stage: number;
-	warranty_end_date: string;
-};
-
-export type EwInterestRowType = {
-	alert_error: string | null;
-	alert_status: EwDeliveryStatusType | null;
 	customer_remarks: string | null;
+	days_left: number;
+	delivery_error: string | null;
+	delivery_status: string | null;
+	due_stage: number | null;
+	email: string | null;
 	ew_customer_id: number;
 	follow_up_count: number;
 	full_name: string;
-	interest_at: string;
+	interest_at: string | null;
+	interest_count: number;
+	is_opted_out: boolean;
 	mobile: string;
 	outcome: EwOutcomeType;
+	outcome_at: string | null;
 	preferred_contact: string | null;
-	stage: number;
-	stage_status: EwStageStatusType;
+	product_id: number | null;
+	product_label: string | null;
+	purchase_date: string | null;
+	remarks: string | null;
+	sends: EwLeadSendType[];
+	sent_at: string | null;
+	serial_no: string | null;
+	stage: number | null;
+	stage_status: EwStageStatusType | null;
 	total_count: number;
 	warranty_end_date: string;
 };
+
+/**
+ * The rebuilt dashboard's single row. `lead_buckets` is keyed by stage as a string, built
+ * from `reminder_days_before` server-side, so a tenant that configures a 60-day stage gets
+ * a "60" key with no code change here.
+ *
+ * Mind the two counting semantics: `followed_up` counts DISTINCT CUSTOMERS (follow-ups are
+ * recorded per customer), while `interested` / `won` / `lost` count customer x STAGE rows,
+ * matching the funnel. They are not addable to each other.
+ */
+export type EwDashboardOverviewType = {
+	failed: number;
+	followed_up: number;
+	interested: number;
+	lead_buckets: Record<string, number>;
+	leads_overdue: number;
+	leads_total: number;
+	lost: number;
+	sent_month: number;
+	sent_older: number;
+	sent_today: number;
+	sent_total: number;
+	sent_week: number;
+	won: number;
+};
+
+export type EwLeadStatusType = "DUE" | "FOLLOWED_UP" | "INTERESTED" | "LOST" | "MESSAGED" | "WON";
 
 export type EwReminderLogRowType = {
 	delivery_status: EwDeliveryStatusType;
@@ -126,29 +171,17 @@ export type EwSettingsType = {
 	whatsapp_number: string;
 };
 
-export type EwDashboardKpisType = {
-	converted: number;
-	delivered: number;
-	due_in_window: number;
-	failed: number;
-	followed_up: number;
-	interested: number;
-	messages_sent: number;
-	not_contacted: number;
-	not_interested: number;
-	opted_out: number;
-	unreachable: number;
-};
-
-export type EwFunnelRowType = { cnt: number; stage: number; stage_status: EwStageStatusType };
-
 export type EwDrilldownRowType = {
+	/** Present only when the dialog reads the all-leads source. */
+	sends?: EwLeadSendType[];
 	brand_name: string;
 	delivery_status: EwDeliveryStatusType | null;
 	ew_customer_id: number;
 	full_name: string;
 	interest_at: string | null;
 	mobile: string;
+	product_label: string | null;
+	serial_no: string | null;
 	outcome: EwOutcomeType;
 	preferred_contact: string | null;
 	sent_at: string | null;

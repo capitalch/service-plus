@@ -9,7 +9,7 @@ const LoginPage = () => {
 	const [view, setView] = useState<ViewState>("login");
 
 	return (
-		<div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+		<div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-violet-50 flex items-center justify-center p-4">
 			<motion.div
 				initial={{ opacity: 0, y: 12 }}
 				animate={{ opacity: 1, y: 0 }}
@@ -17,7 +17,7 @@ const LoginPage = () => {
 				className="w-full max-w-sm"
 			>
 				{/* Card */}
-				<div className="bg-white border border-slate-200 rounded-xl shadow-sm px-8 py-4">
+				<div className="bg-white border border-white/60 rounded-2xl shadow-lg ring-1 ring-black/5 px-8 py-4">
 					{/* Logo */}
 					<div className="flex items-center gap-2.5 mb-4">
 						<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 shrink-0">

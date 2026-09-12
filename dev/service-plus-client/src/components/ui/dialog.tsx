@@ -35,7 +35,7 @@ function DialogOverlay({ className, ...props }: React.ComponentProps<typeof Dial
 		<DialogPrimitive.Overlay
 			data-slot="dialog-overlay"
 			className={cn(
-				"data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs fixed inset-0 isolate z-50",
+				"data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 bg-black/25 duration-150 supports-backdrop-filter:backdrop-blur-sm fixed inset-0 isolate z-50",
 				className,
 			)}
 			{...props}
@@ -61,7 +61,7 @@ function DialogContent({
 			<DialogPrimitive.Content
 				data-slot="dialog-content"
 				className={cn(
-					"bg-background data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 ring-foreground/10 grid max-w-[calc(100%-2rem)] gap-4 rounded-xl p-4 text-sm ring-1 dark:ring-foreground/25 dark:border dark:border-foreground/20 duration-100 sm:max-w-sm fixed top-1/2 left-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
+					"bg-background data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 ring-foreground/10 grid max-w-[calc(100%-2rem)] gap-4 rounded-2xl p-4 text-sm ring-1 shadow-[0_2px_24px_-12px_rgba(0,0,0,0.35)] dark:ring-foreground/25 dark:border dark:border-foreground/20 duration-150 sm:max-w-sm fixed top-1/2 left-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
 					className,
 				)}
 				{...props}
@@ -96,7 +96,7 @@ function DialogFooter({
 		<div
 			data-slot="dialog-footer"
 			className={cn(
-				"bg-muted/50 -mx-4 -mb-4 rounded-b-xl border-t p-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+				"bg-muted/50 -mx-4 -mb-4 rounded-b-2xl border-t p-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
 				className,
 			)}
 			{...props}

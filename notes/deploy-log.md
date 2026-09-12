@@ -3,6 +3,38 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-12 15:27 (main)
+Extended Warranty: rebuild as Dashboard + Actions, two screens
+
+- Follow up and close ANY lead, not just ones who tapped the button. That was the
+  real gap: a customer you rang who never replied on WhatsApp had nowhere to
+  record the call. APPEND_EW_FOLLOW_UP already tolerated stage = NULL, so this
+  was UI-only; outcomes are now a segmented Won / Lost — not interested / Lost —
+  couldn't reach / Still following up, with Lost slate, never red.
+- Five tabs became two. New ew-actions-screen.tsx is one row per LEAD and
+  replaces ew-due-grid, ew-interest-grid and ew-customer-grid (all deleted); a
+  new ew-lead-detail-dialog.tsx shows one lead in full. Dashboard is a Lead Flow
+  graphic (ew-funnel-flow.tsx) plus Leads-by-expiry, Messages sent and the
+  message log.
+- Server: new GET_EW_LEADS_PAGED (customer-level, with a LATERAL picking the
+  current stage so never-messaged leads stay visible — they have no ew_stage_v
+  row) and GET_EW_DASHBOARD_OVERVIEW (one row for the whole dashboard).
+  GET_EW_DRILLDOWN gained lost/has_follow_up predicates, device columns and a
+  serial join. Search now spans brand, model and serial, not just name/mobile.
+- Fixed: the lead detail dialog built its per-stage chips from the row's current
+  stage only, so a customer messaged at 30 and again at 7 showed the 30-day
+  reminder as never sent. Every grid now carries the full per-customer send
+  history via a new sends aggregate; proved with a rolled-back second send.
+- Removed seven queries the rebuild made dead — GET_EW_DUE_CUSTOMERS,
+  GET_EW_CUSTOMERS_PAGED, GET_EW_INTEREST_PAGED, GET_EW_DASHBOARD_KPIS,
+  GET_EW_BY_BRAND, GET_EW_MONTHLY_TREND, GET_EW_FUNNEL_BY_STAGE — plus their
+  sql-map mirrors and four orphaned types. Default stages are now [60, 30, 7, 0].
+- Also in this upload, not mine: shared card/toolbar polish, an ambient accent
+  glow and scrollbar/caret chrome in index.css, regenerated db-schema types, and
+  the real entity details filled into the privacy policy.
+
+Files: 43 changed (+4072 / -3923) — Base: da2c1e2
+
 ## 2026-09-11 15:27 (main)
 WhatsApp: keep Meta's error code, add a privacy policy page
 

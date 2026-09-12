@@ -1,0 +1,28 @@
+# Modification of extended warranty system
+- At present Extended warranty system is implemented and working. It is in Menu Item Custom > Extended warranty
+- It was developed based on plans/prompt.md file. The complete implementation is in files plan-ew.md, plan.md and plan1.md. you can read them.
+- I want betterment of UI UX of the extended warranty module. Make it more modern, user friendly and visually appealing.
+- Let the dashboard have following sections, you can add more sections and improve it a lot if you feel like improving the UI UX.
+    - Leads
+        - 60 days
+        - 30 days
+        - 7 days
+        - 0 days
+        - Overdue (more than 0 days)
+    - Message sent
+        - Today
+        - This week
+        - This month
+        - More than a month ago
+    - Interested
+    - Follow-ups
+    - Won
+    - Lost
+- There should be mnimum number of screens and more details in each screens. 
+- Leads start by inputting customer details. These leads are not in warranty.
+- Follow ups can be done for those leads also which customer's don't click the "Interested" link. Some leads might not be interested and some may be interested. These two cases should be handled.
+- Give a small graphics in UI showing the flow: Leads -> Message sent -> interested -> Followed up -> Won/Lost.
+- You can add more sections and improve it a lot if you feel like improving the UI UX.
+- Closing a deal should be easy. It is initiated from follow up module. Staff can close a deal by providing won or lost data.
+- Your response should be in markdown format only.
+- First provide a detailed plan of what you are going to do in file plans/plan-pickle.md

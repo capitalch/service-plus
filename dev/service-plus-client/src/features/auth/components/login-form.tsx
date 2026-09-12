@@ -222,7 +222,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
 				<Button
 					type="submit"
 					disabled={isLoading}
-					className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white font-medium mt-1"
+					className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white font-medium mt-1 shadow-md shadow-indigo-600/20"
 				>
 					{isLoading ? (
 						<>

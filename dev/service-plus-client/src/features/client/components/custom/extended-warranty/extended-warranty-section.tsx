@@ -11,13 +11,12 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 
-import { EwCustomerGrid } from "./ew-customer-grid";
 import { EwDashboard } from "./ew-dashboard";
-import { EwDueGrid } from "./ew-due-grid";
-import { EwInterestGrid } from "./ew-interest-grid";
-import { EwReminderLogGrid } from "./ew-reminder-log-grid";
+import { EwActionsScreen } from "./ew-actions-screen";
 
-const DEFAULT_STAGES = [30, 7, 0];
+// Fallback only — the real list is `reminder_days_before` in App Settings, and this
+// must stay in step with _EW_DEFAULT_SETTINGS on the server.
+const DEFAULT_STAGES = [60, 30, 7, 0];
 
 /**
  * A `whatsappDeliveryStatus` event. `kind` is a deploy-window hazard: processes that
@@ -43,7 +42,12 @@ export const ExtendedWarrantySection = () => {
 	// Set by the staff alert's deep link (/client/custom/ew/<id>-<stage>).
 	const navState = (location.state ?? {}) as NavStateType;
 
-	const [tab, setTab] = useState(navState.ewCustomerId ? "interest" : "dashboard");
+	// The staff alert's deep link names one lead, so it opens the Actions tab, which then
+	// pops that lead's follow-up dialog itself.
+	const [tab, setTab] = useState(navState.ewCustomerId ? "actions" : "dashboard");
+	// Set by a Dashboard lead-bucket tile, consumed by the Leads screen as its opening
+	// filter. Lives here because the two are sibling tabs.
+	const [actionsBucket, setActionsBucket] = useState<number | null>(null);
 	const [settings, setSettings] = useState<EwSettingsType | null>(null);
 	const [refreshKey, setRefreshKey] = useState(0);
 	const bump = useRef(() => setRefreshKey((k) => k + 1)).current;
@@ -109,44 +113,36 @@ export const ExtendedWarrantySection = () => {
 			<Tabs className="flex min-h-0 flex-1 flex-col" onValueChange={setTab} value={tab}>
 				<TabsList className="w-full justify-start overflow-x-auto">
 					<TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-					<TabsTrigger value="due">Due Reminders</TabsTrigger>
-					<TabsTrigger value="customers">Customers</TabsTrigger>
-					<TabsTrigger value="interest">Interest</TabsTrigger>
-					<TabsTrigger value="log">Message Log</TabsTrigger>
+					<TabsTrigger value="actions">Actions</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="dashboard">
 					<div className="mt-3 flex min-h-0 flex-1 flex-col">
-						<EwDashboard key={`dash-${refreshKey}`} stages={stages} />
-					</div>
-				</TabsContent>
-
-				<TabsContent value="due">
-					<div className="mt-3 flex min-h-0 flex-1 flex-col">
-						<EwDueGrid key={`due-${refreshKey}`} onSent={bump} stages={stages} />
-					</div>
-				</TabsContent>
-
-				<TabsContent value="customers">
-					<div className="mt-3 flex min-h-0 flex-1 flex-col">
-						<EwCustomerGrid key={`cust-${refreshKey}`} onChanged={bump} />
-					</div>
-				</TabsContent>
-
-				<TabsContent value="interest">
-					<div className="mt-3 flex min-h-0 flex-1 flex-col">
-						<EwInterestGrid
-							key={`int-${refreshKey}`}
-							focusCustomerId={navState.ewCustomerId}
-							focusStage={navState.ewStage}
+						<EwDashboard
+							key={`dash-${refreshKey}`}
 							onChanged={bump}
+							onOpenActions={(bucket) => {
+								setActionsBucket(bucket);
+								setTab("actions");
+							}}
+							refreshKey={refreshKey}
+							stages={stages}
 						/>
 					</div>
 				</TabsContent>
 
-				<TabsContent value="log">
+				{/* One working surface. Due / Interested / Customers were three views of the
+				    same lead; they are filters here, not screens. */}
+				<TabsContent value="actions">
 					<div className="mt-3 flex min-h-0 flex-1 flex-col">
-						<EwReminderLogGrid refreshKey={refreshKey} />
+						<EwActionsScreen
+							key={`actions-${refreshKey}-${actionsBucket ?? "all"}`}
+							initialBucket={actionsBucket}
+							focusCustomerId={navState.ewCustomerId}
+							focusStage={navState.ewStage}
+							onChanged={bump}
+							stages={stages}
+						/>
 					</div>
 				</TabsContent>
 			</Tabs>

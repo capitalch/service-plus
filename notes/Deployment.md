@@ -129,8 +129,9 @@ server {
     }
 }
 
-# 6 check configuration file syntax
+# 6 check configuration file syntax and reload nginx
   sudo nginx -t
+  sudo nginx -s reload
   
 # 7 install code and libraries
 	pip install --upgrade pip

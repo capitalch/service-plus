@@ -1211,6 +1211,20 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				type: "note",
 				text: "usePortalContainer() safely returns null when called outside a PortalContainerContext.Provider (default context value), so ui/ primitives work unmodified in Super Admin/Admin Mode — no separate code path needed there.",
 			},
+			{ type: "heading", text: "Global chrome (src/index.css)" },
+			{
+				type: "para",
+				text: "index.css scopes a set of micro-details to both .client-theme and .sp-help-theme: caret-color: var(--cl-accent) on inputs/textareas/selects, an accent-tinted ::selection (color-mix 35%), and thin custom scrollbars (8px, rounded thumb via color-mix of --cl-text, plus scrollbar-width: thin). The self-contained .sp-help-theme scope carries the same rules so the help drawer looks right inside Super Admin too.",
+			},
+			{
+				type: "para",
+				text: ".client-theme also layers a radial ambient glow onto its own background-image (color-mix of --cl-accent at 7%, fading by 55%) — it lives on the element's own paint layer, so it can never sit above or obscure content. The status bar gets its gradient from the .client-theme .status-bar-accent class (linear-gradient from --cl-accent toward a white-mixed tone) rather than a hardcoded hex.",
+			},
+			{ type: "heading", text: "Radius, shadow & overlay vocabulary (2026 visual refresh)" },
+			{
+				type: "para",
+				text: "Controls: inputs and textareas are rounded-lg; buttons and selects are rounded-lg; dialog/alert-dialog content is rounded-2xl (footers must use rounded-b-2xl to match); KPI/chart/toolbar cards are rounded-xl; badges stay rounded-4xl pills. Elevation: dialogs and alert-dialogs carry shadow-[0_2px_24px_-12px_rgba(0,0,0,0.35)]; KPI/chart/toolbar cards use shadow-[0_1px_3px_rgba(0,0,0,0.08)]; popovers/selects/dropdowns use shadow-lg. Overlay scrims (Dialog, AlertDialog) are bg-black/25 backdrop-blur-sm — not bg-black/10 backdrop-blur-xs — and the clickable KpiCard lifts on hover (-translate-y-0.5 + hover:shadow-lg).",
+			},
 		],
 		faqs: [
 			{
@@ -2891,7 +2905,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"features/client/components/custom/extended-warranty/",
-						"Eleven files: five tabs (Customers, Due, Interest, Follow-ups, Message Log) plus the drill-down dashboard and the shared helpers/schema.",
+						"Eleven files behind TWO tabs. Dashboard (ew-dashboard.tsx + ew-funnel-flow.tsx) and Actions (ew-actions-screen.tsx + ew-lead-detail-dialog.tsx) \u2014 the single working surface that replaced ew-due-grid, ew-interest-grid and ew-customer-grid. ONE read powers the dashboard: GET_EW_DASHBOARD_OVERVIEW, a single row for the whole screen. GET_EW_FUNNEL_BY_STAGE went with the per-stage funnel card on 2026-09-12; the Lead Flow block reads its counts from the overview instead. The overview counts LEAD buckets from ew_customer, not ew_stage_v, because a never-messaged customer has no view row and would otherwise be invisible; lead_buckets is a jsonb object keyed by stage rather than fixed columns, since the stage set is data. Message-sent counts are CUMULATIVE (this week includes today) and do not sum. followed_up counts DISTINCT CUSTOMERS while interested/won/lost count customer x STAGE rows \u2014 the two semantics are not addable, and the client help says so. GET_EW_DRILLDOWN gained lost (stage_status in NOT_INTERESTED/UNREACHABLE) and has_follow_up (EXISTS against ew_customer.follow_up_count). There are TWO drill surfaces on purpose: expiry tiles navigate to the Actions tab with the bucket pre-filtered, everything else opens EwDrilldownDialog, including the All Leads node \u2014 which passes all_leads:true so the dialog reads GET_EW_LEADS_PAGED instead of GET_EW_DRILLDOWN, since a never-messaged lead has no ew_stage_v row and the stage source would under-count the node. GET_EW_LEADS_PAGED is the Actions read and the query worth understanding: it reads FROM ew_customer and joins ew_stage_v sideways through a LATERAL that collapses to one CURRENT stage (interest-bearing first, else most recently sent, else none), with a second LATERAL computing due_stage (the tightest configured stage the lead has reached and not been sent). That is now the ONLY read-side expression of the due rule \u2014 GET_EW_DUE_CUSTOMERS, GET_EW_CUSTOMERS_PAGED, GET_EW_INTEREST_PAGED, GET_EW_DASHBOARD_KPIS, GET_EW_BY_BRAND and GET_EW_MONTHLY_TREND were deleted on 2026-09-12 once the Actions screen and the overview query replaced the grids they fed. Sending authority still rests with CLAIM_EW_REMINDER_STAGE's WHERE clause; due_stage only decides what the UI offers. Selection is free across stages; handleSend fires one mutation per bucket sequentially, since sendEwReminders takes one stage per call. EwFollowUpDialog is reachable from every lead (gated to interested-only until 2026-09-12); APPEND_EW_FOLLOW_UP already tolerated stage = NULL, verified against demo1 in a rolled-back transaction. Outcomes are a segmented choice in deal language; Lost renders slate, never red. Default reminder_days_before is [60, 30, 7, 0] as of 2026-09-12 \u2014 change it in _EW_DEFAULT_SETTINGS, seed_bu_data.py, ew_delta.sql and the client DEFAULT_STAGES together.",
 					],
 					[
 						"features/client/components/layout/custom-menu-registry.ts",
@@ -2937,7 +2951,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "How do I add a 60-day stage?",
-				a: "Edit reminder_days_before in App Settings. Nothing else. Stage keys are created on demand by jsonb_set, GET_EW_DUE_CUSTOMERS unnests the array, and the client reads it for the Due tab and the funnel columns. No migration, no backfill, no deploy — which is exactly why nothing may hard-code the stage list.",
+				a: "Edit reminder_days_before in App Settings. Nothing else. Stage keys are created on demand by jsonb_set, GET_EW_LEADS_PAGED unnests the array, and the client reads it for the Due tab and the funnel columns. No migration, no backfill, no deploy — which is exactly why nothing may hard-code the stage list.",
 			},
 			{
 				q: "Is auto_send_enabled wired to anything?",

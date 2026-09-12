@@ -70,6 +70,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				q: "Can I switch between modes?",
 				a: "Yes. Type A (Business Admin) users can switch between Client Mode and Admin Mode from the top-right menu.",
 			},
+			{
+				q: "Why does the interface look different after the latest update?",
+				a: "The UI was refreshed with softer rounded controls, layered card shadows, thin styled scrollbars, and a subtle accent glow on the app background. The login screen now shows a gradient backdrop. No functionality changed — screens, menus, jobs, and reports all behave exactly as before.",
+			},
 		],
 	},
 
@@ -2880,7 +2884,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Extended Warranty settings" },
 			{
 				type: "para",
-				text: "The extended_warranty setting also opens its own dialog rather than the usual text/JSON editor. Enabled is the master switch for the whole add-on. Auto send is not in effect yet — reminders are sent from the Due tab. Reminder days before expiry is the list of stages (30 days, 7 days and on expiry by default); add or remove a bucket here and the Due tab, the funnel and the message log all follow it. Daily send cap limits how many messages a single run may send, per business unit. The three numbers are the contact phone and WhatsApp number printed in the customer's message, and the staff number that receives lead alerts.",
+				text: "The extended_warranty setting also opens its own dialog rather than the usual text/JSON editor. Enabled is the master switch for the whole add-on. Auto send is not in effect yet — reminders are sent from the Actions tab. Reminder days before expiry is the list of stages: 60 days, 30 days, 7 days and on expiry by default. Add or remove a bucket here and everything follows it — the expiry chips on the Actions tab, the Leads tiles on the Dashboard, the funnel and the message log. A customer is counted in the tightest bucket they have reached, so someone 45 days out sits in the 60-day bucket and moves to the 30-day one as the date nears. Daily send cap limits how many messages a single run may send, per business unit. The three numbers are the contact phone and WhatsApp number printed in the customer's message, and the staff number that receives lead alerts.",
 			},
 		],
 		faqs: [
@@ -2922,7 +2926,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Adding records" },
 			{
 				type: "para",
-				text: "Customers tab → Add record. Enter the mobile first: if that number is already in your customer master or already has a warranty record, the rest of the form fills itself in. Name, mobile, brand and warranty end date are required; everything else is optional.",
+				text: "Actions tab → Add Customer, the green button on the right. Enter the mobile first: if that number is already in your customer master or already has a warranty entry, the rest of the form fills itself in. Name, mobile, brand and warranty end date are required; everything else is optional.",
 			},
 			{
 				type: "note",
@@ -2931,11 +2935,16 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Sending reminders" },
 			{
 				type: "para",
-				text: "Due Reminders shows everyone who has fallen into a reminder bucket and not yet been sent that one, grouped by bucket (30 days, 7 days, on expiry by default). Tick the ones you want and click Send reminders. Rows with an invalid mobile are shown but cannot be ticked.",
+				text: "The Actions tab lists everyone whose warranty is approaching, most urgent first, with the reminder each one is owed. Filter with the expiry chips — 60 days, 30 days, 7 days, expiring today, or overdue — then tick the ones you want and click Send reminders. Each customer gets the reminder for their own bucket, so you can mix buckets in one go. Rows with an invalid mobile, or already sent that reminder, are shown but cannot be ticked.",
 			},
 			{
 				type: "note",
 				text: "Each customer gets each bucket once. If two people click Send at the same moment, only one message goes out. A message that failed can be sent again; one that succeeded cannot be duplicated.",
+			},
+			{ type: "heading", text: "Sending reminders" },
+			{
+				type: "para",
+				text: "The Actions tab is one row per customer. Search matches the customer's name or mobile and also the device — brand, model and serial number — so you can find someone by whatever they mention on the phone. Filter pills across the top narrow by stage: All, Due to message, Message sent, Interested, Followed up, Won, Lost; the chips beside them narrow by how soon the warranty expires. Tick the leads you want and click Send reminders; you can mix expiry buckets freely and each customer gets the message for their own. Only a lead actually owed a reminder can be ticked, so a row with an invalid mobile number or one already messaged is shown but not selectable. Click any row to see everything about that lead: contact and device details, each reminder and whether it was delivered, what the customer said, and the whole follow-up history.",
 			},
 			{ type: "heading", text: "What the customer sees" },
 			{
@@ -2949,16 +2958,24 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "para",
-				text: "Both routes end in the same place, so it does not matter which you use. Record what you did (called, WhatsApped, visited) and where it stands — still following up, converted, not interested, or unreachable. Every action is kept, so a second and third follow-up build a history rather than overwriting the first.",
+				text: "Both routes end in the same place, so it does not matter which you use. Record what you did (called, WhatsApped, visited) and where it stands — Still following up, Won, Lost — not interested, or Lost — couldn't reach. Won and Lost close the lead; every action is kept in that customer's history with your name and the time.",
 			},
 			{
 				type: "note",
-				text: "If the staff WhatsApp alert fails to send, the lead is still safe — it is saved before any alert is attempted. The Interest tab shows the alert's status per lead and offers a Resend button.",
+				text: "If the staff WhatsApp alert fails to send, the lead is still safe — it is saved before any alert is attempted. Open the lead from the Actions tab — its detail view shows the alert's status and offers a Resend button.",
+			},
+			{
+				type: "note",
+				text: "You can follow up any lead, not only the ones who tapped the button. Every row on the Actions tab has a Follow up action, so a customer you rang who never replied on WhatsApp still gets their call recorded and can be closed Won or Lost.",
 			},
 			{ type: "heading", text: "Reading the dashboard" },
 			{
+				type: "note",
+				text: 'Two things on the Dashboard do not add up, on purpose. The Messages sent periods overlap — This week includes Today, This month includes This week — so they are four answers to "how many went out since…", not four slices of a pie. And Follow-ups counts customers you have worked, while Interested, Won and Lost count reminders, so one customer interested at two different reminders counts twice there.',
+			},
+			{
 				type: "para",
-				text: "The Dashboard tab shows how many are due, how many were messaged, how many replied, and how many converted. Every number and every bar is clickable — click one to see exactly which customers it counts.",
+				text: "The screen has two tabs. Dashboard opens with Lead Flow — Leads, Message sent, Interested, Followed up, then Won or Lost — with Add Customer beside it. Below that: Leads (how many warranties fall in each expiry window, whether or not they have been messaged), Messages sent by period, and the full message log. Actions is where all the work happens: find, message, follow up, close, add, edit and delete, all from one list. Everything on the Dashboard is clickable. The expiry tiles take you to the Actions tab already filtered; every stage in Lead Flow opens a list of the customers behind that number, and All Leads shows everything recorded, messaged or not.",
 			},
 		],
 		faqs: [
@@ -2976,7 +2993,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "The customer says they never got the message.",
-				a: "Check the Message Log tab. It shows the delivery status for every send — Sent, Delivered, Read or Failed, with the reason on a failure.",
+				a: "Check the message log at the bottom of the Dashboard tab. It shows the delivery status for every send — Sent, Delivered, Read or Failed, with the reason and Meta's error code on a failure.",
 			},
 		],
 	},
