@@ -17,6 +17,7 @@ export type JobControlRow = {
 	job_status_code: string;
 	job_status_name: string;
 	receive_condition_name: string | null;
+	receipt_total?: number | null;
 	technician_name: string | null;
 	technician_id: number | null;
 	amount: number | null;

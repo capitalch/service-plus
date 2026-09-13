@@ -19,7 +19,7 @@ type Props = {
 	interested: number;
 	leads: number;
 	lost: number;
-	onAddCustomer: () => void;
+	onNewLead: () => void;
 	onSelect: (key: string) => void;
 	sent: number;
 	won: number;
@@ -50,7 +50,7 @@ export const EwFunnelFlow = ({
 	interested,
 	leads,
 	lost,
-	onAddCustomer,
+	onNewLead,
 	onSelect,
 	sent,
 	won,
@@ -116,10 +116,10 @@ export const EwFunnelFlow = ({
 
 			<Button
 				className="ml-auto h-auto cursor-pointer self-center bg-teal-600 px-5 py-3 text-base font-semibold text-white shadow-sm hover:bg-teal-700"
-				onClick={onAddCustomer}
+				onClick={onNewLead}
 			>
 				<Plus className="mr-2 size-5" />
-				Add Customer
+				New Lead
 			</Button>
 		</div>
 	);

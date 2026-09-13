@@ -56,6 +56,7 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
+import { formatCurrency } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema, selectAvailableDivisions } from "@/store/context-slice";
@@ -900,21 +901,19 @@ export const JobControlSection = () => {
 											</td>
 											<td className={tdClass}>
 												<div className="flex flex-col gap-0.5">
-													<div className="flex items-center justify-between gap-1.5 font-mono font-medium text-(--cl-accent)">
-														<span>
-															{job.job_no}
-															{job.is_closed && (
-																<span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">
-																	CLOSED
-																</span>
-															)}
-														</span>
-														{job.alternate_job_no && (
-															<span className="shrink-0 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">
-																Alt: {job.alternate_job_no}
+													<span className="font-medium font-mono text-(--cl-accent)">
+														{job.job_no}
+														{job.is_closed && (
+															<span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">
+																CLOSED
 															</span>
 														)}
-													</div>
+													</span>
+													{job.alternate_job_no && (
+														<span className="bg-teal-50 dark:bg-teal-950/40 dark:text-teal-400 font-semibold px-1.5 py-0.5 rounded text-[10px] text-teal-600 w-fit">
+															Alt: {job.alternate_job_no}
+														</span>
+													)}
 													{isDelivered && (
 														<span className="text-[10px] text-(--cl-text-muted)">
 															job dt: {job.job_date}
@@ -962,6 +961,11 @@ export const JobControlSection = () => {
 													{job.customer_gstin && (
 														<span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded px-1.5 py-0.5 w-fit">
 															GSTIN: {job.customer_gstin}
+														</span>
+													)}
+													{Number(job.receipt_total) > 0 && (
+														<span className="bg-amber-100/70 dark:bg-amber-950/50 dark:text-amber-500 font-mono font-semibold px-1.5 py-0.5 rounded text-amber-900 text-xs w-fit">
+															Rec: {formatCurrency(Number(job.receipt_total))}
 														</span>
 													)}
 												</div>

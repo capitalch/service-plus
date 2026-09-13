@@ -245,7 +245,7 @@ export const EwCustomerDialog = ({ editing, onOpenChange, onSuccess, open }: Pro
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
 				<DialogHeader>
-					<DialogTitle>{editing ? "Edit Customer" : "Add Customer"}</DialogTitle>
+					<DialogTitle>{editing ? "Edit Customer" : "New Lead"}</DialogTitle>
 				</DialogHeader>
 
 				<form className="grid gap-3 sm:grid-cols-2" onSubmit={form.handleSubmit(onSubmit)}>

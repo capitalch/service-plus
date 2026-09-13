@@ -1,4 +1,6 @@
 # To Do
+- Ali
+	- Advance info in job control
 - Extended Warranty
 	- Leads -> Open Leads
 	- Everything in the card will show actions. With 0 value no actions navigate

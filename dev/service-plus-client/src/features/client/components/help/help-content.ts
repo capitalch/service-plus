@@ -379,11 +379,16 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "bullets",
 				items: [
+					"Alt: … — the job's Alternate Job No (for example your old system's number), shown on its own line under the job number.",
 					"FINAL — the job has been finalized (locked for invoicing).",
 					"GST / Non-GST — whether the job's division charges tax.",
 					"Invoice: Posted / Unposted — whether the job invoice has been posted to accounts.",
 					"CLOSED — the job has been delivered and closed.",
 				],
+			},
+			{
+				type: "note",
+				text: "Under the customer's name, a brown 'Rec: ₹…' chip shows the total of all money receipts taken against the job so far — advances and delivery-time payments together. It is hidden while no receipt has been recorded, and refreshes whenever the list reloads.",
 			},
 			{ type: "heading", text: "Actions on an open job (⇄ menu)" },
 			{
@@ -2926,7 +2931,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Adding records" },
 			{
 				type: "para",
-				text: "Actions tab → Add Customer, the green button on the right. Enter the mobile first: if that number is already in your customer master or already has a warranty entry, the rest of the form fills itself in. Name, mobile, brand and warranty end date are required; everything else is optional.",
+				text: "Actions tab → New Lead, the green button on the right (the same button sits beside Lead Flow on the Dashboard). Enter the mobile first: if that number is already in your customer master or already has a warranty entry, the rest of the form fills itself in. Name, mobile, brand and warranty end date are required; everything else is optional.",
 			},
 			{
 				type: "note",
@@ -2975,7 +2980,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "para",
-				text: "The screen has two tabs. Dashboard opens with Lead Flow — Leads, Message sent, Interested, Followed up, then Won or Lost — with Add Customer beside it. Below that: Leads (how many warranties fall in each expiry window, whether or not they have been messaged), Messages sent by period, and the full message log. Actions is where all the work happens: find, message, follow up, close, add, edit and delete, all from one list. Everything on the Dashboard is clickable. The expiry tiles take you to the Actions tab already filtered; every stage in Lead Flow opens a list of the customers behind that number, and All Leads shows everything recorded, messaged or not.",
+				text: "The screen has two tabs. Dashboard opens with Lead Flow — Leads, Message sent, Interested, Followed up, then Won or Lost — with New Lead beside it. Below that: Leads (how many warranties fall in each expiry window, whether or not they have been messaged), Messages sent by period, and the full message log. Actions is where all the work happens: find, message, follow up, close, add, edit and delete, all from one list. Everything on the Dashboard is clickable. The expiry tiles take you to the Actions tab already filtered; every stage in Lead Flow opens a list of the customers behind that number, and All Leads shows everything recorded, messaged or not.",
 			},
 		],
 		faqs: [

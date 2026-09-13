@@ -59,7 +59,7 @@ type Props = {
  */
 export const EwDashboard = ({ onChanged, onOpenActions, refreshKey, stages }: Props) => {
 	const branch = useAppSelector(selectCurrentBranch);
-	const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
+	const [leadDialogOpen, setLeadDialogOpen] = useState(false);
 	const [drilldown, setDrilldown] = useState<DrilldownStateType | null>(null);
 
 	const buckets = useMemo(() => bucketsFromStages(stages, GRACE_DAYS), [stages]);
@@ -105,7 +105,7 @@ export const EwDashboard = ({ onChanged, onOpenActions, refreshKey, stages }: Pr
 			>
 				<EwFunnelFlow
 					conversionRate={conversionRate}
-					onAddCustomer={() => setCustomerDialogOpen(true)}
+					onNewLead={() => setLeadDialogOpen(true)}
 					failed={o?.failed ?? 0}
 					followedUp={o?.followed_up ?? 0}
 					interested={o?.interested ?? 0}
@@ -197,13 +197,13 @@ export const EwDashboard = ({ onChanged, onOpenActions, refreshKey, stages }: Pr
 
 			<EwCustomerDialog
 				editing={null}
-				onOpenChange={setCustomerDialogOpen}
+				onOpenChange={setLeadDialogOpen}
 				onSuccess={() => {
-					setCustomerDialogOpen(false);
+					setLeadDialogOpen(false);
 					overview.refetch();
 					onChanged();
 				}}
-				open={customerDialogOpen}
+				open={leadDialogOpen}
 			/>
 
 			<EwDrilldownDialog

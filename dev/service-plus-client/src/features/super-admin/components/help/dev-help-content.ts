@@ -1885,6 +1885,50 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
+		id: "dev-job-control-receipt-chip",
+		category: "Jobs",
+		title: "Job Control Receipt Chip (Rec:) — Implementation",
+		summary:
+			"receipt_total on GET_JOB_SEARCH_PAGED feeds the 'Rec: ₹…' chip in Job Control's Customer column; where it lives and what it deliberately does not do.",
+		tags: ["job control", "receipt_total", "job_payment", "GET_JOB_SEARCH_PAGED", "GET_JOB_CONTROL_PAGED", "chip"],
+		content: [
+			{
+				type: "para",
+				text: "Job Control's grid shows a 'Rec: ₹…' chip under the customer name (below the GSTIN chip) with the sum of every job_payment row for that job. It is display-only — no click action — and is hidden when the total is 0.",
+			},
+			{
+				type: "table",
+				headers: ["Piece", "Where"],
+				rows: [
+					[
+						"The column",
+						"receipt_total in GET_JOB_SEARCH_PAGED (sql_jobs.py) — a correlated COALESCE(SUM(jp.amount), 0) subquery on job_payment, served by idx_job_payment_job",
+					],
+					[
+						"Client alias",
+						"SQL_MAP.GET_JOB_CONTROL_PAGED maps to that server id; Job Control is its only caller",
+					],
+					["The type", "JobControlRow.receipt_total (features/client/types/job.ts), optional"],
+					[
+						"The chip",
+						"Customer cell in job-control-section.tsx, formatted with formatCurrency from lib/utils; Number() wraps the value because numeric sums can arrive as strings",
+					],
+				],
+			},
+			{
+				type: "note",
+				text: "GET_JOB_SEARCH_COUNT is untouched — the total is per row, not a filter. The Job Pipeline drilldown uses its own query and does not show the chip; adding it there means adding the same subquery to that SQL.",
+			},
+		],
+		faqs: [
+			{
+				q: "Does the chip include receipts that are not yet posted to accounts?",
+				a: "Yes. It sums every job_payment row regardless of is_posted — it answers 'how much has the customer paid', not 'what has reached the books'.",
+			},
+		],
+	},
+
+	{
 		id: "dev-client-lifecycle",
 		category: "Multi-Tenancy & Provisioning",
 		title: "Client Lifecycle (Super Admin)",
@@ -2905,7 +2949,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"features/client/components/custom/extended-warranty/",
-						"Eleven files behind TWO tabs. Dashboard (ew-dashboard.tsx + ew-funnel-flow.tsx) and Actions (ew-actions-screen.tsx + ew-lead-detail-dialog.tsx) \u2014 the single working surface that replaced ew-due-grid, ew-interest-grid and ew-customer-grid. ONE read powers the dashboard: GET_EW_DASHBOARD_OVERVIEW, a single row for the whole screen. GET_EW_FUNNEL_BY_STAGE went with the per-stage funnel card on 2026-09-12; the Lead Flow block reads its counts from the overview instead. The overview counts LEAD buckets from ew_customer, not ew_stage_v, because a never-messaged customer has no view row and would otherwise be invisible; lead_buckets is a jsonb object keyed by stage rather than fixed columns, since the stage set is data. Message-sent counts are CUMULATIVE (this week includes today) and do not sum. followed_up counts DISTINCT CUSTOMERS while interested/won/lost count customer x STAGE rows \u2014 the two semantics are not addable, and the client help says so. GET_EW_DRILLDOWN gained lost (stage_status in NOT_INTERESTED/UNREACHABLE) and has_follow_up (EXISTS against ew_customer.follow_up_count). There are TWO drill surfaces on purpose: expiry tiles navigate to the Actions tab with the bucket pre-filtered, everything else opens EwDrilldownDialog, including the All Leads node \u2014 which passes all_leads:true so the dialog reads GET_EW_LEADS_PAGED instead of GET_EW_DRILLDOWN, since a never-messaged lead has no ew_stage_v row and the stage source would under-count the node. GET_EW_LEADS_PAGED is the Actions read and the query worth understanding: it reads FROM ew_customer and joins ew_stage_v sideways through a LATERAL that collapses to one CURRENT stage (interest-bearing first, else most recently sent, else none), with a second LATERAL computing due_stage (the tightest configured stage the lead has reached and not been sent). That is now the ONLY read-side expression of the due rule \u2014 GET_EW_DUE_CUSTOMERS, GET_EW_CUSTOMERS_PAGED, GET_EW_INTEREST_PAGED, GET_EW_DASHBOARD_KPIS, GET_EW_BY_BRAND and GET_EW_MONTHLY_TREND were deleted on 2026-09-12 once the Actions screen and the overview query replaced the grids they fed. Sending authority still rests with CLAIM_EW_REMINDER_STAGE's WHERE clause; due_stage only decides what the UI offers. Selection is free across stages; handleSend fires one mutation per bucket sequentially, since sendEwReminders takes one stage per call. EwFollowUpDialog is reachable from every lead (gated to interested-only until 2026-09-12); APPEND_EW_FOLLOW_UP already tolerated stage = NULL, verified against demo1 in a rolled-back transaction. Outcomes are a segmented choice in deal language; Lost renders slate, never red. Default reminder_days_before is [60, 30, 7, 0] as of 2026-09-12 \u2014 change it in _EW_DEFAULT_SETTINGS, seed_bu_data.py, ew_delta.sql and the client DEFAULT_STAGES together.",
+						"Eleven files behind TWO tabs. Dashboard (ew-dashboard.tsx + ew-funnel-flow.tsx) and Actions (ew-actions-screen.tsx + ew-lead-detail-dialog.tsx) \u2014 the single working surface that replaced ew-due-grid, ew-interest-grid and ew-customer-grid. ONE read powers the dashboard: GET_EW_DASHBOARD_OVERVIEW, a single row for the whole screen. GET_EW_FUNNEL_BY_STAGE went with the per-stage funnel card on 2026-09-12; the Lead Flow block reads its counts from the overview instead. The overview counts LEAD buckets from ew_customer, not ew_stage_v, because a never-messaged customer has no view row and would otherwise be invisible; lead_buckets is a jsonb object keyed by stage rather than fixed columns, since the stage set is data. Message-sent counts are CUMULATIVE (this week includes today) and do not sum. followed_up counts DISTINCT CUSTOMERS while interested/won/lost count customer x STAGE rows \u2014 the two semantics are not addable, and the client help says so. GET_EW_DRILLDOWN gained lost (stage_status in NOT_INTERESTED/UNREACHABLE) and has_follow_up (EXISTS against ew_customer.follow_up_count). There are TWO drill surfaces on purpose: expiry tiles navigate to the Actions tab with the bucket pre-filtered, everything else opens EwDrilldownDialog, including the All Leads node \u2014 which passes all_leads:true so the dialog reads GET_EW_LEADS_PAGED instead of GET_EW_DRILLDOWN, since a never-messaged lead has no ew_stage_v row and the stage source would under-count the node. GET_EW_LEADS_PAGED is the Actions read and the query worth understanding: it reads FROM ew_customer and joins ew_stage_v sideways through a LATERAL that collapses to one CURRENT stage (interest-bearing first, else most recently sent, else none), with a second LATERAL computing due_stage (the tightest configured stage the lead has reached and not been sent). That is now the ONLY read-side expression of the due rule \u2014 GET_EW_DUE_CUSTOMERS, GET_EW_CUSTOMERS_PAGED, GET_EW_INTEREST_PAGED, GET_EW_DASHBOARD_KPIS, GET_EW_BY_BRAND and GET_EW_MONTHLY_TREND were deleted on 2026-09-12 once the Actions screen and the overview query replaced the grids they fed. Sending authority still rests with CLAIM_EW_REMINDER_STAGE's WHERE clause; due_stage only decides what the UI offers. Selection is free across stages; handleSend fires one mutation per bucket sequentially, since sendEwReminders takes one stage per call. EwFollowUpDialog is reachable from every lead (gated to interested-only until 2026-09-12); APPEND_EW_FOLLOW_UP already tolerated stage = NULL, verified against demo1 in a rolled-back transaction. Outcomes are a segmented choice in deal language; Lost renders slate, never red. Default reminder_days_before is [60, 30, 7, 0] as of 2026-09-12 \u2014 change it in _EW_DEFAULT_SETTINGS, seed_bu_data.py, ew_delta.sql and the client DEFAULT_STAGES together. The create action is labelled New Lead (was Add Customer until 2026-09-12) on both tabs — EwFunnelFlow's onNewLead prop and the leadDialogOpen state in ew-dashboard.tsx and ew-actions-screen.tsx; EwCustomerDialog keeps its name because it is also the edit form for an ew_customer row, titled Edit Customer in that mode.",
 					],
 					[
 						"features/client/components/layout/custom-menu-registry.ts",

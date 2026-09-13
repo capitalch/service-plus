@@ -800,6 +800,7 @@ class JobsSql:
             t.name       AS technician_name,
             j.division_id,
             ji.is_posted AS invoice_is_posted,
+            (SELECT COALESCE(SUM(jp.amount), 0) FROM job_payment jp WHERE jp.job_id = j.id) AS receipt_total,
             (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id) AS file_count,
             (SELECT COUNT(*) FROM job_transaction  jtr WHERE jtr.job_id = j.id) AS transaction_count
         FROM job j

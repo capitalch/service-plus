@@ -92,7 +92,7 @@ export const EwActionsScreen = ({ focusCustomerId, focusStage, initialBucket, on
 	const [bucket, setBucket] = useState<number | null>(initialBucket ?? null);
 	const [deletingCustomer, setDeletingCustomer] = useState<EwLeadRowType | null>(null);
 	const [detail, setDetail] = useState<EwLeadRowType | null>(null);
-	const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
+	const [leadDialogOpen, setLeadDialogOpen] = useState(false);
 	const [editingCustomer, setEditingCustomer] = useState<EwCustomerType | null>(null);
 	const [followUp, setFollowUp] = useState<EwLeadRowType | null>(null);
 	const [page, setPage] = useState(0);
@@ -268,7 +268,7 @@ export const EwActionsScreen = ({ focusCustomerId, focusStage, initialBucket, on
 	return (
 		<div className="flex min-h-0 flex-1 flex-col gap-3">
 			{/* Filters */}
-			{/* Search left, primary action right — adding a customer is the one thing on
+			{/* Search left, primary action right — adding a lead is the one thing on
 			    this screen that creates data, so it gets the weight. */}
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<Input
@@ -284,11 +284,11 @@ export const EwActionsScreen = ({ focusCustomerId, focusStage, initialBucket, on
 					className="bg-teal-600 font-semibold text-white shadow-sm hover:bg-teal-700"
 					onClick={() => {
 						setEditingCustomer(null);
-						setCustomerDialogOpen(true);
+						setLeadDialogOpen(true);
 					}}
 				>
 					<Plus className="mr-1.5 size-4" />
-					Add Customer
+					New Lead
 				</Button>
 			</div>
 
@@ -439,7 +439,7 @@ export const EwActionsScreen = ({ focusCustomerId, focusStage, initialBucket, on
 												<Button
 													onClick={() => {
 														setEditingCustomer(toCustomer(row));
-														setCustomerDialogOpen(true);
+														setLeadDialogOpen(true);
 													}}
 													size="sm"
 													title="Edit"
@@ -486,13 +486,13 @@ export const EwActionsScreen = ({ focusCustomerId, focusStage, initialBucket, on
 
 			<EwCustomerDialog
 				editing={editingCustomer}
-				onOpenChange={setCustomerDialogOpen}
+				onOpenChange={setLeadDialogOpen}
 				onSuccess={() => {
-					setCustomerDialogOpen(false);
+					setLeadDialogOpen(false);
 					refetch();
 					onChanged();
 				}}
-				open={customerDialogOpen}
+				open={leadDialogOpen}
 			/>
 
 			<EwFollowUpDialog
