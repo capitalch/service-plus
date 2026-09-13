@@ -3,6 +3,18 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-14 00:41 (main)
+Extended Warranty: remove the rollout cleanup script (Step 19)
+
+- scripts/ew_cleanup.sql: deleted now that every tenant's BU schema
+  has run it (confirmed present via a live-DB check across all
+  three: demo1, capitalelectronics, navtechnology).
+- plans/plan-ew-final.md: mark Steps 17-19 done with status notes —
+  the Part C commit sha, the live-DB verification for Step 18's
+  rollout scripts, and this file's removal for Step 19.
+
+Files: 2 changed (+25 / -47) — Base: ec28bb6
+
 ## 2026-09-14 00:30 (main)
 Extended Warranty: rebuild Dashboard/Details/Flow, add live push
 
