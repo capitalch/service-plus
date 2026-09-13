@@ -99,13 +99,14 @@ export const ICON_COLORS: Record<string, string | null> = {
 	Truck: "text-orange-600",
 	History: "text-orange-600",
 
-	// Workflow / lead outcome (Extended Warranty's row menu)
+	// Workflow / lead outcome (Extended Warranty's row menu and state filter)
 	PlayCircle: "text-violet-600",
 	StepForward: "text-blue-600",
 	ThumbsUp: "text-orange-600",
 	ThumbsDown: "text-amber-600",
 	Trophy: "text-emerald-600",
 	Ban: "text-rose-600",
+	UserPlus: "text-blue-600",
 
 	// Communication
 	Mail: "text-indigo-600",

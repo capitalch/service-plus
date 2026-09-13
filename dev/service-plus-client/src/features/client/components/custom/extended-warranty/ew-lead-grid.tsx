@@ -1,5 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, SearchIcon } from "lucide-react";
+import type { ComponentType } from "react";
+import {
+	Ban,
+	ChevronLeft,
+	ChevronRight,
+	MessageSquare,
+	PlayCircle,
+	SearchIcon,
+	ThumbsDown,
+	ThumbsUp,
+	Trophy,
+	UserPlus,
+} from "lucide-react";
 
 import { RefreshButton } from "@/components/shared/refresh-button";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
@@ -44,6 +56,19 @@ import type { EwLeadActionsType } from "./use-ew-lead-actions";
 // teal accent rather than the default hairline square. [&_svg] beats the tick's own colour.
 const CHECKBOX =
 	"size-[18px] cursor-pointer border-2 border-teal-500/70 bg-white hover:border-teal-600 hover:bg-teal-50 data-checked:border-teal-600 data-checked:bg-teal-600 dark:bg-transparent dark:hover:bg-teal-950/40 dark:data-checked:bg-teal-600 [&_svg]:size-3.5 [&_svg]:text-white";
+// One icon + colour per state for the filter dropdown — the exact same icons and literal
+// classes ew-lead-actions-menu.tsx uses for its transition items (also mirrored in
+// constants/icon-colors.ts), so the two menus never show the same state in two colours.
+const STATE_VISUAL: Record<EwStateType, { color: string; icon: ComponentType<{ className?: string }> }> = {
+	CANCELLED: { color: "text-rose-600", icon: Ban },
+	IN_PROGRESS: { color: "text-violet-600", icon: PlayCircle },
+	INTERESTED: { color: "text-orange-600", icon: ThumbsUp },
+	LOST: { color: "text-amber-600", icon: ThumbsDown },
+	MESSAGE_SENT: { color: "text-indigo-600", icon: MessageSquare },
+	NEW_LEAD: { color: "text-blue-600", icon: UserPlus },
+	WON: { color: "text-emerald-600", icon: Trophy },
+};
+
 const PAGE_SIZE = 50;
 // The customer is no longer asked how to be reached — the shop always calls — so CALL is
 // the unremarkable default and gets no label. Only WHATSAPP, left over from a lead that
@@ -161,11 +186,17 @@ export const EwLeadGrid = ({ actions, filter, refreshKey, showStateFilter = fals
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="ALL">All states</SelectItem>
-								{EW_STATES.map((s) => (
-									<SelectItem key={s} value={s}>
-										{EW_STATE_META[s].label}
-									</SelectItem>
-								))}
+								{EW_STATES.map((s) => {
+									const { color, icon: Icon } = STATE_VISUAL[s];
+									return (
+										<SelectItem key={s} value={s}>
+											<span className="flex items-center gap-1.5">
+												<Icon className={cn("size-3.5", color)} />
+												{EW_STATE_META[s].label}
+											</span>
+										</SelectItem>
+									);
+								})}
 							</SelectContent>
 						</Select>
 						<Label className="flex items-center gap-2 text-xs font-normal" htmlFor="ew-show-closed">
@@ -251,7 +282,7 @@ export const EwLeadGrid = ({ actions, filter, refreshKey, showStateFilter = fals
 								return (
 									<tr
 										key={row.ew_lead_id}
-										className="cursor-pointer border-b border-(--cl-border) text-(--cl-text) hover:bg-(--cl-hover)"
+										className="cursor-pointer border-b border-(--cl-border) text-(--cl-text) even:bg-(--cl-surface-2)/40 hover:bg-(--cl-hover)"
 										onClick={() => actions.openDetail(row.ew_lead_id)}
 									>
 										<td className={TD} onClick={(e) => e.stopPropagation()}>

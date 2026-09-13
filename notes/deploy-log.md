@@ -3,6 +3,22 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-14 00:57 (main)
+Extended Warranty: zebra-stripe the lead grid, color its filter
+
+- ew-lead-grid.tsx: alternating rows get a faint theme-aware tint
+  (even:bg-(--cl-surface-2)/40), shared by the Details tab and every
+  dashboard drill-down since both render through this one grid.
+- Same file: the state filter dropdown's seven options each get an
+  icon and color matching their badge/row-menu color (STATE_VISUAL),
+  instead of plain text.
+- icon-colors.ts: register UserPlus (blue) for the new New Lead
+  icon; MessageSquare already existed at the right indigo.
+- Both help articles updated to describe the striping and the
+  colored filter.
+
+Files: 4 changed (+42 / -10) — Base: c4c5c02
+
 ## 2026-09-14 00:41 (main)
 Extended Warranty: remove the rollout cleanup script (Step 19)
 
