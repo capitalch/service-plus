@@ -6,6 +6,10 @@ Tenant resolution decodes `biz_opaque_callback_data` directly (confirmed 2026-08
 against a real DELIVERED callback for a template message — no routing-table lookup
 needed). The status ladder is enforced inside SqlStore.SET_JOB_WHATSAPP_OUTCOME's
 WHERE clause, not here — this file just decodes the callback and calls it per job.
+
+Extended Warranty callbacks (event codes EW / EL) carry `[ew_message_id]` instead of job
+ids and are settled by wamid in ExtendedWarrantyServerSql.SET_EW_MESSAGE_OUTCOME — see
+_apply_ew_status_callback.
 """
 import asyncio
 import hashlib
@@ -19,6 +23,7 @@ from app.config import settings
 from app.core.rate_limit import rate_limit
 from app.db.connection.psycopg_driver import exec_sql
 from app.db.sql.sql_base import SqlStore
+from app.db.sql.sql_extended_warranty import ExtendedWarrantyServerSql
 from app.graphql.pubsub import pubsub
 from app.logger import logger
 
@@ -117,7 +122,13 @@ async def _process_webhook_payload(payload: dict) -> None:
 _EVENT_KEY_BY_CODE = {
     "CC": "JOB_COMPLETION", "JC": "JOB_CREATION", "JD": "JOB_DELIVERY",
     "MR": "JOB_MONEY_RECEIPT", "JI": "JOB_INVOICE",
+    "EW": "EXTENDED_WARRANTY", "EL": "EXTENDED_WARRANTY_LEAD",
 }
+
+# Extended Warranty events carry [ew_message_id], not job ids — routed to
+# _apply_ew_status_callback before the per-job loop.
+_EW_EVENT_KEYS = {"EXTENDED_WARRANTY", "EXTENDED_WARRANTY_LEAD"}
+
 
 def _format_webhook_error(msg_status: dict) -> str | None:
     """Meta's failure reason, with its numeric code kept.
@@ -172,6 +183,56 @@ def _decode_callback_data(callback_data: str) -> tuple[str, str, str, list[int]]
         return None
 
 
+async def _apply_ew_status_callback(
+    db_name: str,
+    schema: str,
+    event_key: str,
+    ids: list[int],
+    wamid: str | None,
+    raw_status: str,
+    new_rank: int,
+    msg_status: dict,
+) -> None:
+    """Extended Warranty status callback, both kinds (REMINDER and LEAD_ALERT). The row is
+    settled by wamid — unique and authoritative; `ids` ([ew_message_id]) is only logged.
+    The status ladder lives in SET_EW_MESSAGE_OUTCOME's WHERE clause, same as the job path.
+    `target` lets the client update the reminder chip and the staff-alert chip separately."""
+    error_message = _format_webhook_error(msg_status) if raw_status == "FAILED" else None
+    try:
+        rows = await exec_sql(
+            db_name=db_name,
+            schema=schema,
+            sql=ExtendedWarrantyServerSql.SET_EW_MESSAGE_OUTCOME,
+            sql_args={"error": error_message, "new_rank": new_rank, "status": raw_status, "wamid": wamid},
+        )
+        if not rows:
+            logger.info(
+                "EW outcome ignored (status ladder or unknown wamid): event=%s ids=%s status=%s wamid=%s",
+                event_key, ids, raw_status, wamid,
+            )
+            return
+        row = rows[0]
+        logger.info(
+            "EW outcome applied: lead=%s message=%s kind=%s status=%s",
+            row["ew_lead_id"], row["ew_message_id"], row["kind"], raw_status,
+        )
+        await pubsub.publish(
+            "whatsapp_delivery_status",
+            {
+                "db_name": db_name,
+                "error": error_message,
+                "ew_lead_id": row["ew_lead_id"],
+                "ew_message_id": row["ew_message_id"],
+                "kind": "EW",
+                "status": raw_status,
+                "target": "STAFF" if row["kind"] == "LEAD_ALERT" else "CUSTOMER",
+            },
+        )
+    except Exception:  # pylint: disable=broad-except
+        # Meta must never see a 500 here — same rule as the job path.
+        logger.exception("Failed to apply EW outcome for ids=%s wamid=%s", ids, wamid)
+
+
 async def _apply_status_callback(msg_status: dict) -> None:
     wamid = msg_status.get("id")
     raw_status = (msg_status.get("status") or "").upper()
@@ -191,6 +252,12 @@ async def _apply_status_callback(msg_status: dict) -> None:
         )
         return
     db_name, schema, event_key, job_ids = decoded
+
+    if event_key in _EW_EVENT_KEYS:
+        await _apply_ew_status_callback(
+            db_name, schema, event_key, job_ids, wamid, raw_status, new_rank, msg_status
+        )
+        return
 
     # Stamped once per callback, not per job_id — every job in this batch settled on
     # the same wamid at the same moment. ISO-8601 UTC, same convention sender.py's

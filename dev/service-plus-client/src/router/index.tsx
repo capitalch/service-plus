@@ -15,6 +15,7 @@ import { BusinessUnitsPage } from "@/features/admin/pages/business-units-page";
 import { BusinessUsersPage } from "@/features/admin/pages/business-users-page";
 import { RolesPage } from "@/features/admin/pages/roles-page";
 import { ClientConfigurationsPage } from "@/features/client/pages/client-configurations-page";
+import { ClientCustomEwRefPage } from "@/features/client/pages/client-custom-ew-ref-page";
 import { ClientCustomPage } from "@/features/client/pages/client-custom-page";
 import { ClientInventoryPage } from "@/features/client/pages/client-inventory-page";
 import { ClientJobsPage } from "@/features/client/pages/client-jobs-page";
@@ -55,6 +56,8 @@ export const router = createBrowserRouter([
 			{ element: <ClientReportsPage />, index: true },
 			{ element: <ClientConfigurationsPage />, path: "configurations" },
 			{ element: <ClientCustomPage />, path: "custom" },
+			// The staff alert's "Open in Service+" deep link (ROUTES.client.customEwRef).
+			{ element: <ClientCustomEwRefPage />, path: "custom/ew/:ref" },
 			{ element: <ClientInventoryPage />, path: "inventory" },
 			{ element: <ClientJobsPage />, path: "jobs" },
 			{ element: <ClientMastersPage />, path: "masters" },

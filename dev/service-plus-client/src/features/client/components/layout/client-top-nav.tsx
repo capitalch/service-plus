@@ -1,5 +1,5 @@
 import { useNavigate, NavLink } from "react-router-dom";
-import { LogOut, Menu, Moon, PackageX, PanelLeft, Sun, Timer, UploadCloud } from "lucide-react";
+import { LogOut, Menu, Moon, PackageX, PanelLeft, ShieldCheck, Sun, Timer, UploadCloud } from "lucide-react";
 
 import { NotificationBell } from "@/components/shared/notifications/notification-bell";
 import type { NotificationItem } from "@/components/shared/notifications/notification-bell";
@@ -13,6 +13,7 @@ import {
 	type AccessRightCode,
 } from "@/features/auth/utils/access-rights";
 import { ROUTES } from "@/router/routes";
+import { selectExtendedWarrantyEnabled } from "@/store/context-slice";
 import { getVisibleCustomMenuItems } from "./custom-menu-registry";
 import { useLayout, useTheme } from "./client-layout";
 import type { Section } from "./client-layout";
@@ -55,11 +56,12 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 	// Custom is a container: it exists only while it has at least one visible child.
 	// An empty tab would be worse than no tab — it promises a feature the tenant has
 	// not bought.
-	const hasCustomItems = getVisibleCustomMenuItems(user, {}).length > 0;
+	const extendedWarrantyEnabled = useAppSelector(selectExtendedWarrantyEnabled);
+	const hasCustomItems = getVisibleCustomMenuItems(user, { extendedWarrantyEnabled }).length > 0;
 	const navItems = NAV_ITEMS.filter((item) => item.section !== "custom" || hasCustomItems);
 	const { isDark, toggleTheme } = useTheme();
 	const { toggleExplorer } = useLayout();
-	const { jobsOverdue, lowStockParts, unpostedDocs } = useNotificationsSummary();
+	const { ewOpenInterest, jobsOverdue, lowStockParts, unpostedDocs } = useNotificationsSummary();
 
 	function handleLogout() {
 		dispatch(logout());
@@ -87,6 +89,15 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 			id: "low-stock-parts",
 			label: "Low-stock parts",
 			onSelect: () => navigate(ROUTES.client.inventory, { state: { subItem: "Part Finder" } }),
+		},
+		{
+			// Hidden while 0 — which it always is unless the add-on is on and the user may use it.
+			count: ewOpenInterest,
+			icon: ShieldCheck,
+			id: "ew-interested",
+			label: "Extended warranty — interested leads",
+			onSelect: () =>
+				navigate(ROUTES.client.custom, { state: { ewDrill: "INTERESTED", subItem: "Extended Warranty" } }),
 		},
 	];
 

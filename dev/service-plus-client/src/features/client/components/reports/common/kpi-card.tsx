@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 
 type Props = {
 	accentClassName?: string;
+	/** Extra border classes, e.g. a coloured 2px border (merged over the default border). */
+	borderClassName?: string;
 	delta?: number | null;
 	deltaLabel?: string;
 	icon?: ComponentType<{ className?: string }>;
@@ -13,10 +15,13 @@ type Props = {
 	onClick?: () => void;
 	subValue?: string;
 	value: string;
+	/** Extra classes for the big number, e.g. a larger size or a colour. */
+	valueClassName?: string;
 };
 
 export const KpiCard = ({
 	accentClassName,
+	borderClassName,
 	delta,
 	deltaLabel,
 	icon: Icon,
@@ -25,6 +30,7 @@ export const KpiCard = ({
 	onClick,
 	subValue,
 	value,
+	valueClassName,
 }: Props) => {
 	const trendUp = delta != null && delta > 0;
 	const trendDn = delta != null && delta < 0;
@@ -35,6 +41,7 @@ export const KpiCard = ({
 				"rounded-xl border border-(--cl-border) bg-(--cl-surface-2) p-4 transition-all duration-200",
 				onClick &&
 					"cursor-pointer hover:bg-(--cl-hover) hover:-translate-y-0.5 hover:border-(--cl-accent)/25 hover:shadow-lg active:scale-[0.98]",
+				borderClassName,
 			)}
 			role={onClick ? "button" : undefined}
 			tabIndex={onClick ? 0 : undefined}
@@ -59,7 +66,13 @@ export const KpiCard = ({
 				)}
 			</div>
 			<div className="mt-2 flex items-end gap-2">
-				<span className={cn("text-2xl font-semibold tracking-tight text-(--cl-text)", loading && "opacity-40")}>
+				<span
+					className={cn(
+						"text-2xl font-semibold tracking-tight text-(--cl-text)",
+						valueClassName,
+						loading && "opacity-40",
+					)}
+				>
 					{loading ? "…" : value}
 				</span>
 				{!loading && subValue && <span className="pb-1 text-[11px] text-(--cl-text-muted)">{subValue}</span>}

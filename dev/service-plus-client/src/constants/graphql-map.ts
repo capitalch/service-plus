@@ -239,6 +239,27 @@ export const GRAPHQL_MAP = {
 			setJobDeliveryManualConfirmation(db_name: $db_name, schema: $schema, value: $value)
 		}
 	`,
+	// ── Extended Warranty — each needs CUSTOM_EXTENDED_WARRANTY on the server ──
+	addEwFollowUp: gql`
+		mutation AddEwFollowUp($db_name: String!, $schema: String, $value: String!) {
+			addEwFollowUp(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	resendEwLeadAlert: gql`
+		mutation ResendEwLeadAlert($db_name: String!, $schema: String, $value: String!) {
+			resendEwLeadAlert(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	sendEwReminders: gql`
+		mutation SendEwReminders($db_name: String!, $schema: String, $value: String!) {
+			sendEwReminders(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	transitionEwLead: gql`
+		mutation TransitionEwLead($db_name: String!, $schema: String, $value: String!) {
+			transitionEwLead(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
 	accountsPostingProgress: gql`
 		subscription AccountsPostingProgress($db_name: String!, $branchId: String!) {
 			accountsPostingProgress(db_name: $db_name, branchId: $branchId)

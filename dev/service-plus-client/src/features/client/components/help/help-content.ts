@@ -6,6 +6,7 @@
 export type { HelpArticle, CategoryStyleType } from "@/components/shared/help/help-types";
 import type { CategoryStyleType, HelpArticle } from "@/components/shared/help/help-types";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { ShieldCheck } from "lucide-react";
 
 // ─── Articles ─────────────────────────────────────────────────────────────────
 
@@ -1347,6 +1348,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "note",
 				text: "None of these messages carry a PDF as a WhatsApp attachment. Every document is a button that opens a freshly generated page or PDF — nothing has to be stored or attached ahead of time, and the links keep working long after delivery.",
 			},
+			{
+				type: "note",
+				text: "Separately from these five job messages, the Extended Warranty add-on (Custom → Extended Warranty) sends customers an offer to extend their warranty and alerts your staff when one is interested — see 'Extended Warranty'.",
+			},
 			{ type: "heading", text: 'What counts as "sent"' },
 			{
 				type: "para",
@@ -1385,7 +1390,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Turning an event off entirely" },
 			{
 				type: "para",
-				text: "Configurations → App Settings → whatsapp_notifications has one on/off switch per event — Job Intake Message, Job Completed, Job Delivery, Money Receipt, and Invoice. Only Job Completed is on by default; the rest must be switched on deliberately. When an event is off, clicking Send doesn't fail or error — it simply doesn't go out, and you'll see a message saying that event is currently switched off.",
+				text: "Configurations → App Settings → whatsapp_notifications has one on/off switch per event — Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, and Extended Warranty. Only Job Completed is on by default; the rest must be switched on deliberately. When an event is off, clicking Send doesn't fail or error — it simply doesn't go out, and you'll see a message saying that event is currently switched off. Extended Warranty also needs its own Enabled setting — see 'Extended Warranty'.",
 			},
 		],
 		faqs: [
@@ -1847,6 +1852,176 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "Does the customer need an app or a login to open the documents?",
 				a: "No — the button in the message is the only credential needed, the same as the job status link on the intake notice.",
+			},
+		],
+	},
+
+	{
+		id: "extended-warranty",
+		category: "Extended Warranty",
+		title: "Extended Warranty",
+		summary:
+			"Track customers whose warranty is ending, offer them an extension on WhatsApp, and follow every lead from the first message to Won or Lost.",
+		tags: [
+			"extended warranty",
+			"warranty extension",
+			"custom",
+			"lead",
+			"new lead",
+			"reminder",
+			"whatsapp reminder",
+			"interested",
+			"follow-up",
+			"stage",
+			"won",
+			"lost",
+			"cancelled",
+			"reopen",
+			"opt out",
+			"dashboard",
+			"lead pipeline",
+			"extended_warranty",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Custom → Extended Warranty keeps a list of customers whose warranty is ending. Each customer is a lead, and every lead is always in exactly one state. You send the customer a WhatsApp offer to extend the warranty; if they tap “I’m interested”, your staff are told at once, and you follow the lead through until it is Won, Lost or Cancelled.",
+			},
+			{ type: "heading", text: "Switching it on" },
+			{
+				type: "steps",
+				items: [
+					"Configurations → App Settings → extended_warranty: switch Enabled on, and fill in Contact phone and WhatsApp number — both are printed in the customer’s message. Optionally add a Staff WhatsApp number (it receives an alert whenever a customer is interested), a Notify email, and a Daily send cap (0 = unlimited).",
+					"Configurations → App Settings → whatsapp_notifications: switch Extended Warranty on.",
+					"Your role needs the Extended Warranty access right. Admins always have it.",
+				],
+			},
+			{
+				type: "note",
+				text: "Enabled alone shows the screen, so you can enter and review leads first. Reminders only go out once the WhatsApp switch is on as well.",
+			},
+			{ type: "heading", text: "Adding a lead" },
+			{
+				type: "para",
+				text: "Click New Lead on the Dashboard or the Details tab. Type the mobile number first: if it belongs to an earlier lead or a Jobs customer, the empty fields are filled in for you. Mobile, full name, brand and warranty end date are required, and the warranty end date cannot be in the past. The same mobile, serial number and warranty end date cannot be entered twice.",
+			},
+			{ type: "heading", text: "The states" },
+			{
+				type: "table",
+				headers: ["State", "What it means", "What you can do next"],
+				rows: [
+					[
+						"New Lead",
+						"Entered, not messaged yet",
+						"Send a WhatsApp reminder, move to In Progress, or close it",
+					],
+					[
+						"Message Sent",
+						"A reminder has gone out",
+						"Send again in a later window, mark interested (if the customer phoned), move to In Progress, or close it",
+					],
+					[
+						"Interested",
+						"The customer tapped “I’m interested” in WhatsApp",
+						"Move to In Progress or close it; re-send the staff alert if it did not go out",
+					],
+					[
+						"In Progress",
+						"Your staff are working the lead — Stage 1, 2 or 3",
+						"Record follow-ups, advance the stage, or close it",
+					],
+					["Won", "The extension was sold", "Nothing — Won is final"],
+					[
+						"Lost",
+						"The customer said no, or could not be reached",
+						"Reopen to In Progress, or mark Won if they come back",
+					],
+					["Cancelled", "Not a real lead — a duplicate or a wrong entry", "Reopen to In Progress"],
+				],
+			},
+			{
+				type: "note",
+				text: "A lead reaches Message Sent only by sending it a reminder. Moving a lead into In Progress always starts at Stage 1, and stages only move forward.",
+			},
+			{ type: "heading", text: "The Dashboard" },
+			{
+				type: "para",
+				text: "The State flow picture shows every move a lead can make: solid lines are the normal flow, dashed lines skip ahead or close early, and amber lines reopen a lead. The Lead Pipeline cards count the leads in each state — New Lead split by how long the warranty has left (31–60 days, 8–30 days, 0–7 days, Overdue, and All), Message Sent split by what happened to the latest reminder (Delivered, Read, Fail, Awaiting), In Progress by stage, and the closed states. Click any card to open that list of leads; Back to dashboard returns. When follow-ups are overdue, a “follow-ups due” chip opens exactly those leads.",
+			},
+			{ type: "heading", text: "Sending reminders" },
+			{
+				type: "bullets",
+				items: [
+					"Only New Lead and Message Sent leads can be sent to. Tick them in a list and click Send WhatsApp reminder, or pick Send WhatsApp reminder from one lead’s menu.",
+					"Each lead gets at most one reminder per expiry window — more than 60 days left, 31–60, 8–30, 0–7, and after expiry. A reminder that failed can be sent again in the same window.",
+					"Reminders can still go out up to 7 days after the warranty has ended.",
+					"The daily send cap limits how many reminders go out in a day; leads over the cap are reported as not sent.",
+					"Nothing is sent automatically — sending is always a click.",
+					"The Messages column shows the latest reminder’s status and updates by itself: Accepted or Sent, then Delivered, then Read — or Failed (hover it for the reason).",
+				],
+			},
+			{ type: "heading", text: "What the customer sees" },
+			{
+				type: "para",
+				text: "The WhatsApp message has an “I’m interested — contact me” button. It opens a short page showing the brand, product and warranty date, asks whether they would like a call or a WhatsApp, and lets them add a remark. A small “Don’t send me warranty reminders” link opts them out: an opted-out lead is tagged and cannot be sent reminders again, though you can still follow it up by phone.",
+			},
+			{ type: "heading", text: "When a customer is interested" },
+			{
+				type: "bullets",
+				items: [
+					"A Message Sent lead moves to Interested. If the lead was already In Progress or closed, the interest is recorded but its state does not change.",
+					"The Staff WhatsApp number gets an alert with the customer’s details and an “Open in Service+” button that opens that lead (after logging in, if needed).",
+					"If a Notify email is set, a copy goes there too.",
+					"The bell shows how many leads are waiting in Interested.",
+					"Tapping the button a second time does nothing more — no second alert.",
+				],
+			},
+			{ type: "heading", text: "In Progress, stages and follow-ups" },
+			{
+				type: "para",
+				text: "Pick Record follow-up from the lead’s menu. Choose what you did (Call, WhatsApp, SMS, Visit or Other), write notes, optionally set the next follow-up date and time (it must be in the future — Clear removes it), and set the stage (it can’t go back). The dialog does not close when you click outside it, and Cancel asks before throwing away what you typed. Earlier follow-ups and state changes are listed underneath. When a next follow-up time has passed, the Follow-up column shows “Due” and the dashboard chip counts it.",
+			},
+			{ type: "heading", text: "Closing and reopening" },
+			{
+				type: "para",
+				text: "Use Mark Won, Mark Lost or Cancel lead from the lead’s menu, with an optional note or reason. Won is final. A Lost lead can be reopened or marked Won; a Cancelled lead can be reopened. A reopened lead starts again at Stage 1.",
+			},
+			{ type: "heading", text: "Reading the summaries" },
+			{
+				type: "para",
+				text: "The Message summary and Overall summary count by period: Today, This week, This month and Over a month old. The periods overlap — This week includes Today, and This month includes This week — so they do not add up across a row. Messages are counted by their current status, so Read + Delivered + Fail + In transit equals the messages sent. Won, Lost and Cancelled count the leads currently in that state, by the date they were closed.",
+			},
+			{ type: "heading", text: "The Details tab" },
+			{
+				type: "para",
+				text: "Every lead, newest entered first. Search by name, mobile, serial number, model or brand, filter by state, and hide closed leads with Show closed. Click a row for the lead’s details and its full timeline of messages and changes; the ⋮ menu on each row holds every action.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why can’t I send a reminder to this lead?",
+				a: "One of five reasons: the lead is not New Lead or Message Sent (it is Interested, In Progress or closed); the customer opted out; the mobile is not a valid 10-digit number; the warranty ended more than 7 days ago; or a reminder was already sent in this expiry window. Picking Send from the lead’s menu tells you which.",
+			},
+			{
+				q: "Why is the Custom menu missing?",
+				a: "Either Enabled is off in Configurations → App Settings → extended_warranty, or your role does not have the Extended Warranty access right.",
+			},
+			{
+				q: "I clicked Send and nothing went out — why?",
+				a: "Sending needs two switches: Enabled in App Settings → extended_warranty, and Extended Warranty in App Settings → whatsapp_notifications. When either is off, you see a message saying so instead of an error.",
+			},
+			{ q: "Can I undo Won?", a: "No — Won is final. Lost and Cancelled leads can be reopened." },
+			{
+				q: "Why can’t I delete this lead?",
+				a: "Delete is only for a New Lead that was never messaged — a data-entry mistake. For anything else, use Cancel lead, which keeps its history.",
+			},
+			{
+				q: "Why don’t the week and month numbers add up?",
+				a: "The periods overlap: This week already includes Today, and This month includes This week.",
+			},
+			{
+				q: "The staff WhatsApp alert did not arrive.",
+				a: "Check the Staff WhatsApp number in App Settings → extended_warranty. When an alert fails, the lead’s details show that it did not go out, with a Resend staff alert button.",
 			},
 		],
 	},
@@ -2849,6 +3024,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			"force GST",
 			"whatsapp_notifications",
 			"whatsapp toggle",
+			"extended_warranty",
+			"extended warranty settings",
 		],
 		content: [
 			{ type: "para", text: "Configurations → App Settings. These settings control system-wide defaults." },
@@ -2869,18 +3046,27 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					["post_data_to_accounts", "Enables accounting system integration (Post to Accounts)"],
 					[
 						"whatsapp_notifications",
-						"Turns outbound WhatsApp messages on or off, one switch per event (Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice) — see 'Turning WhatsApp messages on or off' below",
+						"Turns outbound WhatsApp messages on or off, one switch per event (Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, Extended Warranty) — see 'Turning WhatsApp messages on or off' below",
+					],
+					[
+						"extended_warranty",
+						"The Extended Warranty add-on: Enabled, the two numbers printed in the customer's reminder, the staff alert number, the notify email and the daily send cap — see 'Extended Warranty settings' below",
 					],
 				],
 			},
 			{ type: "heading", text: "Turning WhatsApp messages on or off" },
 			{
 				type: "para",
-				text: "The whatsapp_notifications setting opens its own dialog instead of the usual text/JSON editor — a toggle for each of the five events: Job Intake Message, Job Completed, Job Delivery, Money Receipt, and Invoice. By default only Job Completed is switched on; the rest must be turned on deliberately before their screens will actually send anything. See 'WhatsApp Integration' for what each message contains and where it is sent from.",
+				text: "The whatsapp_notifications setting opens its own dialog instead of the usual text/JSON editor — a toggle for each of the six events: Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, and Extended Warranty. By default only Job Completed is switched on; the rest must be turned on deliberately before their screens will actually send anything. See 'WhatsApp Integration' for what each message contains and where it is sent from.",
 			},
 			{
 				type: "note",
 				text: "Switching an event off doesn't error when a matching action is used — it just skips sending, and the person clicking Send sees a message saying that event is currently switched off, not a failure.",
+			},
+			{ type: "heading", text: "Extended Warranty settings" },
+			{
+				type: "para",
+				text: "The extended_warranty setting also opens its own dialog. Enabled shows Custom → Extended Warranty. Contact phone and WhatsApp number are required while Enabled is on, because both are printed in the customer's reminder. Staff WhatsApp number (it receives an alert when a customer is interested) and Notify email are optional; if both are blank, a new interest only shows up in the bell, and the dialog says so. Daily send cap limits the reminders sent per business unit per day (0 = unlimited). The reminder windows themselves are fixed and cannot be changed here. See 'Extended Warranty'.",
 			},
 		],
 		faqs: [
@@ -4026,6 +4212,7 @@ export const HELP_CATEGORIES = [
 	"Getting Started",
 	"Jobs",
 	"WhatsApp",
+	"Extended Warranty",
 	"Inventory",
 	"Masters",
 	"Configurations",
@@ -4066,6 +4253,16 @@ export const CLIENT_CAT_STYLE: Record<string, CategoryStyleType> = {
 		stepBg: "bg-green-500",
 		stepText: "text-white",
 		border: "border-green-300 dark:border-green-700",
+	},
+	"Extended Warranty": {
+		emoji: "🛡️",
+		icon: ShieldCheck,
+		gradient: "from-sky-500 to-blue-600",
+		pill: "bg-sky-100 dark:bg-sky-900/40",
+		pillText: "text-sky-700 dark:text-sky-300",
+		stepBg: "bg-sky-500",
+		stepText: "text-white",
+		border: "border-sky-300 dark:border-sky-700",
 	},
 	Inventory: {
 		emoji: "📦",

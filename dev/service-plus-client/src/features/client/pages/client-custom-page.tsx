@@ -1,4 +1,10 @@
+import { selectCurrentUser } from "@/features/auth/store/auth-slice";
+import { selectExtendedWarrantyEnabled } from "@/store/context-slice";
+import { useAppSelector } from "@/store/hooks";
+
+import { ExtendedWarrantySection } from "../components/custom/extended-warranty/extended-warranty-section";
 import { ClientLayout, useClientSelection } from "../components/layout/client-layout";
+import { getVisibleCustomMenuItems } from "../components/layout/custom-menu-registry";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -15,11 +21,19 @@ function ComingSoon({ label }: { label: string }) {
 
 // ─── Inner (needs layout context) ─────────────────────────────────────────────
 
+// Shows the selected add-on — or the first visible one when nothing is selected yet (the
+// Custom section has no fixed default). An add-on that is not visible to this user is
+// never rendered, even when named in router state.
 function CustomContent() {
 	const { selected } = useClientSelection();
-	const s = selected?.trim() || "";
+	const extendedWarrantyEnabled = useAppSelector(selectExtendedWarrantyEnabled);
+	const user = useAppSelector(selectCurrentUser);
+	const items = getVisibleCustomMenuItems(user, { extendedWarrantyEnabled });
+	const label = selected?.trim() || items[0]?.label || "";
+	const isVisible = items.some((item) => item.label === label);
 
-	return <ComingSoon label={s || "Custom"} />;
+	if (label === "Extended Warranty" && isVisible) return <ExtendedWarrantySection />;
+	return <ComingSoon label={label || "Custom"} />;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────

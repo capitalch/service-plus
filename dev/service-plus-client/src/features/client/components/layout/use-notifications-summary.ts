@@ -1,12 +1,15 @@
 import { useMemo } from "react";
 
 import { SQL_MAP } from "@/constants/sql-map";
-import { selectCurrentBranch } from "@/store/context-slice";
+import { selectCurrentUser } from "@/features/auth/store/auth-slice";
+import { ACCESS_RIGHTS, hasAccessRight } from "@/features/auth/utils/access-rights";
+import { selectCurrentBranch, selectExtendedWarrantyEnabled } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 
 import { useGenericQuery } from "../reports/common/use-generic-query";
 
 export type NotificationsSummary = {
+	ewOpenInterest: number;
 	jobsOverdue: number;
 	lowStockParts: number;
 	unpostedDocs: number;
@@ -18,6 +21,7 @@ function todayIso(): string {
 	return new Date().toISOString().slice(0, 10);
 }
 
+type EwInterestRow = { open_interest: number };
 type KpiRow = { jobs_overdue: number };
 type UnpostedRow = { job_invoices: number; money_receipts: number; purchase_invoices: number; sales_invoices: number };
 type LowStockRow = { total: number };
@@ -29,6 +33,8 @@ const num = (v: unknown) => Number(v ?? 0);
 export function useNotificationsSummary(): NotificationsSummary {
 	const branch = useAppSelector(selectCurrentBranch);
 	const branchId = branch?.id;
+	const extendedWarrantyEnabled = useAppSelector(selectExtendedWarrantyEnabled);
+	const user = useAppSelector(selectCurrentUser);
 
 	const today = useMemo(() => todayIso(), []);
 	const dateArgs = useMemo(() => ({ from: today, to: today }), [today]);
@@ -60,6 +66,15 @@ export function useNotificationsSummary(): NotificationsSummary {
 		sqlId: SQL_MAP.PART_FINDER_PAGED,
 	});
 
+	// Extended Warranty leads waiting in Interested — queried only when the add-on is on
+	// and this user may open it, so the bell never points at a screen they cannot reach.
+	const ewQ = useGenericQuery<EwInterestRow>({
+		enabled: !!branchId && extendedWarrantyEnabled && hasAccessRight(user, ACCESS_RIGHTS.CUSTOM_EXTENDED_WARRANTY),
+		sqlArgs: { branch_id: branchId },
+		sqlId: SQL_MAP.COUNT_EW_OPEN_INTEREST,
+	});
+
+	const ewOpenInterest = num(ewQ.data?.[0]?.open_interest);
 	const jobsOverdue = num(kpisQ.data?.[0]?.jobs_overdue);
 	const unpostedDocs = unpostedQ.data.reduce(
 		(sum, d) =>
@@ -68,5 +83,5 @@ export function useNotificationsSummary(): NotificationsSummary {
 	);
 	const lowStockParts = num(lowStockQ.data?.[0]?.total);
 
-	return { jobsOverdue, lowStockParts, unpostedDocs };
+	return { ewOpenInterest, jobsOverdue, lowStockParts, unpostedDocs };
 }

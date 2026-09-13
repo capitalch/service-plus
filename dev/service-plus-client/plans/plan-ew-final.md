@@ -62,7 +62,15 @@ records what was done (commit hash, results).
 | 7 | ✅ DONE 2026-09-13 |
 | 8 | ✅ DONE 2026-09-13 (check 5 waived by the user) |
 | 9 | ✅ DONE 2026-09-13 — Part A committed and pushed (`/git-deploy`) |
-| 10–19 | pending — Phase 2 (build) starts at Step 10 |
+| 10 | ✅ DONE 2026-09-13 |
+| 11 | ✅ DONE 2026-09-13 — 100 / 100 checks pass |
+| 12 | ✅ DONE 2026-09-13 — server boots; 95 / 95 checks pass |
+| 13 | ✅ DONE 2026-09-13 — tsc clean |
+| 14 | ✅ DONE 2026-09-13 — tsc clean, `pnpm build` passes; not yet seen in a browser |
+| 15 | ✅ DONE 2026-09-13 — both help files, own "Extended Warranty" topic; wording accepted by the user |
+| 16–17 | pending |
+| 18 | partly done — `ew_cleanup.sql` already run on every BU schema of the live database (user, 2026-09-13) |
+| 19 | pending |
 
 - **Your part** — what you do yourself: database commands (they need your credentials,
   which I never read), anything in the browser or on a phone, decisions, commits, deploys.
@@ -186,8 +194,9 @@ the new one (Parts C, D1). Phase 3 (Steps 18–19) rolls it out (D2).
 - **Done when:** all five pass.
 
 ### Step 9 — Commit Part A (CL-9) ✅ DONE 2026-09-13
-- **Status:** committed and pushed in one `/git-deploy` commit ("Remove Extended Warranty…";
-  find it with `git log --oneline -- notes/deploy-log.md`). Included, per the user,
+- **Status:** committed and pushed in one `/git-deploy` commit — `a295d74` "Extended Warranty:
+  remove the old module ahead of the rebuild" (62 files, +229 / −7882), pushed to `origin/main`
+  together with `01d2a99` from Step 1. Included, per the user,
   `db/service_plus_demo.sql` and the migration-tool README.
 - **Your part:** say "commit Part A" (or run `/git-deploy`). Optionally deploy it now (§A6 — safe, demo only).
 - **My part:** write the commit message (what was removed, what was kept) and commit client + server.
@@ -197,22 +206,80 @@ the new one (Parts C, D1). Phase 3 (Steps 18–19) rolls it out (D2).
 
 ## Phase 2 — Build
 
-### Step 10 — New database objects (B-2, §C3)
+### Step 10 — New database objects (B-2, §C3) ✅ DONE 2026-09-13
 - **My part:** write `scripts/ew_schema.sql` (three tables, view, settings row with the
   id-16 guard, row-15 key); add row 16 and the row-15 key to `seed_bu_data.py`.
-- **Your part:** run `ew_schema.sql` on `demo1` **twice**; re-run the `pg_dump --schema-only`
-  from Step 4; create a throwaway BU and check `\dt <bu_code>.ew_*` shows `ew_lead`,
-  `ew_message`, `ew_lead_event` and `\dv` shows `ew_lead_view`; delete the BU.
+  **Done 2026-09-13** — one transaction; guard raises if id 16 belongs to another key or
+  `extended_warranty` sits at another id; FK targets confirmed `bigint`; parses as 20
+  statements (pglast); seed file syntax-checked.
+  **Changed 2026-09-13:** the script no longer has `BEGIN` / `COMMIT` — the runner supplies
+  the transaction (the migration tool wraps each schema; psql uses `-1`). Inside the tool's
+  transaction an embedded `COMMIT` would commit even during the Check dry run.
+- **Your part** (user decision 2026-09-13: run it on **every** BU now, not only `demo1` —
+  this also covers Step 18.2):
+  - Migration tool: select every BU schema **including `demo1`** → load `ew_schema.sql` →
+    Check → Continue. Then Continue a **second** time (idempotency — all ✅). Paste the
+    results table. If `demo1` (template, in `service_plus_service`) is not listed in the
+    tool, run it there with psql `-1`.
+  - Re-run the `pg_dump --schema-only` from Step 4.
+  - Create a throwaway BU and check `\dt <bu_code>.ew_*` shows `ew_lead`, `ew_message`,
+    `ew_lead_event` and `\dv` shows `ew_lead_view`; delete the BU.
+  - Trade-off accepted: if Steps 11–16 change the DDL, the fix goes to every BU, not just
+    `demo1`. The new tables stay empty outside `demo1` until Part C ships, so a
+    drop-and-recreate through the tool is enough.
 - **My part (after yours):** run `extract_schema`; grep that `BU_SCHEMA_DDL` has the new objects.
+  **Done 2026-09-13** — user ran the script on every BU via the migration tool and
+  regenerated the dump (3 tables, view, 11 indexes present). `extract_schema` added 226 lines
+  to `sql_bu_admin_ddl.py`, none removed; `py_compile` clean. Fixed on the way:
+  `extract_schema.py`'s owner-line regex stripped `ALTER TABLE|FUNCTION|SEQUENCE … OWNER TO`
+  but not `ALTER VIEW`, so `ALTER VIEW ew_lead_view OWNER TO webadmin;` leaked into
+  `BU_SCHEMA_DDL` (the old `ew_stage_v` had the same leak) — a silent dependency on BUs
+  being created as `webadmin`. Regex now includes `VIEW`; the DDL has no `OWNER TO` line.
+  Uncommitted — goes into the Part C commit (Step 17).
+- **Throwaway BU — passed 2026-09-13 (user):** BU `test` created; every new object present
+  with no manual step. `test` is deleted afterwards (not needed by later steps).
 - **Done when:** objects present on `demo1` and in the throwaway BU with no manual step.
 
-### Step 11 — SQL store (B-3, §C4)
+### Step 11 — SQL store (B-3, §C4) ✅ DONE 2026-09-13
 - **My part:** `app/db/sql/sql_extended_warranty.py`, add it to `sql_base.py`; write a test
   script (every test wrapped in `BEGIN … ROLLBACK`) for §D3.1 tests 1–13.
 - **Your part:** run the test script on `demo1` and paste the output. Nothing is kept — every test rolls back.
 - **Done when:** all 13 tests pass.
+- **Status (my part done 2026-09-13):** `app/db/sql/sql_extended_warranty.py` (18 statements,
+  two classes — see §C4 note), `sql_base.py` composes the browser class only;
+  `scripts/ew_sql_test.py` covers tests 1–13 plus a smoke run of every read (R). Static
+  checks: `py_compile` + `pyflakes` clean; all 18 statements parse (pglast, placeholders →
+  NULL); `SqlStore` exposes exactly the six browser reads, none of the server-only ones,
+  no name collisions. Not yet run against a database.
+  - Test 5 (two sessions) must commit one fixture lead (`full_name = 'EW SQL TEST'`) and
+    deletes it in a `finally`; every other test is `BEGIN … ROLLBACK`.
+  - Deferred to Step 12 (need the resolver / `sign_ew`): test 1 through the real
+    `transitionEwLead`, test 10's "exactly one alert per first tap", test 11's token half.
+  - Run: from `../service-plus-server`, in the venv: `python scripts/ew_sql_test.py service_plus_demo demo1`
+    (both args are the defaults). Exit code 0 = all passed.
+  - **First run (user, 2026-09-13): 97 passed, 1 failed** — test 3 "CHECK refuses In Progress
+    without a stage". Real schema bug: a CHECK passes on NULL, and
+    `(state = 'IN_PROGRESS' AND progress_stage BETWEEN 1 AND 3) OR …` is NULL when the stage
+    is NULL. `ew_message_band_chk` had the same hole (REMINDER with NULL band — which would
+    also dodge the once-per-band index). Fixed in `ew_schema.sql`: both rewritten NULL-safe
+    (`CASE … COALESCE(…, false)`), moved out of `CREATE TABLE` into a drop-and-re-add block
+    so re-running the script corrects every existing BU. Test 3 gained the two band cases.
+  - **To finish (user):** migration tool → `ew_schema.sql` on every BU incl. `demo1` (Check,
+    Continue, Continue again); re-run the Step 4 `pg_dump --schema-only`; tell me → I run
+    `extract_schema`; then re-run `python scripts/ew_sql_test.py` → expect 100 passed.
+    **2026-09-13:** script re-run on every BU and dump regenerated (user); both NULL-safe
+    CHECKs confirmed in the dump; `extract_schema` re-run — `BU_SCHEMA_DDL` carries them,
+    no `OWNER TO` line, compiles.
+  - **Second run (user, 2026-09-13): 100 passed, 0 failed.** Step 11 done.
+  - **Open question — time zone (not blocking):** test 13 shows the DB session day starting
+    at `00:00+00:00`, i.e. sessions run in **UTC**; nothing in the server sets `TimeZone`.
+    So "Today" / "This week" / "This month" on the dashboard, and `CURRENT_DATE` in
+    `days_left` (bands, the 7-day grace window), roll over at **05:30 IST**, not midnight.
+    Existing job reports behave the same, so Extended Warranty is consistent with the app.
+    Cleanest fix, app-wide: `ALTER DATABASE <tenant_db> SET timezone = 'Asia/Kolkata'` per
+    tenant DB — a user decision, since it shifts every existing report's day boundary too.
 
-### Step 12 — Server Python (B-4, §C5, §C6)
+### Step 12 — Server Python (B-4, §C5, §C6) ✅ DONE 2026-09-13
 - **My part:** `ew_sender.py`, `resolvers/custom/extended_warranty.py`, public router,
   `sign_ew` / `verify_ew`, webhook codes, four GraphQL mutations, `main.py`, table-rights map.
 - **Your part:**
@@ -222,22 +289,123 @@ the new one (Parts C, D1). Phase 3 (Steps 18–19) rolls it out (D2).
   - Tests 15–16: set `daily_send_cap` / `enabled` in `demo1.app_setting` as I tell you and
     run the calls I give you.
 - **Done when:** boots; tests 14–16 pass.
+- **Status (my part done 2026-09-13):** new `app/whatsapp/ew_sender.py`,
+  `app/graphql/resolvers/custom/{__init__,extended_warranty}.py`,
+  `app/routers/public/extended_warranty_router.py`; edits to `token.py` (`sign_ew` /
+  `verify_ew`, tag `EWL`), `sender.py` (codes `EW` / `EL`), the webhook router
+  (`_apply_ew_status_callback`), `mutation.py` (4 resolvers, each
+  `require_access_right(CUSTOM_EXTENDED_WARRANTY)`; `ew_lead` in the genericUpdate table
+  rights), `schema.graphql` (4 fields), `main.py` (router). Static checks: `py_compile` +
+  `pyflakes` clean on every touched file; `schema.graphql` parses; all 42 mutation fields
+  have a resolver and vice versa.
+  - **Your part is simpler than written above** — no logins and no settings edits:
+    `scripts/ew_server_test.py` calls the resolvers with fake auth contexts (test 14),
+    replaces `send_template` with a fake (no WhatsApp message is sent) and overrides the
+    settings in-process (tests 15–16). It also covers what Step 11 deferred: test 1 through
+    the real resolver, test 10's one-alert-per-tap, test 11's signed links, plus the webhook
+    dispatch (W). It commits fixture leads named `EW SQL TEST` and deletes them at the end.
+  - Run: restart the server and confirm it boots; then, from `../service-plus-server` in the
+    venv: `python scripts/ew_server_test.py` (defaults `service_plus_demo demo1`).
+  - Optional browser check once it boots: `http://<server>/extended-warranty/abc` must show
+    the "invalid or expired" card (404), not an error.
+  - **Result (user, 2026-09-13):** server restarted and boots. `ew_server_test.py`: **95
+    passed, 0 failed**; all 75 fixture leads deleted. The one ERROR traceback in the output
+    is expected — test 15's simulated network exception, logged by `_send_and_settle` and
+    settled as FAILED. Browser check: `http://localhost:8000/extended-warranty/abc` shows the
+    "This link is invalid or has expired" card (user). (A first try on port 3000 hit the
+    React app's own 404 — Vite has no proxy for `/extended-warranty`; production nginx does.)
 
-### Step 13 — Client foundations (B-5, §C7.1–C7.3)
+### Step 13 — Client foundations (B-5, §C7.1–C7.3) ✅ DONE 2026-09-13
 - **Your part:** run `pnpm gen-types-service`.
 - **My part:** types, `ew-state-machine.ts`, sql-map / graphql-map ids, messages, context slice; `tsc`.
 - **Done when:** tsc clean.
+- **Status (2026-09-13):** types regenerated (user). New
+  `features/client/types/extended-warranty.ts` — table columns derived from the generated
+  `EwLead` through an `IsoDatesType` mapper (genericQuery returns dates as ISO strings);
+  only view-computed columns hand-declared. New
+  `components/custom/extended-warranty/ew-state-machine.ts` — `EW_TRANSITIONS` (server
+  mirror + NEW_LEAD → MESSAGE_SENT for the diagram), state / band / message-group / stage /
+  delivery / period / follow-up-action metadata, `EW_COLOR_CLASSES`, `EW_PIPELINE_GROUPS`
+  (the brief's card table as data, with drill-down filters), `availableActions`,
+  `sendBlockReason`, `stateBadgeLabel`, `transitionLabel`, `daysLeftLabel`, `isFollowUpDue`,
+  `formatDate` / `formatDateTime` (date-only strings read as local dates). `sql-map.ts`: the
+  six browser reads. `graphql-map.ts`: the four mutations. `messages.ts`: the §C7.12 keys
+  plus six the screens need (`ERROR_EW_LEAD_DELETE_FAILED`, `ERROR_EW_SEND_SOME_FAILED`,
+  `INFO_EW_DELETE_MESSAGED`, `SUCCESS_EW_REMINDERS_SENT`, `WARN_EW_SEND_CAPPED`,
+  `WARN_EW_SEND_SKIPPED`). `context-slice.ts`: `extendedWarrantyEnabled` +
+  `setExtendedWarrantyEnabled` + `selectExtendedWarrantyEnabled` (nothing sets it yet — the
+  `client-layout.tsx` parse is Step 14). `EW_CHECKBOX_CLASS` dropped as unneeded. Prettier on
+  touched files; `pnpm exec tsc -b --noEmit` exit 0.
+  - Colours follow D14 (Lost / Cancelled / Overdue / Fail red) — a deliberate, user-confirmed
+    exception to the global "red is for errors only" rule, limited to these status cards.
 
-### Step 14 — Client screens and settings dialog (B-6, §C7.4–C7.11, §C8)
+### Step 14 — Client screens and settings dialog (B-6, §C7.4–C7.11, §C8) ✅ DONE 2026-09-13
 - **My part:** every component, route, bell, deep-link page, settings dialog; `tsc`; `pnpm build`.
 - **Your part:** none (testing is Step 16). Optional quick look at the dashboard to catch layout taste early.
 - **Done when:** tsc clean, build passes.
+- **Status (2026-09-13):** `pnpm exec tsc -b --noEmit` exit 0 on the first run; `pnpm build`
+  passes (only the pre-existing chunk-size warning). Prettier on every touched file. Nothing
+  has been run in a browser yet — that is Step 16.
+  - **New, `components/custom/extended-warranty/`:** `extended-warranty-section.tsx`,
+    `ew-dashboard.tsx`, `ew-state-flow-diagram.tsx` (edges generated from `EW_TRANSITIONS`
+    and classified main / skip / close-bus / fan / reopen / return), `ew-pipeline-section.tsx`,
+    `ew-period-matrix.tsx`, `ew-drilldown-view.tsx`, `ew-lead-grid.tsx`,
+    `ew-lead-actions-menu.tsx`, `ew-transition-dialog.tsx`, `ew-follow-up-dialog.tsx`,
+    `ew-lead-dialog.tsx`, `ew-lead-detail-dialog.tsx`, `ew-state-badge.tsx`,
+    `ew-delivery-chip.tsx`, `extended-warranty-schema.ts`.
+  - **Named differently from §C7.1:** `ew-mutations.ts` (the four mutation wrappers + the
+    delete + send-result toasts) instead of `send-ew-reminders.ts`; and a new
+    `use-ew-lead-actions.tsx` — one hook, owned by the section, that holds every lead
+    action and dialog, so the grids, the detail dialog and the staff deep link behave
+    identically.
+  - **Elsewhere:** `pages/client-custom-ew-ref-page.tsx`; `routes.ts` `customEwRef` +
+    router child `custom/ew/:ref`; `client-custom-page.tsx` (shows the selected add-on, or
+    the first visible one); `custom-menu-registry.ts` (context `{ extendedWarrantyEnabled }`,
+    the Extended Warranty item); `client-layout.tsx` (parses `extended_warranty.enabled`,
+    strict `true`); `client-top-nav.tsx` / `client-explorer-panel.tsx` (pass the flag; bell
+    item "Extended warranty — interested leads" → Interested drill-down);
+    `use-notifications-summary.ts` (`ewOpenInterest`, queried only when the add-on is on and
+    the user has the right); `edit-extended-warranty-dialog.tsx` (rhf + zod; saving
+    dispatches the flag); `app-settings-section.tsx` routing; the WhatsApp notifications
+    dialog's Extended Warranty switch; `kpi-card.tsx` optional `borderClassName` /
+    `valueClassName`; `messages.ts` (form and screen keys).
+  - **Found on the way:** `lib/mobile`'s `isValidMobile` accepts `""` (it serves optional
+    mobile fields), so it would have let an empty mobile through the lead form and the send
+    check. Added `isCompleteMobile` to `ew-state-machine.ts` and used it for the lead form,
+    `sendBlockReason`, the grid's "invalid number" flag and the lookup trigger.
+  - A disabled row-menu item stays visible and answers with a toast giving the reason —
+    Radix hides tooltips on truly disabled items.
 
-### Step 15 — Help (B-7, §C9)
+### Step 15 — Help (B-7, §C9) ✅ DONE 2026-09-13
 - **My part:** new client article + new developer article; update the App Settings,
   `whatsapp_notifications` and WhatsApp-rail sections.
 - **Your part:** open both help screens and read the new articles.
 - **Done when:** both render; you are happy with the wording.
+- **Status (my part done 2026-09-13):**
+  - **Own help topic (user request, 2026-09-13):** "Extended Warranty" is a category of its
+    own in both help centers — `HELP_CATEGORIES` / `CLIENT_CAT_STYLE` and
+    `DEV_HELP_CATEGORIES` / `DEV_CAT_STYLE`, listed right after WhatsApp, sky colour, 🛡️ with
+    the `ShieldCheck` icon the Custom menu uses. Both articles moved into it; a script
+    confirmed every article's category is a listed topic and no topic is empty.
+  - **Client help (`help-content.ts`):** new article `extended-warranty` (topic Extended
+    Warranty) — switching it on, adding a lead, the states table, the
+    dashboard, sending reminders, what the customer sees, interest, follow-ups, closing and
+    reopening, the summaries, the Details tab, plus 7 FAQs. 'App Settings' gains the
+    `extended_warranty` row and an 'Extended Warranty settings' section, and its
+    whatsapp_notifications text now names six events. 'WhatsApp Integration' gains a pointer
+    note and the Extended Warranty switch.
+  - **Dev help (`dev-help-content.ts`):** `dev-extended-warranty` rewritten from the
+    removal record into 'Extended Warranty — Lead State Machine' (tables and view, NULL-safe
+    CHECKs, state machine, the two SQL classes and why, sending, webhook / public page /
+    token, access, client, the Part B fixed pieces, tests, rollout and time zone, 5 FAQs).
+    Stale text corrected in: the settings-keys table (`extended_warranty` row, the
+    EXTENDED_WARRANTY switch key) and the WhatsApp rail article (intro, TEMPLATES "no
+    sender", THREE signing pairs, EW / EL callback codes, the webhook branch, four public
+    routers and the /extended-warranty/ nginx block, the subscription's `kind`, the switch
+    keys, and the mutations that check their own right).
+  - Checks: Prettier on both files; `tsc` clean; a grep for the stale phrases ("Rebuild
+    Pending", "no sender", "TWO independent", "Three routers", the empty-registry text)
+    finds nothing; the menu's `helpArticleId: "extended-warranty"` now resolves.
 
 ### Step 16 — End-to-end test on `demo1` (B-8, §D3.2)
 - **Your part:**
@@ -265,8 +433,11 @@ the new one (Parts C, D1). Phase 3 (Steps 18–19) rolls it out (D2).
 - **My part:** on request, a small script that lists every BU schema of a tenant (from
   `security.bu`) and runs a given SQL file against each.
 - **Your part**, per tenant, in this order:
-  1. Run `ew_cleanup.sql` on **every** BU schema (not just `demo1`).
-  2. Run `ew_schema.sql` on every BU schema.
+  1. Run `ew_cleanup.sql` on **every** BU schema (not just `demo1`). **Done 2026-09-13 for
+     every BU schema of the live database (user).**
+  2. Run `ew_schema.sql` on every BU schema. **Being done in Step 10 via the migration tool
+     (user, 2026-09-13).** Re-run only for BUs created before Step 10's regenerated DDL, or if
+     the DDL changed later.
   3. Only then deploy the Part C server and client (R1 — the server must not go live before its tables exist).
   4. Super-admin → Seed Roles only if the tenant lacks rights 19 / 20.
   5. Enter the Extended Warranty settings and turn on the WhatsApp switch (owner).
@@ -630,9 +801,10 @@ CREATE TABLE IF NOT EXISTS ew_lead (
     CONSTRAINT ew_lead_product_fkey FOREIGN KEY (product_id) REFERENCES product(id),
     CONSTRAINT ew_lead_state_chk CHECK (state IN
         ('NEW_LEAD', 'MESSAGE_SENT', 'INTERESTED', 'IN_PROGRESS', 'WON', 'LOST', 'CANCELLED')),
+    -- NULL-safe (a CHECK passes on NULL; Step 11 test 3 caught the first AND/OR form):
     CONSTRAINT ew_lead_progress_chk CHECK (
-        (state = 'IN_PROGRESS' AND progress_stage BETWEEN 1 AND 3)
-        OR (state <> 'IN_PROGRESS' AND progress_stage IS NULL)),
+        CASE WHEN state = 'IN_PROGRESS' THEN COALESCE(progress_stage BETWEEN 1 AND 3, false)
+             ELSE progress_stage IS NULL END),
     CONSTRAINT ew_lead_closed_at_chk CHECK ((state IN ('WON', 'LOST', 'CANCELLED')) = (closed_at IS NOT NULL)),
     CONSTRAINT ew_lead_preferred_contact_chk CHECK (preferred_contact IS NULL OR preferred_contact IN ('CALL', 'WHATSAPP'))
 );
@@ -660,9 +832,10 @@ CREATE TABLE IF NOT EXISTS ew_message (
     CONSTRAINT ew_message_kind_chk CHECK (kind IN ('REMINDER', 'LEAD_ALERT')),
     CONSTRAINT ew_message_status_chk CHECK (delivery_status IN
         ('PENDING', 'ACCEPTED', 'SENT', 'DELIVERED', 'READ', 'FAILED')),
+    -- NULL-safe: a REMINDER with a NULL band would also dodge the once-per-band index.
     CONSTRAINT ew_message_band_chk CHECK (
-        (kind = 'REMINDER'   AND band IN ('D61_PLUS', 'D31_60', 'D8_30', 'D0_7', 'OVERDUE'))
-     OR (kind = 'LEAD_ALERT' AND band IS NULL))
+        CASE WHEN kind = 'REMINDER' THEN COALESCE(band IN ('D61_PLUS', 'D31_60', 'D8_30', 'D0_7', 'OVERDUE'), false)
+             ELSE band IS NULL END)
 );
 -- D7: exactly one live reminder per (lead, band). FAILED drops out, so a failed band can be retried.
 CREATE UNIQUE INDEX IF NOT EXISTS ew_message_once_per_band_idx
@@ -830,6 +1003,27 @@ one parameter and Postgres unifies its type across every use.
 Client `sql-map.ts` gets only the ids the browser calls: `GET_EW_LEADS_PAGED`,
 `GET_EW_LEAD_DETAIL`, `GET_EW_LEAD_TIMELINE`, `GET_EW_LEAD_BY_MOBILE`, `GET_EW_DASHBOARD`,
 `COUNT_EW_OPEN_INTEREST`.
+
+**As built (Step 11, 2026-09-13) — where the code differs from the SQL sketched below:**
+
+- **Two classes.** `ExtendedWarrantySql` (the six browser reads) is composed into
+  `SqlStore`. `ExtendedWarrantyServerSql` (every write + the four server-only reads) is
+  deliberately **not**: genericQuery runs any `SqlStore` constant by `sqlId` on an
+  autocommit connection, so a write placed there is callable from the browser —
+  `TRANSITION_EW_LEAD` with a hand-made `allowed_from` would bypass the transition table
+  and the `CUSTOM_EXTENDED_WARRANTY` check. Same reasoning as `PublicSql`.
+- **Placeholder style** follows `sql_reports_audit.py`: a placeholder used more than once is
+  bound once in a `"p_<name>"` CTE and read with `(table "p_<name>")`; every placeholder is
+  cast. Every genericQuery read needs every key (null = filter off).
+- `TRANSITION_EW_LEAD` enforces D3 itself: entering In Progress from another state sets
+  Stage 1 whatever stage is passed.
+- `ADD_EW_FOLLOW_UP` logs a `STAGE_CHANGE` event alongside `FOLLOW_UP` when the stage rises
+  (C2.4 "both are logged").
+- `RECORD_EW_INTEREST` records nothing for an opted-out lead; remarks are trimmed.
+- `GET_EW_LEAD_DETAIL` takes `branch_id` null = any branch (the staff-alert path knows only the lead id).
+- Timeline columns are `occurred_at` / `item_type` (not `at` / `type`); the bell count
+  column is `open_interest`; the dashboard is written with `COUNT(*) FILTER` over two CTEs
+  instead of one sub-select per column — same column names as §C4.4.
 
 ### C4.2 Writes
 
@@ -1064,7 +1258,7 @@ status ≠ FAILED (per BU schema).
 
 ### C4.4 `GET_EW_DASHBOARD`
 
-One row. Periods per D11, message groups per D13. Column naming convention
+One row. Periods per D11, message groups per D12. Column naming convention
 `<metric>_<period>` with periods `today | week | month | older` so the client renders the
 summaries by looping two arrays.
 
@@ -1133,6 +1327,22 @@ Write every period out in full in the store. Won/Lost/Cancelled by period count 
 | `app/db/sql/sql_base.py` | add `ExtendedWarrantySql` |
 | `app/db/seeds/seed_bu_data.py` | row 16 + row 15 key (§C3.4) |
 | `app/whatsapp/templates.py` | untouched (Part B) |
+
+**As built (Step 12, 2026-09-13) — where the code differs from the text below:**
+
+- One helper, `_send_and_settle`, calls Meta and settles the claimed row for both kinds. An
+  **exception** from the call is settled as FAILED too — a reminder left PENDING would block
+  its band for good (PENDING counts as live under the once-per-band index).
+- `send_ew_lead_alert` returns what happened (`SENT` / `FAILED` / `NO_STAFF_NUMBER` /
+  `INVALID_STAFF_NUMBER` / `NOT_FOUND` / `ERROR`) and still never raises;
+  `resendEwLeadAlert` returns `{ok, status}` or `{ok: false, reason: NOT_FOUND | NO_INTEREST}`.
+- `sendEwReminders` drops invalid mobiles **before** the daily cap, so they do not use up
+  cap slots; an unreadable `daily_send_cap` falls back to 250, never to unlimited.
+- Notes over 1000 characters are **refused** (not trimmed); `next_follow_up_at` without a
+  time zone is refused.
+- An interest POST on an opted-out lead shows the "unsubscribed" page (not "invalid").
+- `EW_ACCESS_RIGHT` is one constant in `resolvers/custom/extended_warranty.py`, used by the
+  four resolvers and the `ew_lead` table right.
 
 ### C5.1 `ew_sender.py`
 

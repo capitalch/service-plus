@@ -46,7 +46,7 @@ _HEADER_RE = re.compile(
 
 # Ownership statements pg_dump appends after most objects; irrelevant to schema
 # structure and never present in the hand-maintained files being replaced.
-_OWNER_LINE_RE = re.compile(r"^ALTER (?:TABLE|FUNCTION|SEQUENCE) .*\bOWNER TO\b.*;[ \t]*$", re.MULTILINE)
+_OWNER_LINE_RE = re.compile(r"^ALTER (?:TABLE|FUNCTION|SEQUENCE|VIEW) .*\bOWNER TO\b.*;[ \t]*$", re.MULTILINE)
 
 # psql meta-commands emitted by newer pg_dump versions; not valid SQL.
 _PSQL_META_RE = re.compile(r"^\\(?:un)?restrict .*$\n?", re.MULTILINE)

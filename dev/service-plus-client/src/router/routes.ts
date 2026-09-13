@@ -6,6 +6,8 @@ export const ROUTES = {
 		admin: "/client/admin",
 		configurations: "/client/configurations",
 		custom: "/client/custom",
+		// Fixed by the approved staff-alert template's button prefix (plan Part B2).
+		customEwRef: "/client/custom/ew/:ref",
 		inventory: "/client/inventory",
 		jobs: "/client/jobs",
 		masters: "/client/masters",

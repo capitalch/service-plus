@@ -30,6 +30,13 @@ from app.graphql.resolvers.bu_admin.users_roles import (
     resolve_create_business_user_helper,
     resolve_set_user_bu_role_helper,
 )
+from app.graphql.resolvers.custom.extended_warranty import (
+    CUSTOM_GENERIC_UPDATE_TABLE_RIGHTS,
+    EW_ACCESS_RIGHT,
+    add_ew_follow_up,
+    resend_ew_lead_alert,
+    transition_ew_lead,
+)
 from app.graphql.resolvers.inventory.mutations import (
     INVENTORY_GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS,
     INVENTORY_GENERIC_UPDATE_TABLE_RIGHTS,
@@ -54,6 +61,7 @@ from app.graphql.resolvers.jobs.mutations import (
     resolve_update_job_helper,
     resolve_update_opening_job_helper,
 )
+from app.whatsapp.ew_sender import send_ew_reminders
 from app.whatsapp.sender import (
     resolve_send_whatsapp_completion_helper,
     send_job_creation_notice,
@@ -100,6 +108,7 @@ GENERIC_UPDATE_TABLE_RIGHTS: dict[str, str] = {
     **JOBS_GENERIC_UPDATE_TABLE_RIGHTS,
     **INVENTORY_GENERIC_UPDATE_TABLE_RIGHTS,
     **BU_ADMIN_GENERIC_UPDATE_TABLE_RIGHTS,
+    **CUSTOM_GENERIC_UPDATE_TABLE_RIGHTS,
 }
 
 # genericUpdateScript executes a named SqlStore query by sql_id (not a
@@ -522,3 +531,49 @@ async def resolve_set_job_delivery_manual_confirmation(
     session's own context, never a client-supplied field."""
     staff_id = (info.context or {}).get("user_id")
     return await set_job_delivery_manual_confirmation(db_name, schema, value, staff_id)
+
+
+# ── Extended Warranty (plans/plan-ew-final.md §C5.6) ─────────────────────────
+# Unlike the job WhatsApp mutations above, each of these checks its own access right:
+# a state change or a Marketing send must never be one crafted request away. `user_id`
+# comes from the authenticated context, never the payload.
+
+
+@mutation.field("addEwFollowUp")
+@handle_graphql_errors("Error recording Extended Warranty follow-up")
+async def resolve_add_ew_follow_up(
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Record a follow-up on an In Progress lead — notes, next date/time, stage."""
+    require_access_right(info, EW_ACCESS_RIGHT)
+    return await add_ew_follow_up(db_name, schema, value, (info.context or {}).get("user_id"))
+
+
+@mutation.field("resendEwLeadAlert")
+@handle_graphql_errors("Error re-sending Extended Warranty staff alert")
+async def resolve_resend_ew_lead_alert(
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Re-send the staff WhatsApp alert for a lead whose first alert failed or never went."""
+    require_access_right(info, EW_ACCESS_RIGHT)
+    return await resend_ew_lead_alert(db_name, schema, value)
+
+
+@mutation.field("sendEwReminders")
+@handle_graphql_errors("Error sending Extended Warranty reminders")
+async def resolve_send_ew_reminders(
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Send Extended Warranty WhatsApp reminders to the selected leads (single or bulk)."""
+    require_access_right(info, EW_ACCESS_RIGHT)
+    return await send_ew_reminders(db_name, schema, value, (info.context or {}).get("user_id"))
+
+
+@mutation.field("transitionEwLead")
+@handle_graphql_errors("Error changing Extended Warranty lead state")
+async def resolve_transition_ew_lead(
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Move a lead along an allowed transition, or advance its In Progress stage."""
+    require_access_right(info, EW_ACCESS_RIGHT)
+    return await transition_ew_lead(db_name, schema, value, (info.context or {}).get("user_id"))

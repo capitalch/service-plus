@@ -1,5 +1,6 @@
 import type { CategoryStyleType, HelpArticle } from "@/components/shared/help/help-types";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { ShieldCheck } from "lucide-react";
 
 // ─── Developer Help Center content ─────────────────────────────────────────────
 // Audience: developers/maintainers, surfaced only inside Super Admin (userType 'S',
@@ -2174,7 +2175,11 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"whatsapp_notifications",
-						"Per-event on/off switch for outbound WhatsApp sends ({JOB_CREATION, JOB_COMPLETION, JOB_DELIVERY, JOB_MONEY_RECEIPT, JOB_INVOICE} booleans, only JOB_COMPLETION seeded true) — read server-side, in app/whatsapp/sender.py's _is_event_enabled(), not by the client. See 'WhatsApp Integration — Implementation' for the fail-closed gating logic.",
+						"Per-event on/off switch for outbound WhatsApp sends ({JOB_CREATION, JOB_COMPLETION, JOB_DELIVERY, JOB_MONEY_RECEIPT, JOB_INVOICE, EXTENDED_WARRANTY} booleans, only JOB_COMPLETION seeded true) — read server-side, in app/whatsapp/sender.py's _is_event_enabled(), not by the client. See 'WhatsApp Integration — Implementation' for the fail-closed gating logic.",
+					],
+					[
+						"extended_warranty (id 16)",
+						"JSON {contact_phone, daily_send_cap, enabled, notify_email, staff_whatsapp_number, whatsapp_number}. enabled (strictly true) is read client-side in layout/client-layout.tsx into Redux (extendedWarrantyEnabled — shows Custom → Extended Warranty) and server-side by app/whatsapp/ew_sender.py; sending also needs whatsapp_notifications.EXTENDED_WARRANTY. Edited in its own dialog, edit-extended-warranty-dialog.tsx. See 'Extended Warranty — Lead State Machine'.",
 					],
 				],
 			},
@@ -2323,7 +2328,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "This article is the as-built implementation summary for the shared WhatsApp rail, kept current across five builds: the original completion notice (Customer Connect), the Job Intake Notice (plans/plan-whatsapp.md), paperless Job Delivery (plan-wa-delivery.md), the Money Receipt send (plan-wa-money-receipt.md) and the Invoice resend (plan-wa-invoice-resend.md). Extended Warranty was a sixth until it was removed for a rebuild on 2026-09-13 — see 'Extended Warranty — Removed, Rebuild Pending'. Every one of those plan docs still carries a stale '(not implemented yet)' in its title — read the per-step Done markers inside them, not the heading. Two sibling articles go deeper where an event breaks the shared pattern: 'Paperless Job Delivery' (the OTP subsystem) and 'Money Receipt & Invoice Sends' (the array-shaped log and the second token pair). Everything on this page is what all five events share. Direct Meta WhatsApp Cloud API, one shared phone_number_id across all tenants, no BSP intermediary and no provider-registry abstraction.",
+				text: "This article is the as-built implementation summary for the shared WhatsApp rail, kept current across five builds: the original completion notice (Customer Connect), the Job Intake Notice (plans/plan-whatsapp.md), paperless Job Delivery (plan-wa-delivery.md), the Money Receipt send (plan-wa-money-receipt.md) and the Invoice resend (plan-wa-invoice-resend.md). Extended Warranty (plans/plan-ew-final.md) rides the same Meta client, templates, token module and webhook but keeps its own tables and sender, so it is not one of the five — see 'Extended Warranty — Lead State Machine'. Every one of those plan docs still carries a stale '(not implemented yet)' in its title — read the per-step Done markers inside them, not the heading. Two sibling articles go deeper where an event breaks the shared pattern: 'Paperless Job Delivery' (the OTP subsystem) and 'Money Receipt & Invoice Sends' (the array-shaped log and the second token pair). Everything on this page is what all five events share. Direct Meta WhatsApp Cloud API, one shared phone_number_id across all tenants, no BSP intermediary and no provider-registry abstraction.",
 			},
 			{
 				type: "note",
@@ -2386,7 +2391,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"templates.py",
-						"TEMPLATES holds eight TemplateSpec entries for seven events: JOB_COMPLETION (job_completed_ready_for_pickup_v2), JOB_CREATION (job_intake_notice_v2), JOB_DELIVERY (job_delivery_notice_v1), JOB_DELIVERY_OTP (job_delivery_otp_v1 — the only AUTHENTICATION-category one, and why the entry count exceeds the event count), JOB_MONEY_RECEIPT (job_money_receipt_v1), JOB_INVOICE (job_invoice_v1), EXTENDED_WARRANTY (extended_warranty_reminder_v1, the only MARKETING one) and EXTENDED_WARRANTY_LEAD (extended_warranty_lead_alert_v1). The last two are Meta-approved and still registered but have no sender since the 2026-09-13 removal — they are kept unchanged because the rebuild (plans/plan-ew-final.md, Part C) reuses them, and any edit would mean resubmission. TemplateSpec carries header_params/body_params (Meta's named-parameter form for UTILITY templates — a param-name/slot mismatch is impossible by construction; AUTHENTICATION is positional-only, Meta's rule not ours) plus button_count: how many dynamic-URL buttons the template has, in button order — 0 for JOB_COMPLETION, 2 for JOB_CREATION and JOB_DELIVERY (both buttons carry the identical token), 1 for JOB_MONEY_RECEIPT, JOB_INVOICE, EXTENDED_WARRANTY and EXTENDED_WARRANTY_LEAD. It replaced a named button_params list after two production sends shipped broken on 2026-08-30: a button URL takes no placeholder at all, only a bare static prefix the sent value is appended to. An approved template can't be edited — a wording change means a new _vN name and a fresh Meta review.",
+						"TEMPLATES holds eight TemplateSpec entries for seven events: JOB_COMPLETION (job_completed_ready_for_pickup_v2), JOB_CREATION (job_intake_notice_v2), JOB_DELIVERY (job_delivery_notice_v1), JOB_DELIVERY_OTP (job_delivery_otp_v1 — the only AUTHENTICATION-category one, and why the entry count exceeds the event count), JOB_MONEY_RECEIPT (job_money_receipt_v1), JOB_INVOICE (job_invoice_v1), EXTENDED_WARRANTY (extended_warranty_reminder_v1, the only MARKETING one) and EXTENDED_WARRANTY_LEAD (extended_warranty_lead_alert_v1). The last two are sent by app/whatsapp/ew_sender.py (the Extended Warranty lead state machine); they were kept byte-for-byte through the 2026-09-13 rebuild, because any edit would mean resubmission. TemplateSpec carries header_params/body_params (Meta's named-parameter form for UTILITY templates — a param-name/slot mismatch is impossible by construction; AUTHENTICATION is positional-only, Meta's rule not ours) plus button_count: how many dynamic-URL buttons the template has, in button order — 0 for JOB_COMPLETION, 2 for JOB_CREATION and JOB_DELIVERY (both buttons carry the identical token), 1 for JOB_MONEY_RECEIPT, JOB_INVOICE, EXTENDED_WARRANTY and EXTENDED_WARRANTY_LEAD. It replaced a named button_params list after two production sends shipped broken on 2026-08-30: a button URL takes no placeholder at all, only a bare static prefix the sent value is appended to. An approved template can't be edited — a wording change means a new _vN name and a fresh Meta review.",
 					],
 					[
 						"mobile.py",
@@ -2394,7 +2399,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"token.py",
-						"TWO independent signing pairs over the same HMAC-SHA256 scheme and helpers (_b64url/_signature). sign(db_name, schema, job_ids, ttl_days=730)/verify(token) — payload db_name|schema|job_ids|exp — backs the JOB_CREATION status page and job slip, both JOB_DELIVERY PDF buttons, and JOB_INVOICE (reused unchanged; it was written generic, never OTP-specific). sign_receipt(db_name, schema, job_id, payment_id)/verify_receipt(token) — payload db_name|schema|job_id|payment_id|exp — exists only because the first pair cannot name a single payment row, and job_ids was deliberately not overloaded with a second meaning. None of them is the delivery OTP, which is a separate secret entirely (see \u2018Paperless Job Delivery\u2019).",
+						"THREE independent signing pairs over the same HMAC-SHA256 scheme and helpers (_b64url/_signature). The third, sign_ew(db_name, schema, ew_lead_id, ew_message_id, ttl_days=180)/verify_ew(token) — payload EWL|db_name|schema|ew_lead_id|ew_message_id|exp — backs the Extended Warranty reminder's button; its EWL type tag exists because sign_receipt's five-field payload has exactly the shape an untagged lead token would have, so without it a receipt link would verify as a lead link. sign(db_name, schema, job_ids, ttl_days=730)/verify(token) — payload db_name|schema|job_ids|exp — backs the JOB_CREATION status page and job slip, both JOB_DELIVERY PDF buttons, and JOB_INVOICE (reused unchanged; it was written generic, never OTP-specific). sign_receipt(db_name, schema, job_id, payment_id)/verify_receipt(token) — payload db_name|schema|job_id|payment_id|exp — exists only because the first pair cannot name a single payment row, and job_ids was deliberately not overloaded with a second meaning. None of them is the delivery OTP, which is a separate secret entirely (see \u2018Paperless Job Delivery\u2019).",
 					],
 					[
 						"otp.py",
@@ -2409,7 +2414,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Tenant + event routing: biz_opaque_callback_data, not a table" },
 			{
 				type: "para",
-				text: "A status webhook carries only a wamid — no job, customer, tenant, or event. Meta's send API accepts an arbitrary string, biz_opaque_callback_data, echoed back verbatim on every status callback for that message. Current format is 4-part, pipe-delimited: db_name|schema|event_code|job_id,job_id,… — event_code is a 2-letter abbreviation (CC=JOB_COMPLETION, JC=JOB_CREATION, JD=JOB_DELIVERY, MR=JOB_MONEY_RECEIPT, JI=JOB_INVOICE) kept out of the full event-key vocabulary on the wire only, since every byte here subtracts from the 512-char cap available for job ids. The webhook decodes it back with _EVENT_KEY_BY_CODE before it goes near SQL, so event_key is always the full string by the time it reaches the database. A legacy 3-part payload (db_name|schema|job_ids, no event code — from before JOB_CREATION existed) is still decoded, treated as JOB_COMPLETION; both formats are accepted indefinitely since an old in-flight callback could arrive at any time.",
+				text: "A status webhook carries only a wamid — no job, customer, tenant, or event. Meta's send API accepts an arbitrary string, biz_opaque_callback_data, echoed back verbatim on every status callback for that message. Current format is 4-part, pipe-delimited: db_name|schema|event_code|job_id,job_id,… — event_code is a 2-letter abbreviation (CC=JOB_COMPLETION, JC=JOB_CREATION, JD=JOB_DELIVERY, MR=JOB_MONEY_RECEIPT, JI=JOB_INVOICE, plus EW=EXTENDED_WARRANTY and EL=EXTENDED_WARRANTY_LEAD, whose id list is [ew_message_id] rather than job ids) kept out of the full event-key vocabulary on the wire only, since every byte here subtracts from the 512-char cap available for job ids. The webhook decodes it back with _EVENT_KEY_BY_CODE before it goes near SQL, so event_key is always the full string by the time it reaches the database. A legacy 3-part payload (db_name|schema|job_ids, no event code — from before JOB_CREATION existed) is still decoded, treated as JOB_COMPLETION; both formats are accepted indefinitely since an old in-flight callback could arrive at any time.",
 			},
 			{ type: "heading", text: "Webhook receiver: app/routers/webhooks/whatsapp_webhook_router.py" },
 			{
@@ -2422,18 +2427,18 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"POST /api/webhooks/whatsapp",
-						"The real traffic. Verifies X-Hub-Signature-256 (HMAC-SHA256 of the raw body with the App Secret) before trusting anything in the payload — biz_opaque_callback_data is attacker-controlled data otherwise. Parses entry[].changes[].value.statuses[] (Meta batches several per request), decodes biz_opaque_callback_data into db_name/schema/event_key/job_ids, applies the status ladder per job_id under that event's key, and always returns 200 — even for an unrecognized wamid or event code — since a 500 just buys an infinite Meta retry loop.",
+						"The real traffic. Verifies X-Hub-Signature-256 (HMAC-SHA256 of the raw body with the App Secret) before trusting anything in the payload — biz_opaque_callback_data is attacker-controlled data otherwise. Parses entry[].changes[].value.statuses[] (Meta batches several per request), decodes biz_opaque_callback_data into db_name/schema/event_key/job_ids, applies the status ladder per job_id under that event's key, and always returns 200 — even for an unrecognized wamid or event code — since a 500 just buys an infinite Meta retry loop. The EW/EL codes branch off before the per-job loop to _apply_ew_status_callback, which settles ew_message by wamid (see 'Extended Warranty — Lead State Machine').",
 					],
 				],
 			},
 			{ type: "heading", text: "Public, token-gated pages: app/routers/public/" },
 			{
 				type: "para",
-				text: "Every document a customer can reach is a plain URL button pointing back at this server — nothing is ever a WhatsApp document/media attachment. Three routers serve them, each 404ing plainly on a bad or expired token: job_intake_router.py (the no-login status page and the job-slip PDF, JOB_CREATION), job_delivery_router.py (the Delivery Note PDF and the Invoice PDF — the latter reused unchanged by JOB_INVOICE, since it verifies a token and queries by job_ids with no status filter at all), and job_money_receipt_router.py (one payment row's receipt PDF, behind verify_receipt). All PDFs are reportlab, built server-side from whitelisted public SQL — deliberately not ports of the client's jsPDF builders.",
+				text: "Every document a customer can reach is a plain URL button pointing back at this server — nothing is ever a WhatsApp document/media attachment. Four routers serve them, each 404ing plainly on a bad or expired token: job_intake_router.py (the no-login status page and the job-slip PDF, JOB_CREATION), job_delivery_router.py (the Delivery Note PDF and the Invoice PDF — the latter reused unchanged by JOB_INVOICE, since it verifies a token and queries by job_ids with no status filter at all), job_money_receipt_router.py (one payment row's receipt PDF, behind verify_receipt), and extended_warranty_router.py (the Extended Warranty landing page with its interest and opt-out forms, behind verify_ew, mounted at /extended-warranty/ with no /api prefix). All PDFs are reportlab, built server-side from whitelisted public SQL — deliberately not ports of the client's jsPDF builders.",
 			},
 			{
 				type: "warning",
-				text: "Each public prefix needs its own nginx location block in production. The SPA's catch-all intercepts anything not explicitly proxied first, which has already broken a release once — /job-intake/, /job-delivery/ and /job-money-receipt/ are all proxied today, and any future public prefix must be added there before its buttons will work outside dev.",
+				text: "Each public prefix needs its own nginx location block in production. The SPA's catch-all intercepts anything not explicitly proxied first, which has already broken a release once — /job-intake/, /job-delivery/, /job-money-receipt/ and /extended-warranty/ are all proxied today, and any future public prefix must be added there before its buttons will work outside dev.",
 			},
 			{
 				type: "note",
@@ -2442,7 +2447,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Live push to the client: whatsappDeliveryStatus subscription" },
 			{
 				type: "para",
-				text: "Neither Customer Connect nor any job-creation screen polls for delivery outcomes — the webhook handler publishes to app/graphql/pubsub.py's in-memory PubSub (the same one accountsPostingProgress already used) right after a status update actually applies. The whatsappDeliveryStatus(db_name: String!) subscription (app/graphql/resolvers/subscription.py) filters server-side by db_name and yields {db_name, job_id, status, error} — event-agnostic; the client tells JOB_COMPLETION and JOB_CREATION apart by which jobIds it's currently tracking, not by a field on the payload. Client-side, WhatsappStatusCell (jobs/whatsapp-status-cell.tsx) was generalized off an eventKey prop rather than forked, so the same pill component reads either event's status wherever it's rendered (Customer Connect's grid, job creation call sites).",
+				text: "Neither Customer Connect nor any job-creation screen polls for delivery outcomes — the webhook handler publishes to app/graphql/pubsub.py's in-memory PubSub (the same one accountsPostingProgress already used) right after a status update actually applies. The whatsappDeliveryStatus(db_name: String!) subscription (app/graphql/resolvers/subscription.py) filters server-side by db_name and yields {db_name, job_id, kind, status, error} for job events — event-agnostic apart from kind ('JOB'); the client tells JOB_COMPLETION and JOB_CREATION apart by which jobIds it's currently tracking, not by a field on the payload. Extended Warranty publishes on the same channel with kind 'EW', {ew_lead_id, ew_message_id, target: 'CUSTOMER' | 'STAFF'} instead of job_id; a missing kind must be read as 'JOB'. Client-side, WhatsappStatusCell (jobs/whatsapp-status-cell.tsx) was generalized off an eventKey prop rather than forked, so the same pill component reads either event's status wherever it's rendered (Customer Connect's grid, job creation call sites).",
 			},
 			{ type: "heading", text: "Status ladder — never moves backwards, and gated on wamid" },
 			{
@@ -2477,7 +2482,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Per-event on/off switch: app_setting.whatsapp_notifications (plans/plan.md)" },
 			{
 				type: "para",
-				text: 'A single app_setting row, setting_key = \'whatsapp_notifications\' (id 15), holds a per-BU on/off switch for outbound sends — one boolean per event key: JOB_CREATION, JOB_COMPLETION, JOB_DELIVERY, JOB_MONEY_RECEIPT, JOB_INVOICE. Seeded with only JOB_COMPLETION true. sender.py\'s _is_event_enabled(db_name, schema, event_key) reads it via the existing SqlStore.GET_APP_SETTING_BY_KEY lookup and fails CLOSED: a missing row, a non-dict value, or a missing key all resolve to disabled, never enabled-by-default. Every send path calls it immediately after payload validation, before its eligible-rows query runs — so a disabled event skips the DB lookup and the Meta call entirely and returns {"results": [], "disabled": true}, which each client wrapper surfaces as an informational toast rather than an error.',
+				text: 'A single app_setting row, setting_key = \'whatsapp_notifications\' (id 15), holds a per-BU on/off switch for outbound sends — one boolean per event key: JOB_CREATION, JOB_COMPLETION, JOB_DELIVERY, JOB_MONEY_RECEIPT, JOB_INVOICE, EXTENDED_WARRANTY. Seeded with only JOB_COMPLETION true. EXTENDED_WARRANTY is checked by ew_sender.send_ew_reminders together with extended_warranty.enabled — both must be on. sender.py\'s _is_event_enabled(db_name, schema, event_key) reads it via the existing SqlStore.GET_APP_SETTING_BY_KEY lookup and fails CLOSED: a missing row, a non-dict value, or a missing key all resolve to disabled, never enabled-by-default. Every send path calls it immediately after payload validation, before its eligible-rows query runs — so a disabled event skips the DB lookup and the Meta call entirely and returns {"results": [], "disabled": true}, which each client wrapper surfaces as an informational toast rather than an error.',
 			},
 			{
 				type: "note",
@@ -2490,7 +2495,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Access rights" },
 			{
 				type: "para",
-				text: "JOBS_CUSTOMER_CONNECT in seed_security_data.py's ACCESS_RIGHT_SEED_SQL, granted to MANAGER and RECEPTIONIST (not TECHNICIAN), gates the Customer Connect menu item. None of the five send mutations carries a require_access_right guard of its own — gating is client-side, by whichever screen hosts the trigger: Customer Connect's own right for the completion send, and the existing job-creation / deliver-job / receipts rights for the other four. No new access right was seeded for any of the four later events; the precedent established with JOB_COMPLETION was deliberately reused rather than re-litigated each time.",
+				text: "JOBS_CUSTOMER_CONNECT in seed_security_data.py's ACCESS_RIGHT_SEED_SQL, granted to MANAGER and RECEPTIONIST (not TECHNICIAN), gates the Customer Connect menu item. None of the five send mutations carries a require_access_right guard of its own — gating is client-side, by whichever screen hosts the trigger: Customer Connect's own right for the completion send, and the existing job-creation / deliver-job / receipts rights for the other four. No new access right was seeded for any of the four later events; the precedent established with JOB_COMPLETION was deliberately reused rather than re-litigated each time. Extended Warranty is the deliberate exception: each of its four mutations calls require_access_right(CUSTOM_EXTENDED_WARRANTY) itself, because a state change or a Marketing send must not be one crafted request away — see 'Extended Warranty — Lead State Machine'.",
 			},
 			{ type: "heading", text: "What was removed (still true)" },
 			{
@@ -2845,70 +2850,175 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 
 	{
 		id: "dev-extended-warranty",
-		category: "WhatsApp",
-		title: "Extended Warranty — Removed, Rebuild Pending",
+		category: "Extended Warranty",
+		title: "Extended Warranty — Lead State Machine",
 		summary:
-			"The old Extended Warranty add-on was removed on 2026-09-13 for a rebuild; what is gone, what was kept on purpose, and why.",
+			"Custom → Extended Warranty as built (plans/plan-ew-final.md): three tables and one view, a server-authoritative transition table, exactly-once sends by partial unique index, a wamid-keyed webhook, tagged public links, and an access check inside every mutation.",
 		tags: [
 			"extended warranty",
-			"ew_cleanup.sql",
+			"ew_lead",
+			"ew_message",
+			"ew_lead_event",
+			"ew_lead_view",
+			"can_send",
+			"band",
+			"EW_TRANSITIONS",
+			"transitionEwLead",
+			"addEwFollowUp",
+			"sendEwReminders",
+			"resendEwLeadAlert",
+			"ew_sender.py",
+			"sign_ew",
+			"verify_ew",
+			"ExtendedWarrantySql",
+			"ExtendedWarrantyServerSql",
+			"CUSTOM_EXTENDED_WARRANTY",
+			"CUSTOM_MENU",
+			"custom-menu-registry",
 			"extended_warranty_reminder_v1",
 			"extended_warranty_lead_alert_v1",
-			"CUSTOM_MENU",
-			"CUSTOM_EXTENDED_WARRANTY",
-			"custom menu",
-			"custom-menu-registry",
+			"ew_schema.sql",
+			"ew_cleanup.sql",
+			"ew_sql_test.py",
+			"ew_server_test.py",
 		],
 		content: [
 			{
 				type: "para",
-				text: "plans/plan-ew-final.md, Part A. The single-table Extended Warranty module (ew_customer with jsonb stages, the ew_stage_v view) was deleted outright — tables, settings, server code, client code and help. Nothing was migrated: it only ever ran on the demo tenant, sending to internal numbers. The replacement is a lead state machine (Part C of the same plan: ew_lead, ew_message, ew_lead_event and the ew_lead_view view), not yet built. This article records the pieces deliberately left in place so the rebuild — or anyone grepping — does not mistake them for leftovers.",
+				text: "plans/plan-ew-final.md. Built on 2026-09-13 (Steps 10–14) after Part A deleted the old single-table module (ew_customer with jsonb stages). A lead is always in exactly one state; staff move it along allowed transitions; WhatsApp reminders go only from New Lead and Message Sent; a customer's tap on the reminder's button records interest and alerts staff. The plan's §0 decisions (D1–D16) and its 'As built' notes in §C4 / §C5 are the reference behind everything below.",
 			},
-			{ type: "heading", text: "Kept on purpose" },
+			{ type: "heading", text: "Tables and view — scripts/ew_schema.sql, per BU schema" },
 			{
 				type: "table",
-				headers: ["Piece", "Why it stays"],
+				headers: ["Object", "Holds"],
 				rows: [
 					[
-						"TEMPLATES['EXTENDED_WARRANTY'] and ['EXTENDED_WARRANTY_LEAD'] (app/whatsapp/templates.py)",
-						"Meta-approved (extended_warranty_reminder_v1, MARKETING; extended_warranty_lead_alert_v1, UTILITY). Re-approval would stop sending for days, so the rebuild is designed around them. They have no sender now. Change nothing in either spec — a mismatch fails every send.",
+						"ew_lead",
+						"One row per lead. state (seven values, CHECK); progress_stage 1..3 only while IN_PROGRESS; is_closed GENERATED from state, never written; closed_at set exactly when WON / LOST / CANCELLED; interest, follow-up and opt-out columns. Unique on (mobile, COALESCE(serial_no, ''), warranty_end_date).",
 					],
 					[
-						"Access rights CUSTOM_MENU (19), CUSTOM_EXTENDED_WARRANTY (20)",
-						"Live in every tenant's security schema. Removing them would force a re-seed of every tenant for no gain. Still in all four places a right must land: seed_security_data.py (plus scripts/seed_access_right_ew.sql), GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS, ACCESS_RIGHTS in features/auth/utils/access-rights.ts, and ACCESS_RIGHT_PREVIEW_ITEMS in seed-roles-dialog.tsx.",
+						"ew_message",
+						"One row per WhatsApp send, kind REMINDER or LEAD_ALERT. band is recorded at send time (REMINDER only); delivery_status + status_rank; wamid unique. ew_message_once_per_band_idx — partial unique (ew_lead_id, band) WHERE kind = 'REMINDER' AND delivery_status <> 'FAILED' — is the once-per-window rule (D7).",
 					],
 					[
-						"features/client/components/layout/custom-menu-registry.ts, route /client/custom, client-custom-page.tsx",
-						"The Custom tab is a generic add-on container: the top nav shows it only while getVisibleCustomMenuItems() returns at least one item. CUSTOM_MENU_ITEMS is now [] and CustomMenuContextType is Record<string, never>, so the tab is hidden everywhere. Adding an item back means adding its feature flag as a field on that context type.",
+						"ew_lead_event",
+						"History: STATE_CHANGE, STAGE_CHANGE, INTEREST, FOLLOW_UP, OPT_OUT. created_by_name is stamped server-side from the session user.",
 					],
 					[
-						"nginx location /extended-warranty/ (live server, notes/Deployment.md)",
-						"The approved reminder's button is the bare prefix https://serviceplus.cloudjiffy.net/extended-warranty/ — the rebuild serves its public page there again. Likewise the lead alert's button prefix fixes the client route /client/custom/ew/:ref, which was removed and will be re-added.",
-					],
-					[
-						"The kind field on the whatsappDeliveryStatus pubsub payload",
-						"Generic — Customer Connect publishes kind: 'JOB'. The rebuild will publish kind: 'EW' again.",
+						"ew_lead_view",
+						"The ONLY home of the band rule (days_left = warranty_end_date − CURRENT_DATE → D61_PLUS / D31_60 / D8_30 / D0_7 / OVERDUE), the 7-day grace window and can_send. Also the latest reminder, message_count, the latest alert and message_group (Message Sent substate). Columns are listed explicitly — a new ew_lead column is a deliberate view edit.",
 					],
 				],
 			},
-			{ type: "heading", text: "Removed" },
+			{
+				type: "warning",
+				text: "A CHECK passes when its expression is NULL. ew_lead_progress_chk and ew_message_band_chk were first written as (state = 'IN_PROGRESS' AND progress_stage BETWEEN 1 AND 3) OR …, which lets a NULL through — Step 11's test caught it. Both are now CASE … COALESCE(…, false), and live outside CREATE TABLE in a drop-and-re-add block, so re-running ew_schema.sql corrects an existing schema. Write any new CHECK the same way.",
+			},
 			{
 				type: "para",
-				text: "Database: ew_customer, ew_stage_v, app_setting row 16 (extended_warranty) and the EXTENDED_WARRANTY key of whatsapp_notifications — also dropped from seed_bu_data.py and the regenerated BU_SCHEMA_DDL. Server: sql_extended_warranty.py, resolvers/jobs/extended_warranty.py, routers/public/extended_warranty_router.py, the three mutations (sendEwReminders, addEwFollowUp, resendEwLeadAlert), the sender section, sign_ew/verify_ew, and the EW/EL codes in both _EVENT_CODE_BY_KEY and _EVENT_KEY_BY_CODE. Client: the custom/extended-warranty folder, its types, the settings dialog, the deep-link page, the bell entry, the context-slice flag, and every *_EW_* sql id and message.",
+				text: "New BUs get everything from the regenerated BU_SCHEMA_DDL and seed_bu_data.py (app_setting row 16 and the EXTENDED_WARRANTY key on row 15). extract_schema.py now also strips ALTER VIEW … OWNER TO, which used to leak into BU_SCHEMA_DDL.",
+			},
+			{ type: "heading", text: "State machine" },
+			{
+				type: "code",
+				language: "text",
+				text: "NEW_LEAD      → MESSAGE_SENT*, IN_PROGRESS, WON, LOST, CANCELLED\nMESSAGE_SENT  → INTERESTED†,   IN_PROGRESS, WON, LOST, CANCELLED\nINTERESTED    →                IN_PROGRESS, WON, LOST, CANCELLED\nIN_PROGRESS   →                             WON, LOST, CANCELLED   (+ stage n → higher)\nLOST          →                IN_PROGRESS, WON\nCANCELLED     →                IN_PROGRESS\nWON           →  (terminal)\n\n*  only by sending (CLAIM_EW_REMINDER)\n†  also by the customer's tap (RECORD_EW_INTEREST)",
+			},
+			{
+				type: "para",
+				text: "EW_TRANSITIONS in app/graphql/resolvers/custom/extended_warranty.py is authoritative; the client mirror is ew-state-machine.ts, which additionally carries NEW_LEAD → MESSAGE_SENT because the flow diagram draws it. TRANSITION_EW_LEAD receives an allowed_from list computed by the resolver and locks the row (FOR UPDATE); no row back means the lead changed or the move is not allowed, returned as {ok: false, reason: 'STALE'}. Entering IN_PROGRESS always sets Stage 1 inside the SQL (D3); a stage advance is IN_PROGRESS → IN_PROGRESS with a strictly higher stage. Leaving IN_PROGRESS clears the stage and next follow-up; closing stamps closed_at, reopening clears it.",
+			},
+			{ type: "heading", text: "SQL store — app/db/sql/sql_extended_warranty.py" },
+			{
+				type: "para",
+				text: 'Two classes. ExtendedWarrantySql — the six browser reads (GET_EW_LEADS_PAGED, GET_EW_LEAD_DETAIL, GET_EW_LEAD_TIMELINE, GET_EW_LEAD_BY_MOBILE, GET_EW_DASHBOARD, COUNT_EW_OPEN_INTEREST) — is composed into SqlStore and mirrored in sql-map.ts. ExtendedWarrantyServerSql — every write and the server-only reads — is deliberately NOT in SqlStore: genericQuery runs any SqlStore constant by sqlId on an autocommit connection, so a write placed there is callable from the browser (TRANSITION_EW_LEAD with a hand-made allowed_from would bypass both the transition table and the access check). A placeholder used more than once is bound once in a "p_<name>" CTE and read with (table "p_<name>"); every genericQuery read needs every key in sqlArgs, null meaning \'filter off\'.',
 			},
 			{
 				type: "note",
-				text: "scripts/ew_cleanup.sql (idempotent) must run on EVERY BU schema of every tenant, not only demo1 — any BU cloned from the template while the old table existed carries it. Delete the script once every tenant has run it (plan step D2.7).",
+				text: "The same exposure exists for writes that already live in SqlStore (for example SET_JOB_WHATSAPP_ATTEMPT). It was noted during this build and not addressed.",
+			},
+			{ type: "heading", text: "Sending — app/whatsapp/ew_sender.py" },
+			{
+				type: "bullets",
+				items: [
+					"sendEwReminders {branch_id, ew_lead_ids}: both switches (fail closed) → GET_EW_LEADS_FOR_SEND (this branch AND can_send) → invalid mobiles skipped → the daily cap checked once (GET_EW_SENT_TODAY_COUNT, per BU schema) → per lead: claim, call Meta, settle. Result statuses SENT / FAILED / SKIPPED / CAPPED; {disabled: true} when a switch is off.",
+					"CLAIM_EW_REMINDER inserts the PENDING message AND moves NEW_LEAD → MESSAGE_SENT in one statement. The partial unique index makes two concurrent claims produce one row — the loser does nothing and never calls Meta (proven with two sessions by scripts/ew_sql_test.py, test 5). A send is attempted, then settled: an immediate failure still leaves the lead in Message Sent, retryable (D8).",
+					"_send_and_settle settles an exception from the Meta call as FAILED — a PENDING reminder would count as live under the index and block its window for good.",
+					"send_ew_lead_alert(db, schema, lead) runs after the interest has committed, and from resendEwLeadAlert. It never raises; it returns SENT / FAILED / NO_STAFF_NUMBER / INVALID_STAFF_NUMBER / NOT_FOUND / ERROR, and an invalid staff number is recorded as a FAILED LEAD_ALERT row so staff can see it.",
+					"biz_opaque_callback_data is db|schema|EW|<ew_message_id> (EL for the alert). The reminder's button suffix is a sign_ew token; the alert's is the bare lead id, because /client/custom/ew/:ref is behind ProtectedRoute.",
+				],
+			},
+			{ type: "heading", text: "Webhook, public page and token" },
+			{
+				type: "para",
+				text: "EW / EL decode to EXTENDED_WARRANTY / EXTENDED_WARRANTY_LEAD and branch to _apply_ew_status_callback, which runs SET_EW_MESSAGE_OUTCOME keyed on wamid with the status_rank guard and publishes whatsapp_delivery_status {kind: 'EW', ew_lead_id, ew_message_id, status, error, target}. extended_warranty_router.py serves GET /extended-warranty/{token}, POST …/interest and POST …/opt-out; verify_ew plus GET_EW_LEAD_FOR_PUBLIC bind the lead AND the message (it must be a REMINDER of that lead). RECORD_EW_INTEREST commits first and matches only the first tap; the staff alert and the optional e-mail follow. Opt-out keeps the state and only turns can_send off. sign_ew payloads carry the EWL type tag, six fields, TTL 180 days.",
+			},
+			{ type: "heading", text: "Access" },
+			{
+				type: "para",
+				text: "CUSTOM_MENU (19) gates the Custom tab; CUSTOM_EXTENDED_WARRANTY (20) gates the menu item, and — unlike the job WhatsApp mutations — each of the four mutations calls require_access_right(EW_ACCESS_RIGHT) itself. ew_lead is in GENERIC_UPDATE_TABLE_RIGHTS through CUSTOM_GENERIC_UPDATE_TABLE_RIGHTS. genericQuery reads are ungated, like every other genericQuery. Both rights already exist in every tenant, so no re-seed was needed.",
+			},
+			{ type: "heading", text: "Client — features/client/components/custom/extended-warranty/" },
+			{
+				type: "bullets",
+				items: [
+					"Menu: the item in layout/custom-menu-registry.ts is gated on context { extendedWarrantyEnabled } (context-slice, parsed strictly in client-layout.tsx) plus the right; the top nav, the explorer and client-custom-page.tsx all read the same list.",
+					"use-ew-lead-actions.tsx owns every lead action and dialog, so the grids, the detail dialog and the deep link behave identically. The row menu comes from availableActions(row); a disabled item stays visible and toasts its reason (Radix hides tooltips on truly disabled items).",
+					"ew-state-flow-diagram.tsx draws edges generated from EW_TRANSITIONS; EW_PIPELINE_GROUPS holds the brief's card table with each card's drill-down filter.",
+					"isCompleteMobile, not lib/mobile's isValidMobile (which accepts '' for optional fields), is used wherever a reminder depends on the mobile.",
+					"Deep link /client/custom/ew/:ref (digits only) → pages/client-custom-ew-ref-page.tsx → router state {ewLeadId, subItem}; the section opens the follow-up dialog for an In Progress lead, the detail dialog otherwise. The bell item navigates with {ewDrill: 'INTERESTED'}; its count (COUNT_EW_OPEN_INTEREST) is queried only when the add-on is on and the user has the right.",
+					"The section refreshes on any EW mutation and on every whatsappDeliveryStatus event with kind 'EW'; grids and the dashboard refetch in place rather than remounting.",
+				],
+			},
+			{ type: "heading", text: "Fixed by the Meta-approved templates (plan Part B)" },
+			{
+				type: "table",
+				headers: ["Piece", "Why it cannot change"],
+				rows: [
+					[
+						"TEMPLATES['EXTENDED_WARRANTY'] (extended_warranty_reminder_v1, MARKETING) and ['EXTENDED_WARRANTY_LEAD'] (extended_warranty_lead_alert_v1, UTILITY)",
+						"Approved by Meta; any edit means resubmission and a sending gap. Parameter order is fixed; composed lines and button suffixes are the free parts.",
+					],
+					[
+						"Public prefix /extended-warranty/ (FastAPI, no /api) and its nginx location block",
+						"The reminder's button is that bare prefix plus the token.",
+					],
+					[
+						"Client route /client/custom/ew/:ref",
+						"The lead alert's 'Open in Service+' button is that prefix plus the lead id.",
+					],
+				],
+			},
+			{ type: "heading", text: "Tests" },
+			{
+				type: "para",
+				text: "scripts/ew_sql_test.py (100 checks on the SQL, inside BEGIN … ROLLBACK; test 5 commits one fixture and deletes it) and scripts/ew_server_test.py (95 checks: resolvers, access on all four mutations and genericUpdate, the cap, both switches, tokens, the public page and the webhook; send_template is faked, fixtures named 'EW SQL TEST' are committed and deleted). Run both after any change to the SQL, the transition table or the sender. ew_server_test.py test 1 compares the server's EW_TRANSITIONS against its own copy of the plan's table — update both when a transition changes.",
+			},
+			{
+				type: "note",
+				text: "Rollout: scripts/ew_cleanup.sql then scripts/ew_schema.sql on every BU schema of every tenant, before the server that reads ew_lead goes live; delete ew_cleanup.sql once every tenant has run it. Time zone: database sessions run in UTC, so days_left, the bands and the dashboard periods roll over at 05:30 IST — an app-wide open question in the plan.",
 			},
 		],
 		faqs: [
 			{
-				q: "The webhook logs 'cannot resolve tenant' for a callback with event code EW — is that a bug?",
-				a: "No. A late status callback for an old Extended Warranty message carries EW or EL, which no longer decodes, so _decode_callback_data returns None and the callback is logged and ignored with a 200. Meta never sees an error.",
+				q: "Can genericUpdate change a lead's state?",
+				a: "Technically yes — ew_lead is only gated by the access right, not by column. By convention the lead dialog writes contact, device and remarks fields only; state and stage change through transitionEwLead, addEwFollowUp, the send claim and the public interest route. A BEFORE UPDATE trigger keyed on a session flag is the hardening option (plan §D4 R4).",
 			},
 			{
-				q: "Why is there still an EXTENDED_WARRANTY entry in TEMPLATES if nothing sends it?",
-				a: "It is Meta-approved and the rebuild reuses it unchanged. Deleting and later re-adding the spec is harmless, but editing it is not — keep it exactly as registered.",
+				q: "Why isn't TRANSITION_EW_LEAD in SqlStore like everything else?",
+				a: "Because genericQuery will run any SqlStore constant the browser names, on a connection that commits. Server-only statements live in ExtendedWarrantyServerSql and are reachable only through the resolvers, which check the access right and compute allowed_from themselves.",
+			},
+			{
+				q: "A reminder is stuck in PENDING and the lead can't be sent to in that window.",
+				a: "It should not happen: _send_and_settle settles every outcome, including an exception. It can only follow a process crash between the claim and the settle. Set that ew_message row to FAILED (status_rank 9) and the window opens again.",
+			},
+			{
+				q: "The webhook logs 'EW outcome ignored' — is that a problem?",
+				a: "No. It is a duplicate or out-of-order status (the rank guard) or a wamid with no row — for example a late callback for a message from the old, deleted module, whose ids were [customer_id, stage].",
+			},
+			{
+				q: "How do I add a state or a transition?",
+				a: "Change EW_TRANSITIONS on the server and in ew-state-machine.ts, the state CHECK in ew_schema.sql (and re-run it on every BU), the diagram's NODE_POS / edge classification, the pipeline groups if it gets a card, ew_server_test.py's table, and both help articles.",
 			},
 		],
 	},
@@ -3221,6 +3331,16 @@ export const DEV_CAT_STYLE: Record<string, CategoryStyleType> = {
 		stepText: "text-white",
 		border: "border-green-300 dark:border-green-700",
 	},
+	"Extended Warranty": {
+		emoji: "🛡️",
+		icon: ShieldCheck,
+		gradient: "from-sky-500 to-blue-600",
+		pill: "bg-sky-100 dark:bg-sky-900/40",
+		pillText: "text-sky-700 dark:text-sky-300",
+		stepBg: "bg-sky-500",
+		stepText: "text-white",
+		border: "border-sky-300 dark:border-sky-700",
+	},
 	Integrations: {
 		emoji: "🔗",
 		gradient: "from-fuchsia-600 to-pink-600",
@@ -3263,6 +3383,7 @@ export const DEV_HELP_CATEGORIES = [
 	"Deployment & Infrastructure",
 	"Configuration",
 	"WhatsApp",
+	"Extended Warranty",
 	"Integrations",
 	"Troubleshooting (Dev)",
 ] as const;

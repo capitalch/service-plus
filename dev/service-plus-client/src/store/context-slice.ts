@@ -35,6 +35,9 @@ type ContextStateType = {
 	currentDivision: DivisionContextType | null;
 	defaultDivisionId: number;
 	defaultGstRate: number;
+	// App Settings → extended_warranty.enabled (strictly true) — shows Custom → Extended
+	// Warranty and gates its bell count.
+	extendedWarrantyEnabled: boolean;
 	markupPercentOverCost: number;
 	noOfJobInvoicesPerPrint: number;
 	noOfJobReceiptsPerPrint: number;
@@ -62,6 +65,7 @@ const initialState: ContextStateType = {
 	currentDivision: null,
 	defaultDivisionId: 1,
 	defaultGstRate: 0,
+	extendedWarrantyEnabled: false,
 	markupPercentOverCost: 20,
 	noOfJobInvoicesPerPrint: 1,
 	noOfJobReceiptsPerPrint: 1,
@@ -101,6 +105,10 @@ const contextSlice = createSlice({
 
 		setDefaultGstRate: (state, action: PayloadAction<number>) => {
 			state.defaultGstRate = action.payload;
+		},
+
+		setExtendedWarrantyEnabled: (state, action: PayloadAction<boolean>) => {
+			state.extendedWarrantyEnabled = action.payload;
 		},
 
 		setMarkupPercentOverCost: (state, action: PayloadAction<number>) => {
@@ -178,6 +186,7 @@ export const {
 	setCurrentDivision,
 	setDefaultDivisionId,
 	setDefaultGstRate,
+	setExtendedWarrantyEnabled,
 	setMarkupPercentOverCost,
 	setDefaultHsnForSparePart,
 	setNoOfJobInvoicesPerPrint,
@@ -203,6 +212,7 @@ export const selectCurrentBu = (state: ContextRootState) => state.context.curren
 export const selectCurrentDivision = (state: ContextRootState) => state.context.currentDivision;
 export const selectDefaultDivisionId = (state: ContextRootState) => state.context.defaultDivisionId;
 export const selectDefaultGstRate = (state: ContextRootState) => state.context.defaultGstRate;
+export const selectExtendedWarrantyEnabled = (state: ContextRootState) => state.context.extendedWarrantyEnabled;
 export const selectMarkupPercentOverCost = (state: ContextRootState) => state.context.markupPercentOverCost;
 export const selectNoOfJobInvoicesPerPrint = (state: ContextRootState) => state.context.noOfJobInvoicesPerPrint;
 export const selectNoOfJobReceiptsPerPrint = (state: ContextRootState) => state.context.noOfJobReceiptsPerPrint;

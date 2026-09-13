@@ -17,6 +17,7 @@ import {
 	setMarkupPercentOverCost,
 	setDefaultHsnForSparePart,
 	setDefaultHsnForServiceCharge,
+	setExtendedWarrantyEnabled,
 	setNoOfJobInvoicesPerPrint,
 	setNoOfJobReceiptsPerPrint,
 	setNoOfJobSheetsPerPrint,
@@ -300,6 +301,26 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 					}
 				}
 				dispatch(setJobTermsAndConditions(parsedTerms != null ? String(parsedTerms) : ""));
+
+				// extended_warranty is a JSON object; only `enabled === true` shows the add-on —
+				// the same strict rule as the server's is_ew_enabled, so a missing row, a
+				// partial object or the string "true" all read as off.
+				const rawEw = settings.find((s) => s.setting_key === "extended_warranty")?.setting_value;
+				let parsedEw: unknown = rawEw;
+				if (typeof rawEw === "string") {
+					try {
+						parsedEw = JSON.parse(rawEw);
+					} catch {
+						/* keep raw */
+					}
+				}
+				dispatch(
+					setExtendedWarrantyEnabled(
+						!!parsedEw &&
+							typeof parsedEw === "object" &&
+							(parsedEw as { enabled?: unknown }).enabled === true,
+					),
+				);
 			})
 			.catch(() => {
 				/* silently ignore */

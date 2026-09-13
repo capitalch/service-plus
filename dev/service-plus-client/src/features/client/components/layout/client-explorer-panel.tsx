@@ -45,7 +45,7 @@ import { selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ACCESS_RIGHTS, hasAccessRight } from "@/features/auth/utils/access-rights";
 import { ROUTES } from "@/router/routes";
 import { useAppSelector } from "@/store/hooks";
-import { selectPostDataToAccounts } from "@/store/context-slice";
+import { selectExtendedWarrantyEnabled, selectPostDataToAccounts } from "@/store/context-slice";
 import { getVisibleCustomMenuItems } from "./custom-menu-registry";
 import { HelpHint } from "@/components/shared/help/help-hint";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
@@ -155,7 +155,8 @@ function ConfigurationsExplorer() {
 // top-nav tab can never disagree about whether Custom has anything in it.
 function CustomExplorer() {
 	const currentUser = useAppSelector(selectCurrentUser);
-	const items = getVisibleCustomMenuItems(currentUser, {});
+	const extendedWarrantyEnabled = useAppSelector(selectExtendedWarrantyEnabled);
+	const items = getVisibleCustomMenuItems(currentUser, { extendedWarrantyEnabled });
 
 	return (
 		<div className="space-y-4">

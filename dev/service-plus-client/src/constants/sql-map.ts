@@ -348,4 +348,13 @@ export const SQL_MAP = {
 	GET_JOBS_RECEIVED_BY_YEAR: "GET_JOBS_RECEIVED_BY_YEAR",
 	GET_REPAIR_DELIVER_FUNNEL_RANGE: "GET_REPAIR_DELIVER_FUNNEL_RANGE",
 	GET_PROFIT_TREND_YOY: "GET_PROFIT_TREND_YOY",
+	// ── Custom — Extended Warranty ───────────────────────────────────────────
+	// The browser-callable reads only (server ExtendedWarrantySql). Writes are server-only
+	// (ExtendedWarrantyServerSql) and reached through the four EW mutations in graphql-map.
+	COUNT_EW_OPEN_INTEREST: "COUNT_EW_OPEN_INTEREST",
+	GET_EW_DASHBOARD: "GET_EW_DASHBOARD",
+	GET_EW_LEADS_PAGED: "GET_EW_LEADS_PAGED",
+	GET_EW_LEAD_BY_MOBILE: "GET_EW_LEAD_BY_MOBILE",
+	GET_EW_LEAD_DETAIL: "GET_EW_LEAD_DETAIL",
+	GET_EW_LEAD_TIMELINE: "GET_EW_LEAD_TIMELINE",
 };

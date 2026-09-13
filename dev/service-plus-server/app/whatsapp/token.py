@@ -139,3 +139,54 @@ def verify_receipt(token: str) -> tuple[str, str, int, int] | None:
         return None
 
     return db_name, schema, job_id, payment_id
+
+
+# Extended Warranty lead links carry a type tag. Every token in this module is signed with
+# the same secret, and sign_receipt's `db|schema|<int>|<int>|exp` has exactly the
+# five-field shape an untagged (lead, message) token would have — without the tag, a
+# money-receipt link would verify as a lead link.
+_EW_TAG = "EWL"
+
+
+def sign_ew(db_name: str, schema: str, ew_lead_id: int, ew_message_id: int, ttl_days: int = 180) -> str:
+    """Token behind the Extended Warranty reminder's button (`/extended-warranty/{token}`).
+    Binds one lead AND the reminder that carried it; the public route also checks that the
+    message belongs to the lead. `ttl_days=180` covers the whole reminder window (61+ days
+    before expiry down to 7 days after) plus follow-up time."""
+    exp = int(time.time()) + ttl_days * 86400
+    payload = f"{_EW_TAG}|{db_name}|{schema}|{ew_lead_id}|{ew_message_id}|{exp}"
+    payload_b64 = _b64url(payload.encode("utf-8"))
+    signature_b64 = _b64url(_signature(_link_secret(), payload_b64))
+    return f"{payload_b64}.{signature_b64}"
+
+
+def verify_ew(token: str) -> tuple[str, str, int, int] | None:
+    """Returns `(db_name, schema, ew_lead_id, ew_message_id)`, or None on any failure —
+    wrong tag, wrong field count, tampered, malformed or expired. Never raises."""
+    try:
+        payload_b64, signature_b64 = token.split(".", 1)
+        given_signature = _b64url_decode(signature_b64)
+    except ValueError:
+        return None
+
+    expected_signature = _signature(_link_secret(), payload_b64)
+    if not hmac.compare_digest(expected_signature, given_signature):
+        return None
+
+    try:
+        parts = _b64url_decode(payload_b64).decode("utf-8").split("|")
+        if len(parts) != 6 or parts[0] != _EW_TAG:
+            return None
+        _tag, db_name, schema, lead_raw, message_raw, exp_raw = parts
+        ew_lead_id = int(lead_raw)
+        ew_message_id = int(message_raw)
+        exp = int(exp_raw)
+    except (ValueError, UnicodeDecodeError):
+        return None
+
+    if not db_name or not schema:
+        return None
+    if time.time() > exp:
+        return None
+
+    return db_name, schema, ew_lead_id, ew_message_id

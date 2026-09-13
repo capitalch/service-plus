@@ -376,6 +376,191 @@ class BuAdminDdl:
             CONSTRAINT document_type_code_chk CHECK ((code ~ '^[A-Z_]+$'::text))
         );
 
+        CREATE TABLE ew_lead (
+            id bigint NOT NULL,
+            branch_id bigint NOT NULL,
+            full_name text NOT NULL,
+            mobile text NOT NULL,
+            email text,
+            address text,
+            city text,
+            brand_id bigint NOT NULL,
+            product_id bigint,
+            model_name text,
+            serial_no text,
+            purchase_date date,
+            warranty_end_date date NOT NULL,
+            remarks text,
+            state text DEFAULT 'NEW_LEAD'::text NOT NULL,
+            progress_stage smallint,
+            is_closed boolean GENERATED ALWAYS AS ((state = ANY (ARRAY['WON'::text, 'LOST'::text, 'CANCELLED'::text]))) STORED,
+            state_changed_at timestamp with time zone DEFAULT now() NOT NULL,
+            closed_at timestamp with time zone,
+            interest_at timestamp with time zone,
+            preferred_contact text,
+            customer_remarks text,
+            next_follow_up_at timestamp with time zone,
+            last_follow_up_at timestamp with time zone,
+            follow_up_count integer DEFAULT 0 NOT NULL,
+            is_opted_out boolean DEFAULT false NOT NULL,
+            opted_out_at timestamp with time zone,
+            created_by bigint,
+            created_at timestamp with time zone DEFAULT now() NOT NULL,
+            updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            CONSTRAINT ew_lead_closed_at_chk CHECK (((state = ANY (ARRAY['WON'::text, 'LOST'::text, 'CANCELLED'::text])) = (closed_at IS NOT NULL))),
+            CONSTRAINT ew_lead_preferred_contact_chk CHECK (((preferred_contact IS NULL) OR (preferred_contact = ANY (ARRAY['CALL'::text, 'WHATSAPP'::text])))),
+            CONSTRAINT ew_lead_progress_chk CHECK (
+        CASE
+            WHEN (state = 'IN_PROGRESS'::text) THEN COALESCE(((progress_stage >= 1) AND (progress_stage <= 3)), false)
+            ELSE (progress_stage IS NULL)
+        END),
+            CONSTRAINT ew_lead_state_chk CHECK ((state = ANY (ARRAY['NEW_LEAD'::text, 'MESSAGE_SENT'::text, 'INTERESTED'::text, 'IN_PROGRESS'::text, 'WON'::text, 'LOST'::text, 'CANCELLED'::text])))
+        );
+
+        CREATE TABLE ew_lead_event (
+            id bigint NOT NULL,
+            ew_lead_id bigint NOT NULL,
+            event_type text NOT NULL,
+            from_state text,
+            to_state text,
+            progress_stage smallint,
+            action text,
+            notes text,
+            next_follow_up_at timestamp with time zone,
+            ew_message_id bigint,
+            created_by bigint,
+            created_by_name text,
+            created_at timestamp with time zone DEFAULT now() NOT NULL,
+            CONSTRAINT ew_lead_event_action_chk CHECK (((action IS NULL) OR (action = ANY (ARRAY['CALL'::text, 'WHATSAPP'::text, 'SMS'::text, 'VISIT'::text, 'OTHER'::text])))),
+            CONSTRAINT ew_lead_event_type_chk CHECK ((event_type = ANY (ARRAY['STATE_CHANGE'::text, 'STAGE_CHANGE'::text, 'INTEREST'::text, 'FOLLOW_UP'::text, 'OPT_OUT'::text])))
+        );
+
+        ALTER TABLE ew_lead_event ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+            SEQUENCE NAME ew_lead_event_id_seq
+            START WITH 1
+            INCREMENT BY 1
+            NO MINVALUE
+            NO MAXVALUE
+            CACHE 1
+        );
+
+        ALTER TABLE ew_lead ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+            SEQUENCE NAME ew_lead_id_seq
+            START WITH 1
+            INCREMENT BY 1
+            NO MINVALUE
+            NO MAXVALUE
+            CACHE 1
+        );
+
+        CREATE TABLE ew_message (
+            id bigint NOT NULL,
+            ew_lead_id bigint NOT NULL,
+            kind text DEFAULT 'REMINDER'::text NOT NULL,
+            band text,
+            delivery_status text DEFAULT 'PENDING'::text NOT NULL,
+            status_rank smallint DEFAULT 0 NOT NULL,
+            wamid text,
+            error text,
+            sent_at timestamp with time zone DEFAULT now() NOT NULL,
+            sent_by bigint,
+            settled_at timestamp with time zone,
+            CONSTRAINT ew_message_band_chk CHECK (
+        CASE
+            WHEN (kind = 'REMINDER'::text) THEN COALESCE((band = ANY (ARRAY['D61_PLUS'::text, 'D31_60'::text, 'D8_30'::text, 'D0_7'::text, 'OVERDUE'::text])), false)
+            ELSE (band IS NULL)
+        END),
+            CONSTRAINT ew_message_kind_chk CHECK ((kind = ANY (ARRAY['REMINDER'::text, 'LEAD_ALERT'::text]))),
+            CONSTRAINT ew_message_status_chk CHECK ((delivery_status = ANY (ARRAY['PENDING'::text, 'ACCEPTED'::text, 'SENT'::text, 'DELIVERED'::text, 'READ'::text, 'FAILED'::text])))
+        );
+
+        CREATE VIEW ew_lead_view AS
+         SELECT l.id,
+            l.branch_id,
+            l.full_name,
+            l.mobile,
+            l.email,
+            l.address,
+            l.city,
+            l.brand_id,
+            l.product_id,
+            l.model_name,
+            l.serial_no,
+            l.purchase_date,
+            l.warranty_end_date,
+            l.remarks,
+            l.state,
+            l.progress_stage,
+            l.is_closed,
+            l.state_changed_at,
+            l.closed_at,
+            l.interest_at,
+            l.preferred_contact,
+            l.customer_remarks,
+            l.next_follow_up_at,
+            l.last_follow_up_at,
+            l.follow_up_count,
+            l.is_opted_out,
+            l.opted_out_at,
+            l.created_by,
+            l.created_at,
+            l.updated_at,
+            dl.days_left,
+            bd.band,
+            lm.id AS last_message_id,
+            lm.delivery_status AS last_delivery_status,
+            lm.sent_at AS last_sent_at,
+            lm.error AS last_error,
+            COALESCE(mc.message_count, (0)::bigint) AS message_count,
+            la.delivery_status AS alert_status,
+            la.error AS alert_error,
+                CASE
+                    WHEN (l.state <> 'MESSAGE_SENT'::text) THEN NULL::text
+                    WHEN (lm.delivery_status = 'READ'::text) THEN 'READ'::text
+                    WHEN (lm.delivery_status = 'DELIVERED'::text) THEN 'DELIVERED'::text
+                    WHEN (lm.delivery_status = 'FAILED'::text) THEN 'FAILED'::text
+                    ELSE 'AWAITING'::text
+                END AS message_group,
+            ((l.state = ANY (ARRAY['NEW_LEAD'::text, 'MESSAGE_SENT'::text])) AND (NOT l.is_opted_out) AND (dl.days_left >= '-7'::integer) AND (NOT (EXISTS ( SELECT 1
+                   FROM ew_message x
+                  WHERE ((x.ew_lead_id = l.id) AND (x.kind = 'REMINDER'::text) AND (x.band = bd.band) AND (x.delivery_status <> 'FAILED'::text)))))) AS can_send
+           FROM (((((ew_lead l
+             CROSS JOIN LATERAL ( SELECT (l.warranty_end_date - CURRENT_DATE) AS days_left) dl)
+             CROSS JOIN LATERAL ( SELECT
+                        CASE
+                            WHEN (dl.days_left < 0) THEN 'OVERDUE'::text
+                            WHEN (dl.days_left <= 7) THEN 'D0_7'::text
+                            WHEN (dl.days_left <= 30) THEN 'D8_30'::text
+                            WHEN (dl.days_left <= 60) THEN 'D31_60'::text
+                            ELSE 'D61_PLUS'::text
+                        END AS band) bd)
+             LEFT JOIN LATERAL ( SELECT m.id,
+                    m.delivery_status,
+                    m.sent_at,
+                    m.error
+                   FROM ew_message m
+                  WHERE ((m.ew_lead_id = l.id) AND (m.kind = 'REMINDER'::text))
+                  ORDER BY m.sent_at DESC, m.id DESC
+                 LIMIT 1) lm ON (true))
+             LEFT JOIN LATERAL ( SELECT count(*) AS message_count
+                   FROM ew_message m
+                  WHERE ((m.ew_lead_id = l.id) AND (m.kind = 'REMINDER'::text))) mc ON (true))
+             LEFT JOIN LATERAL ( SELECT m.delivery_status,
+                    m.error
+                   FROM ew_message m
+                  WHERE ((m.ew_lead_id = l.id) AND (m.kind = 'LEAD_ALERT'::text))
+                  ORDER BY m.sent_at DESC, m.id DESC
+                 LIMIT 1) la ON (true));
+
+        ALTER TABLE ew_message ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+            SEQUENCE NAME ew_message_id_seq
+            START WITH 1
+            INCREMENT BY 1
+            NO MINVALUE
+            NO MAXVALUE
+            CACHE 1
+        );
+
         CREATE TABLE financial_year (
             id integer NOT NULL,
             start_date date NOT NULL,
@@ -1318,6 +1503,15 @@ class BuAdminDdl:
         ALTER TABLE ONLY document_type
             ADD CONSTRAINT document_type_pkey PRIMARY KEY (id);
 
+        ALTER TABLE ONLY ew_lead_event
+            ADD CONSTRAINT ew_lead_event_pkey PRIMARY KEY (id);
+
+        ALTER TABLE ONLY ew_lead
+            ADD CONSTRAINT ew_lead_pkey PRIMARY KEY (id);
+
+        ALTER TABLE ONLY ew_message
+            ADD CONSTRAINT ew_message_pkey PRIMARY KEY (id);
+
         ALTER TABLE ONLY financial_year
             ADD CONSTRAINT financial_year_pkey PRIMARY KEY (id);
 
@@ -1517,6 +1711,28 @@ class BuAdminDdl:
 
         CREATE UNIQUE INDEX document_sequence_unique ON document_sequence USING btree (document_type_id, branch_id, COALESCE(division_id, (0)::bigint));
 
+        CREATE INDEX ew_lead_branch_state_idx ON ew_lead USING btree (branch_id, state);
+
+        CREATE INDEX ew_lead_created_idx ON ew_lead USING btree (branch_id, created_at DESC);
+
+        CREATE UNIQUE INDEX ew_lead_dedup_idx ON ew_lead USING btree (mobile, COALESCE(serial_no, ''::text), warranty_end_date);
+
+        CREATE INDEX ew_lead_event_lead_idx ON ew_lead_event USING btree (ew_lead_id, created_at DESC);
+
+        CREATE INDEX ew_lead_expiry_open_idx ON ew_lead USING btree (warranty_end_date) WHERE (NOT is_closed);
+
+        CREATE INDEX ew_lead_follow_up_idx ON ew_lead USING btree (next_follow_up_at) WHERE (state = 'IN_PROGRESS'::text);
+
+        CREATE INDEX ew_lead_mobile_idx ON ew_lead USING btree (mobile);
+
+        CREATE INDEX ew_message_lead_idx ON ew_message USING btree (ew_lead_id, sent_at DESC);
+
+        CREATE UNIQUE INDEX ew_message_once_per_band_idx ON ew_message USING btree (ew_lead_id, band) WHERE ((kind = 'REMINDER'::text) AND (delivery_status <> 'FAILED'::text));
+
+        CREATE INDEX ew_message_sent_idx ON ew_message USING btree (sent_at) WHERE (kind = 'REMINDER'::text);
+
+        CREATE UNIQUE INDEX ew_message_wamid_idx ON ew_message USING btree (wamid) WHERE (wamid IS NOT NULL);
+
         CREATE INDEX idx_customer_contact_mobile ON customer_contact USING btree (mobile);
 
         CREATE INDEX idx_job_delivery_date ON job USING btree (delivery_date);
@@ -1663,6 +1879,24 @@ class BuAdminDdl:
 
         ALTER TABLE ONLY document_sequence
             ADD CONSTRAINT document_sequence_type_fk FOREIGN KEY (document_type_id) REFERENCES document_type(id) ON DELETE RESTRICT;
+
+        ALTER TABLE ONLY ew_lead
+            ADD CONSTRAINT ew_lead_branch_fkey FOREIGN KEY (branch_id) REFERENCES branch(id);
+
+        ALTER TABLE ONLY ew_lead
+            ADD CONSTRAINT ew_lead_brand_fkey FOREIGN KEY (brand_id) REFERENCES brand(id);
+
+        ALTER TABLE ONLY ew_lead_event
+            ADD CONSTRAINT ew_lead_event_lead_fkey FOREIGN KEY (ew_lead_id) REFERENCES ew_lead(id) ON DELETE CASCADE;
+
+        ALTER TABLE ONLY ew_lead_event
+            ADD CONSTRAINT ew_lead_event_message_fkey FOREIGN KEY (ew_message_id) REFERENCES ew_message(id) ON DELETE SET NULL;
+
+        ALTER TABLE ONLY ew_lead
+            ADD CONSTRAINT ew_lead_product_fkey FOREIGN KEY (product_id) REFERENCES product(id);
+
+        ALTER TABLE ONLY ew_message
+            ADD CONSTRAINT ew_message_lead_fkey FOREIGN KEY (ew_lead_id) REFERENCES ew_lead(id) ON DELETE CASCADE;
 
         ALTER TABLE ONLY job_additional_charge
             ADD CONSTRAINT job_additional_charge_job_id_fkey FOREIGN KEY (job_id) REFERENCES job(id) ON DELETE CASCADE;

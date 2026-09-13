@@ -131,6 +131,8 @@ def _chunk(items: list[dict], size: int) -> list[list[dict]]:
 _EVENT_CODE_BY_KEY = {
     "JOB_COMPLETION": "CC", "JOB_CREATION": "JC", "JOB_DELIVERY": "JD",
     "JOB_MONEY_RECEIPT": "MR", "JOB_INVOICE": "JI",
+    # Extended Warranty (app/whatsapp/ew_sender.py) — callback ids are [ew_message_id].
+    "EXTENDED_WARRANTY": "EW", "EXTENDED_WARRANTY_LEAD": "EL",
 }
 
 
