@@ -43,17 +43,19 @@ const MAIN_LABELS: Partial<Record<EwStateType, [string, string]>> = {
 	NEW_LEAD: ["send", "WhatsApp"],
 };
 
-const NODE_CAPTION: Record<EwStateType, string> = {
-	CANCELLED: "Can reopen",
-	IN_PROGRESS: "Stage 1 → 2 → 3",
-	INTERESTED: "Customer tapped the button",
-	LOST: "Can reopen or win",
-	MESSAGE_SENT: "Delivered · Read · Fail",
-	NEW_LEAD: "31–60 · 8–30 · 0–7 · Overdue",
-	WON: "Final",
+// One entry per line of the node's caption — two lines where one would be crammed.
+const NODE_CAPTION: Record<EwStateType, string[]> = {
+	CANCELLED: ["Can reopen"],
+	IN_PROGRESS: ["Stage 1 → 2 → 3"],
+	INTERESTED: ["Customer tapped the button"],
+	LOST: ["Can reopen or win"],
+	MESSAGE_SENT: ["Delivered · Read · Fail"],
+	NEW_LEAD: ["31–60 · 8–30 days", "0–7 days · Overdue"],
+	WON: ["Final"],
 };
 
 const NODE_CLASSES: Record<EwColorType, string> = {
+	amber: "fill-amber-50 stroke-amber-500 dark:fill-amber-950/40",
 	blue: "fill-blue-50 stroke-blue-500 dark:fill-blue-950/40",
 	green: "fill-green-50 stroke-green-500 dark:fill-green-950/40",
 	grey: "fill-slate-50 stroke-slate-400 dark:fill-slate-900/40",
@@ -182,7 +184,7 @@ export const EwStateFlowDiagram = () => {
 						y="30"
 					/>
 					<text className="fill-slate-500 text-[11px] font-semibold dark:fill-slate-400" x="16" y="20">
-						Active (is_closed = false)
+						Active
 					</text>
 					<text
 						className="fill-slate-500 text-[11px] font-semibold dark:fill-slate-400"
@@ -190,7 +192,7 @@ export const EwStateFlowDiagram = () => {
 						x="910"
 						y="20"
 					>
-						Closed (is_closed = true)
+						Closed
 					</text>
 
 					{/* Early close: one dashed bus instead of nine crossing arrows */}
@@ -308,9 +310,13 @@ export const EwStateFlowDiagram = () => {
 									className="fill-slate-500 text-[10px] dark:fill-slate-400"
 									textAnchor="middle"
 									x={x + NODE_W / 2}
-									y={y + 50}
+									y={y + 48}
 								>
-									{NODE_CAPTION[state]}
+									{NODE_CAPTION[state].map((line, lineIndex) => (
+										<tspan key={line} dy={lineIndex === 0 ? 0 : 11} x={x + NODE_W / 2}>
+											{line}
+										</tspan>
+									))}
 								</text>
 							</motion.g>
 						);

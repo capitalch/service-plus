@@ -224,6 +224,7 @@ async def _apply_ew_status_callback(
                 "ew_lead_id": row["ew_lead_id"],
                 "ew_message_id": row["ew_message_id"],
                 "kind": "EW",
+                "schema": schema,
                 "status": raw_status,
                 "target": "STAFF" if row["kind"] == "LEAD_ALERT" else "CUSTOMER",
             },

@@ -1878,14 +1878,20 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			"cancelled",
 			"reopen",
 			"opt out",
+			"customer comment",
+			"customer said",
+			"staff note",
 			"dashboard",
 			"lead pipeline",
+			"flow",
+			"state flow",
+			"overdue",
 			"extended_warranty",
 		],
 		content: [
 			{
 				type: "para",
-				text: "Custom → Extended Warranty keeps a list of customers whose warranty is ending. Each customer is a lead, and every lead is always in exactly one state. You send the customer a WhatsApp offer to extend the warranty; if they tap “I’m interested”, your staff are told at once, and you follow the lead through until it is Won, Lost or Cancelled.",
+				text: "Custom → Extended Warranty keeps a list of customers whose warranty is ending. Each customer is a lead, and every lead is always in exactly one state. You send the customer a WhatsApp offer to extend the warranty; if they tap “I’m interested”, your staff are told at once, and you follow the lead through until it is Won, Lost or Cancelled. The screen has three tabs — Dashboard, Details and Flow — and one New Lead button beside them that works on all three.",
 			},
 			{ type: "heading", text: "Switching it on" },
 			{
@@ -1903,7 +1909,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Adding a lead" },
 			{
 				type: "para",
-				text: "Click New Lead on the Dashboard or the Details tab. Type the mobile number first: if it belongs to an earlier lead or a Jobs customer, the empty fields are filled in for you. Mobile, full name, brand and warranty end date are required, and the warranty end date cannot be in the past. The same mobile, serial number and warranty end date cannot be entered twice.",
+				text: "Click New Lead in the tab row — it sits beside Dashboard, Details and Flow, so it is there whichever tab you are on. Type the mobile number first: if it belongs to an earlier lead or a Jobs customer, the empty fields are filled in for you. Mobile, full name, brand and warranty end date are required. The warranty end date may be up to 3 months in the past, so an overdue case can still be entered; anything older than that is rejected as a typo. The same mobile, serial number and warranty end date cannot be entered twice.",
+			},
+			{
+				type: "note",
+				text: "A lead whose warranty ended more than 7 days ago can be entered and worked by phone, but no WhatsApp reminder can be sent to it — reminders stop 7 days after the warranty ends.",
 			},
 			{ type: "heading", text: "The states" },
 			{
@@ -1946,7 +1956,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "The Dashboard" },
 			{
 				type: "para",
-				text: "The State flow picture shows every move a lead can make: solid lines are the normal flow, dashed lines skip ahead or close early, and amber lines reopen a lead. The Lead Pipeline cards count the leads in each state — New Lead split by how long the warranty has left (31–60 days, 8–30 days, 0–7 days, Overdue, and All), Message Sent split by what happened to the latest reminder (Delivered, Read, Fail, Awaiting), In Progress by stage, and the closed states. Click any card to open that list of leads; Back to dashboard returns. When follow-ups are overdue, a “follow-ups due” chip opens exactly those leads.",
+				text: "The Lead Pipeline cards count the leads in each state, grouped into five tinted sections — a different light colour each, laid out in two rows on a wide screen. New Lead is split by how long the warranty has left (61+ D, 31–60 D, 8–30 D, 0–7 D — D is days — plus Overdue and All, which is the five of them together), Message Sent by what happened to the latest reminder (Delivered, Read, Fail, Awaiting), In Progress by stage, then Interested and the closed states. Click any card to open that list of leads; the indigo Back to dashboard button at the top left returns. The figures update themselves: anything anyone does to a lead — a state or stage move, a follow-up, a reminder sent, a customer tapping “I’m interested” or opting out, a lead entered or edited — reaches every open copy of this screen within a moment, whoever did it. Refresh in the Lead Pipeline header re-reads every figure on the tab anyway, summary included. Under the cards, an “open leads” chip counts everything not yet Won, Lost or Cancelled — New Lead, Message Sent, Interested and In Progress together — and opens that list; when follow-ups are overdue, a “follow-ups due” chip beside it opens exactly those leads. Underneath is the Overall summary.",
+			},
+			{
+				type: "note",
+				text: "Amber marks a lead that needs attention — Overdue, Lost, Cancelled and an overdue follow-up. Red is kept for something that actually went wrong: a reminder that failed, or a mobile number that is not usable.",
 			},
 			{ type: "heading", text: "Sending reminders" },
 			{
@@ -1963,14 +1977,14 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "What the customer sees" },
 			{
 				type: "para",
-				text: "The WhatsApp message has an “I’m interested — contact me” button. It opens a short page showing the brand, product and warranty date, asks whether they would like a call or a WhatsApp, and lets them add a remark. A small “Don’t send me warranty reminders” link opts them out: an opted-out lead is tagged and cannot be sent reminders again, though you can still follow it up by phone.",
+				text: "The WhatsApp message has an “I’m interested — contact me” button. It opens a short page showing the brand, product and warranty date and lets them add a comment. They are not asked how to be reached — your team calls them — so nothing on the page offers a choice, and a list only mentions a contact preference at all when an older lead chose WhatsApp before this changed. Whatever they write is kept: it appears under Said: “…” in the Interest column of a list, as Customer said in the lead’s details, in its timeline under “Customer tapped interested”, in the staff WhatsApp alert, and in the notify e-mail. It is never mixed with your own Staff note. A small “Don’t send me warranty reminders” link opts them out: an opted-out lead is tagged and cannot be sent reminders again, though you can still follow it up by phone.",
 			},
 			{ type: "heading", text: "When a customer is interested" },
 			{
 				type: "bullets",
 				items: [
 					"A Message Sent lead moves to Interested. If the lead was already In Progress or closed, the interest is recorded but its state does not change.",
-					"The Staff WhatsApp number gets an alert with the customer’s details and an “Open in Service+” button that opens that lead (after logging in, if needed).",
+					"The Staff WhatsApp number gets an alert with the customer’s details and an “Open in Service+” button that opens that lead (after logging in, if needed). It says “Please call back”, and carries whatever the customer wrote.",
 					"If a Notify email is set, a copy goes there too.",
 					"The bell shows how many leads are waiting in Interested.",
 					"Tapping the button a second time does nothing more — no second alert.",
@@ -1986,21 +2000,30 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "para",
 				text: "Use Mark Won, Mark Lost or Cancel lead from the lead’s menu, with an optional note or reason. Won is final. A Lost lead can be reopened or marked Won; a Cancelled lead can be reopened. A reopened lead starts again at Stage 1.",
 			},
-			{ type: "heading", text: "Reading the summaries" },
+			{ type: "heading", text: "Reading the summary" },
 			{
 				type: "para",
-				text: "The Message summary and Overall summary count by period: Today, This week, This month and Over a month old. The periods overlap — This week includes Today, and This month includes This week — so they do not add up across a row. Messages are counted by their current status, so Read + Delivered + Fail + In transit equals the messages sent. Won, Lost and Cancelled count the leads currently in that state, by the date they were closed.",
+				text: "Underneath the pipeline, the Overall summary is deliberately plain — a coloured dot names each row and the counts are read across the columns. It counts by period: Today, This week, This month and Over a month old. The periods overlap — This week includes Today, and This month includes This week — so they do not add up across a row. The four indented rows break Messages sent down by the message’s current status: Read + Delivered + Fail + In transit equals the messages sent above them. Won, Lost and Cancelled count the leads currently in that state, by the date they were closed.",
 			},
 			{ type: "heading", text: "The Details tab" },
 			{
 				type: "para",
-				text: "Every lead, newest entered first. Search by name, mobile, serial number, model or brand, filter by state, and hide closed leads with Show closed. Click a row for the lead’s details and its full timeline of messages and changes; the ⋮ menu on each row holds every action.",
+				text: "Every lead, newest entered first. Search by name, mobile, serial number, model or brand, filter by state, and hide closed leads with Show closed; Refresh at the right of that row re-reads the list, and is there on a drill-down list too. The Follow-up column shows what the last follow-up actually was — how it was made, what was said, and by whom — not just the count and dates. The teal tick box at the left of a row appears only on leads that can still be sent a reminder — tick them, or tick the box in the header to take every sendable lead on the page, and the send bar appears above the list. Click a row for the lead’s details and its full timeline of messages and changes; the ⋮ menu on each row holds every action, each with its own icon and colour — the WhatsApp mark for sending a reminder, green for Won, amber for Lost, rose for Cancelled, violet for moving into In Progress, blue for Edit and red for Delete.",
+			},
+			{ type: "heading", text: "The Flow tab" },
+			{
+				type: "para",
+				text: "The State flow picture shows every move a lead can make, Active states on the left and Closed ones on the right: solid lines are the normal flow, dashed lines skip ahead or close early, and amber lines reopen a lead. It is a reference picture, not a control — nothing on it is clickable.",
 			},
 		],
 		faqs: [
 			{
 				q: "Why can’t I send a reminder to this lead?",
 				a: "One of five reasons: the lead is not New Lead or Message Sent (it is Interested, In Progress or closed); the customer opted out; the mobile is not a valid 10-digit number; the warranty ended more than 7 days ago; or a reminder was already sent in this expiry window. Picking Send from the lead’s menu tells you which.",
+			},
+			{
+				q: "It won’t accept my warranty end date — why?",
+				a: "A new lead’s warranty end date can be backdated by up to 3 months, so overdue cases can still be entered. Older than that is treated as a typing mistake. Editing an existing lead has no such limit.",
 			},
 			{
 				q: "Why is the Custom menu missing?",
@@ -2014,6 +2037,26 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "Why can’t I delete this lead?",
 				a: "Delete is only for a New Lead that was never messaged — a data-entry mistake. For anything else, use Cancel lead, which keeps its history.",
+			},
+			{
+				q: "Do I have to keep clicking Refresh?",
+				a: "No. Every change to a lead is pushed to every open copy of the screen, including your colleagues’ — cards, lists and message statuses all follow along on their own. Refresh is there for reassurance, or if your connection dropped for a while.",
+			},
+			{
+				q: "Can the customer ask to be reached on WhatsApp instead?",
+				a: "Not any more — the page no longer offers the choice, because calling is the only follow-up your team makes. Leads that chose WhatsApp before this changed still show that choice on their own record; new ones simply show nothing, and the staff alert says “Please call back”.",
+			},
+			{
+				q: "Where does the customer’s comment go?",
+				a: "Onto the lead, in the customer’s own words. Look under Said: “…” in the Interest column, or open the lead — Customer said holds it, and the timeline keeps it against the moment they tapped. It is separate from Staff note, which is what your team types on the lead form.",
+			},
+			{
+				q: "A colleague just changed a lead — do I need to reload the page?",
+				a: "No. Their change appears here by itself, usually within a second — and the bell’s Interested count in the top bar follows along too, whether or not the Extended Warranty screen is open.",
+			},
+			{
+				q: "Why is the open leads chip bigger than any one card?",
+				a: "It counts four groups at once — every lead that is not yet Won, Lost or Cancelled. The cards above it each count one state, so the chip is deliberately the only number that spans them.",
 			},
 			{
 				q: "Why don’t the week and month numbers add up?",

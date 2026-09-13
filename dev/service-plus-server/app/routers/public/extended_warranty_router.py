@@ -23,6 +23,7 @@ from app.core.email import send_email
 from app.core.rate_limit import rate_limit
 from app.db.connection.psycopg_driver import exec_sql, exec_sql_query
 from app.db.sql.sql_extended_warranty import ExtendedWarrantyServerSql
+from app.graphql.pubsub import publish_ew_lead_changed
 from app.logger import logger
 from app.whatsapp.ew_sender import get_ew_settings, send_ew_lead_alert
 from app.whatsapp.token import verify_ew
@@ -74,9 +75,12 @@ def _message_page(title: str, heading: str, text: str) -> HTMLResponse:
     return HTMLResponse(content=_page(title, heading, f'<div class="body">{html.escape(text)}</div>'))
 
 
-async def _notify_by_email(db_name: str, schema: str, row: dict, choice: str) -> None:
+async def _notify_by_email(db_name: str, schema: str, row: dict, remarks: str = "") -> None:
     """Optional e-mail copy of a new interest. Best-effort and never raises into the
-    customer's request — the lead is already saved."""
+    customer's request — the lead is already saved.
+
+    `remarks` is passed in rather than read off `row`: `row` was loaded before the interest
+    was written, so it cannot carry what the customer just typed."""
     try:
         notify_email = str((await get_ew_settings(db_name, schema)).get("notify_email") or "").strip()
         if not notify_email:
@@ -91,7 +95,7 @@ async def _notify_by_email(db_name: str, schema: str, row: dict, choice: str) ->
                 f"Brand:         {row.get('brand_name') or '-'}\n"
                 f"Product:       {row.get('product_label') or '-'}\n"
                 f"Warranty ends: {expiry.strftime('%d %b %Y') if expiry else '-'}\n"
-                f"Prefers:       {'a call' if choice == 'CALL' else 'WhatsApp'}\n\n"
+                f"Their comment: {remarks.strip() or '-'}\n\n"
                 f"Open Service+ -> Custom -> Extended Warranty to follow it up."
             ),
         )
@@ -129,8 +133,6 @@ def _page(title: str, heading: str, body_html: str) -> str:
   .fact .v {{ color: #0f172a; font-weight: 600; text-align: right; }}
   label {{ display: block; color: #334155; font-size: 13px;
            font-weight: 600; margin: 16px 0 6px; }}
-  .choice {{ display: flex; gap: 16px; font-size: 14px; color: #334155; font-weight: 400; }}
-  .choice label {{ margin: 0; font-weight: 400; display: flex; align-items: center; gap: 6px; }}
   textarea {{
     width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 10px;
     padding: 10px; font: inherit; font-size: 14px; resize: vertical; min-height: 64px;
@@ -200,11 +202,6 @@ async def get_extended_warranty_page(token: str) -> HTMLResponse:
     warranty for a further 1 or 2 years and stay covered for parts and labour.</div>
     <div class="facts">{facts}</div>
     <form method="post" action="/extended-warranty/{safe_token}/interest">
-      <label>How should we contact you?</label>
-      <div class="choice">
-        <label><input type="radio" name="preferred_contact" value="CALL" checked> Call me</label>
-        <label><input type="radio" name="preferred_contact" value="WHATSAPP"> WhatsApp me</label>
-      </div>
       <label for="remarks">Anything you would like to tell us? (optional)</label>
       <textarea id="remarks" name="customer_remarks" maxlength="{_REMARKS_MAX}"></textarea>
       <button type="submit">{html.escape(INTEREST_BUTTON_LABEL)}</button>
@@ -224,7 +221,6 @@ async def get_extended_warranty_page(token: str) -> HTMLResponse:
 )
 async def post_extended_warranty_interest(
     token: str,
-    preferred_contact: str = Form(default="CALL"),
     customer_remarks: str = Form(default=""),
 ) -> HTMLResponse:
     """The customer's "I am interested". The interest is COMMITTED first (exec_sql commits
@@ -238,19 +234,20 @@ async def post_extended_warranty_interest(
     if row["is_opted_out"]:
         return _unsubscribed_page()
 
-    choice = preferred_contact.strip().upper()
-    if choice not in ("CALL", "WHATSAPP"):
-        choice = "CALL"
-
+    # The customer is no longer asked how to be reached — the shop calls. preferred_contact
+    # stays NULL rather than an assumed 'CALL': a preference nobody expressed is not a fact,
+    # and the column keeps meaning "what the customer chose" for the leads that did choose.
+    # A stale page still posting preferred_contact is ignored, not honoured.
+    remarks = (customer_remarks or "")[:_REMARKS_MAX]
     created = await exec_sql(
         db_name=db_name,
         schema=schema,
         sql=ExtendedWarrantyServerSql.RECORD_EW_INTEREST,
         sql_args={
-            "customer_remarks": (customer_remarks or "")[:_REMARKS_MAX],
+            "customer_remarks": remarks,
             "ew_lead_id": ew_lead_id,
             "ew_message_id": ew_message_id,
-            "preferred_contact": choice,
+            "preferred_contact": None,
         },
     )
     if created:
@@ -259,7 +256,10 @@ async def post_extended_warranty_interest(
             schema, ew_lead_id, created[0]["from_state"], created[0]["to_state"],
         )
         await send_ew_lead_alert(db_name, schema, ew_lead_id)
-        await _notify_by_email(db_name, schema, row, choice)
+        await _notify_by_email(db_name, schema, row, remarks)
+        # The lead has moved to Interested and its alert row exists — push it to every
+        # open screen, not just the bell count the next poll would have found.
+        await publish_ew_lead_changed(db_name, schema, "INTEREST", ew_lead_id)
 
     return _message_page(
         "Thank you", "Thank you — we will contact you", "Our team will get in touch shortly about extending your warranty."
@@ -284,4 +284,6 @@ async def post_extended_warranty_opt_out(token: str) -> HTMLResponse:
     )
     if rows:
         logger.info("Extended Warranty opt-out: schema=%s lead=%s", schema, ew_lead_id)
+        # can_send just went false: the row's send tick disappears on every open grid.
+        await publish_ew_lead_changed(db_name, schema, "OPT_OUT", ew_lead_id)
     return _unsubscribed_page()

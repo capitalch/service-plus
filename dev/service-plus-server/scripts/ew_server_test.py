@@ -128,12 +128,10 @@ async def raised(coro) -> str | None:
     return None
 
 
-def interest(token: str, preferred_contact: str = "CALL", customer_remarks: str = ""):
-    """The interest route called directly. Its Form(...) defaults only resolve when FastAPI
-    handles a real request, so a direct call must pass both values."""
-    return ew_router.post_extended_warranty_interest(
-        token, preferred_contact=preferred_contact, customer_remarks=customer_remarks
-    )
+def interest(token: str, customer_remarks: str = ""):
+    """The interest route called directly. Its Form(...) default only resolves when FastAPI
+    handles a real request, so a direct call must pass the value."""
+    return ew_router.post_extended_warranty_interest(token, customer_remarks=customer_remarks)
 
 
 def value(payload: dict) -> str:
@@ -262,15 +260,14 @@ async def test_10_alert_once(ctx):
     SETTINGS.update(staff_whatsapp_number="98765 43210")
     lead_id = await new_lead(ctx, state="MESSAGE_SENT")
     token = sign_ew(DB_NAME, SCHEMA, lead_id, await add_msg(ctx, lead_id))
-    first = await interest(token, preferred_contact="whatsapp",
-                                                            customer_remarks="call after 5")
-    second = await interest(token, preferred_contact="CALL", customer_remarks="again")
+    first = await interest(token, customer_remarks="call after 5")
+    second = await interest(token, customer_remarks="again")
     v = await view(ctx, lead_id)
     alerts = await messages(ctx, lead_id, "LEAD_ALERT")
     check("both taps get a thank-you page", first.status_code == 200 and second.status_code == 200
           and b"Thank you" in first.body)
-    check("the first tap wins: Interested, prefers WhatsApp",
-          v["state"] == "INTERESTED" and v["preferred_contact"] == "WHATSAPP", v)
+    check("the first tap wins: Interested, and no preference is invented",
+          v["state"] == "INTERESTED" and v["preferred_contact"] is None, v)
     check("exactly one staff alert is sent", len(SENDS) == 1 and SENDS[0]["template"] == ALERT_TEMPLATE, SENDS)
     if SENDS:
         body = SENDS[0]["body"]
@@ -278,7 +275,7 @@ async def test_10_alert_once(ctx):
               SENDS[0]["to"] == "919876543210" and SENDS[0]["buttons"] == [str(lead_id)], SENDS[0])
         check("…with five one-line params (name, device, warranty + band, contact, remarks)",
               len(body) == 5 and "EW SQL TEST" in body[0] and "Warranty ends" in body[2]
-              and "8–30 days left" in body[2] and "Prefers WhatsApp" in body[3] and body[4] == "call after 5", body)
+              and "8–30 days left" in body[2] and "Please call back" in body[3] and body[4] == "call after 5", body)
         check("…and one LEAD_ALERT row, ACCEPTED, named in the callback data",
               len(alerts) == 1 and alerts[0]["delivery_status"] == "ACCEPTED" and alerts[0]["wamid"]
               and SENDS[0]["callback"] == f"{DB_NAME}|{SCHEMA}|EL|{alerts[0]['id']}", alerts)
@@ -522,7 +519,7 @@ async def test_w_webhook(ctx):
           (await messages(ctx, lead_id))[0]["delivery_status"] == "DELIVERED"
           and PUBLISHED == [{"db_name": DB_NAME, "error": None, "event": "whatsapp_delivery_status",
                              "ew_lead_id": lead_id, "ew_message_id": msg_id, "kind": "EW",
-                             "status": "DELIVERED", "target": "CUSTOMER"}], PUBLISHED)
+                             "schema": SCHEMA, "status": "DELIVERED", "target": "CUSTOMER"}], PUBLISHED)
     PUBLISHED.clear()
     await webhook._apply_status_callback(status("sent"))  # pylint: disable=protected-access
     check("a late SENT is ignored, nothing published",

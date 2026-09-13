@@ -564,7 +564,7 @@ export const MESSAGES = {
 	ERROR_EW_NOTES_REQUIRED: "Notes are required.",
 	ERROR_EW_NOTES_TOO_LONG: "Notes can be at most 1000 characters.",
 	ERROR_EW_PURCHASE_AFTER_END: "Purchase date must be on or before the warranty end date.",
-	ERROR_EW_WARRANTY_END_PAST: "Warranty end date cannot be in the past.",
+	ERROR_EW_WARRANTY_END_PAST: "Warranty end date cannot be more than 3 months in the past.",
 	ERROR_EW_WARRANTY_END_REQUIRED: "Warranty end date is required.",
 	INFO_EW_CAP_HINT: "0 = unlimited. Counts reminders per business unit per day.",
 	INFO_EW_ENABLED_HINT: "Shows Custom → Extended Warranty and allows sending.",

@@ -344,7 +344,7 @@ export const EwLeadDialog = ({ editing, onClose, onSaved }: Props) => {
 					</div>
 
 					<div className="sm:col-span-2">
-						<Label htmlFor="ew-remarks">Remarks</Label>
+						<Label htmlFor="ew-remarks">Staff note</Label>
 						<Textarea className="mt-1" id="ew-remarks" {...form.register("remarks")} />
 					</div>
 

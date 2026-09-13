@@ -30,6 +30,7 @@ from app.graphql.resolvers.bu_admin.users_roles import (
     resolve_create_business_user_helper,
     resolve_set_user_bu_role_helper,
 )
+from app.graphql.pubsub import publish_ew_lead_changed
 from app.graphql.resolvers.custom.extended_warranty import (
     CUSTOM_GENERIC_UPDATE_TABLE_RIGHTS,
     EW_ACCESS_RIGHT,
@@ -123,13 +124,17 @@ GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS: dict[str, str] = {
 }
 
 
+def _generic_update_table(value: str) -> str | None:
+    """`tableName` out of a genericUpdate payload; None when it cannot be read."""
+    try:
+        return json.loads(unquote(value)).get("tableName")
+    except (ValueError, AttributeError):
+        return None
+
+
 def _require_generic_update_table_right(info, value: str) -> None:
     """Gate genericUpdate calls that target a table listed in GENERIC_UPDATE_TABLE_RIGHTS."""
-    try:
-        table_name = json.loads(unquote(value)).get("tableName")
-    except (ValueError, AttributeError):
-        return
-    right = GENERIC_UPDATE_TABLE_RIGHTS.get(table_name)
+    right = GENERIC_UPDATE_TABLE_RIGHTS.get(_generic_update_table(value))
     if right:
         require_access_right(info, right)
 
@@ -244,7 +249,12 @@ async def resolve_drop_database(
 async def resolve_generic_update(_, info, db_name="", schema="public", value="") -> Any:
     """Execute a generic table upsert/delete operation."""
     _require_generic_update_table_right(info, value)
-    return await resolve_generic_update_helper(db_name, schema, value)
+    result = await resolve_generic_update_helper(db_name, schema, value)
+    # A lead entered, edited or deleted is the one Extended Warranty change with no
+    # mutation of its own, so it would otherwise reach other sessions only on a refresh.
+    if _generic_update_table(value) == "ew_lead":
+        await publish_ew_lead_changed(db_name, schema, "LEAD_SAVED")
+    return result
 
 
 @mutation.field("genericUpdateScript")

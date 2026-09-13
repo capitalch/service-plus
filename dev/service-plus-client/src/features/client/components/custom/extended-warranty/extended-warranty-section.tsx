@@ -1,22 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Plus } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import type { EwDeliveryEventType, EwLeadType, EwLeadsFilterType } from "@/features/client/types/extended-warranty";
+import type { EwLeadType, EwLeadsFilterType } from "@/features/client/types/extended-warranty";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 
+import { ChartCard } from "../../reports/common/chart-card";
+import { ReportSection } from "../../reports/common/report-section";
+import { useEwLiveRefresh } from "../../shared/use-ew-live-refresh";
 import { EwDashboard } from "./ew-dashboard";
 import { EwDrilldownView } from "./ew-drilldown-view";
 import { EwLeadGrid } from "./ew-lead-grid";
+import { EwStateFlowDiagram } from "./ew-state-flow-diagram";
 import { useEwLeadActions } from "./use-ew-lead-actions";
 
 type DrillType = { filter: EwLeadsFilterType; title: string };
@@ -24,12 +30,10 @@ type DrillType = { filter: EwLeadsFilterType; title: string };
 /** Set by the bell (ewDrill) and by the staff alert's deep link page (ewLeadId). */
 type NavStateType = { ewDrill?: "INTERESTED"; ewLeadId?: number };
 
-/** `kind` is missing on events from a server that predates it — those are job events. */
-type DeliveryEventType = Partial<Omit<EwDeliveryEventType, "kind">> & { kind?: "EW" | "JOB" };
-
 /**
- * Custom → Extended Warranty (§C7.9): Dashboard / Details tabs, the drill-down page, one
- * shared set of lead actions and dialogs, and live refresh from the WhatsApp webhook.
+ * Custom → Extended Warranty (§C7.9): Dashboard / Details / Flow tabs with one New Lead
+ * button shared by all three, the drill-down page, one shared set of lead actions and
+ * dialogs, and live refresh from the WhatsApp webhook.
  */
 export const ExtendedWarrantySection = () => {
 	const branch = useAppSelector(selectCurrentBranch);
@@ -44,21 +48,8 @@ export const ExtendedWarrantySection = () => {
 	const actions = useEwLeadActions({ onChanged: bump, refreshKey });
 	const handledKeyRef = useRef<string | null>(null);
 
-	// Live delivery status — a reminder or a staff alert changed state; refresh what is shown.
-	useEffect(() => {
-		if (!dbName) return;
-		const sub = apolloClient
-			.subscribe<{ whatsappDeliveryStatus: DeliveryEventType | null }>({
-				query: GRAPHQL_MAP.whatsappDeliveryStatus,
-				variables: { db_name: dbName },
-			})
-			.subscribe({
-				next: ({ data }) => {
-					if ((data?.whatsappDeliveryStatus?.kind ?? "JOB") === "EW") bump();
-				},
-			});
-		return () => sub.unsubscribe();
-	}, [dbName, bump]);
+	// Any change to any lead, by anyone — so a colleague's work appears without a Refresh.
+	useEwLiveRefresh(bump);
 
 	// Arrivals from the bell (open the Interested drill-down) or the staff alert's deep link
 	// (open that lead: the follow-up dialog when In Progress, its details otherwise).
@@ -106,10 +97,22 @@ export const ExtendedWarrantySection = () => {
 					setDrill(null);
 				}}
 			>
-				<TabsList className="w-full justify-start overflow-x-auto">
-					<TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-					<TabsTrigger value="details">Details</TabsTrigger>
-				</TabsList>
+				{/* The tab row is also the screen's header: no separate title, and one New Lead
+				    button for Dashboard, Details and Flow alike. */}
+				<div className="mb-4 flex flex-wrap items-center gap-3">
+					<TabsList className="mb-0 min-w-0 flex-1 justify-start overflow-x-auto">
+						<TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+						<TabsTrigger value="details">Details</TabsTrigger>
+						<TabsTrigger value="flow">Flow</TabsTrigger>
+					</TabsList>
+					<Button
+						className="h-10 gap-2 bg-teal-600 px-5 text-sm font-semibold text-white shadow-md hover:bg-teal-700"
+						onClick={actions.openNewLead}
+					>
+						<Plus className="size-5" />
+						New Lead
+					</Button>
+				</div>
 
 				<TabsContent value="dashboard">
 					<AnimatePresence mode="wait">
@@ -141,7 +144,6 @@ export const ExtendedWarrantySection = () => {
 							>
 								<EwDashboard
 									refreshKey={refreshKey}
-									onNewLead={actions.openNewLead}
 									onOpen={(title, filter) => setDrill({ filter, title })}
 								/>
 							</motion.div>
@@ -151,6 +153,14 @@ export const ExtendedWarrantySection = () => {
 
 				<TabsContent value="details">
 					<EwLeadGrid actions={actions} filter={{}} refreshKey={refreshKey} showStateFilter />
+				</TabsContent>
+
+				<TabsContent value="flow">
+					<ReportSection>
+						<ChartCard description="How a lead moves from entry to closing" title="State flow">
+							<EwStateFlowDiagram />
+						</ChartCard>
+					</ReportSection>
 				</TabsContent>
 			</Tabs>
 

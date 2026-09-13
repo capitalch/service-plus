@@ -120,3 +120,40 @@ class PubSub:
 
 # Create and export singleton PubSub instance
 pubsub = PubSub()
+
+
+# ─── Named events ─────────────────────────────────────────────────────────────
+
+# Extended Warranty. Anything that changes a lead for everyone watching the screen — a
+# state or stage move, a follow-up, a send, the customer's interest or opt-out, a lead
+# entered or edited. It rides the whatsapp_delivery_status channel rather than taking one
+# of its own so the client keeps a SINGLE subscription; `kind` tells the two apart, and a
+# client that predates this kind simply ignores it.
+#
+# whatsapp_delivery_status_generator filters by db_name alone, so a tenant's every open BU
+# receives this — `schema` is carried for the client to match on and skip a needless read.
+EW_LEAD_CHANGED_KIND = "EW_LEAD"
+
+
+async def publish_ew_lead_changed(
+    db_name: str, schema: str, reason: str, ew_lead_id: int | None = None
+) -> None:
+    """Tell every open Extended Warranty screen of this tenant to re-read.
+
+    Never raises: a lead change must not fail because the push did. `reason` names what
+    happened — logged today, and there for a client that later wants to act on one kind
+    of change instead of re-reading everything.
+    """
+    try:
+        await pubsub.publish(
+            "whatsapp_delivery_status",
+            {
+                "db_name": db_name,
+                "ew_lead_id": ew_lead_id,
+                "kind": EW_LEAD_CHANGED_KIND,
+                "reason": reason,
+                "schema": schema,
+            },
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("publish_ew_lead_changed failed (schema=%s reason=%s): %s", schema, reason, e)

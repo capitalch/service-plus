@@ -3,6 +3,34 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-14 00:30 (main)
+Extended Warranty: rebuild Dashboard/Details/Flow, add live push
+
+- Dashboard/Details/Flow: split into three tabs behind one shared New
+  Lead button; the Lead Pipeline is now a two-row tinted grid with a
+  "61+ D" band card and an open-leads chip, and Overall summary was
+  redesigned (Message summary folded into it); standard Refresh
+  buttons and colored, iconed row actions throughout.
+- Live updates: every EW mutation, the sender and the public
+  interest/opt-out routes now publish an EW_LEAD pubsub event
+  alongside the delivery-status one; a shared use-ew-live-refresh
+  hook keeps the section and the bell's Interested count current
+  across sessions without a manual refresh.
+- Fix: the customer's interest comment reached the grid, detail
+  dialog and staff alert but not the notify e-mail, because that
+  path read the lead row before the write landed — now passed
+  through explicitly.
+- The call/WhatsApp choice is removed from the customer's interest
+  page (the shop only calls); a leftover WhatsApp preference from an
+  older lead still shows, a bare "Call" no longer does.
+- Details grid: the Follow-up column now shows who made the last
+  follow-up and what they said, via a LATERAL join onto
+  ew_lead_event — no schema migration needed.
+- plans/plan-ew-final.md: mark Step 16 (end-to-end test) done with a
+  status summary of what was found and fixed.
+
+Files: 28 changed (+712 / -291) — Base: 6250b07
+
 ## 2026-09-13 11:25 (main)
 Extended Warranty: remove the old module ahead of the rebuild
 

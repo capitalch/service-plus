@@ -20,6 +20,7 @@ from app.core.exceptions import AppMessages, ValidationException
 from app.db.connection.psycopg_driver import exec_sql, exec_sql_query
 from app.db.sql.sql_base import SqlStore
 from app.db.sql.sql_extended_warranty import ExtendedWarrantyServerSql, ExtendedWarrantySql
+from app.graphql.pubsub import publish_ew_lead_changed
 from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
 from app.whatsapp.client import send_template
@@ -69,8 +70,11 @@ async def _bu_name(db_name: str, schema: str) -> str:
 def _build_lead_alert_params(bu_name: str, row: dict) -> tuple[list[str], list[str]]:
     """The staff alert's five composed lines (template EXTENDED_WARRANTY_LEAD, Part B2).
     Meta templates cannot branch, so every "omit when blank" decision happens here."""
+    # Leads from before the chooser was removed keep the preference they gave; a lead with
+    # none was never asked, and the shop calls — so it reads as an instruction, not a claim
+    # about the customer. The slot cannot be empty: a Meta template has no branches.
     preferred_label = {"CALL": "Prefers a call", "WHATSAPP": "Prefers WhatsApp"}.get(
-        (row.get("preferred_contact") or "").upper(), "No contact preference"
+        (row.get("preferred_contact") or "").upper(), "Please call back"
     )
     header_values = [_sanitize(_truncate_business_unit(bu_name))]
     body_values = [
@@ -373,6 +377,11 @@ async def send_ew_reminders(
         "sendEwReminders: schema=%s selected=%d attempted=%d capped=%d skipped=%d",
         schema_name, len(ew_lead_ids), len(allowed), len(capped), len(skipped),
     )
+    # One event for the whole batch, not one per lead: every open screen re-reads once
+    # either way, and a 50-lead send must not become 50 pushes. Only an attempted send
+    # changed anything — a capped or skipped lead is exactly as it was.
+    if allowed:
+        await publish_ew_lead_changed(db_name_arg, schema_name, "REMINDERS_SENT")
     return {"results": [*sent, *capped_results, *skipped]}
 
 

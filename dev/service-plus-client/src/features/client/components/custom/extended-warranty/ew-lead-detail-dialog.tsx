@@ -34,7 +34,8 @@ type Props = {
 	refreshKey: number;
 };
 
-const PREFERENCE = { CALL: "Prefers a call", WHATSAPP: "Prefers WhatsApp" } as const;
+// Same reasoning as ew-lead-grid.tsx: CALL is the unremarkable default now, so only a
+// leftover WHATSAPP preference is worth stating.
 
 function timelineText(item: EwTimelineItemType): string {
 	if (item.source === "MESSAGE") {
@@ -166,15 +167,17 @@ export const EwLeadDetailDialog = ({ ewLeadId, onAction, onClose, refreshKey }: 
 							</Fact>
 							<Fact label="Interest">
 								{row.interest_at ? formatDateTime(row.interest_at) : "—"}
-								{row.preferred_contact && (
-									<span className="block text-xs text-(--cl-text-muted)">
-										{PREFERENCE[row.preferred_contact]}
-									</span>
+								{row.preferred_contact === "WHATSAPP" && (
+									<span className="block text-xs text-(--cl-text-muted)">Prefers WhatsApp</span>
 								)}
-								{row.customer_remarks && (
-									<span className="block text-xs text-(--cl-text-muted)">
-										“{row.customer_remarks}”
-									</span>
+							</Fact>
+							{/* Its own fact, not a line under Interest: it is the customer's own
+							    words, and the Remarks fact below is the staff's note. */}
+							<Fact label="Customer said">
+								{row.customer_remarks ? (
+									<span className="whitespace-pre-wrap italic">“{row.customer_remarks}”</span>
+								) : (
+									"—"
 								)}
 							</Fact>
 							<Fact label="Follow-ups">
@@ -198,7 +201,7 @@ export const EwLeadDetailDialog = ({ ewLeadId, onAction, onClose, refreshKey }: 
 									</span>
 								)}
 							</Fact>
-							<Fact label="Remarks">{row.remarks || "—"}</Fact>
+							<Fact label="Staff note">{row.remarks || "—"}</Fact>
 						</div>
 
 						<div>

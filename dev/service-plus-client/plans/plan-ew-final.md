@@ -68,7 +68,8 @@ records what was done (commit hash, results).
 | 13 | ✅ DONE 2026-09-13 — tsc clean |
 | 14 | ✅ DONE 2026-09-13 — tsc clean, `pnpm build` passes; not yet seen in a browser |
 | 15 | ✅ DONE 2026-09-13 — both help files, own "Extended Warranty" topic; wording accepted by the user |
-| 16–17 | pending |
+| 16 | ✅ DONE 2026-09-14 — tested on `demo1`; every issue reported was fixed |
+| 17 | pending |
 | 18 | partly done — `ew_cleanup.sql` already run on every BU schema of the live database (user, 2026-09-13) |
 | 19 | pending |
 
@@ -407,7 +408,7 @@ the new one (Parts C, D1). Phase 3 (Steps 18–19) rolls it out (D2).
     Pending", "no sender", "TWO independent", "Three routers", the empty-registry text)
     finds nothing; the menu's `helpArticleId: "extended-warranty"` now resolves.
 
-### Step 16 — End-to-end test on `demo1` (B-8, §D3.2)
+### Step 16 — End-to-end test on `demo1` (B-8, §D3.2) ✅ DONE 2026-09-14
 - **Your part:**
   1. App Settings → `extended_warranty`: Enabled on; Contact phone, WhatsApp number, Staff
      WhatsApp number (your own), Notify e-mail, cap. WhatsApp notifications → Extended Warranty on.
@@ -421,6 +422,30 @@ the new one (Parts C, D1). Phase 3 (Steps 18–19) rolls it out (D2).
   5. Bell count equals the Interested card.
 - **My part:** fix every failure you report; re-run tsc / build.
 - **Done when:** all §D3.2 items pass. (`pnpm lint` is broken repo-wide — R9 — and is not part of this check.)
+- **Status:** you tested on `demo1` and reported every issue as you found it; I fixed each
+  in turn and re-ran `tsc -b --noEmit` / `pnpm build` (client) and `ew_sql_test.py` /
+  `ew_server_test.py` (server, 100/100 and 95/95) after every round. Two were real defects
+  rather than polish:
+  - The dashboard, grid and bell only refreshed on your own actions or a WhatsApp delivery
+    callback — a colleague's transition, follow-up, send, or a customer's interest/opt-out
+    sat unseen until Refresh. Fixed by publishing a new `EW_LEAD` event (server:
+    `publish_ew_lead_changed` in `pubsub.py`, called from every EW mutation, the sender and
+    the public interest/opt-out routes) alongside the existing delivery-status one, and a
+    shared client hook (`use-ew-live-refresh.ts`) both the section and the bell's Interested
+    count now use.
+  - The customer's typed comment on the interest page reached the grid, the detail dialog
+    and the staff WhatsApp alert, but not the notify e-mail — `_notify_by_email` was reading
+    `row`, loaded *before* the write, so it could never carry it. Fixed by passing the
+    remark in as its own argument.
+  Everything else was refinement you asked for while looking at it live: Flow moved to its
+  own tab with a shared New Lead button; the breadcrumb, checkboxes, row-action icons and
+  amber/red palette; the Lead Pipeline's two-row layout, per-section tints and the "61+ D"
+  card plus an open-leads chip; the Overall summary's redesign and the dropped Message
+  summary card; standard Refresh buttons; the call/WhatsApp chooser removed from the
+  customer page (the shop only calls) with `preferred_contact` now shown only for a
+  leftover WHATSAPP; and the Follow-up column surfacing who did the last follow-up and what
+  they said (`_LEAD_JOINS` LATERAL join onto `ew_lead_event`, no schema migration). None of
+  this is committed yet — that is Step 17.
 
 ### Step 17 — Commit Part C (B-9)
 - **Your part:** say "commit Part C" (or `/git-deploy`).

@@ -5,12 +5,13 @@ import { useLocation } from "react-router-dom";
 
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
-import { selectDbName } from "@/features/auth/store/auth-slice";
+import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
 	selectCurrentDivision,
+	selectExtendedWarrantyEnabled,
 	selectIsGstMode,
 	selectSchema,
 	setDefaultGstRate,
@@ -29,6 +30,7 @@ import { HelpPanel } from "@/components/shared/help/help-panel";
 import { HelpFab } from "@/components/shared/help/help-fab";
 import { BuBranchDivisionGate } from "@/features/admin/components/bu-branch-division-gate";
 import { ClientActivityBar } from "./client-activity-bar";
+import { getVisibleCustomMenuItems } from "./custom-menu-registry";
 import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
 import { ClientTopNav } from "./client-top-nav";
@@ -127,6 +129,8 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentDivision = useAppSelector(selectCurrentDivision);
+	const currentUser = useAppSelector(selectCurrentUser);
+	const extendedWarrantyEnabled = useAppSelector(selectExtendedWarrantyEnabled);
 	const isGstMode = useAppSelector(selectIsGstMode);
 	const [selected, setSelected] = useState(() => SECTION_DEFAULTS[activeSection]);
 	const [selectedGroup, setSelectedGroup] = useState(() => SECTION_DEFAULT_GROUPS[activeSection]);
@@ -143,6 +147,16 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 		setSelected(SECTION_DEFAULTS[activeSection]);
 		setSelectedGroup(SECTION_DEFAULT_GROUPS[activeSection]);
 	}, [activeSection]);
+
+	// Custom is the one section with no fixed default — its items are bought add-ons, so the
+	// first visible one is only known once app settings have loaded. Filling it in here (and
+	// not in the page) keeps the header reading "Custom > Extended Warranty" rather than a
+	// bare "Custom", and runs after the reset above instead of racing it.
+	const customDefault = getVisibleCustomMenuItems(currentUser, { extendedWarrantyEnabled })[0]?.label ?? "";
+	useEffect(() => {
+		if (activeSection !== "custom" || selected || !customDefault) return;
+		setSelected(customDefault);
+	}, [activeSection, customDefault, selected]);
 
 	// Deep links (e.g. the notification bell) can request a specific sub-item via
 	// navigation state. Runs after the section-default reset above so it wins on

@@ -8,7 +8,7 @@ import { z } from "zod";
 import { MESSAGES } from "@/constants/messages";
 import { isValidMobile } from "@/lib/mobile";
 
-import { EW_NOTES_MAX, isCompleteMobile } from "./ew-state-machine";
+import { EW_NOTES_MAX, EW_WARRANTY_END_BACKDATE_MONTHS, isCompleteMobile } from "./ew-state-machine";
 
 const EMAIL = z.union([z.literal(""), z.email(MESSAGES.ERROR_EMAIL_INVALID_FORMAT)]);
 
@@ -31,9 +31,17 @@ function startOfToday(): Date {
 	return today;
 }
 
+/** The oldest warranty end date a new lead may carry — today minus EW_WARRANTY_END_BACKDATE_MONTHS. */
+function earliestWarrantyEnd(): Date {
+	const floor = startOfToday();
+	floor.setMonth(floor.getMonth() - EW_WARRANTY_END_BACKDATE_MONTHS);
+	return floor;
+}
+
 /**
- * New / Edit Lead. On create the warranty end date cannot be in the past — such a lead could
- * never enter a reminder window. Purchase must not be after the warranty end.
+ * New / Edit Lead. On create the warranty end date may be backdated by up to
+ * EW_WARRANTY_END_BACKDATE_MONTHS months, so an overdue case can still be entered and worked
+ * by phone; older than that is a typo. Purchase must not be after the warranty end.
  */
 export function buildEwLeadSchema(isEdit: boolean) {
 	return z
@@ -54,7 +62,7 @@ export function buildEwLeadSchema(isEdit: boolean) {
 		.superRefine((v, ctx) => {
 			const end = localDate(v.warranty_end_date);
 			if (!end) return;
-			if (!isEdit && end < startOfToday()) {
+			if (!isEdit && end < earliestWarrantyEnd()) {
 				ctx.addIssue({
 					code: "custom",
 					message: MESSAGES.ERROR_EW_WARRANTY_END_PAST,

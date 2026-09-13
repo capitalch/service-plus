@@ -39,7 +39,8 @@ export type EwActionType = {
 	toState?: EwStateType;
 };
 
-export type EwColorType = "blue" | "green" | "grey" | "indigo" | "orange" | "red" | "rose" | "teal" | "violet";
+export type EwColorType =
+	"amber" | "blue" | "green" | "grey" | "indigo" | "orange" | "red" | "rose" | "teal" | "violet";
 
 type EwMetaType = { color: EwColorType; label: string; order: number };
 
@@ -65,16 +66,24 @@ type TransitionTargetType = Exclude<EwStateType, "MESSAGE_SENT" | "NEW_LEAD">;
 export const EW_NOTES_MAX = 1000;
 export const EW_SEND_GRACE_DAYS = 7;
 
+/** How far a new lead's warranty end date may be backdated — overdue cases are entered too. */
+export const EW_WARRANTY_END_BACKDATE_MONTHS = 3;
+
 export const EW_BANDS: Record<EwBandType, EwMetaType> = {
 	D0_7: { color: "orange", label: "0–7 days", order: 3 },
 	D31_60: { color: "green", label: "31–60 days", order: 1 },
 	D61_PLUS: { color: "grey", label: "61+ days", order: 0 },
 	D8_30: { color: "blue", label: "8–30 days", order: 2 },
-	OVERDUE: { color: "red", label: "Overdue", order: 4 },
+	OVERDUE: { color: "amber", label: "Overdue", order: 4 },
 };
 
 /** Literal class strings, so Tailwind's scanner sees every one of them. */
 export const EW_COLOR_CLASSES: Record<EwColorType, { border: string; text: string; tint: string }> = {
+	amber: {
+		border: "border-amber-500",
+		text: "text-amber-700 dark:text-amber-400",
+		tint: "bg-amber-50 dark:bg-amber-950/30",
+	},
 	blue: {
 		border: "border-blue-500",
 		text: "text-blue-700 dark:text-blue-400",
@@ -157,15 +166,16 @@ export const EW_PERIODS: Record<EwPeriodType, { label: string; order: number }> 
 export const EW_PIPELINE_GROUPS: EwPipelineGroupType[] = [
 	{
 		cards: [
+			{ color: "grey", countKey: "new_61_plus", filter: { band: "D61_PLUS", state: "NEW_LEAD" }, label: "61+ D" },
+			{ color: "green", countKey: "new_31_60", filter: { band: "D31_60", state: "NEW_LEAD" }, label: "31–60 D" },
+			{ color: "blue", countKey: "new_8_30", filter: { band: "D8_30", state: "NEW_LEAD" }, label: "8–30 D" },
+			{ color: "orange", countKey: "new_0_7", filter: { band: "D0_7", state: "NEW_LEAD" }, label: "0–7 D" },
 			{
-				color: "green",
-				countKey: "new_31_60",
-				filter: { band: "D31_60", state: "NEW_LEAD" },
-				label: "31–60 days",
+				color: "amber",
+				countKey: "new_overdue",
+				filter: { band: "OVERDUE", state: "NEW_LEAD" },
+				label: "Overdue",
 			},
-			{ color: "blue", countKey: "new_8_30", filter: { band: "D8_30", state: "NEW_LEAD" }, label: "8–30 days" },
-			{ color: "orange", countKey: "new_0_7", filter: { band: "D0_7", state: "NEW_LEAD" }, label: "0–7 days" },
-			{ color: "red", countKey: "new_overdue", filter: { band: "OVERDUE", state: "NEW_LEAD" }, label: "Overdue" },
 			{ color: "green", countKey: "new_all", filter: { state: "NEW_LEAD" }, label: "All" },
 		],
 		key: "NEW_LEAD",
@@ -237,8 +247,8 @@ export const EW_PIPELINE_GROUPS: EwPipelineGroupType[] = [
 	{
 		cards: [
 			{ color: "green", countKey: "won", filter: { state: "WON" }, label: "Won" },
-			{ color: "red", countKey: "lost", filter: { state: "LOST" }, label: "Lost" },
-			{ color: "red", countKey: "cancelled", filter: { state: "CANCELLED" }, label: "Cancelled" },
+			{ color: "amber", countKey: "lost", filter: { state: "LOST" }, label: "Lost" },
+			{ color: "amber", countKey: "cancelled", filter: { state: "CANCELLED" }, label: "Cancelled" },
 		],
 		key: "CLOSED",
 		label: "Closed",
@@ -256,7 +266,7 @@ export const EW_STATE_META: Record<EwStateType, EwMetaType & { closed: boolean }
 	CANCELLED: { closed: true, color: "rose", label: "Cancelled", order: 7 },
 	IN_PROGRESS: { closed: false, color: "violet", label: "In Progress", order: 4 },
 	INTERESTED: { closed: false, color: "orange", label: "Interested", order: 3 },
-	LOST: { closed: true, color: "red", label: "Lost", order: 6 },
+	LOST: { closed: true, color: "amber", label: "Lost", order: 6 },
 	MESSAGE_SENT: { closed: false, color: "indigo", label: "Message Sent", order: 2 },
 	NEW_LEAD: { closed: false, color: "blue", label: "New Lead", order: 1 },
 	WON: { closed: true, color: "green", label: "Won", order: 5 },

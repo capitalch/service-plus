@@ -15,6 +15,7 @@ from typing import Any
 from app.core.exceptions import AppMessages, ValidationException
 from app.db.connection.psycopg_driver import exec_sql, exec_sql_query
 from app.db.sql.sql_extended_warranty import ExtendedWarrantyServerSql, ExtendedWarrantySql
+from app.graphql.pubsub import publish_ew_lead_changed
 from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
 from app.whatsapp.ew_sender import send_ew_lead_alert, staff_name
@@ -122,6 +123,7 @@ async def add_ew_follow_up(
         "addEwFollowUp: schema=%s lead=%s action=%s stage=%s by=%s",
         schema, ew_lead_id, action, rows[0]["progress_stage"], user_id,
     )
+    await publish_ew_lead_changed(db_name or "", schema or "public", "FOLLOW_UP", ew_lead_id)
     return {"ew_lead_id": ew_lead_id, "ok": True, "progress_stage": rows[0]["progress_stage"]}
 
 
@@ -150,6 +152,7 @@ async def resend_ew_lead_alert(db_name: str, schema: str = "public", value: str 
         return {"ok": False, "reason": "NO_INTEREST"}
 
     status = await send_ew_lead_alert(db_name or "", schema or "public", ew_lead_id)
+    await publish_ew_lead_changed(db_name or "", schema or "public", "LEAD_ALERT_RESENT", ew_lead_id)
     return {"ok": status == "SENT", "status": status}
 
 
@@ -193,6 +196,7 @@ async def transition_ew_lead(
         "transitionEwLead: schema=%s lead=%s %s -> %s stage=%s by=%s",
         schema, ew_lead_id, row["from_state"], row["to_state"], row["progress_stage"], user_id,
     )
+    await publish_ew_lead_changed(db_name or "", schema or "public", "TRANSITION", ew_lead_id)
     return {
         "from_state": row["from_state"],
         "ok": True,

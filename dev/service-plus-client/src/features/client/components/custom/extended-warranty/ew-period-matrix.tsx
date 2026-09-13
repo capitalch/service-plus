@@ -6,6 +6,8 @@ import type { EwColorType } from "./ew-state-machine";
 
 export type EwMatrixRowType = {
 	color: EwColorType;
+	/** Rule above the row — it opens a new group of metrics. */
+	divider?: boolean;
 	indent?: boolean;
 	key: string;
 	label: string;
@@ -14,7 +16,6 @@ export type EwMatrixRowType = {
 type Props = {
 	caption?: string;
 	data: EwDashboardType;
-	footnote?: { key: string; label: string };
 	rows: EwMatrixRowType[];
 };
 
@@ -27,17 +28,24 @@ function cellValue(data: EwDashboardType, key: string, period: EwPeriodType): nu
 /**
  * A metric × period grid of counters (§C7.5). Reads GET_EW_DASHBOARD's `<metric>_<period>`
  * columns; not clickable. Scrolls inside itself on narrow screens.
+ *
+ * Quiet on purpose — this sits under the Lead Pipeline, which is the screen's actual subject,
+ * so a counter is a number in its row's colour rather than a filled, bordered tile. What makes
+ * it readable instead is the shape of the table: headline rows carry a dot and a larger number,
+ * an indented breakdown sits under its parent behind a guide rule, figures are right-aligned
+ * tabular numerals so the columns line up, a zero fades back so real counts carry the eye, and
+ * the whole row lights on hover.
  */
-export const EwPeriodMatrix = ({ caption, data, footnote, rows }: Props) => (
+export const EwPeriodMatrix = ({ caption, data, rows }: Props) => (
 	<div className="overflow-x-auto">
-		<table className="w-full min-w-[560px] border-separate border-spacing-2">
+		<table className="w-full min-w-[520px] border-separate border-spacing-0">
 			<thead>
 				<tr>
-					<th className="w-40" />
+					<th className="w-44 border-b border-(--cl-border) pb-2" />
 					{PERIODS.map((period) => (
 						<th
 							key={period}
-							className="text-left text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted)"
+							className="border-b border-(--cl-border) px-3 pb-2 text-right text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted)"
 							scope="col"
 						>
 							{EW_PERIODS[period].label}
@@ -48,46 +56,52 @@ export const EwPeriodMatrix = ({ caption, data, footnote, rows }: Props) => (
 			<tbody>
 				{rows.map((row) => {
 					const colors = EW_COLOR_CLASSES[row.color];
+					const rule = row.divider ? "border-t border-(--cl-border)" : "";
 					return (
-						<tr key={row.key}>
+						<tr key={row.key} className="transition-colors hover:bg-(--cl-hover)">
 							<th
 								className={cn(
-									"text-left text-xs font-semibold text-(--cl-text)",
-									row.indent && "pl-4 font-normal text-(--cl-text-muted)",
+									"py-1.5 pr-3 text-left text-xs font-medium text-(--cl-text)",
+									row.indent && "font-normal text-(--cl-text-muted)",
+									rule,
 								)}
 								scope="row"
 							>
-								{row.indent ? `↳ ${row.label}` : row.label}
+								{row.indent ? (
+									<span className="ml-[3px] flex items-center gap-2 border-l border-(--cl-border) pl-4">
+										{row.label}
+									</span>
+								) : (
+									<span className="flex items-center gap-2">
+										<span
+											className={cn("size-2 shrink-0 rounded-full bg-current", colors.text)}
+											aria-hidden="true"
+										/>
+										{row.label}
+									</span>
+								)}
 							</th>
-							{PERIODS.map((period) => (
-								<td key={period}>
-									<div
-										className={cn(
-											"rounded-lg border-2 px-3 py-1.5 text-2xl font-bold tabular-nums",
-											colors.border,
-											colors.text,
-											colors.tint,
-										)}
-									>
-										{cellValue(data, row.key, period)}
-									</div>
-								</td>
-							))}
+							{PERIODS.map((period) => {
+								const value = cellValue(data, row.key, period);
+								return (
+									<td key={period} className={cn("px-3 py-1.5 text-right", rule)}>
+										<span
+											className={cn(
+												"tabular-nums",
+												row.indent ? "text-sm font-medium" : "text-base font-semibold",
+												value === 0 ? "text-(--cl-text-muted) opacity-50" : colors.text,
+											)}
+										>
+											{value}
+										</span>
+									</td>
+								);
+							})}
 						</tr>
 					);
 				})}
-				{footnote && (
-					<tr>
-						<th />
-						{PERIODS.map((period) => (
-							<td key={period} className="text-[11px] text-(--cl-text-muted)">
-								{footnote.label}: {cellValue(data, footnote.key, period)}
-							</td>
-						))}
-					</tr>
-				)}
 			</tbody>
 		</table>
-		{caption && <p className="px-2 text-[11px] text-(--cl-text-muted)">{caption}</p>}
+		{caption && <p className="mt-2 text-[11px] text-(--cl-text-muted)">{caption}</p>}
 	</div>
 );

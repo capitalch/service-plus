@@ -7,6 +7,7 @@ import { selectCurrentBranch, selectExtendedWarrantyEnabled } from "@/store/cont
 import { useAppSelector } from "@/store/hooks";
 
 import { useGenericQuery } from "../reports/common/use-generic-query";
+import { useEwLiveRefresh } from "../shared/use-ew-live-refresh";
 
 export type NotificationsSummary = {
 	ewOpenInterest: number;
@@ -68,11 +69,16 @@ export function useNotificationsSummary(): NotificationsSummary {
 
 	// Extended Warranty leads waiting in Interested — queried only when the add-on is on
 	// and this user may open it, so the bell never points at a screen they cannot reach.
+	const ewEnabled =
+		!!branchId && extendedWarrantyEnabled && hasAccessRight(user, ACCESS_RIGHTS.CUSTOM_EXTENDED_WARRANTY);
 	const ewQ = useGenericQuery<EwInterestRow>({
-		enabled: !!branchId && extendedWarrantyEnabled && hasAccessRight(user, ACCESS_RIGHTS.CUSTOM_EXTENDED_WARRANTY),
+		enabled: ewEnabled,
 		sqlArgs: { branch_id: branchId },
 		sqlId: SQL_MAP.COUNT_EW_OPEN_INTEREST,
 	});
+	// The one live signal in the bell: a customer's tap, or a colleague moving a lead out of
+	// Interested, reaches it at once. The other three counts are still read on mount only.
+	useEwLiveRefresh(ewQ.refetch, ewEnabled);
 
 	const ewOpenInterest = num(ewQ.data?.[0]?.open_interest);
 	const jobsOverdue = num(kpisQ.data?.[0]?.jobs_overdue);

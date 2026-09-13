@@ -99,6 +99,14 @@ export const ICON_COLORS: Record<string, string | null> = {
 	Truck: "text-orange-600",
 	History: "text-orange-600",
 
+	// Workflow / lead outcome (Extended Warranty's row menu)
+	PlayCircle: "text-violet-600",
+	StepForward: "text-blue-600",
+	ThumbsUp: "text-orange-600",
+	ThumbsDown: "text-amber-600",
+	Trophy: "text-emerald-600",
+	Ban: "text-rose-600",
+
 	// Communication
 	Mail: "text-indigo-600",
 	MailIcon: "text-indigo-600",
@@ -106,6 +114,8 @@ export const ICON_COLORS: Record<string, string | null> = {
 	Phone: "text-indigo-600",
 	MessageSquare: "text-indigo-600",
 	Bell: "text-indigo-600",
+	BellRing: "text-indigo-600",
+	PhoneCall: "text-indigo-600",
 	MapPin: "text-indigo-600",
 
 	// Documents / files / technical infra

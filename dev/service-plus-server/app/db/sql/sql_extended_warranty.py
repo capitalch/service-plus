@@ -41,6 +41,8 @@ _LEAD_COLUMNS = """
             v.remarks, v.state, v.progress_stage, v.is_closed, v.state_changed_at, v.closed_at,
             v.interest_at, v.preferred_contact, v.customer_remarks,
             v.next_follow_up_at, v.last_follow_up_at, v.follow_up_count,
+            lf.action AS last_follow_up_action, lf.notes AS last_follow_up_notes,
+            lf.created_by_name AS last_follow_up_by_name,
             v.is_opted_out, v.opted_out_at,
             v.last_message_id, v.last_delivery_status, v.last_sent_at, v.last_error,
             v.message_count, v.message_group, v.alert_status, v.alert_error, v.can_send,
@@ -50,7 +52,14 @@ _LEAD_JOINS = """
         FROM ew_lead_view v
         LEFT JOIN brand           b ON b.id = v.brand_id
         LEFT JOIN product         p ON p.id = v.product_id
-        LEFT JOIN security."user" u ON u.id = v.created_by"""
+        LEFT JOIN security."user" u ON u.id = v.created_by
+        LEFT JOIN LATERAL (
+            SELECT e.action, e.notes, e.created_by_name
+            FROM ew_lead_event e
+            WHERE e.ew_lead_id = v.id AND e.event_type = 'FOLLOW_UP'
+            ORDER BY e.created_at DESC, e.id DESC
+            LIMIT 1
+        ) lf ON true"""
 
 
 class ExtendedWarrantySql:

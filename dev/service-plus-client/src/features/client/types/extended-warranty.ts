@@ -128,6 +128,10 @@ export type EwLeadType = Omit<
 	is_closed: boolean;
 	last_delivery_status: EwDeliveryStatusType | null;
 	last_error: string | null;
+	/** The most recent FOLLOW_UP event's fields — null before any follow-up is ever recorded. */
+	last_follow_up_action: EwFollowUpActionType | null;
+	last_follow_up_by_name: string | null;
+	last_follow_up_notes: string | null;
 	last_message_id: number | null;
 	last_sent_at: string | null;
 	message_count: number;
