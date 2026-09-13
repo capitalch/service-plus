@@ -14,7 +14,6 @@ import {
 	selectIsGstMode,
 	selectSchema,
 	setDefaultGstRate,
-	setExtendedWarrantyNotificationsEnabled,
 	setMarkupPercentOverCost,
 	setDefaultHsnForSparePart,
 	setDefaultHsnForServiceCharge,
@@ -100,7 +99,7 @@ const SECTION_LABELS: Record<Section, string> = {
 const SECTION_DEFAULTS: Record<Section, string> = {
 	admin: "Post / Unpost",
 	configurations: "Divisions",
-	custom: "Extended Warranty",
+	custom: "",
 	inventory: "Stock Overview",
 	jobs: "Single Job",
 	masters: "Branch",
@@ -290,22 +289,6 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 					}
 				}
 				dispatch(setTrackJobUrl(parsedTrackUrl != null ? String(parsedTrackUrl) : null));
-
-				// The flag lives on the `extended_warranty` config row as its `enabled` field;
-				// it was its own row until the settings consolidation. Fail closed — a missing
-				// row, a non-object value or a missing key all mean the add-on is off.
-				const rawEw = settings.find((s) => s.setting_key === "extended_warranty")?.setting_value;
-				let parsedEw: unknown = rawEw;
-				if (typeof rawEw === "string") {
-					try {
-						parsedEw = JSON.parse(rawEw);
-					} catch {
-						/* keep raw */
-					}
-				}
-				const ewEnabled =
-					parsedEw && typeof parsedEw === "object" ? (parsedEw as { enabled?: unknown }).enabled : undefined;
-				dispatch(setExtendedWarrantyNotificationsEnabled(ewEnabled === true || ewEnabled === "true"));
 
 				const rawTerms = settings.find((s) => s.setting_key === "job_terms_and_conditions")?.setting_value;
 				let parsedTerms: unknown = rawTerms;

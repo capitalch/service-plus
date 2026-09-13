@@ -376,75 +376,6 @@ class BuAdminDdl:
             CONSTRAINT document_type_code_chk CHECK ((code ~ '^[A-Z_]+$'::text))
         );
 
-        CREATE TABLE ew_customer (
-            id bigint NOT NULL,
-            branch_id bigint NOT NULL,
-            full_name text NOT NULL,
-            mobile text NOT NULL,
-            email text,
-            address text,
-            city text,
-            brand_id bigint NOT NULL,
-            product_id bigint,
-            model_name text,
-            serial_no text,
-            purchase_date date,
-            warranty_end_date date NOT NULL,
-            remarks text,
-            stages jsonb DEFAULT '{}'::jsonb NOT NULL,
-            follow_ups jsonb DEFAULT '[]'::jsonb NOT NULL,
-            outcome text DEFAULT 'OPEN'::text NOT NULL,
-            outcome_at timestamp with time zone,
-            last_stage_sent smallint,
-            last_sent_at timestamp with time zone,
-            interest_count integer DEFAULT 0 NOT NULL,
-            follow_up_count integer DEFAULT 0 NOT NULL,
-            is_opted_out boolean DEFAULT false NOT NULL,
-            opted_out_at timestamp with time zone,
-            is_active boolean DEFAULT true NOT NULL,
-            created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL,
-            CONSTRAINT ew_customer_outcome_chk CHECK ((outcome = ANY (ARRAY['OPEN'::text, 'CONVERTED'::text, 'NOT_INTERESTED'::text, 'UNREACHABLE'::text])))
-        );
-
-        ALTER TABLE ew_customer ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-            SEQUENCE NAME ew_customer_id_seq
-            START WITH 1
-            INCREMENT BY 1
-            NO MINVALUE
-            NO MAXVALUE
-            CACHE 1
-        );
-
-        CREATE VIEW ew_stage_v AS
-         SELECT c.id AS ew_customer_id,
-            c.branch_id,
-            c.full_name,
-            c.mobile,
-            c.brand_id,
-            c.product_id,
-            c.model_name,
-            c.warranty_end_date,
-            c.outcome,
-            c.is_active,
-            c.is_opted_out,
-            (s.key)::smallint AS stage,
-            (s.value ->> 'delivery_status'::text) AS delivery_status,
-            (s.value ->> 'stage_status'::text) AS stage_status,
-            (s.value ->> 'wamid'::text) AS wamid,
-            ((s.value ->> 'sent_at'::text))::timestamp with time zone AS sent_at,
-            ((s.value ->> 'sent_by'::text))::bigint AS sent_by,
-            (s.value ->> 'error'::text) AS error,
-            (((s.value -> 'interest'::text) ->> 'expressed_at'::text))::timestamp with time zone AS interest_at,
-            ((s.value -> 'interest'::text) ->> 'preferred_contact'::text) AS preferred_contact,
-            ((s.value -> 'interest'::text) ->> 'customer_remarks'::text) AS customer_remarks,
-            (((s.value -> 'interest'::text) -> 'alert'::text) ->> 'delivery_status'::text) AS alert_status,
-            (((s.value -> 'interest'::text) -> 'alert'::text) ->> 'error'::text) AS alert_error
-           FROM (ew_customer c
-             CROSS JOIN LATERAL jsonb_each(c.stages) s(key, value));
-
-        ALTER VIEW ew_stage_v OWNER TO webadmin;
-
         CREATE TABLE financial_year (
             id integer NOT NULL,
             start_date date NOT NULL,
@@ -1387,9 +1318,6 @@ class BuAdminDdl:
         ALTER TABLE ONLY document_type
             ADD CONSTRAINT document_type_pkey PRIMARY KEY (id);
 
-        ALTER TABLE ONLY ew_customer
-            ADD CONSTRAINT ew_customer_pkey PRIMARY KEY (id);
-
         ALTER TABLE ONLY financial_year
             ADD CONSTRAINT financial_year_pkey PRIMARY KEY (id);
 
@@ -1589,18 +1517,6 @@ class BuAdminDdl:
 
         CREATE UNIQUE INDEX document_sequence_unique ON document_sequence USING btree (document_type_id, branch_id, COALESCE(division_id, (0)::bigint));
 
-        CREATE INDEX ew_customer_branch_idx ON ew_customer USING btree (branch_id);
-
-        CREATE UNIQUE INDEX ew_customer_dedup_idx ON ew_customer USING btree (mobile, COALESCE(serial_no, ''::text), warranty_end_date);
-
-        CREATE INDEX ew_customer_due_idx ON ew_customer USING btree (warranty_end_date) WHERE (is_active AND (NOT is_opted_out));
-
-        CREATE INDEX ew_customer_mobile_idx ON ew_customer USING btree (mobile);
-
-        CREATE INDEX ew_customer_outcome_idx ON ew_customer USING btree (outcome);
-
-        CREATE INDEX ew_customer_stages_gin ON ew_customer USING gin (stages jsonb_path_ops);
-
         CREATE INDEX idx_customer_contact_mobile ON customer_contact USING btree (mobile);
 
         CREATE INDEX idx_job_delivery_date ON job USING btree (delivery_date);
@@ -1747,15 +1663,6 @@ class BuAdminDdl:
 
         ALTER TABLE ONLY document_sequence
             ADD CONSTRAINT document_sequence_type_fk FOREIGN KEY (document_type_id) REFERENCES document_type(id) ON DELETE RESTRICT;
-
-        ALTER TABLE ONLY ew_customer
-            ADD CONSTRAINT ew_customer_branch_fkey FOREIGN KEY (branch_id) REFERENCES branch(id);
-
-        ALTER TABLE ONLY ew_customer
-            ADD CONSTRAINT ew_customer_brand_fkey FOREIGN KEY (brand_id) REFERENCES brand(id);
-
-        ALTER TABLE ONLY ew_customer
-            ADD CONSTRAINT ew_customer_product_fkey FOREIGN KEY (product_id) REFERENCES product(id);
 
         ALTER TABLE ONLY job_additional_charge
             ADD CONSTRAINT job_additional_charge_job_id_fkey FOREIGN KEY (job_id) REFERENCES job(id) ON DELETE CASCADE;

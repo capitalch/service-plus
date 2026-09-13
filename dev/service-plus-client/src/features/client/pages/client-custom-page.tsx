@@ -1,5 +1,4 @@
 import { ClientLayout, useClientSelection } from "../components/layout/client-layout";
-import { ExtendedWarrantySection } from "../components/custom/extended-warranty/extended-warranty-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -20,12 +19,7 @@ function CustomContent() {
 	const { selected } = useClientSelection();
 	const s = selected?.trim() || "";
 
-	switch (s) {
-		case "Extended Warranty":
-			return <ExtendedWarrantySection />;
-		default:
-			return <ComingSoon label={s || "Custom"} />;
-	}
+	return <ComingSoon label={s || "Custom"} />;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────

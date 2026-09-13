@@ -36,10 +36,6 @@ from app.graphql.resolvers.inventory.mutations import (
     resolve_delete_unused_parts_by_brand_helper,
     resolve_import_spare_parts_helper,
 )
-from app.graphql.resolvers.jobs.extended_warranty import (
-    add_ew_follow_up,
-    resend_ew_lead_alert,
-)
 from app.graphql.resolvers.jobs.invoicing import (
     resolve_create_job_invoice_helper,
     resolve_regenerate_job_invoice_helper,
@@ -60,7 +56,6 @@ from app.graphql.resolvers.jobs.mutations import (
 )
 from app.whatsapp.sender import (
     resolve_send_whatsapp_completion_helper,
-    send_ew_reminders,
     send_job_creation_notice,
     send_job_delivery_notice,
     send_whatsapp_job_invoice,
@@ -498,48 +493,6 @@ async def resolve_send_whatsapp_job_invoice(
     access rights: no dedicated guard here — the Delivered Jobs screen's own
     right already gates the entry point that calls this."""
     return await send_whatsapp_job_invoice(db_name, schema, value)
-
-
-@mutation.field("sendEwReminders")
-@handle_graphql_errors("Error sending extended warranty reminders")
-async def resolve_send_ew_reminders(
-    _, info, db_name: str = "", schema: str = "public", value: str = ""
-) -> Any:
-    """Send Extended Warranty reminders for the selected customers at one stage, from
-    the Custom -> Extended Warranty screen. `branch_id`/`ew_customer_ids`/`stage`
-    payload shape. Access rights follow the same precedent as the other WhatsApp
-    mutations: no dedicated guard here — the screen's own CUSTOM_EXTENDED_WARRANTY
-    right already gates the entry point that calls this.
-
-    `sent_by` is taken from the authenticated session, never the client — the Message
-    Log attributes every send to a real user (or to NULL for the scheduler)."""
-    payload_user_id = (info.context or {}).get("user_id")
-    return await send_ew_reminders(db_name, schema, value, payload_user_id)
-
-
-@mutation.field("addEwFollowUp")
-@handle_graphql_errors("Error recording extended warranty follow-up")
-async def resolve_add_ew_follow_up(
-    _, info, db_name: str = "", schema: str = "public", value: str = ""
-) -> Any:
-    """Record one staff follow-up action against a warranty lead — the single close
-    point for both follow-up channels (the in-app Interest grid, and the deep link from
-    the staff WhatsApp alert). `staff_id` comes from the authenticated session's own
-    context, never a client-supplied field."""
-    staff_id = (info.context or {}).get("user_id")
-    return await add_ew_follow_up(db_name, schema, value, staff_id)
-
-
-@mutation.field("resendEwLeadAlert")
-@handle_graphql_errors("Error resending extended warranty lead alert")
-async def resolve_resend_ew_lead_alert(
-    _, _info, db_name: str = "", schema: str = "public", value: str = ""
-) -> Any:
-    """Re-send the staff WhatsApp alert for a lead whose first attempt failed, or which
-    predates a `staff_whatsapp_number` being configured. A failed alert must be
-    recoverable — silently swallowing it would mean staff never learn a customer raised
-    a hand."""
-    return await resend_ew_lead_alert(db_name, schema, value)
 
 
 @mutation.field("verifyJobDeliveryOtp")

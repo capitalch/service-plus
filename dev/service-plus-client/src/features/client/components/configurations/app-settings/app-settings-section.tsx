@@ -17,7 +17,6 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectAvailableDivisions, selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
 import { EditAppSettingDialog } from "./edit-app-setting-dialog";
-import { EditExtendedWarrantyDialog } from "./edit-extended-warranty-dialog";
 import { EditWhatsappNotificationsDialog } from "./edit-whatsapp-notifications-dialog";
 import type { AppSettingRecord } from "@/features/client/types/app-setting";
 
@@ -291,15 +290,6 @@ export const AppSettingsSection = () => {
 			{editRecord &&
 				(editRecord.setting_key === "whatsapp_notifications" ? (
 					<EditWhatsappNotificationsDialog
-						open={!!editRecord}
-						record={editRecord}
-						onOpenChange={(o) => {
-							if (!o) setEditRecord(null);
-						}}
-						onSuccess={loadData}
-					/>
-				) : editRecord.setting_key === "extended_warranty" ? (
-					<EditExtendedWarrantyDialog
 						open={!!editRecord}
 						record={editRecord}
 						onOpenChange={(o) => {

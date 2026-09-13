@@ -16,7 +16,6 @@ from app.logger import logger, configure_for_uvicorn
 from app.routers.auth.router import router as auth_router
 from app.routers.base_router import router as base_router
 from app.routers.media.image_router import router as image_router
-from app.routers.public.extended_warranty_router import router as extended_warranty_router
 from app.routers.public.job_delivery_router import router as job_delivery_router
 from app.routers.public.job_intake_router import router as job_intake_router
 from app.routers.public.job_money_receipt_router import router as job_money_receipt_router
@@ -82,7 +81,6 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(base_router)
 app.include_router(image_router)
-app.include_router(extended_warranty_router)
 app.include_router(job_delivery_router)
 app.include_router(job_intake_router)
 app.include_router(job_money_receipt_router)

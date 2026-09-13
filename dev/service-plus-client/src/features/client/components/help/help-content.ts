@@ -1385,7 +1385,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Turning an event off entirely" },
 			{
 				type: "para",
-				text: "Configurations → App Settings → whatsapp_notifications has one on/off switch per event — Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, and Extended Warranty. Only Job Completed is on by default; the rest must be switched on deliberately. When an event is off, clicking Send doesn't fail or error — it simply doesn't go out, and you'll see a message saying that event is currently switched off.",
+				text: "Configurations → App Settings → whatsapp_notifications has one on/off switch per event — Job Intake Message, Job Completed, Job Delivery, Money Receipt, and Invoice. Only Job Completed is on by default; the rest must be switched on deliberately. When an event is off, clicking Send doesn't fail or error — it simply doesn't go out, and you'll see a message saying that event is currently switched off.",
 			},
 		],
 		faqs: [
@@ -2869,27 +2869,18 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					["post_data_to_accounts", "Enables accounting system integration (Post to Accounts)"],
 					[
 						"whatsapp_notifications",
-						"Turns outbound WhatsApp messages on or off, one switch per event (Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, Extended Warranty) — see 'Turning WhatsApp messages on or off' below",
-					],
-					[
-						"extended_warranty",
-						"Extended Warranty settings, in their own dialog. The Enabled switch shows or hides the whole add-on (the Custom menu); sending also needs the Extended Warranty switch above. The rest is which day-buckets get a reminder, the daily send cap, the phone and WhatsApp numbers printed in the customer message, the staff number that receives lead alerts, and the email notified",
+						"Turns outbound WhatsApp messages on or off, one switch per event (Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice) — see 'Turning WhatsApp messages on or off' below",
 					],
 				],
 			},
 			{ type: "heading", text: "Turning WhatsApp messages on or off" },
 			{
 				type: "para",
-				text: "The whatsapp_notifications setting opens its own dialog instead of the usual text/JSON editor — a toggle for each of the six events: Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, and Extended Warranty. By default only Job Completed is switched on; the rest must be turned on deliberately before their screens will actually send anything. Extended Warranty additionally needs its own add-on switched on, in App Settings → extended_warranty → Enabled. See 'WhatsApp Integration' for what each message contains and where it is sent from.",
+				text: "The whatsapp_notifications setting opens its own dialog instead of the usual text/JSON editor — a toggle for each of the five events: Job Intake Message, Job Completed, Job Delivery, Money Receipt, and Invoice. By default only Job Completed is switched on; the rest must be turned on deliberately before their screens will actually send anything. See 'WhatsApp Integration' for what each message contains and where it is sent from.",
 			},
 			{
 				type: "note",
 				text: "Switching an event off doesn't error when a matching action is used — it just skips sending, and the person clicking Send sees a message saying that event is currently switched off, not a failure.",
-			},
-			{ type: "heading", text: "Extended Warranty settings" },
-			{
-				type: "para",
-				text: "The extended_warranty setting also opens its own dialog rather than the usual text/JSON editor. Enabled is the master switch for the whole add-on. Auto send is not in effect yet — reminders are sent from the Actions tab. Reminder days before expiry is the list of stages: 60 days, 30 days, 7 days and on expiry by default. Add or remove a bucket here and everything follows it — the expiry chips on the Actions tab, the Leads tiles on the Dashboard, the funnel and the message log. A customer is counted in the tightest bucket they have reached, so someone 45 days out sits in the 60-day bucket and moves to the 30-day one as the date nears. Daily send cap limits how many messages a single run may send, per business unit. The three numbers are the contact phone and WhatsApp number printed in the customer's message, and the staff number that receives lead alerts.",
 			},
 		],
 		faqs: [
@@ -2904,101 +2895,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "I clicked send but no WhatsApp message went out, and there's no error — why?",
 				a: "Check Configurations → App Settings → whatsapp_notifications. That event's toggle may be switched off — turn it on to resume sending.",
-			},
-		],
-	},
-
-	{
-		id: "extended-warranty",
-		category: "WhatsApp",
-		title: "Extended Warranty Reminders",
-		summary: "Remind customers whose warranty is about to end, and follow up the ones who are interested.",
-		tags: ["extended warranty", "warranty", "reminder", "custom", "add-on", "lead", "follow up", "renewal"],
-		content: [
-			{
-				type: "para",
-				text: "Custom → Extended Warranty. This is for device owners whose warranty data comes from the manufacturer's own system rather than from a job — people who are not in your customer master and never will be. You enter them here, the system WhatsApps them before their warranty ends, and anyone who taps 'I am interested' becomes a lead you can follow up and close.",
-			},
-			{ type: "heading", text: "Before it will send anything" },
-			{
-				type: "para",
-				text: "Two switches must both be on, and both start off. Configurations → App Settings → extended_warranty → Enabled shows the menu and the screens. Configurations → App Settings → whatsapp_notifications → Extended Warranty allows messages to actually go out. They are separate on purpose, so you can enter and check your list before a single message leaves.",
-			},
-			{
-				type: "para",
-				text: "Then open the extended_warranty setting and fill in your contact phone, your WhatsApp number, and the staff WhatsApp number that should receive lead alerts.",
-			},
-			{ type: "heading", text: "Adding records" },
-			{
-				type: "para",
-				text: "Actions tab → New Lead, the green button on the right (the same button sits beside Lead Flow on the Dashboard). Enter the mobile first: if that number is already in your customer master or already has a warranty entry, the rest of the form fills itself in. Name, mobile, brand and warranty end date are required; everything else is optional.",
-			},
-			{
-				type: "note",
-				text: "A warranty end date in the past is rejected. A record whose warranty has already lapsed can never enter a reminder window, so it would sit in the list doing nothing.",
-			},
-			{ type: "heading", text: "Sending reminders" },
-			{
-				type: "para",
-				text: "The Actions tab lists everyone whose warranty is approaching, most urgent first, with the reminder each one is owed. Filter with the expiry chips — 60 days, 30 days, 7 days, expiring today, or overdue — then tick the ones you want and click Send reminders. Each customer gets the reminder for their own bucket, so you can mix buckets in one go. Rows with an invalid mobile, or already sent that reminder, are shown but cannot be ticked.",
-			},
-			{
-				type: "note",
-				text: "Each customer gets each bucket once. If two people click Send at the same moment, only one message goes out. A message that failed can be sent again; one that succeeded cannot be duplicated.",
-			},
-			{ type: "heading", text: "Sending reminders" },
-			{
-				type: "para",
-				text: "The Actions tab is one row per customer. Search matches the customer's name or mobile and also the device — brand, model and serial number — so you can find someone by whatever they mention on the phone. Filter pills across the top narrow by stage: All, Due to message, Message sent, Interested, Followed up, Won, Lost; the chips beside them narrow by how soon the warranty expires. Tick the leads you want and click Send reminders; you can mix expiry buckets freely and each customer gets the message for their own. Only a lead actually owed a reminder can be ticked, so a row with an invalid mobile number or one already messaged is shown but not selectable. Click any row to see everything about that lead: contact and device details, each reminder and whether it was delivered, what the customer said, and the whole follow-up history.",
-			},
-			{ type: "heading", text: "What the customer sees" },
-			{
-				type: "para",
-				text: "A WhatsApp message naming their brand, product and expiry date, with a button reading 'I'm interested — contact me'. Tapping it opens a short page where they choose whether they would like a call or a WhatsApp reply and can add a note. There is also an unsubscribe link — anyone who uses it drops out of the due list permanently.",
-			},
-			{ type: "heading", text: "Two ways to follow up" },
-			{
-				type: "para",
-				text: "The moment a customer taps that button, two things happen at once. Your staff WhatsApp number gets the full lead — name, mobile, address, device, expiry, what they prefer and their own note — with an 'Open in Service+' button that takes you straight to that customer's follow-up box. At the same time the lead appears in the Interest tab and on the notification bell.",
-			},
-			{
-				type: "para",
-				text: "Both routes end in the same place, so it does not matter which you use. Record what you did (called, WhatsApped, visited) and where it stands — Still following up, Won, Lost — not interested, or Lost — couldn't reach. Won and Lost close the lead; every action is kept in that customer's history with your name and the time.",
-			},
-			{
-				type: "note",
-				text: "If the staff WhatsApp alert fails to send, the lead is still safe — it is saved before any alert is attempted. Open the lead from the Actions tab — its detail view shows the alert's status and offers a Resend button.",
-			},
-			{
-				type: "note",
-				text: "You can follow up any lead, not only the ones who tapped the button. Every row on the Actions tab has a Follow up action, so a customer you rang who never replied on WhatsApp still gets their call recorded and can be closed Won or Lost.",
-			},
-			{ type: "heading", text: "Reading the dashboard" },
-			{
-				type: "note",
-				text: 'Two things on the Dashboard do not add up, on purpose. The Messages sent periods overlap — This week includes Today, This month includes This week — so they are four answers to "how many went out since…", not four slices of a pie. And Follow-ups counts customers you have worked, while Interested, Won and Lost count reminders, so one customer interested at two different reminders counts twice there.',
-			},
-			{
-				type: "para",
-				text: "The screen has two tabs. Dashboard opens with Lead Flow — Leads, Message sent, Interested, Followed up, then Won or Lost — with New Lead beside it. Below that: Leads (how many warranties fall in each expiry window, whether or not they have been messaged), Messages sent by period, and the full message log. Actions is where all the work happens: find, message, follow up, close, add, edit and delete, all from one list. Everything on the Dashboard is clickable. The expiry tiles take you to the Actions tab already filtered; every stage in Lead Flow opens a list of the customers behind that number, and All Leads shows everything recorded, messaged or not.",
-			},
-		],
-		faqs: [
-			{
-				q: "Why can't I see the Custom menu?",
-				a: "Either the add-on is switched off (Configurations → App Settings → extended_warranty → Enabled), or your role does not have the Extended Warranty access right. The Custom tab is hidden entirely rather than shown greyed out when there is nothing in it.",
-			},
-			{
-				q: "I clicked Send and some rows said 'skipped' — why?",
-				a: "A skipped row either has no valid mobile number, or that bucket had already been sent to that customer. Neither is an error.",
-			},
-			{
-				q: "Can I reply to the staff alert on WhatsApp to close the lead?",
-				a: "No. Use the 'Open in Service+' button on the alert instead — a WhatsApp reply carries nothing that tells us which lead or which branch it belongs to.",
-			},
-			{
-				q: "The customer says they never got the message.",
-				a: "Check the message log at the bottom of the Dashboard tab. It shows the delivery status for every send — Sent, Delivered, Read or Failed, with the reason and Meta's error code on a failure.",
 			},
 		],
 	},

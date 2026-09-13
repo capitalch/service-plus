@@ -2174,11 +2174,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"whatsapp_notifications",
-						"Per-event on/off switch for outbound WhatsApp sends ({JOB_CREATION, JOB_COMPLETION, JOB_DELIVERY, JOB_MONEY_RECEIPT, JOB_INVOICE, EXTENDED_WARRANTY} booleans, only JOB_COMPLETION seeded true) — read server-side, in app/whatsapp/sender.py's _is_event_enabled(), not by the client. See 'WhatsApp Integration — Implementation' for the fail-closed gating logic.",
-					],
-					[
-						"extended_warranty",
-						"The Extended Warranty add-on's settings object (id 16). `enabled` is the module's visibility flag — it was its own row, extended_warranty_notifications_enabled, until the settings consolidation; scripts/ew_enabled_merge.sql performs the move. The rest is reminder_days_before, daily_send_cap, the three numbers and notify_email. Opens its own dialog, not the generic editor. See 'Extended Warranty Reminders — Implementation'.",
+						"Per-event on/off switch for outbound WhatsApp sends ({JOB_CREATION, JOB_COMPLETION, JOB_DELIVERY, JOB_MONEY_RECEIPT, JOB_INVOICE} booleans, only JOB_COMPLETION seeded true) — read server-side, in app/whatsapp/sender.py's _is_event_enabled(), not by the client. See 'WhatsApp Integration — Implementation' for the fail-closed gating logic.",
 					],
 				],
 			},
@@ -2327,13 +2323,13 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "This article is the as-built implementation summary for the shared WhatsApp rail, kept current across six builds: the original completion notice (Customer Connect), the Job Intake Notice (plans/plan-whatsapp.md), paperless Job Delivery (plan-wa-delivery.md), the Money Receipt send (plan-wa-money-receipt.md), the Invoice resend (plan-wa-invoice-resend.md) and Extended Warranty reminders (plan.md). Every one of those plan docs still carries a stale '(not implemented yet)' in its title — read the per-step Done markers inside them, not the heading. Two sibling articles go deeper where an event breaks the shared pattern: 'Paperless Job Delivery' (the OTP subsystem) and 'Money Receipt & Invoice Sends' (the array-shaped log and the second token pair). Everything on this page is what all five events share. Direct Meta WhatsApp Cloud API, one shared phone_number_id across all tenants, no BSP intermediary and no provider-registry abstraction.",
+				text: "This article is the as-built implementation summary for the shared WhatsApp rail, kept current across five builds: the original completion notice (Customer Connect), the Job Intake Notice (plans/plan-whatsapp.md), paperless Job Delivery (plan-wa-delivery.md), the Money Receipt send (plan-wa-money-receipt.md) and the Invoice resend (plan-wa-invoice-resend.md). Extended Warranty was a sixth until it was removed for a rebuild on 2026-09-13 — see 'Extended Warranty — Removed, Rebuild Pending'. Every one of those plan docs still carries a stale '(not implemented yet)' in its title — read the per-step Done markers inside them, not the heading. Two sibling articles go deeper where an event breaks the shared pattern: 'Paperless Job Delivery' (the OTP subsystem) and 'Money Receipt & Invoice Sends' (the array-shaped log and the second token pair). Everything on this page is what all five events share. Direct Meta WhatsApp Cloud API, one shared phone_number_id across all tenants, no BSP intermediary and no provider-registry abstraction.",
 			},
 			{
 				type: "note",
 				text: "When testing this locally, run the server from dev/service-plus-server — never deployment/app-server/service-plus-server. Both exist in this monorepo and look identical, but only dev/service-plus-server is the one uvicorn --reload actually watches; the deployment/ copy is a separate, unrelated, non-running mirror. Editing the wrong one produces no errors and no effect, which reads exactly like a fix that silently isn't working.",
 			},
-			{ type: "heading", text: "The six events" },
+			{ type: "heading", text: "The five events" },
 			{
 				type: "table",
 				headers: ["event_key", "Mutation", "Trigger screen", "Grouped?", "jsonb shape"],
@@ -2390,7 +2386,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"templates.py",
-						"TEMPLATES holds eight TemplateSpec entries for seven events: JOB_COMPLETION (job_completed_ready_for_pickup_v2), JOB_CREATION (job_intake_notice_v2), JOB_DELIVERY (job_delivery_notice_v1), JOB_DELIVERY_OTP (job_delivery_otp_v1 — the only AUTHENTICATION-category one, and why the entry count exceeds the event count), JOB_MONEY_RECEIPT (job_money_receipt_v1), JOB_INVOICE (job_invoice_v1), EXTENDED_WARRANTY (extended_warranty_reminder_v1, the only MARKETING one) and EXTENDED_WARRANTY_LEAD (extended_warranty_lead_alert_v1). TemplateSpec carries header_params/body_params (Meta's named-parameter form for UTILITY templates — a param-name/slot mismatch is impossible by construction; AUTHENTICATION is positional-only, Meta's rule not ours) plus button_count: how many dynamic-URL buttons the template has, in button order — 0 for JOB_COMPLETION, 2 for JOB_CREATION and JOB_DELIVERY (both buttons carry the identical token), 1 for JOB_MONEY_RECEIPT, JOB_INVOICE, EXTENDED_WARRANTY and EXTENDED_WARRANTY_LEAD. It replaced a named button_params list after two production sends shipped broken on 2026-08-30: a button URL takes no placeholder at all, only a bare static prefix the sent value is appended to. An approved template can't be edited — a wording change means a new _vN name and a fresh Meta review.",
+						"TEMPLATES holds eight TemplateSpec entries for seven events: JOB_COMPLETION (job_completed_ready_for_pickup_v2), JOB_CREATION (job_intake_notice_v2), JOB_DELIVERY (job_delivery_notice_v1), JOB_DELIVERY_OTP (job_delivery_otp_v1 — the only AUTHENTICATION-category one, and why the entry count exceeds the event count), JOB_MONEY_RECEIPT (job_money_receipt_v1), JOB_INVOICE (job_invoice_v1), EXTENDED_WARRANTY (extended_warranty_reminder_v1, the only MARKETING one) and EXTENDED_WARRANTY_LEAD (extended_warranty_lead_alert_v1). The last two are Meta-approved and still registered but have no sender since the 2026-09-13 removal — they are kept unchanged because the rebuild (plans/plan-ew-final.md, Part C) reuses them, and any edit would mean resubmission. TemplateSpec carries header_params/body_params (Meta's named-parameter form for UTILITY templates — a param-name/slot mismatch is impossible by construction; AUTHENTICATION is positional-only, Meta's rule not ours) plus button_count: how many dynamic-URL buttons the template has, in button order — 0 for JOB_COMPLETION, 2 for JOB_CREATION and JOB_DELIVERY (both buttons carry the identical token), 1 for JOB_MONEY_RECEIPT, JOB_INVOICE, EXTENDED_WARRANTY and EXTENDED_WARRANTY_LEAD. It replaced a named button_params list after two production sends shipped broken on 2026-08-30: a button URL takes no placeholder at all, only a bare static prefix the sent value is appended to. An approved template can't be edited — a wording change means a new _vN name and a fresh Meta review.",
 					],
 					[
 						"mobile.py",
@@ -2398,7 +2394,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"token.py",
-						"THREE independent signing pairs over the same HMAC-SHA256 scheme and helpers (_b64url/_signature). sign(db_name, schema, job_ids, ttl_days=730)/verify(token) — payload db_name|schema|job_ids|exp — backs the JOB_CREATION status page and job slip, both JOB_DELIVERY PDF buttons, and JOB_INVOICE (reused unchanged; it was written generic, never OTP-specific). sign_receipt(db_name, schema, job_id, payment_id)/verify_receipt(token) — payload db_name|schema|job_id|payment_id|exp — exists only because the first pair cannot name a single payment row, and job_ids was deliberately not overloaded with a second meaning. sign_ew(db_name, schema, ew_customer_id, stage, ttl_days=180)/verify_ew(token) — payload db_name|schema|customer_id|stage|exp — added for Extended Warranty, which needs to name a (customer, stage) pair no earlier payload can express. None of them is the delivery OTP, which is a separate secret entirely (see \u2018Paperless Job Delivery\u2019).",
+						"TWO independent signing pairs over the same HMAC-SHA256 scheme and helpers (_b64url/_signature). sign(db_name, schema, job_ids, ttl_days=730)/verify(token) — payload db_name|schema|job_ids|exp — backs the JOB_CREATION status page and job slip, both JOB_DELIVERY PDF buttons, and JOB_INVOICE (reused unchanged; it was written generic, never OTP-specific). sign_receipt(db_name, schema, job_id, payment_id)/verify_receipt(token) — payload db_name|schema|job_id|payment_id|exp — exists only because the first pair cannot name a single payment row, and job_ids was deliberately not overloaded with a second meaning. None of them is the delivery OTP, which is a separate secret entirely (see \u2018Paperless Job Delivery\u2019).",
 					],
 					[
 						"otp.py",
@@ -2406,7 +2402,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"sender.py",
-						"Every send path. The grouped events (JOB_CREATION/JOB_COMPLETION/JOB_DELIVERY): server-side re-filter (never trust the client's selection) \u2192 group by customer_contact_id \u2192 cap at MAX_JOBS_PER_WHATSAPP_MESSAGE (35) per customer, splitting into multiple messages above that \u2192 build biz_opaque_callback_data \u2192 send \u2192 _persist_attempt per job. The ungrouped ones (JOB_MONEY_RECEIPT/JOB_INVOICE) skip grouping and chunking entirely \u2014 one row in, one message out \u2014 and JOB_MONEY_RECEIPT persists through _persist_receipt_attempt instead, the array-shaped writer. _is_event_enabled() gates every event before any DB or Meta work happens; Extended Warranty adds a second gate, _is_ew_feature_enabled(). Also holds the delivery OTP lifecycle (OTP_TTL_MINUTES, OTP_MAX_ATTEMPTS, verify/manual-override).",
+						"Every send path. The grouped events (JOB_CREATION/JOB_COMPLETION/JOB_DELIVERY): server-side re-filter (never trust the client's selection) \u2192 group by customer_contact_id \u2192 cap at MAX_JOBS_PER_WHATSAPP_MESSAGE (35) per customer, splitting into multiple messages above that \u2192 build biz_opaque_callback_data \u2192 send \u2192 _persist_attempt per job. The ungrouped ones (JOB_MONEY_RECEIPT/JOB_INVOICE) skip grouping and chunking entirely \u2014 one row in, one message out \u2014 and JOB_MONEY_RECEIPT persists through _persist_receipt_attempt instead, the array-shaped writer. _is_event_enabled() gates every event before any DB or Meta work happens. Also holds the delivery OTP lifecycle (OTP_TTL_MINUTES, OTP_MAX_ATTEMPTS, verify/manual-override).",
 					],
 				],
 			},
@@ -2848,166 +2844,71 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
-		id: "dev-whatsapp-extended-warranty",
+		id: "dev-extended-warranty",
 		category: "WhatsApp",
-		title: "Extended Warranty Reminders — Implementation",
+		title: "Extended Warranty — Removed, Rebuild Pending",
 		summary:
-			"The sixth WhatsApp event and the first not anchored to a job row: one table with JSONB history, a MARKETING reminder, and one interest tap fanning out to two staff channels.",
+			"The old Extended Warranty add-on was removed on 2026-09-13 for a rebuild; what is gone, what was kept on purpose, and why.",
 		tags: [
 			"extended warranty",
-			"ew_customer",
-			"ew_stage_v",
+			"ew_cleanup.sql",
 			"extended_warranty_reminder_v1",
 			"extended_warranty_lead_alert_v1",
-			"sign_ew",
-			"verify_ew",
-			"sendEwReminders",
-			"addEwFollowUp",
-			"resendEwLeadAlert",
 			"CUSTOM_MENU",
 			"CUSTOM_EXTENDED_WARRANTY",
-			"stages",
-			"follow_ups",
-			"jsonb",
 			"custom menu",
-			"whatsapp",
+			"custom-menu-registry",
 		],
 		content: [
 			{
 				type: "para",
-				text: "As-built summary of plans/plan.md (Steps 1-14) plus its 'Settings consolidation' section. This is the sixth WhatsApp event, after JOB_CREATION, JOB_COMPLETION, JOB_DELIVERY, JOB_MONEY_RECEIPT and JOB_INVOICE — and the first with no job row behind it. A Sony-authorised centre receives warranty-expiry data from Sony's own parallel system; those people are not in customer_contact and never will be. Read 'WhatsApp Integration — Implementation' first for what every event shares.",
+				text: "plans/plan-ew-final.md, Part A. The single-table Extended Warranty module (ew_customer with jsonb stages, the ew_stage_v view) was deleted outright — tables, settings, server code, client code and help. Nothing was migrated: it only ever ran on the demo tenant, sending to internal numbers. The replacement is a lead state machine (Part C of the same plan: ew_lead, ew_message, ew_lead_event and the ew_lead_view view), not yet built. This article records the pieces deliberately left in place so the rebuild — or anyone grepping — does not mistake them for leftovers.",
 			},
-
-			{ type: "heading", text: "One table, JSONB for history" },
-			{
-				type: "para",
-				text: "ew_customer holds person + device + lifecycle in flat columns, with two jsonb columns for history: stages (per-stage reminder and interest state, keyed '30'/'7'/'0') and follow_ups (an append-only staff activity log, capped at 50). Six further columns — outcome, outcome_at, last_stage_sent, last_sent_at, interest_count, follow_up_count — are denormalised out of that jsonb purely so the grid can filter and sort on them, the same rule job's flat last_* fields already follow. The four jsonb rules from job.whatsapp_notifications apply unchanged: single-level jsonb_set only, jsonb_typeof guards on reads, chained -> / ->> never #>>, and cap every array.",
-			},
-			{
-				type: "para",
-				text: "ew_stage_v is the flattening view — a CROSS JOIN LATERAL jsonb_each over stages, one row per customer per stage with every jsonb field typed. Every read in sql_extended_warranty.py goes through it, so all reporting SQL is ordinary GROUP BY and only the write statements ever touch raw jsonb.",
-			},
-
-			{ type: "heading", text: "Exactly-once without a unique index" },
-			{
-				type: "para",
-				text: "With no ew_reminder table there is no partial unique index to lean on, so CLAIM_EW_REMINDER_STAGE enforces the ladder in its WHERE and reports the claim with RETURNING id — the same technique SET_JOB_WHATSAPP_OUTCOME already uses. Under READ COMMITTED an UPDATE that blocks on a concurrent writer re-evaluates its WHERE against the updated row (EvalPlanQual), so of two racing senders exactly one gets a row back and the other skips without calling Meta. The claim happens BEFORE the Meta call, writing delivery_status PENDING; a second statement settles it. IN ('NONE','FAILED') is what keeps a failed stage re-sendable.",
-			},
-
-			{ type: "heading", text: "Two ladders, side by side" },
+			{ type: "heading", text: "Kept on purpose" },
 			{
 				type: "table",
-				headers: ["Field", "Values", "Drives"],
+				headers: ["Piece", "Why it stays"],
 				rows: [
 					[
-						"delivery_status",
-						"PENDING(0) ACCEPTED(1) SENT(2) DELIVERED(3) READ(4) FAILED(9) — Meta's ladder, identical ranks to the job events",
-						"The Message Log chip",
+						"TEMPLATES['EXTENDED_WARRANTY'] and ['EXTENDED_WARRANTY_LEAD'] (app/whatsapp/templates.py)",
+						"Meta-approved (extended_warranty_reminder_v1, MARKETING; extended_warranty_lead_alert_v1, UTILITY). Re-approval would stop sending for days, so the rebuild is designed around them. They have no sender now. Change nothing in either spec — a mismatch fails every send.",
 					],
 					[
-						"stage_status",
-						"START(0, never stored) MESSAGE_SENT(1) INTERESTED(2) FOLLOWED_UP(3) CONVERTED/NOT_INTERESTED/UNREACHABLE(9)",
-						"The dashboard and every drill-down",
+						"Access rights CUSTOM_MENU (19), CUSTOM_EXTENDED_WARRANTY (20)",
+						"Live in every tenant's security schema. Removing them would force a re-seed of every tenant for no gain. Still in all four places a right must land: seed_security_data.py (plus scripts/seed_access_right_ew.sql), GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS, ACCESS_RIGHTS in features/auth/utils/access-rights.ts, and ACCESS_RIGHT_PREVIEW_ITEMS in seed-roles-dialog.tsx.",
+					],
+					[
+						"features/client/components/layout/custom-menu-registry.ts, route /client/custom, client-custom-page.tsx",
+						"The Custom tab is a generic add-on container: the top nav shows it only while getVisibleCustomMenuItems() returns at least one item. CUSTOM_MENU_ITEMS is now [] and CustomMenuContextType is Record<string, never>, so the tab is hidden everywhere. Adding an item back means adding its feature flag as a field on that context type.",
+					],
+					[
+						"nginx location /extended-warranty/ (live server, notes/Deployment.md)",
+						"The approved reminder's button is the bare prefix https://serviceplus.cloudjiffy.net/extended-warranty/ — the rebuild serves its public page there again. Likewise the lead alert's button prefix fixes the client route /client/custom/ew/:ref, which was removed and will be re-added.",
+					],
+					[
+						"The kind field on the whatsappDeliveryStatus pubsub payload",
+						"Generic — Customer Connect publishes kind: 'JOB'. The rebuild will publish kind: 'EW' again.",
 					],
 				],
 			},
-
-			{ type: "heading", text: "One tap, two channels" },
+			{ type: "heading", text: "Removed" },
 			{
 				type: "para",
-				text: "A customer tap POSTs to /extended-warranty/{token}/interest. SET_EW_INTEREST commits the lead FIRST and unconditionally; only then are the staff WhatsApp alert, the notify_email and the bell count attempted, all best-effort and none able to raise into the customer's request. SET_EW_INTEREST is idempotent on (customer, stage) and reports via RETURNING id whether this tap actually created the lead — the fan-out keys off that, so a second tap produces neither a second lead nor a second alert. A failed alert is not swallowed: its own delivery_status lives at stages[n].interest.alert, shows as a chip on the Interest grid and is re-sendable.",
-			},
-
-			{ type: "heading", text: "The moving parts" },
-			{
-				type: "table",
-				headers: ["File", "What it carries"],
-				rows: [
-					[
-						"app/db/sql/sql_extended_warranty.py",
-						"Six raw-jsonb writers (CLAIM_EW_REMINDER_STAGE, SET_EW_REMINDER_OUTCOME, SET_EW_INTEREST, SET_EW_ALERT_OUTCOME, APPEND_EW_FOLLOW_UP, SET_EW_OPT_OUT) and every read, all against ew_stage_v or flat columns. Mixed into SqlStore via sql_base.py.",
-					],
-					[
-						"app/whatsapp/templates.py",
-						"EXTENDED_WARRANTY (extended_warranty_reminder_v1, MARKETING, 6 body params, 1 dynamic-URL button) and EXTENDED_WARRANTY_LEAD (extended_warranty_lead_alert_v1, UTILITY, 5 composed lines, 1 button). Both approved by Meta 2026-09-11.",
-					],
-					[
-						"app/whatsapp/token.py",
-						"sign_ew / verify_ew — payload db|schema|customer_id|stage|exp, TTL 180 days. A third independent pair over the same HMAC scheme; it names (customer_id, stage), which sign() and sign_receipt() cannot.",
-					],
-					[
-						"app/whatsapp/sender.py",
-						"send_ew_reminders and send_ew_lead_alert, _build_ew_params and _build_ew_lead_params, get_ew_settings, _is_ew_feature_enabled, _EW_DEFAULT_SETTINGS, _EW_GRACE_DAYS = -7.",
-					],
-					[
-						"app/routers/public/extended_warranty_router.py",
-						"GET /{token} landing, POST /{token}/interest, POST /{token}/opt-out. Signed token is the only credential; never raises on a bad token; no CSRF (no ambient authority, writes idempotent). Needs its own nginx location block.",
-					],
-					[
-						"app/graphql/resolvers/jobs/extended_warranty.py",
-						"sendEwReminders, addEwFollowUp, resendEwLeadAlert.",
-					],
-					[
-						"features/client/components/custom/extended-warranty/",
-						"Eleven files behind TWO tabs. Dashboard (ew-dashboard.tsx + ew-funnel-flow.tsx) and Actions (ew-actions-screen.tsx + ew-lead-detail-dialog.tsx) \u2014 the single working surface that replaced ew-due-grid, ew-interest-grid and ew-customer-grid. ONE read powers the dashboard: GET_EW_DASHBOARD_OVERVIEW, a single row for the whole screen. GET_EW_FUNNEL_BY_STAGE went with the per-stage funnel card on 2026-09-12; the Lead Flow block reads its counts from the overview instead. The overview counts LEAD buckets from ew_customer, not ew_stage_v, because a never-messaged customer has no view row and would otherwise be invisible; lead_buckets is a jsonb object keyed by stage rather than fixed columns, since the stage set is data. Message-sent counts are CUMULATIVE (this week includes today) and do not sum. followed_up counts DISTINCT CUSTOMERS while interested/won/lost count customer x STAGE rows \u2014 the two semantics are not addable, and the client help says so. GET_EW_DRILLDOWN gained lost (stage_status in NOT_INTERESTED/UNREACHABLE) and has_follow_up (EXISTS against ew_customer.follow_up_count). There are TWO drill surfaces on purpose: expiry tiles navigate to the Actions tab with the bucket pre-filtered, everything else opens EwDrilldownDialog, including the All Leads node \u2014 which passes all_leads:true so the dialog reads GET_EW_LEADS_PAGED instead of GET_EW_DRILLDOWN, since a never-messaged lead has no ew_stage_v row and the stage source would under-count the node. GET_EW_LEADS_PAGED is the Actions read and the query worth understanding: it reads FROM ew_customer and joins ew_stage_v sideways through a LATERAL that collapses to one CURRENT stage (interest-bearing first, else most recently sent, else none), with a second LATERAL computing due_stage (the tightest configured stage the lead has reached and not been sent). That is now the ONLY read-side expression of the due rule \u2014 GET_EW_DUE_CUSTOMERS, GET_EW_CUSTOMERS_PAGED, GET_EW_INTEREST_PAGED, GET_EW_DASHBOARD_KPIS, GET_EW_BY_BRAND and GET_EW_MONTHLY_TREND were deleted on 2026-09-12 once the Actions screen and the overview query replaced the grids they fed. Sending authority still rests with CLAIM_EW_REMINDER_STAGE's WHERE clause; due_stage only decides what the UI offers. Selection is free across stages; handleSend fires one mutation per bucket sequentially, since sendEwReminders takes one stage per call. EwFollowUpDialog is reachable from every lead (gated to interested-only until 2026-09-12); APPEND_EW_FOLLOW_UP already tolerated stage = NULL, verified against demo1 in a rolled-back transaction. Outcomes are a segmented choice in deal language; Lost renders slate, never red. Default reminder_days_before is [60, 30, 7, 0] as of 2026-09-12 \u2014 change it in _EW_DEFAULT_SETTINGS, seed_bu_data.py, ew_delta.sql and the client DEFAULT_STAGES together. The create action is labelled New Lead (was Add Customer until 2026-09-12) on both tabs — EwFunnelFlow's onNewLead prop and the leadDialogOpen state in ew-dashboard.tsx and ew-actions-screen.tsx; EwCustomerDialog keeps its name because it is also the edit form for an ew_customer row, titled Edit Customer in that mode.",
-					],
-					[
-						"features/client/components/layout/custom-menu-registry.ts",
-						"The Custom menu is a container: the top-nav tab exists only while getVisibleCustomMenuItems() returns at least one item, so an unbought add-on shows no empty tab.",
-					],
-				],
-			},
-
-			{ type: "heading", text: "The five composed lines" },
-			{
-				type: "para",
-				text: "EXTENDED_WARRANTY_LEAD carries 'full details of the customer' in five composed parameters (customer_line, device_line, warranty_line, contact_line, remarks_line) rather than fifteen variables, because Meta templates cannot branch — every 'omit when blank' decision happens in _build_ew_lead_params via _join_parts, exactly as _build_reference_line already does. Each parameter is ONE line: _sanitize strips newlines and tabs, so the template's own body text supplies the breaks.",
-			},
-
-			{ type: "heading", text: "Two switches, and where they live" },
-			{
-				type: "para",
-				text: "extended_warranty.enabled makes the module VISIBLE (the Custom menu and its screens); whatsapp_notifications.EXTENDED_WARRANTY makes sends ALLOWED. Both must be true. They are separate because an owner wants to enter and review a copy-pasted list before any message leaves — and because an operator pausing sends must not also hide the screen and its lead queue. enabled was its own app_setting row (extended_warranty_notifications_enabled, id 16) until the settings consolidation; it is now a field on the extended_warranty row, which took id 16 so the numbering stays contiguous. scripts/ew_enabled_merge.sql performs that move and is idempotent.",
+				text: "Database: ew_customer, ew_stage_v, app_setting row 16 (extended_warranty) and the EXTENDED_WARRANTY key of whatsapp_notifications — also dropped from seed_bu_data.py and the regenerated BU_SCHEMA_DDL. Server: sql_extended_warranty.py, resolvers/jobs/extended_warranty.py, routers/public/extended_warranty_router.py, the three mutations (sendEwReminders, addEwFollowUp, resendEwLeadAlert), the sender section, sign_ew/verify_ew, and the EW/EL codes in both _EVENT_CODE_BY_KEY and _EVENT_KEY_BY_CODE. Client: the custom/extended-warranty folder, its types, the settings dialog, the deep-link page, the bell entry, the context-slice flag, and every *_EW_* sql id and message.",
 			},
 			{
 				type: "note",
-				text: '_is_ew_feature_enabled is synchronous and query-free — it reads enabled off the row get_ew_settings already returned, so the send path makes two app_setting round trips rather than three. Strict `is True`, so a missing key, a non-bool, or the string "true" left by the old free-text editor all read as off.',
-			},
-
-			{ type: "heading", text: "Access rights" },
-			{
-				type: "para",
-				text: "CUSTOM_MENU (19) and CUSTOM_EXTENDED_WARRANTY (20), which must land in four places or they silently do nothing: the server seed, GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS, ACCESS_RIGHTS in features/auth/utils/access-rights.ts, and ACCESS_RIGHT_PREVIEW_ITEMS in seed-roles-dialog.tsx. An EXISTING tenant receives them only by running scripts/seed_access_right_ew.sql or re-running the Seed Roles dialog — the codes alone are not enough. The script grants both to MANAGER (role 1) and RECEPTIONIST (role 3), not TECHNICIAN.",
+				text: "scripts/ew_cleanup.sql (idempotent) must run on EVERY BU schema of every tenant, not only demo1 — any BU cloned from the template while the old table existed carries it. Delete the script once every tenant has run it (plan step D2.7).",
 			},
 		],
 		faqs: [
 			{
-				q: "Why one table with JSONB instead of ew_customer + ew_reminder + ew_interest + ew_follow_up?",
-				a: "The normalised shape is four tables, roughly 45 columns, three FKs and a join in every read. The single-table design collapses the three history tables into two jsonb columns and pays six denormalised columns for grid filter/sort — 27 columns total, and every read becomes a scan of one table or one view. It is also the house pattern: job.whatsapp_notifications already stores exactly this shape.",
+				q: "The webhook logs 'cannot resolve tenant' for a callback with event code EW — is that a bug?",
+				a: "No. A late status callback for an old Extended Warranty message carries EW or EL, which no longer decodes, so _decode_callback_data returns None and the callback is logged and ignored with a 200. Meta never sees an error.",
 			},
 			{
-				q: "Why a URL button rather than a quick-reply?",
-				a: "An inbound reply carries no biz_opaque_callback_data, so routing it back to the right tenant would need a new global wamid→tenant table. A URL button carries a signed token that names db, schema, customer and stage.",
-			},
-			{
-				q: "Why is the reminder MARKETING and the staff alert UTILITY?",
-				a: "The reminder is an unsolicited offer to a non-opt-in list — that is Marketing by Meta's definition, and the mitigations are the two default-off switches, daily_send_cap, the once-per-stage guard, the opt-out link and skipping invalid mobiles. The staff alert goes to your own number, which is arguably Utility; if Meta's classifier rejects it, resubmit as MARKETING and change nothing else — the send path does not branch on category.",
-			},
-			{
-				q: "How do I add a 60-day stage?",
-				a: "Edit reminder_days_before in App Settings. Nothing else. Stage keys are created on demand by jsonb_set, GET_EW_LEADS_PAGED unnests the array, and the client reads it for the Due tab and the funnel columns. No migration, no backfill, no deploy — which is exactly why nothing may hard-code the stage list.",
-			},
-			{
-				q: "Is auto_send_enabled wired to anything?",
-				a: "No. It exists in _EW_DEFAULT_SETTINGS, the seed and the TS type, and is read by no code at all — app/scheduler.py is the monthly stock-snapshot job only. It is a placeholder for the deliberately-unbuilt scheduler (plan.md Step 9); manual sending from the Due tab is what the prompt asked for. The settings dialog labels the switch as not yet in effect rather than hiding it.",
-			},
-			{
-				q: "Why does the staff alert deep-link into the authenticated app with no token?",
-				a: "/client/custom/ew/<id>-<stage> is a normal SPA route behind ProtectedRoute, which is the credential. Only the customer-facing link needs a signed token, because it is opened by someone with no session. Note the route itself carries no feature-flag guard — the flag only hides menu entries.",
-			},
-			{
-				q: "The customer link 404s. What is wrong?",
-				a: "Almost certainly the nginx location block. /extended-warranty is a new top-level public prefix; without its own proxy_pass, location / { try_files $uri /index.html; } serves the SPA shell instead, the SPA has no such route, and the customer sees a dead page while the send reports success. The block is in notes/Deployment.md.",
+				q: "Why is there still an EXTENDED_WARRANTY entry in TEMPLATES if nothing sends it?",
+				a: "It is Meta-approved and the rebuild reuses it unchanged. Deleting and later re-adding the spec is harmless, but editing it is not — keep it exactly as registered.",
 			},
 		],
 	},

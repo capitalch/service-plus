@@ -6,7 +6,6 @@ export const ROUTES = {
 		admin: "/client/admin",
 		configurations: "/client/configurations",
 		custom: "/client/custom",
-		customEwRef: "/client/custom/ew/:ref",
 		inventory: "/client/inventory",
 		jobs: "/client/jobs",
 		masters: "/client/masters",

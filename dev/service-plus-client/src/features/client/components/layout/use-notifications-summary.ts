@@ -1,13 +1,12 @@
 import { useMemo } from "react";
 
 import { SQL_MAP } from "@/constants/sql-map";
-import { selectCurrentBranch, selectExtendedWarrantyNotificationsEnabled } from "@/store/context-slice";
+import { selectCurrentBranch } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 
 import { useGenericQuery } from "../reports/common/use-generic-query";
 
 export type NotificationsSummary = {
-	ewNewInterest: number;
 	jobsOverdue: number;
 	lowStockParts: number;
 	unpostedDocs: number;
@@ -22,7 +21,6 @@ function todayIso(): string {
 type KpiRow = { jobs_overdue: number };
 type UnpostedRow = { job_invoices: number; money_receipts: number; purchase_invoices: number; sales_invoices: number };
 type LowStockRow = { total: number };
-type EwInterestRow = { new_interest: number };
 
 const num = (v: unknown) => Number(v ?? 0);
 
@@ -31,7 +29,6 @@ const num = (v: unknown) => Number(v ?? 0);
 export function useNotificationsSummary(): NotificationsSummary {
 	const branch = useAppSelector(selectCurrentBranch);
 	const branchId = branch?.id;
-	const extendedWarrantyNotificationsEnabled = useAppSelector(selectExtendedWarrantyNotificationsEnabled);
 
 	const today = useMemo(() => todayIso(), []);
 	const dateArgs = useMemo(() => ({ from: today, to: today }), [today]);
@@ -63,16 +60,6 @@ export function useNotificationsSummary(): NotificationsSummary {
 		sqlId: SQL_MAP.PART_FINDER_PAGED,
 	});
 
-	// Warranty leads still open. The in-app half of the two follow-up channels — the
-	// other is the staff WhatsApp alert, which can fail; this count cannot, which is why
-	// the lead is committed before either notification is attempted.
-	const ewInterestQ = useGenericQuery<EwInterestRow>({
-		enabled: !!extendedWarrantyNotificationsEnabled && !!branchId,
-		sqlArgs: { branch_id: branchId },
-		sqlId: SQL_MAP.COUNT_EW_NEW_INTEREST,
-	});
-
-	const ewNewInterest = num(ewInterestQ.data?.[0]?.new_interest);
 	const jobsOverdue = num(kpisQ.data?.[0]?.jobs_overdue);
 	const unpostedDocs = unpostedQ.data.reduce(
 		(sum, d) =>
@@ -81,5 +68,5 @@ export function useNotificationsSummary(): NotificationsSummary {
 	);
 	const lowStockParts = num(lowStockQ.data?.[0]?.total);
 
-	return { ewNewInterest, jobsOverdue, lowStockParts, unpostedDocs };
+	return { jobsOverdue, lowStockParts, unpostedDocs };
 }

@@ -8,7 +8,6 @@ app/db/sql_store.py into domain-specific files.
 """
 
 from app.db.sql.sql_bu_admin import BuAdminSql
-from app.db.sql.sql_extended_warranty import ExtendedWarrantySql
 from app.db.sql.sql_inventory import InventorySql
 from app.db.sql.sql_jobs import JobsSql
 from app.db.sql.sql_reports_audit import ReportsAuditSql
@@ -21,7 +20,6 @@ class SqlStore(
     InventorySql,
     SalesAccountsSql,
     BuAdminSql,
-    ExtendedWarrantySql,
     ReportsAuditSql,
     SharedSql,
 ):

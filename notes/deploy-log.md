@@ -3,6 +3,28 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-13 11:25 (main)
+Extended Warranty: remove the old module ahead of the rebuild
+
+- server DB: drop ew_customer, ew_stage_v and the EW settings via the new
+  idempotent scripts/ew_cleanup.sql; regenerate the schema dump and
+  BU_SCHEMA_DDL; drop settings row 16 and the EXTENDED_WARRANTY key from seeds
+- server code: delete the EW SQL store, resolvers, public router, sender
+  section, sign_ew/verify_ew, the webhook EW/EL codes and three mutations; an
+  old EW status callback is now logged and ignored with a 200
+- client: delete the custom/extended-warranty screens, types, settings dialog,
+  deep-link route, bell entry and context flag; the Custom menu is now an
+  empty, hidden container; regenerate db-schema-service types
+- kept for the rebuild: the two Meta-approved templates (comments reworded),
+  access rights 19/20 and the Custom shell
+- help and plans: remove EW from client and developer help, replace the dev
+  article with a removal record; delete six superseded plan files;
+  plan-ew-final.md tracks steps 1-9
+- also: demo DB dump without ew_customer; migration-tool README gains a
+  how-to-run section
+
+Files: 60 changed (+172 / -7882) — Base: 01d2a99
+
 ## 2026-09-12 15:27 (main)
 Extended Warranty: rebuild as Dashboard + Actions, two screens
 

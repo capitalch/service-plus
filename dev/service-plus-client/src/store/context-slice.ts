@@ -44,7 +44,6 @@ type ContextStateType = {
 	defaultHsnForSparePart: string;
 	defaultHsnForServiceCharge: string;
 	isGstRegistered: boolean;
-	extendedWarrantyNotificationsEnabled: boolean;
 	postDataToAccounts: boolean;
 	isResolvingContext: boolean;
 };
@@ -72,7 +71,6 @@ const initialState: ContextStateType = {
 	defaultHsnForSparePart: "",
 	defaultHsnForServiceCharge: "",
 	isGstRegistered: false,
-	extendedWarrantyNotificationsEnabled: false,
 	postDataToAccounts: false,
 	isResolvingContext: true,
 };
@@ -149,10 +147,6 @@ const contextSlice = createSlice({
 			state.defaultDivisionId = action.payload;
 		},
 
-		setExtendedWarrantyNotificationsEnabled: (state, action: PayloadAction<boolean>) => {
-			state.extendedWarrantyNotificationsEnabled = action.payload;
-		},
-
 		setPostDataToAccounts: (state, action: PayloadAction<boolean>) => {
 			state.postDataToAccounts = action.payload;
 		},
@@ -192,7 +186,6 @@ export const {
 	setTrackJobUrl,
 	setJobTermsAndConditions,
 	setDefaultHsnForServiceCharge,
-	setExtendedWarrantyNotificationsEnabled,
 	setPostDataToAccounts,
 	setIsResolvingContext,
 } = contextSlice.actions;
@@ -219,8 +212,6 @@ export const selectJobTermsAndConditions = (state: ContextRootState) => state.co
 export const selectDefaultHsnForSparePart = (state: ContextRootState) => state.context.defaultHsnForSparePart;
 export const selectDefaultHsnForServiceCharge = (state: ContextRootState) => state.context.defaultHsnForServiceCharge;
 export const selectPostDataToAccounts = (state: ContextRootState) => state.context.postDataToAccounts;
-export const selectExtendedWarrantyNotificationsEnabled = (state: ContextRootState) =>
-	state.context.extendedWarrantyNotificationsEnabled;
 export const selectHomeStateId = (state: ContextRootState): number | null =>
 	state.context.currentDivision?.state_id ?? null;
 export const selectIsGstMode = (state: ContextRootState): boolean => !!state.context.currentDivision?.gstin;

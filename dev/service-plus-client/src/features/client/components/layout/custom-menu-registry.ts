@@ -1,7 +1,6 @@
-import { ShieldCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { ACCESS_RIGHTS, hasAccessRight } from "@/features/auth/utils/access-rights";
+import { hasAccessRight } from "@/features/auth/utils/access-rights";
 import type { AccessRightCode } from "@/features/auth/utils/access-rights";
 import type { UserInstanceType } from "@/lib/auth-service";
 
@@ -14,10 +13,12 @@ import type { UserInstanceType } from "@/lib/auth-service";
  * Every other top-nav item gates on an access right alone. These gate on an access
  * right AND an app_setting, because a tenant who has not bought the add-on should not
  * see it at all — not see it disabled.
+ *
+ * Empty for now: Extended Warranty was removed for a rebuild (plans/plan-ew-final.md),
+ * so the tab stays hidden until an item is added back. Each item's feature flag gets a
+ * field on CustomMenuContextType.
  */
-export type CustomMenuContextType = {
-	extendedWarrantyNotificationsEnabled: boolean;
-};
+export type CustomMenuContextType = Record<string, never>;
 
 export type CustomMenuItemType = {
 	helpArticleId: string;
@@ -28,16 +29,7 @@ export type CustomMenuItemType = {
 	requiredRight?: AccessRightCode;
 };
 
-export const CUSTOM_MENU_ITEMS: CustomMenuItemType[] = [
-	{
-		helpArticleId: "extended-warranty",
-		icon: ShieldCheck,
-		iconColor: "text-violet-600",
-		isEnabled: (ctx) => ctx.extendedWarrantyNotificationsEnabled,
-		label: "Extended Warranty",
-		requiredRight: ACCESS_RIGHTS.CUSTOM_EXTENDED_WARRANTY,
-	},
-];
+export const CUSTOM_MENU_ITEMS: CustomMenuItemType[] = [];
 
 /**
  * The single source of truth for what is in the Custom menu right now. The top nav

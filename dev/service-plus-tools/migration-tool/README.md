@@ -24,6 +24,11 @@ This tool uses Streamlit specifically because its whole job — connect, pick ta
 - The packages in `requirements.txt` (`streamlit`, `psycopg[binary]`, `python-dotenv`)
 - Network access to the Postgres host that holds both the control database and every tenant database
 
+## How to run
+- source ../../../env/bin/activate
+# `pip install streamlit` for the first time
+- streamlit run app.py 
+
 ## Setup
 
 1. From this folder (`service-plus-tools/migration-tool/`):

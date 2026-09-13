@@ -1,5 +1,5 @@
 import { useNavigate, NavLink } from "react-router-dom";
-import { LogOut, Menu, Moon, PackageX, PanelLeft, ShieldCheck, Sun, Timer, UploadCloud } from "lucide-react";
+import { LogOut, Menu, Moon, PackageX, PanelLeft, Sun, Timer, UploadCloud } from "lucide-react";
 
 import { NotificationBell } from "@/components/shared/notifications/notification-bell";
 import type { NotificationItem } from "@/components/shared/notifications/notification-bell";
@@ -13,7 +13,6 @@ import {
 	type AccessRightCode,
 } from "@/features/auth/utils/access-rights";
 import { ROUTES } from "@/router/routes";
-import { selectExtendedWarrantyNotificationsEnabled } from "@/store/context-slice";
 import { getVisibleCustomMenuItems } from "./custom-menu-registry";
 import { useLayout, useTheme } from "./client-layout";
 import type { Section } from "./client-layout";
@@ -52,16 +51,15 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 	const dispatch = useAppDispatch();
 	const navigate = useNavigate();
 	const user = useAppSelector(selectCurrentUser);
-	const extendedWarrantyNotificationsEnabled = useAppSelector(selectExtendedWarrantyNotificationsEnabled);
 
 	// Custom is a container: it exists only while it has at least one visible child.
 	// An empty tab would be worse than no tab — it promises a feature the tenant has
 	// not bought.
-	const hasCustomItems = getVisibleCustomMenuItems(user, { extendedWarrantyNotificationsEnabled }).length > 0;
+	const hasCustomItems = getVisibleCustomMenuItems(user, {}).length > 0;
 	const navItems = NAV_ITEMS.filter((item) => item.section !== "custom" || hasCustomItems);
 	const { isDark, toggleTheme } = useTheme();
 	const { toggleExplorer } = useLayout();
-	const { ewNewInterest, jobsOverdue, lowStockParts, unpostedDocs } = useNotificationsSummary();
+	const { jobsOverdue, lowStockParts, unpostedDocs } = useNotificationsSummary();
 
 	function handleLogout() {
 		dispatch(logout());
@@ -89,15 +87,6 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 			id: "low-stock-parts",
 			label: "Low-stock parts",
 			onSelect: () => navigate(ROUTES.client.inventory, { state: { subItem: "Part Finder" } }),
-		},
-		// Only meaningful while the add-on is on; useNotificationsSummary already
-		// returns 0 when it isn't, so the bell simply has nothing to show.
-		{
-			count: ewNewInterest,
-			icon: ShieldCheck,
-			id: "ew-new-interest",
-			label: "Extended warranty interest",
-			onSelect: () => navigate(ROUTES.client.custom, { state: { subItem: "Extended Warranty" } }),
 		},
 	];
 
