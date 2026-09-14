@@ -170,8 +170,12 @@ class ExtendedWarrantySql:
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
             bounds AS (
-                SELECT date_trunc('day', now()) AS d, date_trunc('week', now()) AS w,
-                       date_trunc('month', now()) AS m
+                SELECT date_trunc('day', now())                       AS d,
+                       date_trunc('week', now())                      AS w,
+                       date_trunc('month', now())                     AS m,
+                       date_trunc('month', now()) - interval '1 month' AS pm,
+                       date_trunc('year', now())                      AS y,
+                       date_trunc('year', now()) - interval '1 year'  AS ly
             ),
             l AS (
                 SELECT v.* FROM ew_lead_view v
@@ -209,60 +213,79 @@ class ExtendedWarrantySql:
                     COUNT(*) FILTER (WHERE l.state = 'CANCELLED')                           AS cancelled,
                     COUNT(*) FILTER (WHERE l.state = 'IN_PROGRESS' AND l.next_follow_up_at <= now()) AS follow_ups_due,
 
-                    -- Overall summary — leads entered (created_at)
-                    COUNT(*) FILTER (WHERE l.created_at >= bounds.d)                        AS leads_today,
-                    COUNT(*) FILTER (WHERE l.created_at >= bounds.w)                        AS leads_week,
-                    COUNT(*) FILTER (WHERE l.created_at >= bounds.m)                        AS leads_month,
-                    COUNT(*) FILTER (WHERE l.created_at <  bounds.m)                        AS leads_older,
+                    -- Overall summary — leads entered (created_at). Six periods: the four
+                    -- cumulative windows (today/week/month/this_year, each a superset of the
+                    -- one before it), plus two discrete calendar windows (prev_month,
+                    -- last_year) that do not nest with the rest or each other.
+                    COUNT(*) FILTER (WHERE l.created_at >= bounds.d)                              AS leads_today,
+                    COUNT(*) FILTER (WHERE l.created_at >= bounds.w)                              AS leads_week,
+                    COUNT(*) FILTER (WHERE l.created_at >= bounds.m)                              AS leads_month,
+                    COUNT(*) FILTER (WHERE l.created_at >= bounds.y)                              AS leads_this_year,
+                    COUNT(*) FILTER (WHERE l.created_at >= bounds.pm AND l.created_at < bounds.m) AS leads_prev_month,
+                    COUNT(*) FILTER (WHERE l.created_at >= bounds.ly AND l.created_at < bounds.y) AS leads_last_year,
 
                     -- customer interest (interest_at)
-                    COUNT(*) FILTER (WHERE l.interest_at >= bounds.d)                       AS interested_today,
-                    COUNT(*) FILTER (WHERE l.interest_at >= bounds.w)                       AS interested_week,
-                    COUNT(*) FILTER (WHERE l.interest_at >= bounds.m)                       AS interested_month,
-                    COUNT(*) FILTER (WHERE l.interest_at <  bounds.m)                       AS interested_older,
+                    COUNT(*) FILTER (WHERE l.interest_at >= bounds.d)                               AS interested_today,
+                    COUNT(*) FILTER (WHERE l.interest_at >= bounds.w)                               AS interested_week,
+                    COUNT(*) FILTER (WHERE l.interest_at >= bounds.m)                               AS interested_month,
+                    COUNT(*) FILTER (WHERE l.interest_at >= bounds.y)                               AS interested_this_year,
+                    COUNT(*) FILTER (WHERE l.interest_at >= bounds.pm AND l.interest_at < bounds.m) AS interested_prev_month,
+                    COUNT(*) FILTER (WHERE l.interest_at >= bounds.ly AND l.interest_at < bounds.y) AS interested_last_year,
 
                     -- closed (state + closed_at)
-                    COUNT(*) FILTER (WHERE l.state = 'WON' AND l.closed_at >= bounds.d)       AS won_today,
-                    COUNT(*) FILTER (WHERE l.state = 'WON' AND l.closed_at >= bounds.w)       AS won_week,
-                    COUNT(*) FILTER (WHERE l.state = 'WON' AND l.closed_at >= bounds.m)       AS won_month,
-                    COUNT(*) FILTER (WHERE l.state = 'WON' AND l.closed_at <  bounds.m)       AS won_older,
-                    COUNT(*) FILTER (WHERE l.state = 'LOST' AND l.closed_at >= bounds.d)      AS lost_today,
-                    COUNT(*) FILTER (WHERE l.state = 'LOST' AND l.closed_at >= bounds.w)      AS lost_week,
-                    COUNT(*) FILTER (WHERE l.state = 'LOST' AND l.closed_at >= bounds.m)      AS lost_month,
-                    COUNT(*) FILTER (WHERE l.state = 'LOST' AND l.closed_at <  bounds.m)      AS lost_older,
-                    COUNT(*) FILTER (WHERE l.state = 'CANCELLED' AND l.closed_at >= bounds.d) AS cancelled_today,
-                    COUNT(*) FILTER (WHERE l.state = 'CANCELLED' AND l.closed_at >= bounds.w) AS cancelled_week,
-                    COUNT(*) FILTER (WHERE l.state = 'CANCELLED' AND l.closed_at >= bounds.m) AS cancelled_month,
-                    COUNT(*) FILTER (WHERE l.state = 'CANCELLED' AND l.closed_at <  bounds.m) AS cancelled_older
+                    COUNT(*) FILTER (WHERE l.state = 'WON' AND l.closed_at >= bounds.d)                             AS won_today,
+                    COUNT(*) FILTER (WHERE l.state = 'WON' AND l.closed_at >= bounds.w)                             AS won_week,
+                    COUNT(*) FILTER (WHERE l.state = 'WON' AND l.closed_at >= bounds.m)                             AS won_month,
+                    COUNT(*) FILTER (WHERE l.state = 'WON' AND l.closed_at >= bounds.y)                             AS won_this_year,
+                    COUNT(*) FILTER (WHERE l.state = 'WON' AND l.closed_at >= bounds.pm AND l.closed_at < bounds.m) AS won_prev_month,
+                    COUNT(*) FILTER (WHERE l.state = 'WON' AND l.closed_at >= bounds.ly AND l.closed_at < bounds.y) AS won_last_year,
+                    COUNT(*) FILTER (WHERE l.state = 'LOST' AND l.closed_at >= bounds.d)                             AS lost_today,
+                    COUNT(*) FILTER (WHERE l.state = 'LOST' AND l.closed_at >= bounds.w)                             AS lost_week,
+                    COUNT(*) FILTER (WHERE l.state = 'LOST' AND l.closed_at >= bounds.m)                             AS lost_month,
+                    COUNT(*) FILTER (WHERE l.state = 'LOST' AND l.closed_at >= bounds.y)                             AS lost_this_year,
+                    COUNT(*) FILTER (WHERE l.state = 'LOST' AND l.closed_at >= bounds.pm AND l.closed_at < bounds.m) AS lost_prev_month,
+                    COUNT(*) FILTER (WHERE l.state = 'LOST' AND l.closed_at >= bounds.ly AND l.closed_at < bounds.y) AS lost_last_year,
+                    COUNT(*) FILTER (WHERE l.state = 'CANCELLED' AND l.closed_at >= bounds.d)                             AS cancelled_today,
+                    COUNT(*) FILTER (WHERE l.state = 'CANCELLED' AND l.closed_at >= bounds.w)                             AS cancelled_week,
+                    COUNT(*) FILTER (WHERE l.state = 'CANCELLED' AND l.closed_at >= bounds.m)                             AS cancelled_month,
+                    COUNT(*) FILTER (WHERE l.state = 'CANCELLED' AND l.closed_at >= bounds.y)                             AS cancelled_this_year,
+                    COUNT(*) FILTER (WHERE l.state = 'CANCELLED' AND l.closed_at >= bounds.pm AND l.closed_at < bounds.m) AS cancelled_prev_month,
+                    COUNT(*) FILTER (WHERE l.state = 'CANCELLED' AND l.closed_at >= bounds.ly AND l.closed_at < bounds.y) AS cancelled_last_year
                 FROM l CROSS JOIN bounds
             ),
             msg_counts AS (
                 SELECT
                     -- Reminders by sent_at
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.d)                                  AS msg_total_today,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.w)                                  AS msg_total_week,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.m)                                  AS msg_total_month,
-                    COUNT(*) FILTER (WHERE m.sent_at <  bounds.m)                                  AS msg_total_older,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.d AND m.delivery_status = 'READ')      AS msg_read_today,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.w AND m.delivery_status = 'READ')      AS msg_read_week,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.m AND m.delivery_status = 'READ')      AS msg_read_month,
-                    COUNT(*) FILTER (WHERE m.sent_at <  bounds.m AND m.delivery_status = 'READ')      AS msg_read_older,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.d AND m.delivery_status = 'DELIVERED') AS msg_delivered_today,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.w AND m.delivery_status = 'DELIVERED') AS msg_delivered_week,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.m AND m.delivery_status = 'DELIVERED') AS msg_delivered_month,
-                    COUNT(*) FILTER (WHERE m.sent_at <  bounds.m AND m.delivery_status = 'DELIVERED') AS msg_delivered_older,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.d AND m.delivery_status = 'FAILED')    AS msg_failed_today,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.w AND m.delivery_status = 'FAILED')    AS msg_failed_week,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.m AND m.delivery_status = 'FAILED')    AS msg_failed_month,
-                    COUNT(*) FILTER (WHERE m.sent_at <  bounds.m AND m.delivery_status = 'FAILED')    AS msg_failed_older,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.d
-                                     AND m.delivery_status IN ('PENDING', 'ACCEPTED', 'SENT'))       AS msg_awaiting_today,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.w
-                                     AND m.delivery_status IN ('PENDING', 'ACCEPTED', 'SENT'))       AS msg_awaiting_week,
-                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.m
-                                     AND m.delivery_status IN ('PENDING', 'ACCEPTED', 'SENT'))       AS msg_awaiting_month,
-                    COUNT(*) FILTER (WHERE m.sent_at <  bounds.m
-                                     AND m.delivery_status IN ('PENDING', 'ACCEPTED', 'SENT'))       AS msg_awaiting_older
+                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.d)                           AS msg_total_today,
+                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.w)                           AS msg_total_week,
+                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.m)                           AS msg_total_month,
+                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.y)                           AS msg_total_this_year,
+                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.pm AND m.sent_at < bounds.m) AS msg_total_prev_month,
+                    COUNT(*) FILTER (WHERE m.sent_at >= bounds.ly AND m.sent_at < bounds.y) AS msg_total_last_year,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'READ' AND m.sent_at >= bounds.d)                           AS msg_read_today,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'READ' AND m.sent_at >= bounds.w)                           AS msg_read_week,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'READ' AND m.sent_at >= bounds.m)                           AS msg_read_month,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'READ' AND m.sent_at >= bounds.y)                           AS msg_read_this_year,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'READ' AND m.sent_at >= bounds.pm AND m.sent_at < bounds.m) AS msg_read_prev_month,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'READ' AND m.sent_at >= bounds.ly AND m.sent_at < bounds.y) AS msg_read_last_year,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'DELIVERED' AND m.sent_at >= bounds.d)                           AS msg_delivered_today,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'DELIVERED' AND m.sent_at >= bounds.w)                           AS msg_delivered_week,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'DELIVERED' AND m.sent_at >= bounds.m)                           AS msg_delivered_month,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'DELIVERED' AND m.sent_at >= bounds.y)                           AS msg_delivered_this_year,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'DELIVERED' AND m.sent_at >= bounds.pm AND m.sent_at < bounds.m) AS msg_delivered_prev_month,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'DELIVERED' AND m.sent_at >= bounds.ly AND m.sent_at < bounds.y) AS msg_delivered_last_year,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'FAILED' AND m.sent_at >= bounds.d)                           AS msg_failed_today,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'FAILED' AND m.sent_at >= bounds.w)                           AS msg_failed_week,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'FAILED' AND m.sent_at >= bounds.m)                           AS msg_failed_month,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'FAILED' AND m.sent_at >= bounds.y)                           AS msg_failed_this_year,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'FAILED' AND m.sent_at >= bounds.pm AND m.sent_at < bounds.m) AS msg_failed_prev_month,
+                    COUNT(*) FILTER (WHERE m.delivery_status = 'FAILED' AND m.sent_at >= bounds.ly AND m.sent_at < bounds.y) AS msg_failed_last_year,
+                    COUNT(*) FILTER (WHERE m.delivery_status IN ('PENDING', 'ACCEPTED', 'SENT') AND m.sent_at >= bounds.d)                           AS msg_awaiting_today,
+                    COUNT(*) FILTER (WHERE m.delivery_status IN ('PENDING', 'ACCEPTED', 'SENT') AND m.sent_at >= bounds.w)                           AS msg_awaiting_week,
+                    COUNT(*) FILTER (WHERE m.delivery_status IN ('PENDING', 'ACCEPTED', 'SENT') AND m.sent_at >= bounds.m)                           AS msg_awaiting_month,
+                    COUNT(*) FILTER (WHERE m.delivery_status IN ('PENDING', 'ACCEPTED', 'SENT') AND m.sent_at >= bounds.y)                           AS msg_awaiting_this_year,
+                    COUNT(*) FILTER (WHERE m.delivery_status IN ('PENDING', 'ACCEPTED', 'SENT') AND m.sent_at >= bounds.pm AND m.sent_at < bounds.m) AS msg_awaiting_prev_month,
+                    COUNT(*) FILTER (WHERE m.delivery_status IN ('PENDING', 'ACCEPTED', 'SENT') AND m.sent_at >= bounds.ly AND m.sent_at < bounds.y) AS msg_awaiting_last_year
                 FROM msg m CROSS JOIN bounds
             )
         SELECT lead_counts.*, msg_counts.*

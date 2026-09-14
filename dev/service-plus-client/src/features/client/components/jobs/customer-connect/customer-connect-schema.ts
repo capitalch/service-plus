@@ -44,7 +44,10 @@ export type CustomerConnectJobRow = {
 	id: number;
 	job_no: string;
 	alternate_job_no: string | null;
+	/** The job's original intake date — shown under Job No, not in the Date column. */
 	job_date: string;
+	/** When the job's last transaction (COMPLETED_OK) was recorded — the Date column. */
+	ok_date: string;
 	amount: number | null;
 	whatsapp_notifications: Record<string, WhatsappCompletionState> | null;
 	customer_contact_id: number;

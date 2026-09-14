@@ -3,6 +3,25 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-14 23:40 (main)
+Extended Warranty: finalize period columns; Job Completion: sort by OK date
+
+- Overall summary: settle on six period columns in a fixed order
+  (Today, This week, This month, Prev month, This year, Prev year)
+  after adding then removing a trailing "Over a month old" catch-all
+  per user direction; ew_sql_test.py's dashboard-sum checks were
+  widened to cover the three newer periods instead of the removed one.
+- Lead Pipeline: a zero-count card now opens a small "No leads" Dialog
+  (not AlertDialog, so Escape and outside-click dismiss it) instead of
+  a toast, with its single OK button centered.
+- Jobs > Customer Connect > Job Completion grid: the Date column and
+  sort now follow when a job's last transaction actually moved it to
+  Completed OK (job_transaction.performed_at via job.last_transaction_id),
+  not the job's original intake date — which now shows on its own line
+  under Job No instead.
+
+Files: 12 changed (+168 / -83) — Base: 217faa8
+
 ## 2026-09-14 00:57 (main)
 Extended Warranty: zebra-stripe the lead grid, color its filter
 

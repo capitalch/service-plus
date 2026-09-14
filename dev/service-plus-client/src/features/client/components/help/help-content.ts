@@ -1551,7 +1551,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				headers: ["Column", "Meaning"],
 				rows: [
 					["☑", "Selection checkbox — see Selection rules below"],
-					["Job No / Date", "The finalized job and its intake date"],
+					["OK Date", "When the job reached Completed OK — newest first, and the grid's sort order"],
+					[
+						"Job No",
+						'The finalized job, its alt job no if any, and its original intake date ("Job …") underneath',
+					],
 					["Customer / Mobile", "Who the message goes to"],
 					["Device Details / Job Type / Status", "Same job info shown elsewhere in Jobs"],
 					[
@@ -1956,7 +1960,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "The Dashboard" },
 			{
 				type: "para",
-				text: "The Lead Pipeline cards count the leads in each state, grouped into five tinted sections — a different light colour each, laid out in two rows on a wide screen. New Lead is split by how long the warranty has left (61+ D, 31–60 D, 8–30 D, 0–7 D — D is days — plus Overdue and All, which is the five of them together), Message Sent by what happened to the latest reminder (Delivered, Read, Fail, Awaiting), In Progress by stage, then Interested and the closed states. Click any card to open that list of leads; the indigo Back to dashboard button at the top left returns. The figures update themselves: anything anyone does to a lead — a state or stage move, a follow-up, a reminder sent, a customer tapping “I’m interested” or opting out, a lead entered or edited — reaches every open copy of this screen within a moment, whoever did it. Refresh in the Lead Pipeline header re-reads every figure on the tab anyway, summary included. Under the cards, an “open leads” chip counts everything not yet Won, Lost or Cancelled — New Lead, Message Sent, Interested and In Progress together — and opens that list; when follow-ups are overdue, a “follow-ups due” chip beside it opens exactly those leads. Underneath is the Overall summary.",
+				text: "The Lead Pipeline cards count the leads in each state, grouped into five tinted sections — a different light colour each, laid out in two rows on a wide screen. New Lead is split by how long the warranty has left (61+ D, 31–60 D, 8–30 D, 0–7 D — D is days — plus Overdue and All, which is the five of them together), Message Sent by what happened to the latest reminder (Delivered, Read, Fail, Awaiting), In Progress by stage, then Interested and the closed states. Click any card with a count to open that list of leads; the indigo Back to dashboard button at the top left returns. A card showing 0 has nothing to open, so clicking it shows a small “No leads” message instead — click OK, click outside it, or press Esc to close it. The figures update themselves: anything anyone does to a lead — a state or stage move, a follow-up, a reminder sent, a customer tapping “I’m interested” or opting out, a lead entered or edited — reaches every open copy of this screen within a moment, whoever did it. Refresh in the Lead Pipeline header re-reads every figure on the tab anyway, summary included. Under the cards, an “open leads” chip counts everything not yet Won, Lost or Cancelled — New Lead, Message Sent, Interested and In Progress together — and opens that list; when follow-ups are overdue, a “follow-ups due” chip beside it opens exactly those leads. Underneath is the Overall summary.",
 			},
 			{
 				type: "note",
@@ -2003,7 +2007,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Reading the summary" },
 			{
 				type: "para",
-				text: "Underneath the pipeline, the Overall summary is deliberately plain — a coloured dot names each row and the counts are read across the columns. It counts by period: Today, This week, This month and Over a month old. The periods overlap — This week includes Today, and This month includes This week — so they do not add up across a row. The four indented rows break Messages sent down by the message’s current status: Read + Delivered + Fail + In transit equals the messages sent above them. Won, Lost and Cancelled count the leads currently in that state, by the date they were closed.",
+				text: "Underneath the pipeline, the Overall summary is deliberately plain — a coloured dot names each row and the counts are read across the columns. Six period columns, in order — Today, This week, This month, Prev month, This year, Prev year. Today, This week, This month and This year each include the one before it, so they do not add up across a row; Prev month and Prev year are each one specific past period on their own — last calendar month, and last calendar year. The four indented rows break Messages sent down by the message’s current status: Read + Delivered + Fail + In transit equals the messages sent above them. Won, Lost and Cancelled count the leads currently in that state, by the date they were closed.",
 			},
 			{ type: "heading", text: "The Details tab" },
 			{
@@ -2060,7 +2064,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Why don’t the week and month numbers add up?",
-				a: "The periods overlap: This week already includes Today, and This month includes This week.",
+				a: "Today, This week, This month and This year overlap on purpose — each one includes everything before it. Prev month and Prev year are each a single past period on their own, not a running total.",
 			},
 			{
 				q: "The staff WhatsApp alert did not arrive.",

@@ -2490,8 +2490,9 @@ class JobsSql:
             "p_search"    as (values(%(search)s::text))
         SELECT COUNT(*) AS total
         FROM job j
-        JOIN customer_contact cc ON cc.id = j.customer_contact_id
-        JOIN job_status       js ON js.id = j.job_status_id
+        JOIN customer_contact cc  ON cc.id = j.customer_contact_id
+        JOIN job_status       js  ON js.id = j.job_status_id
+        JOIN job_transaction  jtx ON jtx.id = j.last_transaction_id
         WHERE j.branch_id = (table "p_branch_id")
           AND j.is_final = true
           AND js.code    = 'COMPLETED_OK'
@@ -2502,6 +2503,14 @@ class JobsSql:
            OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
+    # "Date" shows ok_date — job_transaction.performed_at (the real timestamp the job's
+    # last transaction was written, cast to a date), not job_date. Every row here is
+    # is_final AND currently COMPLETED_OK, so job.last_transaction_id always names the
+    # transaction that moved it into COMPLETED_OK (updateJob writes job.job_status_id and
+    # the new job_transaction.status_id from the same value, then repoints
+    # last_transaction_id at it) — the join needs no status_id filter of its own.
+    # job_date (the original intake date) still comes along, shown under Job No now that
+    # "Date" means something else.
     GET_WHATSAPP_ELIGIBLE_JOBS_PAGED = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
@@ -2513,6 +2522,7 @@ class JobsSql:
             j.job_no,
             j.alternate_job_no,
             j.job_date,
+            jtx.performed_at::date AS ok_date,
             j.amount,
             j.whatsapp_notifications,
             cc.id        AS customer_contact_id,
@@ -2527,6 +2537,7 @@ class JobsSql:
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_type         jt ON jt.id = j.job_type_id
         JOIN job_status       js ON js.id = j.job_status_id
+        JOIN job_transaction  jtx ON jtx.id = j.last_transaction_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand       b  ON b.id = pbm.brand_id
         LEFT JOIN product     p  ON p.id = pbm.product_id
@@ -2538,7 +2549,7 @@ class JobsSql:
            OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.id DESC
+        ORDER BY jtx.performed_at DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """
@@ -2551,6 +2562,7 @@ class JobsSql:
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_status       js ON js.id = j.job_status_id
+        JOIN job_transaction  jtx ON jtx.id = j.last_transaction_id
         WHERE j.branch_id = (table "p_branch_id")
           AND j.is_final = true
           AND js.code    = 'COMPLETED_OK'
@@ -2559,7 +2571,7 @@ class JobsSql:
            OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.id DESC
+        ORDER BY jtx.performed_at DESC, j.id DESC
     """
 
     # ── Customer Connect — WhatsApp message logs (Job Intake / Job Delivery tabs) ──

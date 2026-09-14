@@ -147,8 +147,12 @@ export type EwMessageGroupType = "AWAITING" | "DELIVERED" | "FAILED" | "READ";
 
 export type EwMessageKindType = "LEAD_ALERT" | "REMINDER";
 
-/** Summary periods — cumulative (D11): week includes today, month includes week. */
-export type EwPeriodType = "month" | "older" | "today" | "week";
+/**
+ * Summary periods. Four are cumulative (D11): today ⊂ week ⊂ month ⊂ this_year. Two are
+ * discrete calendar windows that do not nest with the others: prev_month (the whole of last
+ * calendar month) and last_year (the whole of last calendar year, labelled "Prev year").
+ */
+export type EwPeriodType = "last_year" | "month" | "prev_month" | "this_year" | "today" | "week";
 
 export type EwPreferredContactType = "CALL" | "WHATSAPP";
 

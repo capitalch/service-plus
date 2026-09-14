@@ -507,7 +507,7 @@ async def test_12_dashboard_sums(ctx):
           sum(after[f"new_{b}"] for b in ("31_60", "8_30", "0_7", "overdue", "61_plus")) == after["new_all"], after)
     check("stages sum to in_progress_all",
           sum(after[f"in_progress_{s}"] for s in (1, 2, 3)) == after["in_progress_all"], after)
-    for p in ("today", "week", "month", "older"):
+    for p in ("today", "week", "month", "this_year", "prev_month", "last_year"):
         parts = sum(after[f"msg_{s}_{p}"] for s in ("read", "delivered", "failed", "awaiting"))
         check(f"{p}: read + delivered + failed + awaiting = total", parts == after[f"msg_total_{p}"], after)
 
@@ -536,7 +536,7 @@ async def test_13_period_edges(ctx):
     after = await dashboard(ctx)
 
     expected = {"today": sum(ts >= b["d"] for ts in stamps), "week": sum(ts >= b["w"] for ts in stamps),
-                "month": sum(ts >= b["m"] for ts in stamps), "older": sum(ts < b["m"] for ts in stamps)}
+                "month": sum(ts >= b["m"] for ts in stamps)}
     print(f"  INFO  day starts {b['d']}, week {b['w']}, month {b['m']} → expected per period {expected}")
     wrong = []
     for metric in ("leads", "interested", "won", "msg_total", "msg_read"):

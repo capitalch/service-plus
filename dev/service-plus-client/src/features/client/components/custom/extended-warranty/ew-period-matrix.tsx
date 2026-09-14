@@ -38,7 +38,7 @@ function cellValue(data: EwDashboardType, key: string, period: EwPeriodType): nu
  */
 export const EwPeriodMatrix = ({ caption, data, rows }: Props) => (
 	<div className="overflow-x-auto">
-		<table className="w-full min-w-[520px] border-separate border-spacing-0">
+		<table className="w-full min-w-[720px] border-separate border-spacing-0">
 			<thead>
 				<tr>
 					<th className="w-44 border-b border-(--cl-border) pb-2" />

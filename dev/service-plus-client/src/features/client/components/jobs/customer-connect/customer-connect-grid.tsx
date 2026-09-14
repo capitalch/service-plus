@@ -115,7 +115,7 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
 								{[
 									"",
 									"#",
-									"Date",
+									"OK Date",
 									"Job No",
 									"Customer",
 									"Mobile",
@@ -166,7 +166,7 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
 									</label>
 								</th>
 								<th className={thClass}>#</th>
-								<th className={`${thClass} whitespace-nowrap`}>Date</th>
+								<th className={`${thClass} whitespace-nowrap`}>OK Date</th>
 								<th className={thClass}>Job No</th>
 								<th className={thClass}>Customer</th>
 								<th className={thClass}>Mobile</th>
@@ -223,7 +223,7 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
 										<td className={`${tdClass} text-(--cl-text-muted)`}>
 											{(page - 1) * PAGE_SIZE + idx + 1}
 										</td>
-										<td className={`${tdClass} whitespace-nowrap`}>{row.job_date}</td>
+										<td className={`${tdClass} whitespace-nowrap`}>{row.ok_date}</td>
 										<td className={tdClass}>
 											<div className="flex flex-col items-start gap-1">
 												<span className="font-mono font-semibold text-(--cl-accent)">
@@ -234,6 +234,9 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
 														Alt: {row.alternate_job_no}
 													</span>
 												)}
+												<span className="text-[10px] text-(--cl-text-muted)">
+													Job {row.job_date}
+												</span>
 											</div>
 										</td>
 										<td className={tdClass}>{row.customer_name}</td>

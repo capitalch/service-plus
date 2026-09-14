@@ -1,5 +1,16 @@
 import { Clock, Inbox } from "lucide-react";
+import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { MESSAGES } from "@/constants/messages";
 import type { EwDashboardType, EwLeadsFilterType } from "@/features/client/types/extended-warranty";
 import { cn } from "@/lib/utils";
 
@@ -54,10 +65,14 @@ type Props = {
 };
 
 /**
- * Lead Pipeline — the brief's grouped counter cards (EW_PIPELINE_GROUPS). Every card opens a
- * drill-down with its filter; the "follow-ups due" chip opens the due In Progress leads.
+ * Lead Pipeline — the brief's grouped counter cards (EW_PIPELINE_GROUPS). A card with a
+ * count opens a drill-down with its filter; a card at zero has nothing to drill into, so it
+ * stays a card (not hidden — the shape of the pipeline is itself informative) but says so
+ * with a small alert instead of opening an empty list. The "follow-ups due" chip opens the
+ * due In Progress leads.
  */
 export const EwPipelineSection = ({ data, onOpen }: Props) => {
+	const [emptyAlertOpen, setEmptyAlertOpen] = useState(false);
 	const due = Number(data.follow_ups_due ?? 0);
 	// Open work spans four groups, so it is a chip rather than a sixth card — a card here would
 	// be the only one that double-counts the ones above it. Summed from the four group totals
@@ -88,20 +103,23 @@ export const EwPipelineSection = ({ data, onOpen }: Props) => {
 							<div className={cn("grid gap-2", layout.cards)}>
 								{group.cards.map((card) => {
 									const colors = EW_COLOR_CLASSES[card.color];
+									const count = Number(data[card.countKey] ?? 0);
 									return (
 										<KpiCard
 											key={card.label}
 											borderClassName={cn("border-2", colors.border)}
 											label={card.label}
 											onClick={() =>
-												onOpen(
-													group.cards.length === 1
-														? card.label
-														: `${group.label} · ${card.label}`,
-													card.filter,
-												)
+												count === 0
+													? setEmptyAlertOpen(true)
+													: onOpen(
+															group.cards.length === 1
+																? card.label
+																: `${group.label} · ${card.label}`,
+															card.filter,
+														)
 											}
-											value={String(Number(data[card.countKey] ?? 0))}
+											value={String(count)}
 											valueClassName={cn("text-3xl font-bold", colors.text)}
 										/>
 									);
@@ -134,6 +152,24 @@ export const EwPipelineSection = ({ data, onOpen }: Props) => {
 					</button>
 				)}
 			</div>
+
+			{/* Plain Dialog, not AlertDialog: this is an FYI with nothing to confirm, so
+			    dismissing it on Escape or an outside click (which AlertDialog blocks by
+			    design, for real confirmations) is the right default here, not a workaround. */}
+			<Dialog open={emptyAlertOpen} onOpenChange={setEmptyAlertOpen}>
+				<DialogContent className="max-w-xs text-center" showCloseButton={false}>
+					<DialogHeader className="items-center">
+						<span className="mb-1 inline-flex size-10 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+							<Inbox className="size-6" />
+						</span>
+						<DialogTitle>No leads</DialogTitle>
+						<DialogDescription>{MESSAGES.INFO_EW_NO_LEADS}</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="sm:justify-center">
+						<Button onClick={() => setEmptyAlertOpen(false)}>OK</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 };

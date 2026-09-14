@@ -153,8 +153,10 @@ export const EW_MESSAGE_GROUPS: Record<EwMessageGroupType, EwMetaType> = {
 };
 
 export const EW_PERIODS: Record<EwPeriodType, { label: string; order: number }> = {
+	last_year: { label: "Prev year", order: 6 },
 	month: { label: "This month", order: 3 },
-	older: { label: "Over a month old", order: 4 },
+	prev_month: { label: "Prev month", order: 4 },
+	this_year: { label: "This year", order: 5 },
 	today: { label: "Today", order: 1 },
 	week: { label: "This week", order: 2 },
 };
