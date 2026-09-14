@@ -3,6 +3,25 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-15 01:13 (main)
+Security: require .env for DB connection settings, sanitize startup errors
+
+- database_settings.py: client_db_host/port/name/user/ip_address and
+  the service_db_* equivalents are now required Field(...)s with no
+  source-level default, matching how the passwords already worked —
+  real hostnames/usernames/IPs no longer sit in tracked source.
+- config.py: Settings() construction is now wrapped so a missing or
+  invalid .env value fails with field names only. Pydantic's default
+  error embeds the full raw settings dict (every already-supplied
+  secret in plaintext) in a "field required" error for an unrelated
+  field, and SecretStr does not prevent it, since that happens before
+  per-field type coercion — verified with fake values before and
+  after the fix.
+- .env.example: pre-fill *_INTERNAL_PORT with the standard Postgres
+  5432 default, the one DB setting that isn't deployment-specific.
+
+Files: 3 changed (+51 / -15) — Base: 41b7b95
+
 ## 2026-09-14 23:40 (main)
 Extended Warranty: finalize period columns; Job Completion: sort by OK date
 
