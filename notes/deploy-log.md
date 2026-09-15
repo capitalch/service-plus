@@ -3,6 +3,23 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-15 15:12 (main)
+Docs: add SaaS strategy plan, retire the completed EW build plan
+
+- plans/plan.md: new strategy doc answering the multi-tenant
+  subscription questions in prompt.md — the db_name/schema
+  authorization gap that blocks selling to untrusting customers under
+  any tenant shape, India pricing tiers (Extended Warranty excluded,
+  it's Sony-only), a competitor comparison against RepairDesk and
+  BytePhase, and a marketing/promotion plan.
+- plans/prompt.md: replaced with the Service+ marketing/subscription
+  brief this plan answers.
+- plans/plan-ew-final.md, plans/prompt3.md: removed — the Extended
+  Warranty rebuild plan and its brief, now fully built, tested and
+  deployed (every step in the plan was already marked done).
+
+Files: 3 changed (+7 / -2116) — Base: c81a409
+
 ## 2026-09-15 01:13 (main)
 Security: require .env for DB connection settings, sanitize startup errors
 
