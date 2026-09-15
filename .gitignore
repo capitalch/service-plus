@@ -151,3 +151,25 @@ node_modules
 !dev/service-plus-tools/migration-tool/.streamlit/config.toml
 logs/
 deployment/
+
+# Claude Code sandbox write-protection placeholders
+.bash_profile
+.bashrc
+.gitconfig
+.mcp.json
+.profile
+.ripgreprc
+.zprofile
+.zshrc
+**/.claude/agents
+**/.claude/commands
+**/.claude/hooks
+**/.claude/launch.json
+**/.claude/loop.md
+**/.claude/output-styles
+**/.claude/routines
+**/.claude/scheduled_tasks.json
+**/.claude/workflows
+dev/.claude/skills
+dev/service-plus-client/.claude/skills
+dev/service-plus-client/.gitmodules

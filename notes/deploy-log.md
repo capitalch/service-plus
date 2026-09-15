@@ -3,6 +3,15 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-15 19:42 (main)
+Chore: gitignore Claude Code sandbox placeholder files
+
+- .gitignore: ignore the /dev/null placeholders the Claude Code sandbox
+  mounts over shell rc files, .gitconfig, .mcp.json and .claude/* config
+  paths, so git status stays clean and git add -A no longer fails on them
+
+Files: 1 changed (+22 / -0) — Base: 2d54fc1
+
 ## 2026-09-15 15:19 (main)
 Chore: regenerate db-schema types with a connect timeout
 
