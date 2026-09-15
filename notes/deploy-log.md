@@ -3,6 +3,16 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-15 15:19 (main)
+Chore: regenerate db-schema types with a connect timeout
+
+- db-schema-client.ts, db-schema-security.ts, db-schema-service.ts:
+  re-run through pg-to-ts with ?connect_timeout=10 added to the
+  generator's connection string. No column or type changes — only
+  the recorded generator command in each file's header comment.
+
+Files: 3 changed (+3 / -3) — Base: cfb0107
+
 ## 2026-09-15 15:12 (main)
 Docs: add SaaS strategy plan, retire the completed EW build plan
 
