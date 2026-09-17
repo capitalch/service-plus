@@ -455,9 +455,13 @@ function MastersExplorer() {
 }
 
 function AdminExplorer() {
+	const currentUser = useAppSelector(selectCurrentUser);
+	const canManageOwnBu = hasAccessRight(currentUser, ACCESS_RIGHTS.USERS_MANAGE_OWN_BU);
+
 	return (
 		<div className="space-y-1">
 			<TreeItem icon={BookCheck} iconColor="text-emerald-600" label="Post / Unpost" />
+			{canManageOwnBu && <TreeItem icon={Users} iconColor="text-teal-600" label="My Team" />}
 		</div>
 	);
 }

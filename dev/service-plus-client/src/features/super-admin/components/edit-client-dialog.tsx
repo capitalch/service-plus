@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -25,7 +26,13 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
-import type { ClientType } from "@/features/super-admin/types";
+import type { ClientType, SubscriptionTierType } from "@/features/super-admin/types";
+
+const SUBSCRIPTION_TIER_OPTIONS: { label: string; value: SubscriptionTierType }[] = [
+	{ label: "Basic", value: "BASIC" },
+	{ label: "Pro", value: "PRO" },
+	{ label: "Enterprise", value: "ENTERPRISE" },
+];
 
 // ─── Zod schema ───────────────────────────────────────────────────────────────
 
@@ -59,6 +66,7 @@ const editClientSchema = z.object({
 		.optional(),
 	pincode: z.string().max(10, "Pincode must be at most 10 characters").optional(),
 	state: z.string().optional(),
+	subscription_tier: z.enum(["BASIC", "PRO", "ENTERPRISE"]),
 });
 
 type EditClientFormType = z.infer<typeof editClientSchema>;
@@ -110,6 +118,7 @@ function buildDefaults(client: ClientType): EditClientFormType {
 		phone: client.phone ?? "",
 		pincode: client.pincode ?? "",
 		state: client.state ?? "",
+		subscription_tier: client.subscription_tier ?? "BASIC",
 	};
 }
 
@@ -135,6 +144,7 @@ export const EditClientDialog = ({ client, onOpenChange, onSuccess, open }: Edit
 	const [executeGenericUpdate, { loading: mutating }] = useMutation(GRAPHQL_MAP.genericUpdate);
 
 	const nameValue = useWatch({ control, name: "name" });
+	const subscriptionTierValue = useWatch({ control, name: "subscription_tier" });
 	const debouncedName = useDebounce(nameValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
 	useEffect(() => {
@@ -191,6 +201,7 @@ export const EditClientDialog = ({ client, onOpenChange, onSuccess, open }: Edit
 		if (data.phone !== undefined) xData.phone = data.phone || null;
 		if (data.pincode !== undefined) xData.pincode = data.pincode || null;
 		if (data.state !== undefined) xData.state = data.state || null;
+		xData.subscription_tier = data.subscription_tier;
 
 		try {
 			const result = await executeGenericUpdate({
@@ -351,6 +362,29 @@ export const EditClientDialog = ({ client, onOpenChange, onSuccess, open }: Edit
 							readOnly
 							{...register("country_code")}
 						/>
+					</div>
+
+					{/* Subscription tier — Super Admin only, unrelated to is_active */}
+					<div className="flex flex-col gap-1.5">
+						<Label htmlFor="ec-tier">Subscription Tier</Label>
+						<Select
+							disabled={busy}
+							value={subscriptionTierValue}
+							onValueChange={(v) =>
+								setValue("subscription_tier", v as EditClientFormType["subscription_tier"])
+							}
+						>
+							<SelectTrigger id="ec-tier">
+								<SelectValue placeholder="Select a tier" />
+							</SelectTrigger>
+							<SelectContent>
+								{SUBSCRIPTION_TIER_OPTIONS.map((opt) => (
+									<SelectItem key={opt.value} value={opt.value}>
+										{opt.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					{/* Active */}

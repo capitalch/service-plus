@@ -1,6 +1,26 @@
 import { useMemo, useState } from "react";
-import { Activity, AlertTriangle, ClipboardList, IndianRupee, Package, ShieldCheck, Timer, Wrench } from "lucide-react";
+import {
+	Activity,
+	AlertTriangle,
+	ClipboardList,
+	IndianRupee,
+	Inbox,
+	Package,
+	ShieldCheck,
+	Timer,
+	Wrench,
+} from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 
 import { ChartCard } from "../common/chart-card";
@@ -23,6 +43,7 @@ import { DashboardJobsListDialog } from "./dashboard-jobs-list-dialog";
 import { DashboardOverdueDetailDialog } from "./dashboard-overdue-detail-dialog";
 import { DashboardRevenueDetailDialog } from "./dashboard-revenue-detail-dialog";
 import { OpenJobsByProductDialog } from "./open-jobs-by-product-dialog";
+import type { OpenJobsDrillDownType } from "./open-jobs-by-product-dialog";
 
 type JobsListModalType = {
 	description?: string;
@@ -65,6 +86,7 @@ export const DashboardSection = () => {
 	const [revenueDetailOpen, setRevenueDetailOpen] = useState(false);
 	const [overdueDetailOpen, setOverdueDetailOpen] = useState(false);
 	const [jobsListModal, setJobsListModal] = useState<JobsListModalType | null>(null);
+	const [emptyAlertOpen, setEmptyAlertOpen] = useState(false);
 	const selectedRange = RANGE_OPTIONS[rangeIndex];
 
 	const todayRange = useMemo(
@@ -141,6 +163,23 @@ export const DashboardSection = () => {
 
 	const kpis = kpisQ.data?.[0];
 
+	function handleCardClick(count: number, onOpen: () => void) {
+		if (count === 0) {
+			setEmptyAlertOpen(true);
+			return;
+		}
+		onOpen();
+	}
+
+	function handleOpenJobsDrillDown({ isWarranty, label, productName }: OpenJobsDrillDownType) {
+		setJobsListModal({
+			description: `Open jobs — ${label}.`,
+			sqlArgs: { is_warranty: isWarranty, product_name: productName },
+			sqlId: SQL_MAP.GET_DASHBOARD_OPEN_JOBS_LIST,
+			title: `Open Jobs — ${label}`,
+		});
+	}
+
 	function handleRefresh() {
 		kpisQ.refetch();
 		monthlyQ.refetch();
@@ -213,12 +252,14 @@ export const DashboardSection = () => {
 					}
 					value={formatNumber(kpis?.jobs_received ?? 0)}
 					onClick={() =>
-						setJobsListModal({
-							description: `Jobs received ${rangeDescription}.`,
-							sqlArgs: { ...todayArgs, is_warranty: null },
-							sqlId: SQL_MAP.GET_DASHBOARD_JOBS_RECEIVED_LIST,
-							title: `Jobs Received (${selectedRange.label})`,
-						})
+						handleCardClick(kpis?.jobs_received ?? 0, () =>
+							setJobsListModal({
+								description: `Jobs received ${rangeDescription}.`,
+								sqlArgs: { ...todayArgs, is_warranty: null },
+								sqlId: SQL_MAP.GET_DASHBOARD_JOBS_RECEIVED_LIST,
+								title: `Jobs Received (${selectedRange.label})`,
+							}),
+						)
 					}
 				/>
 				<KpiCard
@@ -227,12 +268,14 @@ export const DashboardSection = () => {
 					label={`Jobs Delivered (${selectedRange.label})`}
 					value={formatNumber(kpis?.jobs_delivered ?? 0)}
 					onClick={() =>
-						setJobsListModal({
-							description: `Jobs delivered ${rangeDescription}.`,
-							sqlArgs: todayArgs,
-							sqlId: SQL_MAP.GET_DASHBOARD_JOBS_DELIVERED_LIST,
-							title: `Jobs Delivered (${selectedRange.label})`,
-						})
+						handleCardClick(kpis?.jobs_delivered ?? 0, () =>
+							setJobsListModal({
+								description: `Jobs delivered ${rangeDescription}.`,
+								sqlArgs: todayArgs,
+								sqlId: SQL_MAP.GET_DASHBOARD_JOBS_DELIVERED_LIST,
+								title: `Jobs Delivered (${selectedRange.label})`,
+							}),
+						)
 					}
 				/>
 				<KpiCard
@@ -240,7 +283,7 @@ export const DashboardSection = () => {
 					icon={IndianRupee}
 					label={`Revenue (${selectedRange.label})`}
 					value={formatInr(kpis?.revenue ?? 0)}
-					onClick={() => setRevenueDetailOpen(true)}
+					onClick={() => handleCardClick(kpis?.revenue ?? 0, () => setRevenueDetailOpen(true))}
 				/>
 				<KpiCard
 					accentClassName="text-(--cl-accent-text)"
@@ -252,7 +295,7 @@ export const DashboardSection = () => {
 							: undefined
 					}
 					value={formatNumber(kpis?.jobs_open ?? 0)}
-					onClick={() => setOpenJobsByProductOpen(true)}
+					onClick={() => handleCardClick(kpis?.jobs_open ?? 0, () => setOpenJobsByProductOpen(true))}
 				/>
 			</KpiGrid>
 
@@ -263,7 +306,7 @@ export const DashboardSection = () => {
 					label="Overdue Jobs"
 					subValue={`> ${OVERDUE_DAYS} days`}
 					value={formatNumber(kpis?.jobs_overdue ?? 0)}
-					onClick={() => setOverdueDetailOpen(true)}
+					onClick={() => handleCardClick(kpis?.jobs_overdue ?? 0, () => setOverdueDetailOpen(true))}
 				/>
 				<KpiCard
 					accentClassName="text-orange-500"
@@ -271,12 +314,14 @@ export const DashboardSection = () => {
 					label={`Warranty Jobs (${selectedRange.label})`}
 					value={formatNumber(kpis?.jobs_received_warranty ?? 0)}
 					onClick={() =>
-						setJobsListModal({
-							description: `Warranty jobs received ${rangeDescription}.`,
-							sqlArgs: { ...todayArgs, is_warranty: true },
-							sqlId: SQL_MAP.GET_DASHBOARD_JOBS_RECEIVED_LIST,
-							title: `Warranty Jobs (${selectedRange.label})`,
-						})
+						handleCardClick(kpis?.jobs_received_warranty ?? 0, () =>
+							setJobsListModal({
+								description: `Warranty jobs received ${rangeDescription}.`,
+								sqlArgs: { ...todayArgs, is_warranty: true },
+								sqlId: SQL_MAP.GET_DASHBOARD_JOBS_RECEIVED_LIST,
+								title: `Warranty Jobs (${selectedRange.label})`,
+							}),
+						)
 					}
 				/>
 				<KpiCard
@@ -285,12 +330,14 @@ export const DashboardSection = () => {
 					label={`Out-of-Warranty (${selectedRange.label})`}
 					value={formatNumber(kpis?.jobs_received_oow ?? 0)}
 					onClick={() =>
-						setJobsListModal({
-							description: `Out-of-warranty jobs received ${rangeDescription}.`,
-							sqlArgs: { ...todayArgs, is_warranty: false },
-							sqlId: SQL_MAP.GET_DASHBOARD_JOBS_RECEIVED_LIST,
-							title: `Out-of-Warranty Jobs (${selectedRange.label})`,
-						})
+						handleCardClick(kpis?.jobs_received_oow ?? 0, () =>
+							setJobsListModal({
+								description: `Out-of-warranty jobs received ${rangeDescription}.`,
+								sqlArgs: { ...todayArgs, is_warranty: false },
+								sqlId: SQL_MAP.GET_DASHBOARD_JOBS_RECEIVED_LIST,
+								title: `Out-of-Warranty Jobs (${selectedRange.label})`,
+							}),
+						)
 					}
 				/>
 				<KpiCard
@@ -299,7 +346,7 @@ export const DashboardSection = () => {
 					label="Alerts"
 					value={formatNumber(overdueQ.data.length)}
 					subValue="Overdue queue"
-					onClick={() => setOverdueDetailOpen(true)}
+					onClick={() => handleCardClick(overdueQ.data.length, () => setOverdueDetailOpen(true))}
 				/>
 			</KpiGrid>
 
@@ -326,7 +373,12 @@ export const DashboardSection = () => {
 				{recentQ.loading ? <ReportLoading lines={4} /> : <DashboardRecentJobs jobs={recentQ.data} />}
 			</ChartCard>
 
-			<OpenJobsByProductDialog open={openJobsByProductOpen} onClose={() => setOpenJobsByProductOpen(false)} />
+			<OpenJobsByProductDialog
+				nestedDialogOpen={jobsListModal != null}
+				open={openJobsByProductOpen}
+				onClose={() => setOpenJobsByProductOpen(false)}
+				onDrillDown={handleOpenJobsDrillDown}
+			/>
 			<DashboardRevenueDetailDialog
 				open={revenueDetailOpen}
 				sqlArgs={todayArgs}
@@ -345,6 +397,23 @@ export const DashboardSection = () => {
 				title={jobsListModal?.title ?? ""}
 				onClose={() => setJobsListModal(null)}
 			/>
+
+			{/* Plain Dialog, not AlertDialog: this is an FYI with nothing to confirm, so
+			    dismissing it on Escape or an outside click is the right default. */}
+			<Dialog open={emptyAlertOpen} onOpenChange={setEmptyAlertOpen}>
+				<DialogContent className="max-w-xs text-center" showCloseButton={false}>
+					<DialogHeader className="items-center">
+						<span className="mb-1 inline-flex size-10 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+							<Inbox className="size-6" />
+						</span>
+						<DialogTitle>Nothing to show</DialogTitle>
+						<DialogDescription>{MESSAGES.INFO_REPORTS_NO_DATA}</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="sm:justify-center">
+						<Button onClick={() => setEmptyAlertOpen(false)}>OK</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</ReportSection>
 	);
 };

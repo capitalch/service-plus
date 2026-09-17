@@ -83,6 +83,13 @@ class BuAdminDdl:
             updated_at timestamp with time zone DEFAULT now() NOT NULL
         );
 
+        CREATE TABLE security.user_bu_role_branch (
+            user_id bigint NOT NULL,
+            bu_id bigint NOT NULL,
+            branch_id bigint NOT NULL,
+            created_at timestamp with time zone DEFAULT now() NOT NULL
+        );
+
         ALTER TABLE security."user" ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
             SEQUENCE NAME security.user_id_seq
             START WITH 1
@@ -110,6 +117,9 @@ class BuAdminDdl:
         ALTER TABLE ONLY security.role
             ADD CONSTRAINT role_pkey PRIMARY KEY (id);
 
+        ALTER TABLE ONLY security.user_bu_role_branch
+            ADD CONSTRAINT user_bu_role_branch_pkey PRIMARY KEY (user_id, bu_id, branch_id);
+
         ALTER TABLE ONLY security.user_bu_role
             ADD CONSTRAINT user_bu_role_pkey PRIMARY KEY (user_id, bu_id, role_id);
 
@@ -131,6 +141,8 @@ class BuAdminDdl:
 
         CREATE INDEX role_is_system_idx ON security.role USING btree (is_system) WITH (deduplicate_items='true');
 
+        CREATE INDEX user_bu_role_branch_user_bu_idx ON security.user_bu_role_branch USING btree (user_id, bu_id);
+
         CREATE INDEX user_bu_role_bu_id_idx ON security.user_bu_role USING btree (bu_id) WITH (deduplicate_items='true');
 
         CREATE INDEX user_bu_role_role_id_idx ON security.user_bu_role USING btree (role_id) WITH (deduplicate_items='true');
@@ -146,6 +158,9 @@ class BuAdminDdl:
 
         ALTER TABLE ONLY security.role_access_right
             ADD CONSTRAINT role_access_right_role_id_fkey FOREIGN KEY (role_id) REFERENCES security.role(id) ON DELETE CASCADE;
+
+        ALTER TABLE ONLY security.user_bu_role_branch
+            ADD CONSTRAINT user_bu_role_branch_user_bu_fkey FOREIGN KEY (user_id, bu_id) REFERENCES security.user_bu_role(user_id, bu_id) ON DELETE CASCADE;
 
         ALTER TABLE ONLY security.user_bu_role
             ADD CONSTRAINT user_bu_role_bu_id_fkey FOREIGN KEY (bu_id) REFERENCES security.bu(id) ON DELETE CASCADE;

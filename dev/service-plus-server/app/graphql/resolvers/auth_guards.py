@@ -22,6 +22,24 @@ def _reject_bad_token(context: dict) -> None:
         )
 
 
+def require_user_type(info, allowed: set[str]) -> None:
+    """
+    Raise AuthorizationException unless the caller's userType is one of `allowed`.
+
+    Unlike require_access_right, this checks WHO is calling directly and has no
+    bypass — use it for resolvers gated by identity (Super Admin only, or Admin
+    only), not by a specific access-right code. E.g. createBuSchemaAndFeedSeedData
+    is `require_user_type(info, {"S"})` — no tenant's own Admin ever reaches it.
+    """
+    context = info.context or {}
+    _reject_bad_token(context)
+    if context.get("user_type") not in allowed:
+        raise AuthorizationException(
+            message=AppMessages.FORBIDDEN,
+            extensions={"required_user_type": sorted(allowed)},
+        )
+
+
 def require_access_right(info, code: str) -> None:
     """
     Raise AuthorizationException unless the requesting user's token carries

@@ -23,8 +23,11 @@ export type ClientType = {
 	phone: string | null;
 	pincode: string | null;
 	state: string | null;
+	subscription_tier: SubscriptionTierType;
 	updated_at: string;
 };
+
+export type SubscriptionTierType = "BASIC" | "ENTERPRISE" | "PRO";
 
 export type StatsType = {
 	activeAdminUsers: number;

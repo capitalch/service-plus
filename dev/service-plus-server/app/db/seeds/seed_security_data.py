@@ -49,16 +49,20 @@ class SeedSecurityData:
             (17, 'JOBS_CUSTOMER_CONNECT',       'Customer Connect',      'JOBS',      'Access to Jobs -> Customer Connect'),
             (18, 'JOBS_CORRECT_COST',           'Correct Job Cost',      'JOBS',      'Access to correct cost on finalized/posted jobs'),
             (19, 'CUSTOM_MENU',                 'Custom',                'CUSTOM',    'Access to the Custom tab (add-on services)'),
-            (20, 'CUSTOM_EXTENDED_WARRANTY',    'Extended Warranty',     'CUSTOM',    'Access to Custom -> Extended Warranty')
+            (20, 'CUSTOM_EXTENDED_WARRANTY',    'Extended Warranty',     'CUSTOM',    'Access to Custom -> Extended Warranty'),
+            (21, 'USERS_MANAGE_OWN_BU',         'Manage Own BU Users',  'ADMIN',      'Create a business user (any role except Manager) for a BU this Manager themself manages — see plans/plan.md')
         ON CONFLICT (id) DO NOTHING;
 
         -- MANAGER (role_id=1): every right
         -- RECEPTIONIST (role_id=3): every right except CONFIG_MENU, ADMIN_MENU,
-        --                           MASTERS_ORGANIZATION, MASTERS_SERVICE_CONFIG
-        --                           and JOBS_CORRECT_COST
+        --                           MASTERS_ORGANIZATION, MASTERS_SERVICE_CONFIG,
+        --                           JOBS_CORRECT_COST and USERS_MANAGE_OWN_BU
         -- TECHNICIAN (role_id=2): none — no rows
+        -- USERS_MANAGE_OWN_BU (21) is MANAGER-only by design (plans/plan.md): a
+        -- Manager may create Technician/Receptionist users for their own BU, never
+        -- another Manager. Not given to Receptionist/Technician at all.
         INSERT INTO security.role_access_right (role_id, access_right_id) VALUES
-            (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20),
+            (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20), (1, 21),
             (3, 1), (3, 2), (3, 3), (3, 4), (3, 7), (3, 8), (3, 9), (3, 10), (3, 11), (3, 12), (3, 13), (3, 16), (3, 17), (3, 19), (3, 20)
         ON CONFLICT (role_id, access_right_id) DO NOTHING;
     """

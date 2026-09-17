@@ -172,6 +172,14 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "note",
 				text: "Dashboard data is not auto-refreshed. Click the Refresh button to reload all KPIs and charts.",
 			},
+			{
+				type: "note",
+				text: "Every KPI card is clickable and opens the matching list or detail view. A card showing 0 has nothing to open, so clicking it shows a small “Nothing to show” message instead — click OK, click outside it, or press Esc to close it.",
+			},
+			{
+				type: "note",
+				text: "Open Jobs opens a two-level drill-down: first a summary of open jobs by product (with Warranty, Out-of-Warranty and Total counts per product), then clicking any count in that summary opens the actual list of jobs behind it — customer, model, technician, status and date for each one.",
+			},
 		],
 		faqs: [
 			{
@@ -3776,6 +3784,19 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "note",
 				text: "Deactivating a user prevents them from logging in without deleting their history or records. Reactivate at any time.",
 			},
+			{ type: "heading", text: "Manager Self-Service: My Team" },
+			{
+				type: "para",
+				text: "A user with the Manager role sees a My Team item in Client Mode → Admin (the same left-hand section as Post / Unpost — no need to switch to Admin Mode). From there a Manager can add a Technician or Receptionist for their own Business Unit(s) themselves, without asking the Business Admin. A Manager can never create another Manager from this screen, and can only add users to a Business Unit they themselves manage.",
+			},
+			{
+				type: "note",
+				text: "On the Basic subscription plan, a Business Unit is limited to exactly one business user, who must be the Manager — My Team has nothing to do there, since there's no one left to add. Pro and Enterprise have no such limit.",
+			},
+			{
+				type: "para",
+				text: "Both a Business Admin (Associate BU / Role) and a Manager (My Team) can, when adding or editing a user, optionally restrict that user to specific Branches inside a Business Unit — only shown when that Business Unit actually has more than one Branch. Leaving it blank keeps the user able to work in every Branch, which is the default for everyone today.",
+			},
 		],
 		faqs: [
 			{
@@ -3784,15 +3805,19 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Can I restrict a user to specific companies?",
-				a: "Yes, but access is scoped by Business Unit, not Branch — use 'Associate BU / Role' on the Business Users page to control which Business Units a user can see. See 'Granting Access: Associate BU / Role' in the Access Management category.",
+				a: "Yes — access is scoped by Business Unit; use 'Associate BU / Role' on the Business Users page to control which Business Units a user can see. Within a Business Unit that has more than one Branch, you can additionally restrict a user to specific Branches. See 'Granting Access: Associate BU / Role' in the Access Management category.",
 			},
 			{
 				q: "What is the difference between Type A and Type B users?",
-				a: "Type A (Business Admin) can access Admin Mode to manage users and audit logs. Type B (Regular User) can only access Client Mode for day-to-day operations.",
+				a: "Type A (Business Admin) can access Admin Mode to manage users and audit logs. Type B (Regular User) can only access Client Mode for day-to-day operations — except a Type B user with the Manager role also gets a My Team screen inside Client Mode to add Technicians/Receptionists for their own Business Unit.",
 			},
 			{
 				q: "Can I change a user's role after creation?",
 				a: "Yes. Edit the user and select a different role. The change takes effect on their next login.",
+			},
+			{
+				q: "Who can create a Manager?",
+				a: "Only a Business Admin (or Super Admin) — a Manager can create Technicians and Receptionists for their own Business Unit from My Team, but never another Manager.",
 			},
 		],
 	},
@@ -3968,6 +3993,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					["Masters tab (whole tab)", "✅", "❌", "✅"],
 					["Configurations tab (whole tab)", "✅", "❌", "❌"],
 					["Admin tab / Post-Unpost", "✅", "❌", "❌"],
+					["Admin tab / My Team (add Technician/Receptionist)", "✅", "❌", "❌"],
 					["Inventory → Purchase Entry", "✅", "❌", "✅"],
 					["Inventory → Sales Entry", "✅", "❌", "✅"],
 					["Inventory → Stock Adjustment", "✅", "❌", "✅"],
@@ -4060,6 +4086,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "para",
 				text: "Delete only appears once a Business Unit is Inactive — deactivate it first. The confirmation dialog requires typing the Business Unit's exact Code before the Delete button is enabled, since this removes the company record. There is no separate step shown here for dropping its database schema from this dialog.",
 			},
+			{
+				type: "note",
+				text: "A client's subscription plan (Basic / Pro / Enterprise) is set by the platform operator on the Clients page (a separate, higher-level screen), not here — it isn't a per-Business-Unit setting. Basic caps a client to one business user (who must be the Manager) and one Branch; Pro and Enterprise have neither limit.",
+			},
 			{ type: "heading", text: "Orphaned Schemas (maintenance)" },
 			{
 				type: "para",
@@ -4109,12 +4139,13 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					"Open the row menu for the user and choose 'Associate BU / Role'.",
 					"Check one or more Business Units the user should be able to access.",
 					"Pick exactly one Role — required as soon as at least one Business Unit is checked.",
+					"For a checked Business Unit that has more than one Branch, an optional Branches list appears — leave every box unchecked for access to all Branches (the default), or check specific ones to restrict this user to just those.",
 					"Save.",
 				],
 			},
 			{
 				type: "note",
-				text: "A user can be associated with multiple Business Units at once, but only a single Role applies across all of them — you cannot give someone a different role per company.",
+				text: "A user can be associated with multiple Business Units at once, but only a single Role applies across all of them — you cannot give someone a different role per company. A Branch restriction, however, is set separately per Business Unit.",
 			},
 			{ type: "heading", text: "Other access controls on the Business User row" },
 			{

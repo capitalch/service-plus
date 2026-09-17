@@ -1,166 +1,125 @@
-# Service+ as a paid multi-tenant offering — strategy, pricing, and tenant model
+# Manager-created users + Basic/Pro/Enterprise subscription tiers
 
 ## Goal
 
-Answer four questions from `plans/prompt.md`: subscription strategy/pricing for outside
-customers; whether small customers can share one `client` as separate BUs or need their
-own; whether "one client, many customer-BUs, me as admin" is workable; confirm big
-companies get their own `client`. Strategy document — no code changes.
+1. Admin (one per client/tenant) keeps full power: sees every BU in their client, creates users of any role for any BU. No change from today.
+2. A Manager can create users for their own BU — any role except Manager. Today only Admin can create users at all, so this is new.
+3. Super Admin is unchanged.
+4. Add three subscription tiers: Basic, Pro, Enterprise. Pro and Enterprise work like points 1 and 2 above (Manager can create users). Basic is different — see point 7.
+5. Creating a new BU stays Super Admin only, for every tier, Enterprise included. No client-side Admin, on any tier, can create a BU themselves.
+6. A user can be restricted to specific branches inside a BU. By default a user (any role) can see/work in every branch of their BU. A Manager or an Admin can narrow a specific user down to only certain branches.
+7. Basic tier is capped at one business user, and that user's role must be Manager. That one Manager has no permission to create more users — Basic stays single-person by design.
+8. Basic tier is also capped at one branch per BU — a Basic BU can't add a second location. Branch restriction (point 6) doesn't come up on Basic in practice, since there's only ever one branch to be restricted to.
 
-## Present context
 
-`service_plus_client` DB holds one `client` row per tenant (`db_name` → that tenant's own
-Postgres DB). Each tenant DB has a `security` schema plus one Postgres schema per Business
-Unit, cloned from `demo1`. `user_bu_role` (`user_id, bu_id, role_id`) scopes a login to
-specific BUs; `user_type` `S`/`A` (Super Admin/Business Admin) bypasses every check.
-`client` carries no subscription/plan/billing/usage concept today — every tenant is
-provisioned identically. WhatsApp is **one shared Meta phone number and display name
-("Service Support") across every tenant** — not per-tenant config, a Meta Business Manager
-setting on the one number.
+## How it works today
 
-## Key constraint — blocks every tenant-model option equally
+- A tenant database has a `security` schema (logins, roles) and one schema per BU (jobs, branches, etc.).
+- A login user gets access to a BU through a row in `user_bu_role` (user, BU, role). Three roles exist: Manager, Technician, Receptionist.
+- Manager already has every permission a normal user can have inside their BU (jobs, inventory, masters, configs, reports — everything except two admin-only screens). This is already true today, nothing to change there.
+- "Admin" is a separate flag on the user (`is_admin = true`), not a role. An Admin does not need a `user_bu_role` row — they already see and act on every BU in their tenant automatically. This already matches "one admin per client with full power," so nothing to change there either.
+- Only Admin can create users today, from an Admin-only page. The button to create a user calls a server function that inserts the new user and assigns their BU(s) and role. Super Admin doesn't do this — Super Admin manages clients/tenants themselves, not individual business users inside one.
+- **That server function has no check on who is calling it.** It only looks safe because the button is hidden from everyone except Admin. Anyone who already has a login (even a Technician) could currently call it directly and create a user of any role for any BU. The same is true for the "create Admin user" function and the "create a new BU" function.
+- A separate, different fix (already done) stops a logged-in user from reading or writing another tenant's data or another BU's data through the general-purpose data-query functions. That fix does not cover the three functions above — they are separate code paths and were never touched by it. This is why the gap above still needs to be closed as part of this plan.
+- There is no subscription/tier idea anywhere in the system today — no column, no table, nothing.
+- Every client (tenant) already gets its own private database today, regardless of size. That part doesn't need to change for Enterprise — it's already true.
+- A BU can have more than one branch (more than one physical location). Branches already exist as real records today, but a user's access is only ever recorded at the BU level — there is no "this user can only see branch X" setting anywhere today. Every existing user is effectively "all branches" right now, which is exactly the default we want to keep.
+- A new branch is added through the same shared, generic "save a record" function used for dozens of unrelated tables (masters, config, etc.). There's no dedicated "add branch" function to attach a check to — today it has no per-table check at all for branch specifically, same gap as several other tables on that shared path.
 
-Traced request authorization end to end: `resolve_generic_query`/`resolve_generic_update`
-take `db_name` and `schema` as plain GraphQL arguments — the client's own request, never
-checked against the JWT's `context["db_name"]` or the caller's `user_bu_role` rows.
-`require_access_right` only checks a right **code** against the token; it's never passed
-`db_name`/`schema`. Today this is harmless — one trusted first-party client, one company.
-The moment two paying, mutually-untrusting customers share this platform — under any of
-the four options below, **including separate `client` DBs per company** — a logged-in user
-can edit `db_name`/`schema` in a request and reach another tenant's or BU's data.
+## Key constraints
 
-**Fix is a prerequisite for selling to outside customers under any shape, not a choice
-between options.** Add `require_own_tenant`/`require_bu_access` guards
-(`auth_guards.py`), wired into every `genericQuery`/`genericBatchQuery`/`genericUpdate`/
-`genericUpdateScript` resolver, checking `context["db_name"] == db_name` and (bypass, or a
-`user_bu_role` row for the BU named by `schema`). See Implementation.
+1. The user-creation function, the admin-creation function, and the create-BU function have no server-side check today — only a hidden button. This must be fixed before Manager gets any access to user-creation, or "Manager can only create users for their own BU" would be a suggestion, not a rule.
+2. Roles and what they're allowed to do are fixed in the system's setup data, not editable per tenant from a screen. Giving Manager a new permission (create users) means adding it to that setup data, and re-running it for tenants that already exist.
+3. Creating a new BU today means creating a whole new set of tables for it and copying starting data into them — a bigger, slower operation than creating a user. Only Super Admin can trigger it, and that stays true on every tier — this plan doesn't change who can create a BU.
+4. Basic vs. Pro feature differences are not decided yet. This plan only adds the on/off switch (the tier value) — it does not decide which features turn off for Basic.
+5. Branches live inside each BU's own set of tables, not in the shared login/security area. A branch restriction on a user has to be checked by hand ("does this branch actually belong to this user's BU?") rather than relying on the database to enforce it automatically — the database can't link the two directly.
+6. This plan restricts branches for who can be *assigned* where. It does not go through every existing screen (jobs, reports, etc.) and make each one respect that restriction — that's a much bigger, separate piece of work. See "Flags and constraints" for exactly what is and isn't covered.
+7. There's no dedicated "add a branch" function to attach the one-branch-on-Basic check to — branch is saved through the same shared, generic function as many other unrelated tables. The check has to be added narrowly, just for the branch table, inside that shared function, without touching how it behaves for every other table that goes through it.
 
-## The four tenant-model questions
+## New design
 
-1. **Misc customers sharing one `client` as separate BUs** — technically shaped for it
-   (schema-per-BU already isolates their data; `user_bu_role` scopes a login to one BU) but
-   **not safe until the fix above ships**. Even then, one `client` row means no
-   per-customer subscription status, invoice, or independent suspend/cancel — only sensible
-   for accounts billed manually outside the app, not real subscribers.
-2. **You as admin, one user per BU** — workable, same prerequisite. Schema already
-   supports a small per-BU role hierarchy (multiple `user_bu_role` rows, different roles)
-   with no changes, if a customer ever needs owner+staff logins.
-3. **Big companies as separate `client` DBs, multi-BU each** — the right default, and the
-   direction the schema already assumes. Narrows *accidental* cross-tenant exposure even
-   pre-fix (the UI never constructs a foreign `db_name` on its own) though it doesn't close
-   the gap on its own — a crafted request is exactly as unguarded as under option 1.
-4. **Subscription strategy and pricing** — see below.
+**A. Close the gap on the three functions. ✅** Add a real check to "create user," "create Admin user," and "create BU" so each only runs for the right kind of caller. This is needed either way, and should happen first.
 
-## Pricing structure for India (value-based)
+**B. Manager can create users for their own BU. ✅** New permission, given only to the Manager role: "create users for my own BU." When a Manager uses it:
+   - They can only create users for a BU they themselves are a Manager of.
+   - They can pick any role except Manager.
+   - Admin is unaffected — still creates any role for any BU in their tenant, exactly as today. Super Admin doesn't create business users, on any tier — that's not changing.
 
-**Extended Warranty is excluded from general pricing** — it's a Sony-service-program
-feature, not applicable to a general repair-shop customer, so it plays no role in tier
-differentiation below. It stays available as a separate line for Sony-authorized centers
-specifically, priced outside this table if/when that segment is pursued.
+**C. Subscription tier on the client (tenant). ✅ code done and migrated.** A new field on the client record: Basic, Pro, or Enterprise, set only by Super Admin — nobody self-upgrades. This plan adds the field and wires up point E below (the Basic cap); it does not build any Basic/Pro/Enterprise feature differences beyond that, since those aren't decided yet.
 
-**Unit of sale: per BU/month**, not per user — staff count is small and fluid; a BU (one
-shop location) is the stable unit customers already think in, and maps directly onto the
-existing schema-per-BU boundary.
+**D. Branch restriction on a user. ✅ code done and migrated.** A new, optional list attached to each user's BU assignment: which branches they're allowed to work in. Empty list = every branch (the default, and what every existing user already effectively has, so nothing changes for anyone until someone deliberately narrows a user down). Both a Manager (for users in their own BU) and an Admin (for any user in their tenant) can set or change this list. A user with a restricted list only shows up / only acts within those branches wherever branch already matters today (e.g. picking a branch for a new job).
 
-| Tier | Price | Includes |
-|---|---|---|
-| **Starter** | ₹999/mo (₹9,999/yr) | 1 BU. Job pipeline, GST invoicing, inventory, basic reports. One WhatsApp event (Job Completion), modest send allowance. |
-| **Growth** | ₹1,999/mo (₹19,999/yr) | Everything in Starter + all five WhatsApp lifecycle sends (intake, completion, delivery, receipt, invoice), audit log, full report suite. ~300 utility-category WhatsApp conversations/month included. |
-| **Multi-location** | ₹1,999 (BU 1) + ₹1,499/additional BU, ₹1,199/BU from the 6th | Growth features on every BU. A 3-branch shop: ₹4,997/month. |
+**E. Basic tier: one user, and that user can't create more. ✅** A Basic client is capped at exactly one business user, and that user's role must be Manager. The new "create users for my own BU" permission from point B is simply never given out on a Basic client, so that lone Manager has no way to add anyone else. (The one separate Admin login every client already gets when it's first set up is not counted in this cap — that account is for tenant setup, not day-to-day work.)
 
-**Metered**: utility WhatsApp sends beyond the included allowance at ₹2–3/conversation,
-passed through near Meta's actual cost rather than bundled unmetered (bundling means your
-heaviest, most-likely-to-renew users are subsidized by light ones).
+**F. Basic tier: one branch. ✅** A Basic BU is capped at exactly one branch. Adding a second branch to a Basic BU is rejected, the same way adding a second business user is. Nothing changes for Pro/Enterprise, which can already have more than one branch today.
 
-**One-time setup fee** (₹4,999–₹14,999, scaled by BU count) only for dedicated-`client`
-onboarding (DB provisioning, migration, training) — waived for self-serve Starter/Growth.
+## Files touched
 
-**Trial**: 30-day full-feature trial on one real BU, no card. **Annual discount** ≈2 months
-free, already reflected above. The **Misc-customers bucket** (question 1) stays a ₹0-in-
-platform option billed manually, kept explicitly separate from this table.
+Server (`dev/service-plus-server`):
+- `app/graphql/resolvers/mutation.py` — add the missing checks to `createBusinessUser`, `createAdminUser`, and `createBuSchemaAndFeedSeedData`; add the new Manager-vs-Admin rule to `createBusinessUser`.
+- `app/graphql/resolvers/bu_admin/users_roles.py` — the "who can create what" rule for creating a user (including the Basic-tier one-user cap), and saving/reading a user's branch restriction list.
+- `app/graphql/resolvers/bu_admin/provisioning.py` — add a Super-Admin-only check to `createBuSchemaAndFeedSeedData`. No tenant's own Admin gets this, on any tier.
+- `app/db/seeds/seed_security_data.py` — one new permission code, given to Manager only.
+- `app/db/sql/sql_bu_admin.py` — read/write the new tier field on the client record; read/write branch restrictions for a user; check whether a client already has a business user (for the Basic cap); look up a BU's branches and count them (for the one-branch cap).
+- The shared "save a record" function (generic update/write path) — add the one-branch-on-Basic check, scoped to just the branch table, when a new branch row is being inserted.
+- A small migration/script adding: the `subscription_tier` column to the client table, and a new small table linking a user's BU assignment to a list of branch ids. Run once.
 
-## Competitor comparison (India)
+Client (`dev/service-plus-client`):
+- `src/features/auth/utils/access-rights.ts` — add the new permission code.
+- `src/features/super-admin/components/seed-roles-dialog.tsx` — list the new permission so existing tenants can be re-seeded with it.
+- New page/section under `src/features/client/` — where a Manager creates a user for their own BU (Manager works in the normal client area, not the Admin-only area).
+- `src/router/routes.ts` and the router file that wires it — new route for that page, shown only to users who have the new permission.
+- `src/features/super-admin/` — a tier field (Basic/Pro/Enterprise) on the client create/edit screen.
+- The existing Admin "create/edit user" screens, and the new Manager "add a team member" screen — both gain a branch picker (only shown for a BU that has more than one branch).
+- `src/features/client/components/masters/branch/add-branch-dialog.tsx` — disable/hide "add branch" (with a short explanation) when the BU's client is Basic tier and already has one branch.
+- `src/features/client/components/help/help-content.ts` and `src/features/super-admin/components/help/dev-help-content.ts` — updated to describe all of the above (both files, every time, per this repo's own rule).
 
-Filtered to competitors in the same vertical — electronics/computer/mobile repair, not
-automotive garage management (GaragePlug, RAMP removed) — that also have **both**
-job-ticket/technician workflow **and** parts inventory management, a bar Vyapar and Zoho
-Books/Inventory don't clear (generic GST/billing tools, no job-ticket workflow at all).
+## Implementation
 
-| | URL | Vertical | Price (India) | Customer updates |
-|---|---|---|---|---|
-| **RepairDesk** | [repairdesk.co](https://www.repairdesk.co/) | Mobile/computer/electronics repair | $99–149/mo (≈₹8,200–12,400) | SMS/email |
-| **BytePhase** | [bytephase.com](https://bytephase.com/) | Computer/electronics repair, India | ~₹249–299/mo | Not stated (no WhatsApp mentioned) |
-| **Service+ (proposed)** | — | Electronics repair, India-native | ₹999–1,999/mo single location | **WhatsApp-native** |
+All 9 steps below are implemented in code and type-check/pytest clean (21 new automated tests, all passing). Both migrations have been run and verified live: Step 2's `subscription_tier` column against `service_plus_client`, and Step 6's `user_bu_role_branch` table against both tenant databases (`service_plus_demo`, `service_plus_capitalgroup`). Both reference files the migration scripts call for afterward are also regenerated and verified: `app/db/schema_dumps/service_plus_service.sql` (also `service_plus_client.sql`), and `app/db/sql/sql_bu_admin_ddl.py` (via `python -m app.db.tools.extract_schema`, so a brand-new tenant now gets `user_bu_role_branch` automatically too). Nothing outstanding.
 
-**The gap**: both have job-ticket + inventory, so that's not the differentiator —
-price and channel are. RepairDesk sits well above Growth tier's ₹1,999 and, per search
-results, updates customers by SMS/email, not WhatsApp — a materially weaker channel for
-the Indian market. BytePhase undercuts Service+ on raw price; if that holds up on closer
-inspection, price alone won't be the pitch against it — WhatsApp-native automation and
-India-specific GST depth would need to be.
+**Step 1 — Add the missing checks. ✅ Implemented.** `createBusinessUser`, `createAdminUser`, and `createBuSchemaAndFeedSeedData` currently run for anyone with a valid login, no matter their role. Add a proper check to each:
+   - `createBusinessUser`: Admin only for now (not Super Admin — Super Admin doesn't create business users), until Step 4 below opens a narrower door for Manager.
+   - `createAdminUser` and `createBuSchemaAndFeedSeedData`: Super Admin only — both stay that way permanently, nobody's own Admin ever gets these, on any tier.
 
-*(Both found via web search this session, not verified beyond search snippets — no
-WhatsApp support surfaced for BytePhase, but that's an absence-of-evidence, not confirmed
-absence. Verify directly before quoting a prospect.)*
+   Worth doing even on its own.
 
-## Marketing and promotion
+**Step 2 — Subscription tier field. ✅ Implemented and migrated.** `subscription_tier` on the client record (Basic / Pro / Enterprise, default Basic) and the Select on the client edit screen are both done. `scripts/subscription_tier_schema.sql` has been run against `service_plus_client` — verified live: the column, its `BASIC`/`PRO`/`ENTERPRISE` check constraint, and every existing client row defaulted to `BASIC` are all in place.
 
-This segment (small/mid electronics-repair shop owners in India) responds to trade-network
-word-of-mouth and a live demo far more than broad digital ads — prioritize accordingly:
+**Step 3 — New permission for Manager. ✅ Implemented.** Added as `USERS_MANAGE_OWN_BU`, given to the Manager role only (not Technician, not Receptionist) in the main seed data, plus a standalone delta script for tenants that already exist. New tenants get it automatically; existing ones need the seed-roles tool re-run (or that script), same as before.
 
-1. **Lead with a live demo of the WhatsApp automation, not a feature list.** Showing an
-   owner their *own phone* receiving the "job ready for pickup" message in real time is the
-   single most concrete, shareable proof of value this product has — it's the one thing
-   neither competitor above does. Make it the first five minutes of every pitch.
-2. **Go where repair shops already cluster.** This trade is geographically concentrated
-   (electronics/mobile markets — Lamington Road, Nehru Place, SP Road, and city-equivalents)
-   and tightly networked through local trade associations and WhatsApp groups. A handful of
-   credible shops in one such cluster, converted and vocal, will refer more of their
-   neighbors than any ad spend reaches.
-3. **Referral program, not ad budget, as the primary paid-acquisition channel** — one month
-   free for both referrer and referee fits the existing per-BU pricing with no new
-   infrastructure, and this trade refers within itself constantly.
-4. **Partner with spare-parts distributors/wholesalers** who already supply these shops —
-   they have a direct incentive in their retail customers running efficiently (and ordering
-   more predictably through better inventory visibility); a distributor co-referral or
-   bundled offer is a warm channel, not cold outreach.
-5. **Comparison SEO content against the named competitors above** — "RepairDesk/BytePhase
-   alternative for Indian repair shops," pricing-comparison pages — targets people already
-   searching and comparing, which is cheap, high-intent inbound now that real competitor
-   names and prices are known.
-6. **Sony-authorized service centers as a separate, warm enterprise channel for Extended
-   Warranty specifically** — that feature's program-specific nature (kept out of general
-   pricing above) is exactly what makes a direct approach to Sony's service-network program
-   managers a distinct, higher-touch track from the self-serve Starter/Growth motion, not
-   something to blend into the general marketing above.
-7. **Every self-serve channel should point at the 30-day trial, not a sales call** — Starter
-   and Growth are priced and provisioned (schema-clone BU setup) to be frictionless; making
-   a prospect talk to someone before they can try it undermines that on purpose-built
-   low-touch tiers.
+**Step 4 — The actual rule. ✅ Implemented, with automated tests.** In the "create user" function:
+   - If the target client is Basic tier: allow exactly one business user, and only with role Manager. Reject a second business user, and reject any role other than Manager, no matter who's asking (Admin included).
+   - If the caller is Admin (and the Basic cap above doesn't block it): unchanged — any role, any BU in their tenant. (Super Admin never calls this — see above.)
+   - If the caller is a Manager with the new permission (and the Basic cap doesn't apply, since a Basic Manager never has this permission): they may only pick a BU they themselves manage, and any role except Manager.
+   - Anyone else calling it: rejected.
 
-## Implementation (Step 0 only — the prerequisite fix)
+**Step 5 — Manager's own screen. ✅ Implemented.** Built as "My Team," a new item in Client Mode → Admin (next to Post/Unpost, not a separate top-level route), shown only to a user holding the new permission. Same form as today's "create user" screen; BU is fixed to the Manager's own BU(s) and the role list excludes Manager.
 
-1. `auth_guards.py`: add `require_own_tenant(info, db_name)` and
-   `require_bu_access(info, db_name, schema)`.
-2. Wire both into every `genericQuery`/`genericBatchQuery`/`genericUpdate`/
-   `genericUpdateScript` resolver — all of them, since none currently check.
-3. Verify no legitimate cross-tenant/cross-BU call breaks — check Super Admin's
-   provisioning/cross-tenant resolvers specifically (already `user_type='S'`, should bypass
-   by design, but confirm before shipping).
-4. Decide explicitly whether Business Admin (`user_type='A'`) bypasses the BU-level check
-   within their own tenant (likely yes, matching `is_admin`'s existing meaning) — a
-   deliberate choice, not an accident of how the guard is written.
+**Step 6 — Branch restriction, storage and rule. ✅ Implemented and migrated.** The validation/save logic is written and tested; `scripts/user_bu_role_branch_schema.sql` has been run and verified live against both tenant databases (`service_plus_demo`, `service_plus_capitalgroup`) — table, primary key, the cascading FK on `(user_id, bu_id)`, and the index all present. New table linking a user's BU assignment to a list of branch ids. Saving it checks that every branch id actually belongs to that BU (branches live in a different part of the database per BU, so this has to be checked by hand, not by the database itself). Empty/no rows = unrestricted, which is what every user already has today, so this step changes nothing until someone actively sets a restriction.
+
+**Step 7 — Branch restriction, screens. ✅ Implemented.** Add a branch picker to the existing Admin "create/edit user" screens and to the new Manager screen from Step 5 — only shown when the BU being assigned has more than one branch. Both Admin and Manager can set or clear it for any user they're otherwise allowed to manage.
+
+**Step 8 — Basic tier: one branch. ✅ Implemented, with automated tests.** In the shared "save a record" function, add a check that runs only when the table is "branch" and it's a new row (not an edit): count the BU's existing branches, and if the client is Basic tier and the count is already 1, reject it. Update the "add branch" screen to disable the button and explain why once a Basic BU already has its one branch.
+
+**Step 9 — Update both help docs. ✅ Implemented.** End-user doc: explain the new "add a team member" screen for Managers, the branch picker, and the one-branch limit on Basic. Developer doc: explain the new permission, the rule in Step 4 (including the Basic cap), the branch table and its check in Step 6, the one-branch check in Step 8, and that BU creation stays Super-Admin-only on every tier (so nobody "fixes" that later by mistake), so the next person doesn't have to rediscover any of this by reading code.
 
 ## Testing
 
-Scoped user (BU A only) sends `schema=B` on the same tenant → rejected. Same user,
-different tenant's `db_name` → rejected. Super Admin → both still succeed. Business Admin
-on their own tenant, BU with no `user_bu_role` row → confirm intended behavior explicitly.
+- Automated tests for the Step 4 rule: Manager can create a Technician/Receptionist for their own BU; Manager cannot create another Manager; Manager cannot create a user for a BU they don't manage; Admin is unaffected.
+- Automated test confirming `createBuSchemaAndFeedSeedData` rejects any caller who isn't Super Admin — Admin included, on every tier.
+- Automated tests for the Basic cap: creating a second business user on a Basic client fails, no matter who's asking; creating that one user with any role other than Manager fails.
+- Automated tests for branch restriction: a restricted user's branch list is saved and read back correctly; saving a branch that belongs to a different BU is rejected; a user with no restriction behaves exactly as before (all branches).
+- Automated tests for the one-branch cap: adding a second branch to a Basic BU fails; adding a second (or third, etc.) branch to a Pro/Enterprise BU still works exactly as today; editing the existing single branch on a Basic BU still works (only a new branch is blocked).
+- Type-check the client build (this repo's linter is currently broken, so this is the real check).
+- Manually check in the browser: log in as a Manager and confirm the new screen works and is scoped correctly; log in as an Admin on each tier and confirm none of them see a "create BU" option anywhere; confirm a Basic BU's "add branch" button is disabled once it has one, and a Pro BU's isn't.
 
 ## Flags and constraints
 
-- Research-only session; no code changed.
-- Shared WhatsApp display name is a Meta/cost decision, not fixable in code — disclose to
-  prospects rather than paper over.
-- Pricing is structural + a first competitor pass; rupee figures deserve a second, sharper
-  pass against current published rates before use in a sales conversation.
+- Basic vs. Pro feature differences (beyond user management) are not part of this plan — only the tier field itself. Deciding and building those differences is separate, later work.
+- Branch restriction in this plan is only about *who can be assigned to which branch* — it does not change what data a restricted user can see or do. Actually filtering jobs/reports/etc. by a user's allowed branches, screen by screen, is bigger, separate work and is not built here.
+- Assumption, stated plainly since it wasn't spelled out: "Basic = one user" counts business users only (the Manager and anyone they'd otherwise create). The one Admin login every client gets automatically when it's first set up is separate infrastructure, not a second "user" for this purpose. Flag if that's wrong.
+- The one-branch cap only blocks *adding a new* branch on Basic — it doesn't touch an existing branch's other data (address, GST details, etc.), and doesn't retroactively do anything if a client is ever moved from Pro/Enterprise down to Basic while already having more than one branch. What should happen in that downgrade case isn't decided — flagged here, not handled by this plan.
+- `createAdminUser` and `createBuSchemaAndFeedSeedData` become Super-Admin-only in Step 1 and stay that way for the rest of this plan — no tenant's own Admin gets either one, on any tier, Enterprise included.
+- With BU creation off the table, Enterprise has no behavior difference from Pro in this plan yet — both just get the Manager-can-create-users capability. Whatever should actually distinguish Enterprise is left for later, same as the undecided Basic-vs-Pro feature differences above.
+- Nobody self-upgrades their own tier — it's set by Super Admin only.

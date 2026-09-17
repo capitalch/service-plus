@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict 1PONRNr9L3mEgbswAyfed2Ss4KrlOw3ajUonxUqNAYnV5YhYSVJHrYymy3PEJZL
+\restrict WXjSp3OlfpRpY5NJMHhdtANgSesnjrUE9bFCyA9i7hlz7aeXVQgDcC10BCgfYHt
 
 -- Dumped from database version 14.6
--- Dumped by pg_dump version 18.0
+-- Dumped by pg_dump version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -18,6 +18,38 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+--
+-- Name: public; Type: SCHEMA; Schema: -; Owner: postgres
+--
+
+CREATE SCHEMA public;
+
+
+ALTER SCHEMA public OWNER TO postgres;
+
+--
+-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: postgres
+--
+
+COMMENT ON SCHEMA public IS 'standard public schema';
+
+
+--
+-- Name: set_updated_at(); Type: FUNCTION; Schema: public; Owner: webadmin
+--
+
+CREATE FUNCTION public.set_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.set_updated_at() OWNER TO webadmin;
 
 SET default_tablespace = '';
 
@@ -44,7 +76,9 @@ CREATE TABLE public.client (
     country_code character(2) DEFAULT 'IN'::bpchar,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    db_name text
+    db_name text,
+    subscription_tier text DEFAULT 'BASIC'::text NOT NULL,
+    CONSTRAINT client_subscription_tier_chk CHECK ((subscription_tier = ANY (ARRAY['BASIC'::text, 'PRO'::text, 'ENTERPRISE'::text])))
 );
 
 
@@ -140,8 +174,16 @@ CREATE TRIGGER trg_client_updated BEFORE UPDATE ON public.client FOR EACH ROW EX
 
 
 --
+-- Name: SCHEMA public; Type: ACL; Schema: -; Owner: postgres
+--
+
+REVOKE USAGE ON SCHEMA public FROM PUBLIC;
+GRANT ALL ON SCHEMA public TO PUBLIC;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 1PONRNr9L3mEgbswAyfed2Ss4KrlOw3ajUonxUqNAYnV5YhYSVJHrYymy3PEJZL
+\unrestrict WXjSp3OlfpRpY5NJMHhdtANgSesnjrUE9bFCyA9i7hlz7aeXVQgDcC10BCgfYHt
 

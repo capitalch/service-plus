@@ -76,6 +76,37 @@ class ReportsAuditSql:
         ORDER BY total_count DESC
     """
 
+    GET_DASHBOARD_OPEN_JOBS_LIST = """
+        SELECT
+            j.id, j.job_no, j.job_date,
+            cc.full_name              AS customer_name,
+            p.name                    AS product_name,
+            b.name                    AS brand_name,
+            pbm.model_name            AS model_name,
+            js.code                   AS status_code,
+            js.name                   AS status_name,
+            t.name                    AS technician_name,
+            (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS is_warranty
+        FROM job j
+        JOIN customer_contact         cc  ON cc.id  = j.customer_contact_id
+        JOIN job_status               js  ON js.id  = j.job_status_id
+        LEFT JOIN technician          t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand               b   ON b.id   = pbm.brand_id
+        LEFT JOIN product             p   ON p.id   = pbm.product_id
+        WHERE j.is_closed = false
+          AND js.code NOT IN ('CANCELLED', 'COMPLETED_OK', 'RETURN')
+          AND (
+              %(product_name)s::text IS NULL
+              OR COALESCE(p.name, 'Unknown') = %(product_name)s::text
+          )
+          AND (
+              %(is_warranty)s::boolean IS NULL
+              OR (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) = %(is_warranty)s::boolean
+          )
+        ORDER BY j.job_date ASC, j.id ASC
+    """
+
     GET_DASHBOARD_MONTHLY_INTAKE = """
         with
             "p_from" as (values(%(from)s::date)),

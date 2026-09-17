@@ -1316,6 +1316,14 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			"CategoryRangeCellDialog",
 			"EventTrackingCellDialog",
 			"invisible",
+			"KpiCard",
+			"emptyAlertOpen",
+			"handleCardClick",
+			"dashboard-section",
+			"OpenJobsByProductDialog",
+			"GET_DASHBOARD_OPEN_JOBS_LIST",
+			"nestedDialogOpen",
+			"onDrillDown",
 		],
 		content: [
 			{ type: "heading", text: "The DialogContent sm:max-w-* gotcha" },
@@ -1404,6 +1412,28 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "note",
 				text: 'Diagnosing this kind of bug from a description alone is unreliable — "the modal\'s edges don\'t line up" and "content spills past the modal" sound similar but have opposite fixes (Overlay-hiding vs. min-w-0). Confirm which one you\'re facing by comparing element.scrollWidth to element.getBoundingClientRect().width on the DialogContent node — scrollWidth > width means content is escaping an overflow:visible ancestor, which points at the CSS Grid min-width issue here, not a stacked-dialog issue.',
+			},
+			{ type: "heading", text: "Zero-count KpiCards: an alert dialog instead of an empty drill-down" },
+			{
+				type: "para",
+				text: "reports/dashboard/dashboard-section.tsx (the Operations Dashboard) wraps every KpiCard's onClick in a local handleCardClick(count, onOpen) helper: count === 0 sets a local emptyAlertOpen boolean instead of calling onOpen, so a zero-count card never opens DashboardJobsListDialog / DashboardRevenueDetailDialog / OpenJobsByProductDialog / DashboardOverdueDetailDialog on an empty result. This copies extended-warranty/ew-pipeline-section.tsx's emptyAlertOpen pattern verbatim (added 2026-09-14 there, see the Extended Warranty article): a plain shadcn Dialog (not AlertDialog — nothing to confirm, so Escape/outside-click dismissal should work), showCloseButton={false}, an Inbox icon badge, a title, MESSAGES.INFO_REPORTS_NO_DATA as the body (the same \"no data\" wording ReportEmpty falls back to — one wording app-wide, not a new key), and a single OK button.",
+			},
+			{
+				type: "note",
+				text: "Each KpiCard's count is the exact number already rendered on its face (kpis?.jobs_received ?? 0, overdueQ.data.length, etc.) — there is no second query. Revenue is gated the same way even though it's a currency amount, not a job count: ₹0 also means there is nothing to drill into. Add the same handleCardClick(count, onOpen) wrap around any new KpiCard whose click opens a query-backed dialog.",
+			},
+			{ type: "heading", text: "Open Jobs' two-level drill-down: summary dialog nesting a job-list dialog" },
+			{
+				type: "para",
+				text: "open-jobs-by-product-dialog.tsx was originally a dead-end: GET_DASHBOARD_OPEN_JOBS_BY_PRODUCT rows (product_name, warranty_count, oow_count, total_count) rendered as a plain ReportTable with no further click. It now takes an onDrillDown({ productName, isWarranty, label }) prop and wraps its W/OOW/Total cells in a shared drillDownCell(count, onClick, className) helper — a <button disabled={count === 0}> matching the CategoryRangeMatrixSection cell-click styling (hover:ring-2 hover:ring-(--cl-accent) hover:ring-inset). The Product name column and every footer cell stay plain text, matching CategoryRangeMatrixSection's own footer (never clickable there either).",
+			},
+			{
+				type: "para",
+				text: "A new sql id, GET_DASHBOARD_OPEN_JOBS_LIST (sql_reports_audit.py), is the job-detail counterpart of GET_DASHBOARD_OPEN_JOBS_BY_PRODUCT: same is_closed = false AND js.code NOT IN ('CANCELLED', 'COMPLETED_OK', 'RETURN') filter and the same job/customer_contact/job_status/technician/product_brand_model/brand/product joins as GET_DASHBOARD_JOBS_RECEIVED_LIST, but takes { product_name, is_warranty } instead of a date range — Open Jobs has never been date-scoped. product_name is matched against COALESCE(p.name, 'Unknown') so the \"Unknown\" product bucket in the summary drills down correctly too; either param can be SQL NULL (both %(x)s::type IS NULL OR ... guards) to widen the filter, though dashboard-section.tsx always passes both. dashboard-section.tsx's handleOpenJobsDrillDown reuses the existing jobsListModal state and DashboardJobsListDialog — no new dialog component for the detail level, only for the summary level.",
+			},
+			{
+				type: "warning",
+				text: 'This is a second Dialog opening on top of a first (open-jobs-by-product-dialog.tsx\'s summary is itself a Dialog, not a page section) — the same "invisible-while-nested" shape as JobFinalInfoModal above, not the sibling-dialog shape CategoryRangeCellDialog uses (that one\'s caller, CategoryRangeMatrixSection, is a page section, so only the drill-down dialog itself is ever mounted). OpenJobsByProductDialog takes nestedDialogOpen, applied as className={cn("sm:max-w-lg", nestedDialogOpen && "invisible")} AND overlayClassName={cn(nestedDialogOpen && "invisible")} on its own DialogContent — both props, not just className, per the Overlay gotcha above. dashboard-section.tsx passes nestedDialogOpen={jobsListModal != null}. Closing the job-list dialog reveals the still-mounted, unrefetched summary exactly as it was.',
 			},
 		],
 		faqs: [
@@ -1658,6 +1688,18 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "heading",
+				text: "Gap 3 (closed, 2026-09-17) — createBusinessUser/createAdminUser/createBuSchemaAndFeedSeedData had no guard at all",
+			},
+			{
+				type: "para",
+				text: 'Found while implementing the Manager-created-users feature (plans/plan.md): createBusinessUser, createAdminUser, createBuSchemaAndFeedSeedData, and setUserBuRole are dedicated named mutations, not routed through genericUpdate/genericUpdateScript — so Gap 1\'s per-table allow-list never covered them, and unlike Gap 2 they had not even a client-side disable\'s worth of thought given to the server side: literally zero require_access_right/require_user_type/userType check. Any authenticated user, any role, could call any of the four directly and create a business user of any role for any BU, a second Admin, or a whole new BU schema. Fixed: createBusinessUser and setUserBuRole now call require_own_tenant + require_user_type(info, {"A", "B"}) in mutation.py, with the real role/BU/tier rule enforced inside users_roles.py (see "Manager-Created Users & Subscription Tiers" below); createAdminUser and createBuSchemaAndFeedSeedData now call require_user_type(info, {"S"}) — Super Admin only, permanently, on every tier.',
+			},
+			{
+				type: "warning",
+				text: "createClient (bu_admin/provisioning.py) was found in the same audit and is STILL unguarded — only Super Admin's own UI reaches it today, same as the other three were before this fix, so treat it with the same suspicion until it's actually closed. Not fixed here because this feature didn't touch it; don't assume it's safe.",
+			},
+			{
+				type: "heading",
 				text: "Gap 2 — JOBS_RECEIPTS and ADMIN_MENU: client-side disable only, no server enforcement",
 			},
 			{
@@ -1702,6 +1744,102 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "If I need to add enforcement to Receipts or Post/Unpost, what should I do first?",
 				a: "Read the full 'Step 10 blocker' section in plans/plan-access-control.md before writing code — this is a design decision (which of options a/b/c above), not a quick guard addition, and picking wrong risks either leaving a hole or blocking a role that must stay unrestricted.",
+			},
+		],
+	},
+
+	{
+		id: "dev-manager-created-users",
+		category: "Access Control & Security",
+		title: "Manager-Created Users & Subscription Tiers",
+		summary:
+			"USERS_MANAGE_OWN_BU, the Basic/Pro/Enterprise tier field, the Basic-tier one-user/one-branch caps, and user_bu_role_branch.",
+		tags: [
+			"USERS_MANAGE_OWN_BU",
+			"subscription_tier",
+			"BASIC",
+			"PRO",
+			"ENTERPRISE",
+			"MANAGER_ROLE_ID",
+			"user_bu_role_branch",
+			"My Team",
+			"require_user_type",
+			"branch restriction",
+			"plans/plan.md",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Implements plans/plan.md: Admin is unchanged (any role, any BU in their own tenant); a Manager can now create Technician/Receptionist users for their own BU(s) only, never another Manager; BU creation stays Super-Admin-only on every tier (no self-serve, corrected from an earlier draft of that plan); a client has a Basic/Pro/Enterprise tier, and Basic caps a client to one business user (role Manager) and one branch per BU; a user's BU assignment can optionally be restricted to specific branches.",
+			},
+			{ type: "heading", text: "USERS_MANAGE_OWN_BU (access_right id 21)" },
+			{
+				type: "para",
+				text: "Seeded to MANAGER only (seed_security_data.py) — TECHNICIAN and RECEPTIONIST never get it, by design; this is the one access right that is NOT simply 'does the role need this feature' but specifically gates a privilege-escalation-shaped capability. Existing tenants need scripts/seed_access_right_users_manage_own_bu.sql or a re-run of the Super Admin seed wizard to pick it up (same as every other right — see 'Seeding Roles & Access Rights').",
+			},
+			{ type: "heading", text: "The rule (users_roles.py)" },
+			{
+				type: "para",
+				text: "resolve_create_business_user_helper and resolve_set_user_bu_role_helper both now take info and run _check_basic_tier_user_cap(db_name, schema, role_id) FIRST, unconditionally — before checking who's calling — then _require_can_create_business_user(info, db_name, role_id, bu_ids). Admin/Super Admin: unrestricted (unless the Basic cap above already blocked it). A 'B' caller: must carry USERS_MANAGE_OWN_BU, role_id must not be MANAGER_ROLE_ID (1), and every bu_id in the payload must come back from GET_MANAGER_BU_IDS_FOR_USER for that caller — a fresh DB read each call, not trusted from the JWT's role_code claim, since role_code is a single string that can't represent 'MANAGER in BU 1, something else in BU 2' even though user_bu_role technically could.",
+			},
+			{
+				type: "note",
+				text: "setUserBuRole (the edit path) runs the identical _require_can_create_business_user check — a Manager can't use 'edit' to grant themselves or someone else a BU they don't manage, or promote someone to MANAGER, just because 'edit' sounds less privileged than 'create'.",
+			},
+			{ type: "heading", text: "require_user_type (auth_guards.py)" },
+			{
+				type: "para",
+				text: 'New guard, sibling to require_access_right/require_bu_access but with no S/A bypass — it checks WHO is calling, not what right they hold. createAdminUser and createBuSchemaAndFeedSeedData both call require_user_type(info, {"S"}) in mutation.py; createBusinessUser and setUserBuRole call require_own_tenant + require_user_type(info, {"A", "B"}) as a coarse pre-filter, with the real rule inside the helper (above) since it needs more than a caller\'s bare identity.',
+			},
+			{ type: "heading", text: "subscription_tier (public.client)" },
+			{
+				type: "para",
+				text: "text column, CHECK'd to ('BASIC', 'PRO', 'ENTERPRISE'), default 'BASIC' — scripts/subscription_tier_schema.sql, run once against service_plus_client (there is only one). Read by db_name via GET_CLIENT_SUBSCRIPTION_TIER_BY_DB_NAME — deliberately keyed by db_name (already on the caller's token / already the resolver's own db_name argument once require_own_tenant has run) rather than by client_id, so no extra round trip or client_id JWT claim is needed. Edited from Super Admin's Edit Client dialog via the existing generic genericUpdate(tableName: \"client\") path — no new mutation needed, since the column just rides along with every other client field already saved that way. Surfaced read-side through resolve_super_admin_clients_data_helper (adds subscription_tier to the dict it already builds from GET_CLIENT_DB_NAMES) and GET_CLIENT_BY_ID.",
+			},
+			{ type: "heading", text: "Basic tier: one user, one branch" },
+			{
+				type: "para",
+				text: "One user: _check_basic_tier_user_cap counts COUNT_BUSINESS_USERS (is_admin = false rows) in the target schema; at BASIC with count >= 1, or count == 0 but role_id != MANAGER_ROLE_ID, it raises before anything else runs — this blocks Admin too, not just a Manager caller, since the cap is a plan limit, not a permission. The one Admin login every client gets at setup is_admin = true and is not counted.",
+			},
+			{
+				type: "para",
+				text: 'One branch: mutation.py\'s _require_basic_tier_branch_cap runs inside resolve_generic_update, scoped to tableName === "branch" and only a NEW row (xData.id absent, or present with isIdInsert — same insert-vs-update test process_details itself uses: `x_data.get("id") and not x_data.get("isIdInsert")` means update). Branch has no dedicated mutation of its own — same Gap-1 shape as everything else on genericUpdate — so this check had to be added narrowly inside the shared dispatcher rather than as a clean per-table right; it is NOT in GENERIC_UPDATE_TABLE_RIGHTS since it is not a right-based check at all. Client-side, branch-section.tsx fetches its own tier via GET_CLIENT_SUBSCRIPTION_TIER_BY_DB_NAME and disables the Add Branch button once at cap — the server check is the real boundary, that\'s only the UX.',
+			},
+			{ type: "heading", text: "Branch restriction — user_bu_role_branch" },
+			{
+				type: "para",
+				text: "New table in the `security` schema (scripts/user_bu_role_branch_schema.sql, one row per (user_id, bu_id, branch_id), PK on all three, FK on the (user_id, bu_id) pair back to user_bu_role with ON DELETE CASCADE). branch_id is a SOFT reference — branches live inside each BU's own schema (named after security.bu.code), which Postgres can't FK across generically. _validate_and_save_branch_restrictions (users_roles.py) resolves bu_id → code via GET_BU_CODE_BY_ID, then checks every branch_id actually exists in that schema via CHECK_BRANCH_IDS_EXIST before inserting — reject the whole call (BRANCH_NOT_IN_BU) rather than write a dangling reference. No rows for a (user_id, bu_id) = unrestricted, which is every user's state today, so this shipped with zero behavior change until someone actively sets a restriction.",
+			},
+			{
+				type: "warning",
+				text: "This plan only covers the ASSIGNMENT side — who can be tagged to which branch. It does not filter what a branch-restricted user can actually see or do in jobs/reports/etc.; that's explicitly out of scope (plans/plan.md, 'Flags and constraints') and would touch most genericQuery report/list resolvers, a materially bigger change than this one. Don't assume a branch-restricted Technician is actually confined to that branch's data — they aren't, yet.",
+			},
+			{ type: "heading", text: "Client-side surface" },
+			{
+				type: "para",
+				text: "New route-free nav entry: client-explorer-panel.tsx's AdminExplorer renders a \"My Team\" TreeItem (label must match the case in client-admin-page.tsx's AdminContent switch exactly, same pattern as \"Post / Unpost\") when hasAccessRight(currentUser, ACCESS_RIGHTS.USERS_MANAGE_OWN_BU) — true for Manager and, incidentally, for Admin too via the S/A bypass in hasAccessRight, so Admin sees a redundant-but-harmless extra entry alongside their own /admin/users screen. The screen itself, accounts-admin/add-team-member-section.tsx, reads the caller's own BUs from currentUser.availableBus (client Redux state already populated at login for the BU switcher) rather than a fresh query — valid because a Manager's availableBus is already exactly their MANAGER-role BU set (role is applied uniformly across every BU an action touches, per the existing one-role-per-user UI constraint).",
+			},
+			{
+				type: "note",
+				text: "create-business-user-dialog.tsx and associate-bu-role-dialog.tsx (Admin's own screens) both gained the same branch picker — fetched per-BU via GET_BU_BRANCHES against that BU's own schema, shown only when a BU has more than one branch, sent as branch_ids: { \"<bu_id>\": [branch_id, ...] } alongside bu_ids/role_id on both createBusinessUser and setUserBuRole.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why does the Basic-tier check run before the caller-identity check, not after?",
+				a: "It's a plan limit, not a permission — Admin is just as capped as a Manager would be. Checking identity first would let an Admin bypass the cap; checking the cap first makes it apply to literally anyone, which is the actual rule in plans/plan.md.",
+			},
+			{
+				q: "Can a Manager see or restrict users in a BU they don't manage?",
+				a: "No — _require_can_create_business_user checks every bu_id in the payload against GET_MANAGER_BU_IDS_FOR_USER for that specific caller, on both create and edit. A BU outside that set raises MANAGER_BU_NOT_OWNED.",
+			},
+			{
+				q: "I want to add branch-level READ enforcement (jobs, reports) — where do I start?",
+				a: "This isn't built yet — user_bu_role_branch only exists to record the restriction, nothing reads it outside the assignment screens themselves. Expect to touch most genericQuery report/list resolvers; treat it as a new, separate piece of work, not an extension of this one.",
+			},
+			{
+				q: "Does setting a client to Basic retroactively enforce the cap on an existing multi-user or multi-branch client?",
+				a: "No — the checks only fire on a NEW business-user or NEW branch insert. A client already over the cap when downgraded to Basic keeps what it has; nothing removes users or branches automatically. What should happen here isn't decided (plans/plan.md flags this explicitly).",
 			},
 		],
 	},

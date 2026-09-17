@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.core.exceptions import AuthorizationException
-from app.graphql.resolvers.auth_guards import require_bu_access, require_own_tenant
+from app.graphql.resolvers.auth_guards import require_bu_access, require_own_tenant, require_user_type
 
 
 def _info(**context):
@@ -72,3 +72,27 @@ def test_require_bu_access_bypasses_for_admin_and_super_admin(user_type):
 def test_require_bu_access_rejects_on_bad_token():
     with pytest.raises(AuthorizationException):
         require_bu_access(_info(auth_error="expired"), "capitalelectronics")
+
+
+# ── require_user_type ────────────────────────────────────────────────────────
+
+def test_require_user_type_allows_a_listed_type():
+    require_user_type(_info(user_type="S"), {"S"})
+
+
+def test_require_user_type_rejects_an_unlisted_type():
+    with pytest.raises(AuthorizationException) as exc:
+        require_user_type(_info(user_type="A"), {"S"})
+    assert exc.value.extensions.get("required_user_type") == ["S"]
+
+
+def test_require_user_type_has_no_bypass_for_super_admin():
+    # Unlike require_access_right/require_bu_access, this checks identity
+    # directly — S is not automatically let through unless it's in `allowed`.
+    with pytest.raises(AuthorizationException):
+        require_user_type(_info(user_type="S"), {"A"})
+
+
+def test_require_user_type_rejects_on_bad_token():
+    with pytest.raises(AuthorizationException):
+        require_user_type(_info(auth_error="expired"), {"S"})

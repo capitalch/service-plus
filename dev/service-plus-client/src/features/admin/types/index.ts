@@ -11,6 +11,16 @@ export type AdminDashboardStatsType = {
 	totalBu: number;
 };
 
+export type BranchType = {
+	code: string;
+	gst_state_code: string | null;
+	gstin: string | null;
+	id: number;
+	is_active: boolean;
+	is_head_office: boolean;
+	name: string;
+};
+
 export type BusinessUnitType = {
 	code: string;
 	created_at: string;

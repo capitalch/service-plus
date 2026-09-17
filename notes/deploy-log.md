@@ -3,6 +3,17 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-17 15:34 (main)
+Admin: let Managers create team members within their own BU
+
+- Server: close a real gap — createBusinessUser, createAdminUser, createBuSchemaAndFeedSeedData and setUserBuRole had no authorization check at all; now Admin/Super Admin only, with Manager admitted narrowly below
+- Server: new USERS_MANAGE_OWN_BU right (Manager role only) lets a Manager create Technician/Receptionist users for their own BU, never another Manager
+- Server: add client subscription_tier (Basic/Pro/Enterprise); Basic caps a client to one business user (must be Manager) and one branch per BU
+- Server: add optional per-branch restriction on a user's BU assignment (user_bu_role_branch), validated against that BU's own schema; schema dumps and generated DDL regenerated to match
+- Client: new "My Team" screen for Managers, branch pickers on the Admin user dialogs, a tier selector on Edit Client, and 21 new automated tests
+- Reports > Dashboard: fix the Open Jobs by Product summary's column alignment and add a job-detail drill-down from it
+Files: 33 changed (+1323 / -634) — Base: acdae74
+
 ## 2026-09-17 11:15 (main)
 Security: enforce tenant/BU ownership on generic query and update calls
 

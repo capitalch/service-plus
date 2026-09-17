@@ -43,6 +43,8 @@ import type { BranchType } from "./branch";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryDataType = { genericQuery: BranchType[] | null };
+type SubscriptionTierType = "BASIC" | "ENTERPRISE" | "PRO";
+type TierQueryDataType = { genericQuery: { subscription_tier: SubscriptionTierType }[] | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -72,6 +74,32 @@ export const BranchSection = () => {
 	const [search, setSearch] = useState("");
 	const [sortCol, setSortCol] = useState<string | null>(null);
 	const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+	const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTierType | null>(null);
+
+	// Basic tier is capped at one branch per BU — see plans/plan.md, Step 8. The
+	// server enforces this independently; this is only for the disabled-button UX.
+	useEffect(() => {
+		if (!dbName) return;
+		apolloClient
+			.query<TierQueryDataType>({
+				fetchPolicy: "network-only",
+				query: GRAPHQL_MAP.genericQuery,
+				variables: {
+					db_name: "",
+					schema: "public",
+					value: graphQlUtils.buildGenericQueryValue({
+						sqlArgs: { db_name: dbName },
+						sqlId: SQL_MAP.GET_CLIENT_SUBSCRIPTION_TIER_BY_DB_NAME,
+					}),
+				},
+			})
+			.then(({ data }) => {
+				setSubscriptionTier(data?.genericQuery?.[0]?.subscription_tier ?? null);
+			})
+			.catch(() => {});
+	}, [dbName]);
+
+	const atBasicBranchCap = subscriptionTier === "BASIC" && branches.length >= 1;
 
 	const loadBranches = useCallback(async () => {
 		if (!dbName || !schema) return;
@@ -200,8 +228,10 @@ export const BranchSection = () => {
 							Refresh
 						</Button>
 						<Button
-							className="bg-teal-600 text-white hover:bg-teal-700"
+							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
+							disabled={atBasicBranchCap}
 							size="sm"
+							title={atBasicBranchCap ? MESSAGES.INFO_BASIC_TIER_BRANCH_LIMIT : undefined}
 							onClick={() => setAddOpen(true)}
 						>
 							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />
