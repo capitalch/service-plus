@@ -33,6 +33,7 @@ async def get_graphql_context(request: Any, _data: Any) -> dict:
         "access_rights": [],
         "client_id": None,
         "db_name": None,
+        "bu_codes": [],
         "auth_error": None,
     }
 
@@ -58,6 +59,7 @@ async def get_graphql_context(request: Any, _data: Any) -> dict:
         "access_rights": payload.get("access_rights") or [],
         "client_id": payload.get("client_id"),
         "db_name": payload.get("db_name"),
+        "bu_codes": payload.get("bu_codes") or [],
     })
     return context
 

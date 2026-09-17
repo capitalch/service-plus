@@ -58,3 +58,50 @@ def require_any_access_right(info, codes: list[str]) -> None:
             message=AppMessages.FORBIDDEN,
             extensions={"required_access_right_any_of": codes},
         )
+
+
+def require_own_tenant(info, db_name: str | None) -> None:
+    """
+    Raise AuthorizationException unless the requested db_name matches the
+    caller's own tenant (from their token). Super Admin's token always
+    carries db_name=None and is the only identity allowed to name any
+    db_name — its provisioning resolvers (bu_admin/provisioning.py) don't
+    call this guard at all, they're cross-tenant by construction. Business
+    Admin ("A") is deliberately NOT bypassed here: an Admin's token still
+    carries one fixed db_name and must never reach another tenant's database.
+    """
+    context = info.context or {}
+    _reject_bad_token(context)
+    if context.get("user_type") == "S":
+        return
+    if context.get("db_name") != db_name:
+        raise AuthorizationException(
+            message=AppMessages.FORBIDDEN,
+            extensions={"reason": "tenant_mismatch"},
+        )
+
+
+def require_bu_access(info, schema: str | None) -> None:
+    """
+    Raise AuthorizationException unless `schema` is one of the caller's
+    assigned BU codes (or the caller is Super Admin/Business Admin, who
+    bypass — Admin owns every BU in their own tenant). `security`/`public`/
+    falsy schemas are tenant-wide, not BU schemas, and always pass.
+
+    A token minted before this guard existed carries no `bu_codes` claim at
+    all; `context.get("bu_codes") or []` turns that into an empty list, so a
+    real BU-schema request FAILS CLOSED on an old token instead of silently
+    passing everything.
+    """
+    context = info.context or {}
+    _reject_bad_token(context)
+    if context.get("user_type") in BYPASS_USER_TYPES:
+        return
+    normalized = (schema or "").lower()
+    if not normalized or normalized in {"security", "public"}:
+        return
+    if normalized not in (context.get("bu_codes") or []):
+        raise AuthorizationException(
+            message=AppMessages.FORBIDDEN,
+            extensions={"reason": "bu_mismatch"},
+        )

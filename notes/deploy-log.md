@@ -3,6 +3,30 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-17 11:15 (main)
+Security: enforce tenant/BU ownership on generic query and update calls
+
+- auth_guards.py: add require_own_tenant and require_bu_access, closing a gap where
+  any logged-in user could point genericQuery/genericUpdate/genericUpdateScript/
+  genericBatchQuery at another tenant's db_name or an unassigned BU's schema and
+  have the server simply run it
+- login_helper/refresh_token_helper: add a bu_codes claim to the JWT (from the
+  existing GET_USER_BUS lookup); refresh_token_helper now re-runs that lookup on
+  every refresh instead of never running it
+- Wire both guards into all four generic dispatchers before any existing
+  right-check; genericBatchQuery checks each bundled item's schema individually so
+  one disallowed item rejects the whole batch instead of leaking the rest
+- dev-help-content.ts: new "Tenant & BU Enforcement" article plus updates to four
+  now-stale references (token claims list, request-flow steps, known-gaps
+  cross-reference)
+- tests/test_auth_guards.py: new unit tests for both guards (tenant/BU match and
+  mismatch, Admin/Super Admin bypass rules, fail-closed on a token missing bu_codes)
+- admin-layout.tsx / business-users-page.tsx: drop the BU/branch switcher from the
+  admin header, show assigned BU names in a dropdown instead of just a count
+- notes/todo.md: add marketing domain-name research
+
+Files: 10 changed (+250 / -33) — Base: 7ac013a
+
 ## 2026-09-15 19:42 (main)
 Chore: gitignore Claude Code sandbox placeholder files
 

@@ -9,6 +9,7 @@ from urllib.parse import unquote
 from app.db.connection.psycopg_driver import SqlBatchItem, exec_sql_query, exec_sql_batch_query
 from app.db.sql.sql_base import SqlStore
 from app.core.exceptions import AppMessages, ValidationException
+from app.graphql.resolvers.auth_guards import require_bu_access
 from app.logger import logger
 
 
@@ -71,8 +72,13 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
     return rows
 
 
-async def resolve_generic_batch_query_helper(db_name: str, items: list[str]) -> list:
-    """Execute multiple SQL queries in one DB connection, returning results in order."""
+async def resolve_generic_batch_query_helper(info, db_name: str, items: list[str]) -> list:
+    """Execute multiple SQL queries in one DB connection, returning results in order.
+
+    Each item names its own `schema` independently of the others, so each one is
+    checked against the caller's allowed BUs (require_bu_access) before it's added
+    to the batch — a bad schema on any item rejects the whole call before
+    exec_sql_batch_query ever runs, rather than leaking the earlier items' data."""
     logger.debug("Generic batch query requested: %d items", len(items))
 
     batch: list[SqlBatchItem] = []
@@ -91,10 +97,12 @@ async def resolve_generic_batch_query_helper(db_name: str, items: list[str]) -> 
                 message=AppMessages.INVALID_INPUT,
                 extensions={"detail": f"Unknown sqlId: {sql_id}"},
             )
+        item_schema = params.get("schema") or "public"
+        require_bu_access(info, item_schema)
         batch.append(SqlBatchItem(
             sql_id=sql_id,
             sql_args=params.get("sqlArgs") or {},
-            schema=params.get("schema") or "public",
+            schema=item_schema,
             text_dates=params.get("textDates", True),
         ))
 

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
+	BuildingIcon,
+	ChevronDownIcon,
 	LinkIcon,
 	MailIcon,
 	MoreHorizontalIcon,
@@ -23,6 +25,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -33,7 +36,12 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectBusinessUsers, setBusinessUsers } from "@/features/admin/store/admin-slice";
+import {
+	selectBusinessUnits,
+	selectBusinessUsers,
+	setBusinessUnits,
+	setBusinessUsers,
+} from "@/features/admin/store/admin-slice";
 import { AdminLayout } from "@/features/admin/components/admin-layout";
 import { ActivateBusinessUserDialog } from "@/features/admin/components/activate-business-user-dialog";
 import { AssociateBuRoleDialog } from "@/features/admin/components/associate-bu-role-dialog";
@@ -42,12 +50,16 @@ import { DeactivateBusinessUserDialog } from "@/features/admin/components/deacti
 import { DeleteBusinessUserDialog } from "@/features/admin/components/delete-business-user-dialog";
 import { EditBusinessUserDialog } from "@/features/admin/components/edit-business-user-dialog";
 import { MailBusinessUserCredentialsDialog } from "@/features/admin/components/mail-business-user-credentials-dialog";
-import type { BusinessUserType } from "@/features/admin/types/index";
+import type { BusinessUnitType, BusinessUserType } from "@/features/admin/types/index";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryDataType = {
 	genericQuery: BusinessUserType[] | null;
+};
+
+type GenericBuQueryDataType = {
+	genericQuery: BusinessUnitType[] | null;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -66,6 +78,7 @@ const cardVariants = {
 export const BusinessUsersPage = () => {
 	const dispatch = useAppDispatch();
 	const dbName = useAppSelector(selectDbName);
+	const businessUnits = useAppSelector(selectBusinessUnits);
 	const businessUsers = useAppSelector(selectBusinessUsers);
 
 	const [activateUser, setActivateUser] = useState<BusinessUserType | null>(null);
@@ -103,9 +116,41 @@ export const BusinessUsersPage = () => {
 		}
 	}, [dbName, dispatch]);
 
+	const loadBusinessUnits = useCallback(async () => {
+		if (!dbName) return;
+		try {
+			const result = await apolloClient.query<GenericBuQueryDataType>({
+				fetchPolicy: "network-only",
+				query: GRAPHQL_MAP.genericQuery,
+				variables: {
+					db_name: dbName,
+					schema: "security",
+					value: graphQlUtils.buildGenericQueryValue({
+						sqlId: SQL_MAP.GET_ALL_BUS,
+					}),
+				},
+			});
+			if (result.data?.genericQuery) {
+				dispatch(setBusinessUnits(result.data.genericQuery));
+			}
+		} catch {
+			// BU names are supplementary to the card; a failed fetch just falls back to "N BUs".
+		}
+	}, [dbName, dispatch]);
+
 	useEffect(() => {
 		loadBusinessUsers();
 	}, [loadBusinessUsers]);
+
+	useEffect(() => {
+		if (businessUnits.length === 0) loadBusinessUnits();
+	}, [businessUnits.length, loadBusinessUnits]);
+
+	const buNameById = useMemo(() => {
+		const map = new Map<number, string>();
+		businessUnits.forEach((bu) => map.set(bu.id, bu.name));
+		return map;
+	}, [businessUnits]);
 
 	const displayUsers = useMemo(() => {
 		const q = search.trim().toLowerCase();
@@ -335,15 +380,40 @@ export const BusinessUsersPage = () => {
 											{/* BU + Role */}
 											<div className="mt-3 flex flex-wrap items-center gap-1.5">
 												{user.bu_ids && user.bu_ids.length > 0 ? (
-													<span className="inline-flex items-center rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700">
-														{user.bu_ids.length} BU{user.bu_ids.length !== 1 ? "s" : ""}
-													</span>
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<button
+																className="inline-flex cursor-pointer items-center gap-1 rounded-sm bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-200"
+																type="button"
+															>
+																{user.bu_ids.length} BU
+																{user.bu_ids.length !== 1 ? "s" : ""}
+																<ChevronDownIcon className="h-3 w-3" />
+															</button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent align="start" className="w-52">
+															<DropdownMenuLabel className="text-xs text-slate-500">
+																Business Units
+															</DropdownMenuLabel>
+															<DropdownMenuSeparator />
+															{user.bu_ids.map((buId) => (
+																<DropdownMenuItem
+																	className="cursor-default text-xs text-slate-700 focus:bg-transparent focus:text-slate-700"
+																	key={buId}
+																	onSelect={(e) => e.preventDefault()}
+																>
+																	<BuildingIcon className="mr-1.5 h-3.5 w-3.5 text-teal-600" />
+																	{buNameById.get(buId) ?? `BU #${buId}`}
+																</DropdownMenuItem>
+															))}
+														</DropdownMenuContent>
+													</DropdownMenu>
 												) : (
 													<span className="text-xs text-slate-400">No BU</span>
 												)}
 												{user.role_name ? (
 													<Badge
-														className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50"
+														className="rounded-sm border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50"
 														variant="outline"
 													>
 														{user.role_name}

@@ -3,6 +3,7 @@ GraphQL Query resolvers.
 """
 from typing import Any
 from ariadne import QueryType
+from app.graphql.resolvers.auth_guards import require_bu_access, require_own_tenant
 from app.graphql.resolvers.error_handling import handle_query_errors
 from app.graphql.resolvers.reports_audit.queries import (
     resolve_admin_dashboard_stats_helper,
@@ -63,7 +64,8 @@ async def resolve_audit_log_stats(
 @query.field("genericBatchQuery")
 @handle_query_errors("Unexpected genericBatchQuery failure")
 async def resolve_generic_batch_query(_, info, db_name="", items=None) -> Any:
-    return await resolve_generic_batch_query_helper(db_name, items or [])
+    require_own_tenant(info, db_name)
+    return await resolve_generic_batch_query_helper(info, db_name, items or [])
 
 
 @query.field("genericQuery")
@@ -75,6 +77,8 @@ async def resolve_generic_query(_, info, db_name="", schema="public", value="") 
     Returns:
         Result of the generic query
     """
+    require_own_tenant(info, db_name)
+    require_bu_access(info, schema)
     return await resolve_generic_query_helper(db_name, schema, value)
 
 

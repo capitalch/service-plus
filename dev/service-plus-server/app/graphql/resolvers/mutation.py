@@ -7,7 +7,12 @@ from typing import Any
 from urllib.parse import unquote
 from ariadne import MutationType  # pylint: disable=import-error
 from app.core.exceptions import AppMessages
-from app.graphql.resolvers.auth_guards import require_access_right, require_any_access_right
+from app.graphql.resolvers.auth_guards import (
+    require_access_right,
+    require_any_access_right,
+    require_bu_access,
+    require_own_tenant,
+)
 from app.graphql.resolvers.error_handling import handle_graphql_errors
 
 from app.graphql.resolvers.bu_admin.mailers import (
@@ -248,6 +253,8 @@ async def resolve_drop_database(
 @handle_graphql_errors("Error in genericUpdate")
 async def resolve_generic_update(_, info, db_name="", schema="public", value="") -> Any:
     """Execute a generic table upsert/delete operation."""
+    require_own_tenant(info, db_name)
+    require_bu_access(info, schema)
     _require_generic_update_table_right(info, value)
     result = await resolve_generic_update_helper(db_name, schema, value)
     # A lead entered, edited or deleted is the one Extended Warranty change with no
@@ -261,6 +268,8 @@ async def resolve_generic_update(_, info, db_name="", schema="public", value="")
 @handle_graphql_errors("Error executing script")
 async def resolve_generic_update_script(_, info, db_name="", schema="public", value="") -> Any:
     """Execute a raw SQL update script."""
+    require_own_tenant(info, db_name)
+    require_bu_access(info, schema)
     _require_generic_update_script_right(info, value)
     return await resolve_generic_update_script_helper(db_name, schema, value)
 

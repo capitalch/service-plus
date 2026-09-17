@@ -15,8 +15,6 @@ import { Button } from "@/components/ui/button";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout, selectCurrentUser, setSessionMode } from "@/features/auth/store/auth-slice";
 import { clearContext } from "@/store/context-slice";
-import { BuBranchDivisionGate } from "@/features/admin/components/bu-branch-division-gate";
-import { BuBranchSwitcher } from "@/features/admin/components/bu-branch-switcher";
 import { ROUTES } from "@/router/routes";
 
 type AdminLayoutPropsType = {
@@ -53,7 +51,6 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
 
 	return (
 		<div className="flex h-screen w-full overflow-hidden bg-slate-50">
-			<BuBranchDivisionGate />
 			{/* Sidebar */}
 			<aside className="hidden w-56 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
 				{/* Logo */}
@@ -111,7 +108,6 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
 					</div>
 					<div className="flex flex-1" />
 					<div className="flex items-center gap-3">
-						<BuBranchSwitcher variant="admin" />
 						<div className="text-right leading-tight">
 							<p className="text-xs font-semibold text-slate-600">{user?.fullName ?? user?.username}</p>
 							<p className="text-[10px] font-bold uppercase tracking-widest text-teal-600">

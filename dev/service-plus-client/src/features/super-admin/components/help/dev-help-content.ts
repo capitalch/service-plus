@@ -59,7 +59,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				items: [
 					"Browser → Apollo Client (src/lib/apollo-client.ts) attaches Authorization: Bearer <token> to every GraphQL call.",
 					"→ POST /graphql, handled by Ariadne's GraphQL app (app/graphql/schema.py).",
-					"→ context_value / get_graphql_context() decodes the JWT and injects user_id, user_type, role_code, access_rights, client_id, db_name into every resolver call.",
+					"→ context_value / get_graphql_context() decodes the JWT and injects user_id, user_type, role_code, access_rights, client_id, db_name, bu_codes into every resolver call.",
 					"→ Resolvers (app/graphql/resolvers/{query,mutation,subscription}.py) run business logic, calling SQL from app/db/sql_store.py.",
 					"→ psycopg_driver.py / pool_manager.py execute against the correct tenant database (selected by db_name from the JWT).",
 					"→ Response flows back through Apollo Client into Redux / component state.",
@@ -81,7 +81,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "How does the server know which tenant database to use?",
-				a: "db_name is embedded in the JWT at login (see 'RBAC Data Model & Login Flow') and threaded through the GraphQL context and every genericQuery/genericUpdate call.",
+				a: "db_name is embedded in the JWT at login (see 'RBAC Data Model & Login Flow') and threaded through the GraphQL context. It's also now validated, not just threaded through — see 'Tenant & BU Enforcement' for require_own_tenant/require_bu_access, the guards that reject a genericQuery/genericUpdate call whose db_name/schema doesn't match the caller's own token.",
 			},
 		],
 	},
@@ -1449,14 +1449,14 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				items: [
 					"POST /api/auth/login → auth_router_helper.py::login_helper.",
 					"Looks up the user via SqlStore.GET_USER_BY_IDENTITY, which returns role_code and the aggregated access_rights array.",
-					"Issues a JWT with token_claims: sub, user_type, client_id, db_name, role_code, access_rights.",
+					"Issues a JWT with token_claims: sub, user_type, client_id, db_name, role_code, access_rights, bu_codes (the last one added by the tenant/BU enforcement fix — see 'Tenant & BU Enforcement').",
 					"Client stores the login response (roleCode, accessRights typed in src/lib/auth-service.ts) into Redux via auth-slice.ts, persisted through src/lib/auth-storage.ts.",
 					"Every subsequent Apollo Client call attaches Authorization: Bearer <token> (apollo-client.ts).",
 				],
 			},
 			{
 				type: "note",
-				text: "The refresh-token path re-reads role_code/access_rights live from GET_USER_BY_ID_FOR_RESET rather than copying them from the old token — so a role change takes effect on the user's next token refresh, not only at their next full login.",
+				text: "The refresh-token path re-reads role_code/access_rights live from GET_USER_BY_ID_FOR_RESET, and (as of the tenant/BU enforcement fix) also re-runs GET_USER_BUS for bu_codes, rather than copying any of these from the old token — so a role or BU-assignment change takes effect on the user's next token refresh, not only at their next full login.",
 			},
 		],
 		faqs: [
@@ -1467,6 +1467,59 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "What does a user with no user_bu_role rows see?",
 				a: "They can authenticate (login succeeds) but access_rights comes back empty and role_code is unset — they'd see everything gated by a right as disabled. See the end-user 'Granting Access: Associate BU / Role' article for the UI side of fixing this.",
+			},
+		],
+	},
+
+	{
+		id: "dev-tenant-bu-enforcement",
+		category: "Access Control & Security",
+		title: "Tenant & BU Enforcement — require_own_tenant / require_bu_access",
+		summary:
+			"Why genericQuery/genericUpdate can now 403 with tenant_mismatch or bu_mismatch, even when the access right is fine.",
+		tags: [
+			"require_own_tenant",
+			"require_bu_access",
+			"bu_codes",
+			"tenant_mismatch",
+			"bu_mismatch",
+			"auth_guards",
+			"multi-tenancy",
+			"security fix",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Before this fix, db_name and schema were accepted as plain arguments on genericQuery/genericBatchQuery/genericUpdate/genericUpdateScript and never checked against the caller's own token — any logged-in user could send a different db_name (another tenant) or schema (another BU) and the server would simply run the request there. Proven live: a user assigned to exactly one BU successfully read another BU's data in the same tenant, and a different tenant's data entirely, using their own unmodified token.",
+			},
+			{ type: "heading", text: "The fix" },
+			{
+				type: "steps",
+				items: [
+					"login_helper and refresh_token_helper now add a bu_codes: string[] claim to the JWT (lowercased security.bu.code values), derived from the same GET_USER_BUS query already run at login for the 'select business unit' screen — refresh_token_helper didn't run that query at all before this fix.",
+					"get_graphql_context (app/graphql/schema.py) decodes bu_codes into context alongside the existing user_id/user_type/access_rights/db_name — an old token with no bu_codes claim decodes to an empty list, not 'unrestricted'.",
+					"Two new guards in auth_guards.py: require_own_tenant(info, db_name) rejects unless the request's db_name matches context.db_name (Super Admin, whose token always carries db_name=None, bypasses); require_bu_access(info, schema) rejects unless schema is in context.bu_codes, short-circuiting to allow for schema in {'security','public'} (tenant-wide, not BU-specific) and bypassing entirely for Super Admin/Business Admin (user_type in {'S','A'}) — Admin already owns every BU in their own tenant everywhere else in this codebase.",
+					"Both guards are called first, before any existing right-check, in all four generic dispatchers (query.py's resolve_generic_query/resolve_generic_batch_query, mutation.py's resolve_generic_update/resolve_generic_update_script).",
+					"genericBatchQuery is the one wrinkle: each item in its items list carries its own schema, so resolve_generic_batch_query_helper (shared/generic_query.py) now takes info as its first argument and calls require_bu_access per item, inside the loop, before that item is appended to the batch — one bad schema rejects the whole call before exec_sql_batch_query ever runs, so there's no partial-batch leak.",
+				],
+			},
+			{
+				type: "note",
+				text: "bu_admin/provisioning.py's Super-Admin-only resolvers (createClient, createBuSchema, dropDatabase, etc.) are untouched — they're cross-tenant by design and don't route through the four generic dispatchers.",
+			},
+		],
+		faqs: [
+			{
+				q: "A genericQuery call is failing with FORBIDDEN and extensions.reason is tenant_mismatch or bu_mismatch — what does that mean, and how is it different from a missing access right?",
+				a: "It means the request's db_name didn't match the caller's own tenant (tenant_mismatch), or its schema wasn't one of the BUs in the caller's token (bu_mismatch) — this is checked before any access-right check runs, so it can fire even when the user has every right they need. Compare to require_access_right's FORBIDDEN, which has no reason extension and means the user lacks a specific access-right code.",
+			},
+			{
+				q: "A user was just added to a new BU (or removed from one) — why doesn't the change take effect immediately?",
+				a: "bu_codes is baked into the JWT at login/refresh, same as access_rights already was — it takes effect on that user's next token refresh (the client proactively refreshes within 5 minutes of expiry; access tokens last 30 minutes by default), not instantly. This is the same staleness window access-right changes have always had.",
+			},
+			{
+				q: "Does this fix the 'genericUpdate table-writer hole' described in Known Gaps?",
+				a: "No — that's a different question (which table a caller may write to) from this one (which tenant/BU a caller may address at all). See 'Known Gaps' — Gap 1 is unaffected by this change.",
 			},
 		],
 	},
@@ -1593,6 +1646,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "warning",
 				text: "This article exists so a developer touching Access Control doesn't assume more protection exists than actually does. Source: plans/plan-access-control.md's 'Gaps' and 'Step 10 blocker' sections — re-verify current state before relying on this, as this area is actively evolving.",
+			},
+			{
+				type: "note",
+				text: "This article is about which table/right an authenticated user needs within their own tenant/BU. A separate question — which tenant/BU a caller may address at all — was a real, exploited-in-testing gap and is now closed by require_own_tenant/require_bu_access; see 'Tenant & BU Enforcement'. Gap 1 below is unaffected by that fix.",
 			},
 			{ type: "heading", text: "Gap 1 — The generic table-writer hole" },
 			{

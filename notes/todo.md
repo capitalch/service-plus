@@ -1,6 +1,14 @@
 # To Do
+- Marketting
+	- domain
+		- available
+			- jobservice, serviceworks, servicebase, servicemate, serviceprime, serviceforge  :.in: 549/yr
+			- repairjob.in, repairplus.in, repairtrack, repairsuite, repairbase, repaircore  :.in: 549/yr
+		- Not available
+			- serviceplus, servicejob, serviceflow
+			- repairplus.com, repairflow, repairdesk, repairhub, 
 - Ali
-	- Advance info in job control
+								- Advance info in job control
 - Extended Warranty
 	- Leads -> Open Leads
 	- Everything in the card will show actions. With 0 value no actions navigate

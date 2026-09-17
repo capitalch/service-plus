@@ -148,30 +148,9 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
     # [5] Determine user type
     user_type = "A" if user["is_admin"] else "B"
 
-    # [6] Create JWT
-    token_claims = {
-        "sub": str(user["id"]),
-        "user_type": user_type,
-        "client_id": body.client_id,
-        "db_name": db_name,
-        "role_code": user.get("role_code") or "",
-        "access_rights": user.get("access_rights") or [],
-    }
-    access_token = create_access_token(token_claims)
-    refresh_token = create_refresh_token(token_claims)
-
-    # [7] Log success
-    logger.info("%s: user_id=%s, client_id=%s",
-        AppMessages.LOGIN_SUCCESSFUL, user['id'], body.client_id)
-    await audit_logger.log(
-        action=AuditAction.LOGIN,
-        actor_type="admin_user" if user["is_admin"] else "user",
-        actor_username=user.get("username", body.identity),
-        resource_name=db_name,
-        resource_type="session",
-    )
-
-    # [8] Fetch available BUs for this user (only for non-super-admin)
+    # [6] Fetch available BUs for this user — also feeds the bu_codes JWT claim below,
+    # so a caller's token carries exactly the BUs they may address (see auth_guards.py's
+    # require_bu_access).
     available_bus = []
     if user.get("id"):
         user_bus_rows = await exec_sql(
@@ -181,6 +160,31 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
             sql_args={"user_id": user["id"]},
         )
         available_bus = [dict(row) for row in (user_bus_rows or [])]
+    bu_codes = [row["code"].lower() for row in available_bus if row.get("code")]
+
+    # [7] Create JWT
+    token_claims = {
+        "sub": str(user["id"]),
+        "user_type": user_type,
+        "client_id": body.client_id,
+        "db_name": db_name,
+        "role_code": user.get("role_code") or "",
+        "access_rights": user.get("access_rights") or [],
+        "bu_codes": bu_codes,
+    }
+    access_token = create_access_token(token_claims)
+    refresh_token = create_refresh_token(token_claims)
+
+    # [8] Log success
+    logger.info("%s: user_id=%s, client_id=%s",
+        AppMessages.LOGIN_SUCCESSFUL, user['id'], body.client_id)
+    await audit_logger.log(
+        action=AuditAction.LOGIN,
+        actor_type="admin_user" if user["is_admin"] else "user",
+        actor_username=user.get("username", body.identity),
+        resource_name=db_name,
+        resource_type="session",
+    )
 
     # [9] Return response
     return LoginResponse(
@@ -341,6 +345,17 @@ async def refresh_token_helper(body: RefreshTokenRequest) -> RefreshTokenRespons
         raise HTTPException(status_code=401, detail=AppMessages.TOKEN_INVALID)
     user = rows[0]
 
+    # [3b] Re-fetch BU membership too, for the same reason role_code/access_rights are
+    # re-read below rather than copied from the old token: a mid-session BU (re)assignment
+    # should take effect on the next refresh, not only at the next full login.
+    user_bus_rows = await exec_sql(
+        db_name=db_name,
+        schema="security",
+        sql=SqlStore.GET_USER_BUS,
+        sql_args={"user_id": user_id},
+    )
+    bu_codes = [row["code"].lower() for row in (user_bus_rows or []) if row.get("code")]
+
     # [4] Issue new token pair — role_code/access_rights are re-read from the DB
     # (not copied from the old refresh token) so a mid-session role change takes
     # effect on the next refresh instead of only at the next full login.
@@ -351,6 +366,7 @@ async def refresh_token_helper(body: RefreshTokenRequest) -> RefreshTokenRespons
         "db_name": db_name,
         "role_code": user.get("role_code") or "",
         "access_rights": user.get("access_rights") or [],
+        "bu_codes": bu_codes,
     }
     access_token = create_access_token(token_claims)
     refresh_token = create_refresh_token(token_claims)
