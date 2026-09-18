@@ -3,6 +3,14 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-18 16:03 (main)
+Docs: add more domain-name candidates to marketing notes
+
+- notes/todo.md: added servicebyte, servicebench to available domains and
+  serviceforce to unavailable domains.
+
+Files: 1 changed (+3 / -2) — Base: a72d7df
+
 ## 2026-09-18 15:34 (main)
 BU admin: allow tenant Admin to create BUs; prefill numbering
 

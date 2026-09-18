@@ -10,10 +10,11 @@
 - Marketting
 	- domain
 		- available
-			- jobservice, serviceworks, servicebase, servicemate, serviceprime, serviceforge, servicemain, servicechoice, servicegate, servicepure, serviceroot, servicework, serviceto, servicedo, serviceop, servicenail.com, serviceclick, servicecon  :.in: 549/yr
+			- jobservice, serviceworks, servicebase, servicemate, serviceprime, serviceforge, servicemain, servicechoice, servicegate, servicepure, serviceroot, servicework, serviceto, servicedo, serviceop, servicenail.com, serviceclick, servicecon, servicebyte
+			servicebench, :.in: 549/yr
 			- repairjob.in, repairplus.in, repairtrack, repairsuite, repairbase, repaircore  :.in: 549/yr
 		- Not available
-			- serviceplus, servicejob, serviceflow, serviceking
+			- serviceplus, servicejob, serviceflow, serviceking,serviceforce
 			- repairplus.com, repairflow, repairdesk, repairhub, 
 - Ali
 								- Advance info in job control
