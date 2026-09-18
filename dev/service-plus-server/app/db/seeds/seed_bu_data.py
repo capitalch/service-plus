@@ -178,6 +178,20 @@ class SeedBuData:
         SELECT 'HO', 'Head Office', '123 Main St', 29, '700001', true
         WHERE NOT EXISTS (SELECT 1 FROM branch WHERE code = 'HO');
 
+        INSERT INTO document_sequence (document_type_id, branch_id, prefix, next_number, padding, separator)
+        SELECT dt.id, b.id, v.prefix, 1, 5, '/'
+        FROM (VALUES
+            ('JOB_SHEET',               'J'),
+            ('PURCHASE_INVOICE',        'P'),
+            ('PURCHASE_RETURN_INVOICE', 'PR')
+        ) AS v(doc_code, prefix)
+        JOIN document_type dt ON dt.code = v.doc_code
+        JOIN branch b ON b.code = 'HO'
+        WHERE NOT EXISTS (
+            SELECT 1 FROM document_sequence ds
+            WHERE ds.document_type_id = dt.id AND ds.branch_id = b.id AND ds.division_id IS NULL
+        );
+
         INSERT INTO financial_year (id, start_date, end_date) VALUES
             (2022, '2022-04-01', '2023-03-31'),
             (2023, '2023-04-01', '2024-03-31'),

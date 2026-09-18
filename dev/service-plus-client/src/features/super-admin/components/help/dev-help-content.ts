@@ -1692,7 +1692,11 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "para",
-				text: 'Found while implementing the Manager-created-users feature (plans/plan.md): createBusinessUser, createAdminUser, createBuSchemaAndFeedSeedData, and setUserBuRole are dedicated named mutations, not routed through genericUpdate/genericUpdateScript — so Gap 1\'s per-table allow-list never covered them, and unlike Gap 2 they had not even a client-side disable\'s worth of thought given to the server side: literally zero require_access_right/require_user_type/userType check. Any authenticated user, any role, could call any of the four directly and create a business user of any role for any BU, a second Admin, or a whole new BU schema. Fixed: createBusinessUser and setUserBuRole now call require_own_tenant + require_user_type(info, {"A", "B"}) in mutation.py, with the real role/BU/tier rule enforced inside users_roles.py (see "Manager-Created Users & Subscription Tiers" below); createAdminUser and createBuSchemaAndFeedSeedData now call require_user_type(info, {"S"}) — Super Admin only, permanently, on every tier.',
+				text: 'Found while implementing the Manager-created-users feature (plans/plan.md): createBusinessUser, createAdminUser, createBuSchemaAndFeedSeedData, and setUserBuRole are dedicated named mutations, not routed through genericUpdate/genericUpdateScript — so Gap 1\'s per-table allow-list never covered them, and unlike Gap 2 they had not even a client-side disable\'s worth of thought given to the server side: literally zero require_access_right/require_user_type/userType check. Any authenticated user, any role, could call any of the four directly and create a business user of any role for any BU, a second Admin, or a whole new BU schema. Fixed: createBusinessUser and setUserBuRole now call require_own_tenant + require_user_type(info, {"A", "B"}) in mutation.py, with the real role/BU/tier rule enforced inside users_roles.py (see "Manager-Created Users & Subscription Tiers" below); createAdminUser now calls require_user_type(info, {"S"}) — Super Admin only, permanently, on every tier.',
+			},
+			{
+				type: "warning",
+				text: 'createBuSchemaAndFeedSeedData briefly went Super-Admin-only on 2026-09-17 as part of this same fix, per an earlier draft of plans/plan.md ("no tenant\'s own Admin ever gets this"). Reverted 2026-09-18: the client\'s Admin Panel (features/admin/components/create-business-unit-dialog.tsx) still shows "Add Business Unit" to tenant Admin, and Super Admin has no equivalent screen to create a BU for a tenant — the lockdown left BU creation broken for everyone. Now require_own_tenant(info, db_name) + require_user_type(info, {"S", "A"}): Super Admin (any tenant) or the tenant\'s own Admin (their tenant only, enforced by require_own_tenant). If a proper Super Admin BU-management screen is ever built, this can be tightened back to {"S"} only — see plans/plan.md "Flags and constraints" for this decision.',
 			},
 			{
 				type: "warning",
@@ -1770,7 +1774,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "Implements plans/plan.md: Admin is unchanged (any role, any BU in their own tenant); a Manager can now create Technician/Receptionist users for their own BU(s) only, never another Manager; BU creation stays Super-Admin-only on every tier (no self-serve, corrected from an earlier draft of that plan); a client has a Basic/Pro/Enterprise tier, and Basic caps a client to one business user (role Manager) and one branch per BU; a user's BU assignment can optionally be restricted to specific branches.",
+				text: "Implements plans/plan.md: Admin is unchanged (any role, any BU in their own tenant); a Manager can now create Technician/Receptionist users for their own BU(s) only, never another Manager; BU creation is Super Admin (any tenant) or a tenant's own Admin for their own tenant only — reverted 2026-09-18 from a brief Super-Admin-only window, since the client's Admin Panel still exposes 'Add Business Unit' to Admin and Super Admin has no replacement screen; a client has a Basic/Pro/Enterprise tier, and Basic caps a client to one business user (role Manager) and one branch per BU; a user's BU assignment can optionally be restricted to specific branches.",
 			},
 			{ type: "heading", text: "USERS_MANAGE_OWN_BU (access_right id 21)" },
 			{
@@ -1789,7 +1793,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "require_user_type (auth_guards.py)" },
 			{
 				type: "para",
-				text: 'New guard, sibling to require_access_right/require_bu_access but with no S/A bypass — it checks WHO is calling, not what right they hold. createAdminUser and createBuSchemaAndFeedSeedData both call require_user_type(info, {"S"}) in mutation.py; createBusinessUser and setUserBuRole call require_own_tenant + require_user_type(info, {"A", "B"}) as a coarse pre-filter, with the real rule inside the helper (above) since it needs more than a caller\'s bare identity.',
+				text: 'New guard, sibling to require_access_right/require_bu_access but with no S/A bypass — it checks WHO is calling, not what right they hold. createAdminUser calls require_user_type(info, {"S"}) in mutation.py — Super Admin only, permanently, no exceptions. createBuSchemaAndFeedSeedData calls require_own_tenant + require_user_type(info, {"S", "A"}) — Super Admin (any tenant) or the tenant\'s own Admin (own tenant only), reverted 2026-09-18 (see the warning under "Server-Side Authorization Gaps"). createBusinessUser and setUserBuRole call require_own_tenant + require_user_type(info, {"A", "B"}) as a coarse pre-filter, with the real rule inside the helper (above) since it needs more than a caller\'s bare identity.',
 			},
 			{ type: "heading", text: "subscription_tier (public.client)" },
 			{
@@ -2381,7 +2385,11 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "document_sequence" },
 			{
 				type: "para",
-				text: "Required sequences: JOB_SHEET, SERVICE_INVOICE, MONEY_RECEIPT, SALES_INVOICE — each with prefix/separator/padding/next-number columns. JOB_SHEET and PURCHASE_INVOICE numbering is branch-wide; SERVICE_INVOICE/MONEY_RECEIPT/SALES_INVOICE are configured per-division. A sequence with no prefix causes a runtime save failure — see 'Common Dev-Time Issues' and the end-user 'Document Sequences' article.",
+				text: "Required sequences: JOB_SHEET, SERVICE_INVOICE, MONEY_RECEIPT, SALES_INVOICE — each with prefix/separator/padding/next-number columns. JOB_SHEET, PURCHASE_INVOICE, and PURCHASE_RETURN_INVOICE numbering is branch-wide (division_id IS NULL); SERVICE_INVOICE/MONEY_RECEIPT/SALES_INVOICE are configured per-division. A sequence with no prefix causes a runtime save failure — see 'Common Dev-Time Issues' and the end-user 'Document Sequences' article.",
+			},
+			{
+				type: "note",
+				text: "seed_bu_data.py's BU_SEED_SQL (reverted/updated 2026-09-18) pre-populates document_sequence for the auto-created 'HO' branch: JOB_SHEET→'J', PURCHASE_INVOICE→'P', PURCHASE_RETURN_INVOICE→'PR', all with next_number=1, padding=5, separator='/', division_id NULL — matching document-sequence-section.tsx's own client-side fallback defaults (next_number ?? 1, padding ?? 5, separator ?? '/') so the saved row and an unsaved/blank row render identically. Inserted via JOIN branch/document_type + WHERE NOT EXISTS (same idiom as the branch insert above it), so it's safe on re-seed and never overwrites a value an Admin already changed. SERVICE_INVOICE/MONEY_RECEIPT/SALES_INVOICE are NOT pre-seeded — they're per-division and no division exists yet at BU-creation time.",
 			},
 		],
 		faqs: [
@@ -3461,7 +3469,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"'Job Sheet document sequence is not configured or has no prefix' while testing",
-						"This is a data-setup issue, not a code bug — see the end-user 'Document Sequences' article; add a prefix via Configurations → Numbering / Auto Series in the test tenant",
+						"On the BU's original HO branch this shouldn't happen since 2026-09-18 (seed_bu_data.py pre-fills JOB_SHEET/PURCHASE_INVOICE/PURCHASE_RETURN_INVOICE) — on a later branch or division it's still a data-setup issue, not a code bug; see the end-user 'Document Sequences' article and add a prefix via Configurations → Numbering / Auto Series in the test tenant",
 					],
 					[
 						"Adding a new shadcn component triggers an eslint error",

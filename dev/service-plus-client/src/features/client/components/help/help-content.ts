@@ -94,7 +94,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				items: [
 					"Create a Branch (Masters → Branch). At least one branch is required.",
 					"Create a Division (Configurations → Divisions). Fill GSTIN for a GST division; leave GSTIN blank for non-GST.",
-					"Configure Numbering / Auto Series (Configurations → Numbering / Auto Series). Set a prefix for JOB_SHEET, SERVICE_INVOICE, and MONEY_RECEIPT. Without these, jobs and invoices cannot be created.",
+					"Configure Numbering / Auto Series (Configurations → Numbering / Auto Series). JOB_SHEET (prefix J), PURCHASE_INVOICE (prefix P), and PURCHASE_RETURN_INVOICE (prefix PR) already come pre-filled for the new BU's Head Office branch — set a prefix for SERVICE_INVOICE and MONEY_RECEIPT yourself, since those are per-division and there's no division yet until the previous step. Without these, invoices and receipts cannot be created.",
 					"Set App Settings (Configurations → App Settings): default GST rate, default HSN codes, number of print copies.",
 					"Add lookup values: Job Types, Job Statuses, Receive/Delivery Manners, Receive Conditions (Masters → Service Config).",
 					"Add Brands, Products, and Models (Masters → Brand / Product / Model). Jobs require all three.",
@@ -106,13 +106,13 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "warning",
-				text: "If you skip numbering setup, you will see an error such as: 'Job Sheet document sequence is not configured or has no prefix.' Go to Configurations → Numbering / Auto Series and add a prefix to resolve it. (The in-app message currently says 'Settings → Document Sequence' — that wording is stale; the real menu path is Configurations → Numbering / Auto Series.)",
+				text: "If you skip numbering setup for SERVICE_INVOICE or MONEY_RECEIPT (or add a second branch, which does not inherit the first branch's numbering), you will see an error such as: 'Job Sheet document sequence is not configured or has no prefix.' Go to Configurations → Numbering / Auto Series and add a prefix to resolve it. (The in-app message currently says 'Settings → Document Sequence' — that wording is stale; the real menu path is Configurations → Numbering / Auto Series.)",
 			},
 		],
 		faqs: [
 			{
 				q: "Why can't I create a new job?",
-				a: "The most common cause is a missing numbering setup. Go to Configurations → Numbering / Auto Series, find JOB_SHEET, and set a prefix (e.g., 'SVC').",
+				a: "On the BU's original Head Office branch this is unlikely — JOB_SHEET (prefix J) is pre-configured when the BU is created. On any branch added afterward, or if the prefix was cleared, go to Configurations → Numbering / Auto Series, find JOB_SHEET, and set a prefix (e.g., 'SVC').",
 			},
 			{
 				q: "Do I need to create the customer before the job?",
@@ -3024,10 +3024,16 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				headers: ["Sequence", "Used For", "Required Before"],
 				rows: [
 					["JOB_SHEET", "Job numbers (e.g., SVC-0001)", "Creating any job"],
+					["PURCHASE_INVOICE", "Purchase invoice numbers", "Inventory → Purchase Entry"],
+					["PURCHASE_RETURN_INVOICE", "Purchase return invoice numbers", "Inventory → Purchase Return"],
 					["SERVICE_INVOICE", "Service invoice numbers", "Delivering a job and creating an invoice"],
 					["MONEY_RECEIPT", "Payment receipt numbers", "Adding a payment receipt"],
 					["SALES_INVOICE", "Direct parts sales invoice numbers", "Inventory → Sales Entry"],
 				],
+			},
+			{
+				type: "note",
+				text: "JOB_SHEET (prefix J), PURCHASE_INVOICE (prefix P), and PURCHASE_RETURN_INVOICE (prefix PR) are pre-filled automatically on the Head Office branch when a new Business Unit is created — no setup needed for them on day one. This does not extend to a second/later branch added afterward, or to SERVICE_INVOICE / MONEY_RECEIPT / SALES_INVOICE, which are per-division and need a division to exist first.",
 			},
 			{ type: "heading", text: "Setup Steps" },
 			{

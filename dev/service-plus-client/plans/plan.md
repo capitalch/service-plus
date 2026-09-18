@@ -123,3 +123,21 @@ All 9 steps below are implemented in code and type-check/pytest clean (21 new au
 - `createAdminUser` and `createBuSchemaAndFeedSeedData` become Super-Admin-only in Step 1 and stay that way for the rest of this plan — no tenant's own Admin gets either one, on any tier, Enterprise included.
 - With BU creation off the table, Enterprise has no behavior difference from Pro in this plan yet — both just get the Manager-can-create-users capability. Whatever should actually distinguish Enterprise is left for later, same as the undecided Basic-vs-Pro feature differences above.
 - Nobody self-upgrades their own tier — it's set by Super Admin only.
+
+## Update — 2026-09-18: `createBuSchemaAndFeedSeedData` reopened to tenant Admin
+
+The "Super Admin only, permanently" line above shipped without its other half: nothing
+was built for Super Admin to actually create a BU for a tenant. The client's Admin Panel
+(`features/admin/pages/business-units-page.tsx` → `create-business-unit-dialog.tsx`) still
+shows "Add Business Unit" to tenant Admin, and it's the only UI path that ever called this
+mutation — Super Admin's Clients page only shows a read-only BU count chip, and
+`/admin/business-units` requires an exact `userType === "A"` match, so Super Admin can't
+even reach the existing screen. Net effect: nobody could create a BU through the UI at all.
+
+Reverted, at the user's explicit direction after being shown the tradeoff: server guard on
+`createBuSchemaAndFeedSeedData` (`app/graphql/resolvers/mutation.py`) is now
+`require_own_tenant(info, db_name)` + `require_user_type(info, {"S", "A"})` — Super Admin
+(any tenant) or the tenant's own Admin (own tenant only, enforced by `require_own_tenant`).
+The client-side dialog and route are unchanged. If a dedicated Super Admin BU-management
+screen is ever built, this can be tightened back to Super-Admin-only. Until then, treat
+"BU creation stays Super-Admin-only" elsewhere in this document as superseded by this note.

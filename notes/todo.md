@@ -1,11 +1,19 @@
 # To Do
+- Credentials for clients
+	- demo-> bu: demo1, demo2
+		- demo1: manager: pwd service123
+	- capital
+		- abhishek: receptionist: pwd $ervice123
+		- skali: receptionist: pwd service123
+		- subrata: receptionist: pwd $ervice123
+		- swapan: manager: pwd $ervice123
 - Marketting
 	- domain
 		- available
-			- jobservice, serviceworks, servicebase, servicemate, serviceprime, serviceforge  :.in: 549/yr
+			- jobservice, serviceworks, servicebase, servicemate, serviceprime, serviceforge, servicemain, servicechoice, servicegate, servicepure, serviceroot, servicework, serviceto, servicedo, serviceop, servicenail.com, serviceclick, servicecon  :.in: 549/yr
 			- repairjob.in, repairplus.in, repairtrack, repairsuite, repairbase, repaircore  :.in: 549/yr
 		- Not available
-			- serviceplus, servicejob, serviceflow
+			- serviceplus, servicejob, serviceflow, serviceking
 			- repairplus.com, repairflow, repairdesk, repairhub, 
 - Ali
 								- Advance info in job control

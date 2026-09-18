@@ -206,9 +206,12 @@ async def resolve_create_admin_user(
 async def resolve_create_bu_schema_and_feed_seed_data(
     _, info, db_name: str = "", schema: str = "security", value: str = ""
 ) -> Any:
-    """Create a BU schema and seed its lookup tables. Super Admin only, on every
-    tier — no tenant's own Admin ever gets this (plans/plan.md, corrected)."""
-    require_user_type(info, {"S"})
+    """Create a BU schema and seed its lookup tables. Super Admin (any tenant), or
+    a tenant's own Admin for their own tenant only (plans/plan.md, reverted 2026-09-18
+    — the client's Admin Panel still exposes this and Super Admin has no equivalent
+    screen, so Admin keeps this ability)."""
+    require_own_tenant(info, db_name)
+    require_user_type(info, {"S", "A"})
     return await resolve_create_bu_schema_and_feed_seed_data_helper(db_name, schema, value)
 
 

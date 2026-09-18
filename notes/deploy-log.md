@@ -3,6 +3,25 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-18 15:34 (main)
+BU admin: allow tenant Admin to create BUs; prefill numbering
+
+- mutation.py: createBuSchemaAndFeedSeedData now allows a tenant's own Admin
+  (scoped to their own tenant via require_own_tenant), not just Super Admin —
+  the earlier Super-Admin-only lockdown left BU creation broken for everyone,
+  since the client only exposes this to Admin and Super Admin has no
+  replacement screen.
+- seed_bu_data.py: new BUs now get document_sequence rows pre-filled for the
+  auto-created Head Office branch — Job Sheet (J), Purchase Invoice (P),
+  Purchase Return Invoice (PR) — so numbering works without a manual setup
+  step; idempotent, reused by the "Add Seed Data" repair path too.
+- plan.md, help-content.ts, dev-help-content.ts: documented both changes,
+  including the reasoning for reopening BU creation to Admin.
+- notes/todo.md: added client login credentials and more domain-name research.
+- plan1.md (new): competitive research plan comparing Service+ to BytePhase.
+
+Files: 6 changed (+70 / -13) — Base: e0de387
+
 ## 2026-09-17 15:34 (main)
 Admin: let Managers create team members within their own BU
 
