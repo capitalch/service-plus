@@ -1918,6 +1918,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "note",
 				text: "Enabled alone shows the screen, so you can enter and review leads first. Reminders only go out once the WhatsApp switch is on as well.",
 			},
+			{
+				type: "note",
+				text: "The Custom tab in the top nav and the matching shield icon in the left-hand icon rail always appear and disappear together — both are hidden for a tenant with no add-on switched on or no access right for one, and both appear as soon as either turns on.",
+			},
 			{ type: "heading", text: "Adding a lead" },
 			{
 				type: "para",
@@ -2020,7 +2024,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "The Details tab" },
 			{
 				type: "para",
-				text: "Every lead, newest entered first. Rows alternate a faint shade to make a wide row easier to track across the screen. Search by name, mobile, serial number, model or brand, filter by state — each one shown with the same icon and colour as its badge — and hide closed leads with Show closed; Refresh at the right of that row re-reads the list, and is there on a drill-down list too. The Follow-up column shows what the last follow-up actually was — how it was made, what was said, and by whom — not just the count and dates. The teal tick box at the left of a row appears only on leads that can still be sent a reminder — tick them, or tick the box in the header to take every sendable lead on the page, and the send bar appears above the list. Click a row for the lead’s details and its full timeline of messages and changes; the ⋮ menu on each row holds every action, each with its own icon and colour — the WhatsApp mark for sending a reminder, green for Won, amber for Lost, rose for Cancelled, violet for moving into In Progress, blue for Edit and red for Delete.",
+				text: "Every lead, newest entered first. Rows alternate a faint shade to make a wide row easier to track across the screen. Search by name, mobile, serial number, model or brand, filter by state — each one shown with the same icon and colour as its badge — and hide closed leads with Show closed; Refresh at the right of that row re-reads the list, and is there on a drill-down list too. The lead's state badge sits under its purchase date in the Purchased column — there is no separate State column any more, so this is the only place in the row a lead's state is shown. The Follow-up column shows what the last follow-up actually was — how it was made, what was said, and by whom — not just the count and dates. The teal tick box at the left of a row appears only on leads that can still be sent a reminder — tick them, or tick the box in the header to take every sendable lead on the page, and the send bar appears above the list. Click a row for the lead’s details and its full timeline of messages and changes; the ⋮ menu on each row holds every action, each with its own icon and colour — the WhatsApp mark for sending a reminder, green for Won, amber for Lost, rose for Cancelled, violet for moving into In Progress, blue for Edit and red for Delete.",
 			},
 			{ type: "heading", text: "The Flow tab" },
 			{

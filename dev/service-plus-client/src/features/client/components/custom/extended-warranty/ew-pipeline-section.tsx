@@ -39,7 +39,7 @@ const GROUP_LAYOUT: Record<string, { cards: string; span: string; tint: string }
 	INTERESTED: {
 		cards: "grid-cols-1",
 		span: "xl:col-span-1",
-		tint: "border-orange-200 bg-orange-50 dark:border-orange-900/60 dark:bg-orange-950/25",
+		tint: "border-teal-200 bg-teal-50 dark:border-teal-900/60 dark:bg-teal-950/25",
 	},
 	MESSAGE_SENT: {
 		cards: "grid-cols-2 sm:grid-cols-4",
@@ -107,7 +107,7 @@ export const EwPipelineSection = ({ data, onOpen }: Props) => {
 									return (
 										<KpiCard
 											key={card.label}
-											borderClassName={cn("border-2", colors.border)}
+											borderClassName={cn("border-2", card.lightBorderClassName ?? colors.border)}
 											label={card.label}
 											onClick={() =>
 												count === 0
@@ -120,7 +120,10 @@ export const EwPipelineSection = ({ data, onOpen }: Props) => {
 														)
 											}
 											value={String(count)}
-											valueClassName={cn("text-3xl font-bold", colors.text)}
+											valueClassName={cn(
+												"text-3xl font-bold",
+												card.lightTextClassName ?? colors.text,
+											)}
 										/>
 									);
 								})}

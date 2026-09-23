@@ -3,6 +3,32 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-23 15:53 (main)
+Extended Warranty: recolour Dashboard cards, drop State column
+
+- ew-lead-grid.tsx: removed the Details grid's separate State column; its
+  EwStateBadge now renders as a second line under the purchase date in the
+  Purchased column instead, so a lead's state lives in one place per row.
+- ew-state-machine.ts, ew-pipeline-section.tsx: moved the Dashboard's 0-7 D,
+  Interested, Stage 3 and Cancelled pipeline cards off orange/amber/red;
+  Overdue and Fail then moved to a lighter orange via new optional
+  lightBorderClassName/lightTextClassName overrides, without touching the
+  shared colour tokens those states use elsewhere (Details grid, filter,
+  row-menu, flow diagram).
+- client-activity-bar.tsx: the Custom icon in the left-hand icon rail now
+  hides itself the same way the top-nav Custom tab already does, for a
+  tenant with no add-ons switched on.
+- test_users_roles_rules.py: added the branch-restriction tests plan.md's
+  Testing section called for but never had (saved/read-back, cross-BU
+  branch rejected, no-restriction writes nothing).
+- plan.md: documented both the test-coverage gap above and the earlier
+  createBuSchemaAndFeedSeedData revert.
+- plan2.md (new): a UI improvement audit covering admin-panel mobile nav,
+  keyboard/screen-reader accessibility, and cross-workspace visual
+  consistency.
+
+Files: 8 changed (+174 / -22) — Base: 99e5af7
+
 ## 2026-09-18 16:03 (main)
 Docs: add more domain-name candidates to marketing notes
 

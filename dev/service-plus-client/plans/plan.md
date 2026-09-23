@@ -2,11 +2,11 @@
 
 ## Goal
 
-1. Admin (one per client/tenant) keeps full power: sees every BU in their client, creates users of any role for any BU. No change from today.
+   1. Admin (one per client/tenant) keeps full power: sees every BU in their client, creates users of any role for any BU. No change from today.
 2. A Manager can create users for their own BU — any role except Manager. Today only Admin can create users at all, so this is new.
-3. Super Admin is unchanged.
-4. Add three subscription tiers: Basic, Pro, Enterprise. Pro and Enterprise work like points 1 and 2 above (Manager can create users). Basic is different — see point 7.
-5. Creating a new BU stays Super Admin only, for every tier, Enterprise included. No client-side Admin, on any tier, can create a BU themselves.
+   3. Super Admin is unchanged.
+   4. Add three subscription tiers: Basic, Pro, Enterprise. Pro and Enterprise work like points 1 and 2 above (Manager can create users). Basic is different — see point 7.
+   5. Creating a new BU stays Super Admin only, for every tier, Enterprise included. No client-side Admin, on any tier, can create a BU themselves.
 6. A user can be restricted to specific branches inside a BU. By default a user (any role) can see/work in every branch of their BU. A Manager or an Admin can narrow a specific user down to only certain branches.
 7. Basic tier is capped at one business user, and that user's role must be Manager. That one Manager has no permission to create more users — Basic stays single-person by design.
 8. Basic tier is also capped at one branch per BU — a Basic BU can't add a second location. Branch restriction (point 6) doesn't come up on Basic in practice, since there's only ever one branch to be restricted to.
@@ -141,3 +141,22 @@ Reverted, at the user's explicit direction after being shown the tradeoff: serve
 The client-side dialog and route are unchanged. If a dedicated Super Admin BU-management
 screen is ever built, this can be tightened back to Super-Admin-only. Until then, treat
 "BU creation stays Super-Admin-only" elsewhere in this document as superseded by this note.
+
+## Update — 2026-09-20: Step 6's missing branch-restriction tests added
+
+Line 79's "21 new automated tests, all passing" was checked against the actual test
+files and found short — only 17 existed (`tests/bu_admin/test_users_roles_rules.py` +
+`tests/test_generic_update_branch_cap.py`), and the ones missing were exactly the
+Step 6 / Testing-section bullet for branch restriction: saved-and-read-back, a branch
+from a different BU rejected, and no-restriction-writes-nothing. The underlying logic
+(`_validate_and_save_branch_restrictions` in `bu_admin/users_roles.py`) was already
+correct — only the tests were missing.
+
+Added 4 tests to `test_users_roles_rules.py` (a fifth, `test_unknown_bu_id_raises_not_found`,
+covers an adjacent branch of the same function not called out in the original Testing
+list): saving across multiple BUs writes exactly the right `(user_id, bu_id, branch_id)`
+rows against each BU's own schema; a branch id that exists only in another BU's schema
+is rejected and nothing is written; an unknown `bu_id` is rejected; and an absent/empty
+`branch_ids_by_bu` performs no lookup and no write at all. Full server suite (53 tests)
+passes. The total is now 21 — matching line 79's original count, which was aspirational
+until today.

@@ -11,9 +11,10 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { selectCurrentBu } from "@/store/context-slice";
+import { selectCurrentBu, selectExtendedWarrantyEnabled } from "@/store/context-slice";
 import { logout, selectCurrentUser, setSessionMode } from "@/features/auth/store/auth-slice";
 import { ROUTES } from "@/router/routes";
+import { getVisibleCustomMenuItems } from "./custom-menu-registry";
 import type { Section } from "./client-layout";
 
 type ActivityItem = {
@@ -48,6 +49,13 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
 	const currentBu = useAppSelector(selectCurrentBu);
 	const isAdmin = user?.userType === "A";
 
+	// Custom is a container for bought add-ons — hide the icon entirely when the
+	// tenant has none, same rule client-top-nav.tsx applies to the Custom tab, so
+	// the icon rail and the top nav can never disagree.
+	const extendedWarrantyEnabled = useAppSelector(selectExtendedWarrantyEnabled);
+	const hasCustomItems = getVisibleCustomMenuItems(user, { extendedWarrantyEnabled }).length > 0;
+	const activityItems = ACTIVITY_ITEMS.filter((item) => item.section !== "custom" || hasCustomItems);
+
 	function handleSwitchToAdmin() {
 		dispatch(setSessionMode("admin"));
 		navigate(ROUTES.admin.root);
@@ -61,7 +69,7 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
 	return (
 		<aside className="fixed left-0 top-12 z-40 hidden h-[calc(100%-4.5rem)] w-16 flex-col items-center bg-(--cl-deep) py-4 md:flex">
 			<div className="flex w-full flex-col items-center gap-6">
-				{ACTIVITY_ITEMS.map(({ color, icon: Icon, section, to, title }) => {
+				{activityItems.map(({ color, icon: Icon, section, to, title }) => {
 					const isActive = activeSection === section;
 					return (
 						<NavLink

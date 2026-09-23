@@ -270,7 +270,6 @@ export const EwLeadGrid = ({ actions, filter, refreshKey, showStateFilter = fals
 								<th className={TH}>Interest</th>
 								<th className={TH}>Follow-up</th>
 								<th className={TH}>Staff note</th>
-								<th className={TH}>State</th>
 								<th className={cn(TH, "sticky right-0 bg-(--cl-surface-2)")} />
 							</tr>
 						</thead>
@@ -332,7 +331,10 @@ export const EwLeadGrid = ({ actions, filter, refreshKey, showStateFilter = fals
 												<div className="text-(--cl-text-muted)">SN {row.serial_no}</div>
 											)}
 										</td>
-										<td className={cn(TD, "whitespace-nowrap")}>{formatDate(row.purchase_date)}</td>
+										<td className={cn(TD, "whitespace-nowrap")}>
+											<div>{formatDate(row.purchase_date)}</div>
+											<EwStateBadge row={row} />
+										</td>
 										<td className={cn(TD, "whitespace-nowrap")}>
 											<div>{formatDate(row.warranty_end_date)}</div>
 											<div className="text-(--cl-text-muted)">{daysLeftLabel(row.days_left)}</div>
@@ -437,9 +439,6 @@ export const EwLeadGrid = ({ actions, filter, refreshKey, showStateFilter = fals
 													{row.remarks}
 												</div>
 											)}
-										</td>
-										<td className={TD}>
-											<EwStateBadge row={row} />
 										</td>
 										<td
 											className={cn(TD, "sticky right-0 bg-(--cl-surface-2)")}

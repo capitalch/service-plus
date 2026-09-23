@@ -49,6 +49,11 @@ export type EwPipelineCardType = {
 	countKey: keyof EwDashboardType;
 	filter: EwLeadsFilterType;
 	label: string;
+	/** Overrides `EW_COLOR_CLASSES[color].border` for this one card, e.g. a lighter shade
+	 * than the shared token — without relightening every other use of that colour. */
+	lightBorderClassName?: string;
+	/** Overrides `EW_COLOR_CLASSES[color].text` for this one card, paired with the above. */
+	lightTextClassName?: string;
 };
 
 export type EwPipelineGroupType = {
@@ -171,12 +176,14 @@ export const EW_PIPELINE_GROUPS: EwPipelineGroupType[] = [
 			{ color: "grey", countKey: "new_61_plus", filter: { band: "D61_PLUS", state: "NEW_LEAD" }, label: "61+ D" },
 			{ color: "green", countKey: "new_31_60", filter: { band: "D31_60", state: "NEW_LEAD" }, label: "31–60 D" },
 			{ color: "blue", countKey: "new_8_30", filter: { band: "D8_30", state: "NEW_LEAD" }, label: "8–30 D" },
-			{ color: "orange", countKey: "new_0_7", filter: { band: "D0_7", state: "NEW_LEAD" }, label: "0–7 D" },
+			{ color: "indigo", countKey: "new_0_7", filter: { band: "D0_7", state: "NEW_LEAD" }, label: "0–7 D" },
 			{
-				color: "amber",
+				color: "orange",
 				countKey: "new_overdue",
 				filter: { band: "OVERDUE", state: "NEW_LEAD" },
 				label: "Overdue",
+				lightBorderClassName: "border-orange-200 dark:border-orange-900/50",
+				lightTextClassName: "text-orange-500 dark:text-orange-400",
 			},
 			{ color: "green", countKey: "new_all", filter: { state: "NEW_LEAD" }, label: "All" },
 		],
@@ -199,10 +206,12 @@ export const EW_PIPELINE_GROUPS: EwPipelineGroupType[] = [
 				label: "Read",
 			},
 			{
-				color: "red",
+				color: "orange",
 				countKey: "sent_failed",
 				filter: { messageGroup: "FAILED", state: "MESSAGE_SENT" },
 				label: "Fail",
+				lightBorderClassName: "border-orange-200 dark:border-orange-900/50",
+				lightTextClassName: "text-orange-500 dark:text-orange-400",
 			},
 			{
 				color: "grey",
@@ -216,7 +225,7 @@ export const EW_PIPELINE_GROUPS: EwPipelineGroupType[] = [
 		totalKey: "sent_all",
 	},
 	{
-		cards: [{ color: "orange", countKey: "interested", filter: { state: "INTERESTED" }, label: "Interested" }],
+		cards: [{ color: "teal", countKey: "interested", filter: { state: "INTERESTED" }, label: "Interested" }],
 		key: "INTERESTED",
 		label: "Interested",
 		totalKey: null,
@@ -236,7 +245,7 @@ export const EW_PIPELINE_GROUPS: EwPipelineGroupType[] = [
 				label: "Stage 2",
 			},
 			{
-				color: "orange",
+				color: "violet",
 				countKey: "in_progress_3",
 				filter: { progressStage: 3, state: "IN_PROGRESS" },
 				label: "Stage 3",
@@ -250,7 +259,7 @@ export const EW_PIPELINE_GROUPS: EwPipelineGroupType[] = [
 		cards: [
 			{ color: "green", countKey: "won", filter: { state: "WON" }, label: "Won" },
 			{ color: "amber", countKey: "lost", filter: { state: "LOST" }, label: "Lost" },
-			{ color: "amber", countKey: "cancelled", filter: { state: "CANCELLED" }, label: "Cancelled" },
+			{ color: "blue", countKey: "cancelled", filter: { state: "CANCELLED" }, label: "Cancelled" },
 		],
 		key: "CLOSED",
 		label: "Closed",
