@@ -3,6 +3,13 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-24 19:40 (main)
+Docs: start subscription-model notes with the tier list
+
+- plans/prompt1.md: record that the subscription model will have four levels, and name the first two — Lite (free) and Basic (paid)
+
+Files: 1 changed (+4 / -1) — Base: d46ec9e
+
 ## 2026-09-24 16:33 (main)
 Admin: rework Users into a grid, hide it for Basic-tier Managers
 
