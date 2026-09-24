@@ -3794,18 +3794,18 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "note",
 				text: "Deactivating a user prevents them from logging in without deleting their history or records. Reactivate at any time.",
 			},
-			{ type: "heading", text: "Manager Self-Service: My Team" },
+			{ type: "heading", text: "Manager Self-Service: Users" },
 			{
 				type: "para",
-				text: "A user with the Manager role sees a My Team item in Client Mode → Admin (the same left-hand section as Post / Unpost — no need to switch to Admin Mode). From there a Manager can add a Technician or Receptionist for their own Business Unit(s) themselves, without asking the Business Admin. A Manager can never create another Manager from this screen, and can only add users to a Business Unit they themselves manage.",
+				text: "A user with the Manager role sees a Users item in Client Mode → Admin (the same left-hand section as Post / Unpost — no need to switch to Admin Mode). It shows a grid of everyone already on their Business Unit(s) — name, username, email, mobile, role and active/inactive status — with an Add User button above it and, per row, Edit / Activate or Deactivate / Delete actions, the same pattern as every other master list in the app. From there a Manager can add a Technician or Receptionist for their own Business Unit(s) themselves, without asking the Business Admin, and can edit, deactivate/reactivate or delete anyone already added this way. A Manager can never create, see or manage another Manager from this screen, and can only add users to a Business Unit they themselves manage.",
 			},
 			{
 				type: "note",
-				text: "On the Basic subscription plan, a Business Unit is limited to exactly one business user, who must be the Manager — My Team has nothing to do there, since there's no one left to add. Pro and Enterprise have no such limit.",
+				text: "On the Basic subscription plan, a Business Unit is limited to exactly one business user, who must be the Manager — Users has nothing to do there, since there's no one left to add. Because of that, the entire Admin tab (Post / Unpost and Users) is hidden for a Manager on a Basic plan; Pro and Enterprise have no such limit and see it as normal.",
 			},
 			{
 				type: "para",
-				text: "Both a Business Admin (Associate BU / Role) and a Manager (My Team) can, when adding or editing a user, optionally restrict that user to specific Branches inside a Business Unit — only shown when that Business Unit actually has more than one Branch. Leaving it blank keeps the user able to work in every Branch, which is the default for everyone today.",
+				text: "Both a Business Admin (Associate BU / Role) and a Manager (Users) can, when adding or editing a user, optionally restrict that user to specific Branches inside a Business Unit — only shown when that Business Unit actually has more than one Branch. Leaving it blank keeps the user able to work in every Branch, which is the default for everyone today.",
 			},
 		],
 		faqs: [
@@ -3819,7 +3819,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "What is the difference between Type A and Type B users?",
-				a: "Type A (Business Admin) can access Admin Mode to manage users and audit logs. Type B (Regular User) can only access Client Mode for day-to-day operations — except a Type B user with the Manager role also gets a My Team screen inside Client Mode to add Technicians/Receptionists for their own Business Unit.",
+				a: "Type A (Business Admin) can access Admin Mode to manage users and audit logs. Type B (Regular User) can only access Client Mode for day-to-day operations — except a Type B user with the Manager role also gets a Users screen inside Client Mode to add Technicians/Receptionists for their own Business Unit.",
 			},
 			{
 				q: "Can I change a user's role after creation?",
@@ -3827,7 +3827,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Who can create a Manager?",
-				a: "Only a Business Admin (or Super Admin) — a Manager can create Technicians and Receptionists for their own Business Unit from My Team, but never another Manager.",
+				a: "Only a Business Admin (or Super Admin) — a Manager can create Technicians and Receptionists for their own Business Unit from Users, but never another Manager.",
 			},
 		],
 	},
@@ -4003,7 +4003,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					["Masters tab (whole tab)", "✅", "❌", "✅"],
 					["Configurations tab (whole tab)", "✅", "❌", "❌"],
 					["Admin tab / Post-Unpost", "✅", "❌", "❌"],
-					["Admin tab / My Team (add Technician/Receptionist)", "✅", "❌", "❌"],
+					["Admin tab / Users (add Technician/Receptionist)", "✅", "❌", "❌"],
 					["Inventory → Purchase Entry", "✅", "❌", "✅"],
 					["Inventory → Sales Entry", "✅", "❌", "✅"],
 					["Inventory → Stock Adjustment", "✅", "❌", "✅"],

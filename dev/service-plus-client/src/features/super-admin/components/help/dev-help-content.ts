@@ -1766,9 +1766,11 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			"ENTERPRISE",
 			"MANAGER_ROLE_ID",
 			"user_bu_role_branch",
-			"My Team",
+			"Users",
 			"require_user_type",
 			"branch restriction",
+			"useIsAdminHiddenForBasicManager",
+			"useSubscriptionTier",
 			"plans/plan.md",
 		],
 		content: [
@@ -1821,11 +1823,32 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Client-side surface" },
 			{
 				type: "para",
-				text: "New route-free nav entry: client-explorer-panel.tsx's AdminExplorer renders a \"My Team\" TreeItem (label must match the case in client-admin-page.tsx's AdminContent switch exactly, same pattern as \"Post / Unpost\") when hasAccessRight(currentUser, ACCESS_RIGHTS.USERS_MANAGE_OWN_BU) — true for Manager and, incidentally, for Admin too via the S/A bypass in hasAccessRight, so Admin sees a redundant-but-harmless extra entry alongside their own /admin/users screen. The screen itself, accounts-admin/add-team-member-section.tsx, reads the caller's own BUs from currentUser.availableBus (client Redux state already populated at login for the BU switcher) rather than a fresh query — valid because a Manager's availableBus is already exactly their MANAGER-role BU set (role is applied uniformly across every BU an action touches, per the existing one-role-per-user UI constraint).",
+				text: "New route-free nav entry: client-explorer-panel.tsx's AdminExplorer renders a \"Users\" TreeItem (label must match the case in client-admin-page.tsx's AdminContent switch exactly, same pattern as \"Post / Unpost\") when hasAccessRight(currentUser, ACCESS_RIGHTS.USERS_MANAGE_OWN_BU) — true for Manager and, incidentally, for Admin too via the S/A bypass in hasAccessRight, so Admin sees a redundant-but-harmless extra entry alongside their own /admin/users screen. The screen itself, accounts-admin/users-section.tsx (component UsersSection), follows the same table + toolbar + add/edit-dialog convention as every other master list (e.g. masters/branch/branch-section.tsx): an Add User button opens accounts-admin/add-user-dialog.tsx (component AddUserDialog, the old inline create form lifted into a Dialog), and each row's dropdown wires Edit/Activate/Deactivate/Delete straight to the existing Admin dialogs — features/admin/components/{edit,activate,deactivate,delete}-business-user-dialog.tsx — reused unmodified since none of them are BU-scoped. UsersSection reads the caller's own BUs from currentUser.availableBus (client Redux state already populated at login for the BU switcher) rather than a fresh query — valid because a Manager's availableBus is already exactly their MANAGER-role BU set (role is applied uniformly across every BU an action touches, per the existing one-role-per-user UI constraint).",
+			},
+			{
+				type: "para",
+				text: "The grid's rows are GET_BUSINESS_USERS (schema security) filtered client-side to role_name !== \"Manager\" and bu_ids intersecting the caller's own BU set — GET_BUSINESS_USERS itself has no BU argument and returns every business user in the tenant. This filtering is UX only, not a security boundary: GET_BUSINESS_USERS (a genericQuery sqlId) and genericUpdate(tableName: \"user\") are both inside 'Known Gaps' Gap 1 — genericQuery has no per-table authorization at all, and \"user\" is not in GENERIC_UPDATE_TABLE_RIGHTS — so today any authenticated caller, any role, can already read every business user in the tenant or edit/deactivate/delete any of them directly against the API, Manager UI or not. Don't extend this screen's reach (e.g. wiring in cross-BU actions) on the assumption the server enforces the BU boundary it doesn't.",
 			},
 			{
 				type: "note",
-				text: "create-business-user-dialog.tsx and associate-bu-role-dialog.tsx (Admin's own screens) both gained the same branch picker — fetched per-BU via GET_BU_BRANCHES against that BU's own schema, shown only when a BU has more than one branch, sent as branch_ids: { \"<bu_id>\": [branch_id, ...] } alongside bu_ids/role_id on both createBusinessUser and setUserBuRole.",
+				text: "create-business-user-dialog.tsx and associate-bu-role-dialog.tsx (Admin's own screens) both gained the same branch picker — fetched per-BU via GET_BU_BRANCHES against that BU's own schema, shown only when a BU has more than one branch, sent as branch_ids: { \"<bu_id>\": [branch_id, ...] } alongside bu_ids/role_id on both createBusinessUser and setUserBuRole. add-user-dialog.tsx carries the same picker for the Manager's own create flow.",
+			},
+			{ type: "heading", text: "Hiding Admin for a Basic-tier Manager" },
+			{
+				type: "para",
+				text: 'ADMIN_MENU and USERS_MANAGE_OWN_BU are both granted to the Manager role unconditionally in seed data — there is no tier-aware seeding, so a Basic-tier Manager\'s JWT/accessRights carries both rights exactly like a Pro/Enterprise Manager\'s. But on Basic there\'s nothing usable behind them: the one-user cap (above) means the Manager\'s own account is already the client\'s single allowed business user, so create always fails, and UsersSection\'s grid (which excludes role_name === "Manager") shows nobody. Two hooks in features/client/components/layout/ close this client-side: use-subscription-tier.ts (useSubscriptionTier) and use-admin-tab-visibility.ts (useIsAdminHiddenForBasicManager: true when userType === "B" && hasAccessRight(ADMIN_MENU) && tier === "BASIC"). client-top-nav.tsx filters the Admin tab out of NAV_ITEMS and drops the "Unposted documents" notification-bell item (it deep-links straight to /client/admin, bypassing the nav filter); client-explorer-panel.tsx filters MOBILE_NAV_ITEMS the same way and AdminExplorer/AdminContent (client-admin-page.tsx) each render a "Not available on your plan." fallback instead of their normal content, in case a stale link/bookmark reaches the route directly.',
+			},
+			{
+				type: "warning",
+				text: 'useSubscriptionTier does NOT query the database — it reads currentUser.subscriptionTier from Redux, set once at login. It was originally written against genericQuery(GET_CLIENT_SUBSCRIPTION_TIER_BY_DB_NAME, db_name: "", schema: "public") — the same call branch-section.tsx already had inline for its Add-Branch-cap check — and that call is silently broken for every caller except Super Admin: query.py\'s resolve_generic_query calls require_own_tenant(info, db_name) BEFORE running the query, and that guard rejects any db_name that does not equal the caller\'s own tenant db_name (confirmed live: a simulated Manager context raises AuthorizationException(\'tenant_mismatch\')). db_name: "" is required here because subscription_tier lives in public.client in the separate service_plus_client registry database, not in the tenant\'s own database (confirmed live: service_plus_demo\'s public schema has zero tables) — so there was no db_name value that could satisfy both require_own_tenant and the connection-pool selection in exec_sql_query (db_name: "" picks pool_manager.client_pool; anything else picks the tenant\'s own pool). Net effect: branch-section.tsx\'s "disable Add Branch once at the Basic one-branch cap" UX has silently never worked for anyone but Super Admin since require_own_tenant was added — the server-side _require_basic_tier_branch_cap check was always the real boundary, same as below.',
+			},
+			{
+				type: "para",
+				text: 'Fixed by piggy-backing subscription_tier onto the client-row lookup login_helper already does to resolve db_name from client_id (GET_CLIENT_DB_NAME now SELECTs subscription_tier too), threading it onto LoginResponse (subscriptionTier, auth_schema.py) and onto the client\'s UserInstanceType/LoginResponseType (auth-service.ts) and the Redux user object (login-form.tsx). This sidesteps require_own_tenant entirely — no change to that guard, or to any other caller of genericQuery — since the server already resolves the caller\'s own client row using its own client_id/db_name, never a client-supplied lookup key. Verified end-to-end by calling login_helper in-process for user3 (Manager, client_id=1="demo"=BASIC): response includes subscriptionTier: "BASIC" after Pydantic alias serialization (model_dump(by_alias=True), matching how FastAPI actually serializes it over HTTP).',
+			},
+			{
+				type: "warning",
+				text: "subscriptionTier is login-time-only, like fullName/email/mobile — refresh_token_helper's RefreshTokenResponse carries only new tokens, no user fields, so it is never updated mid-session the way role_code/access_rights are (re-read from the DB on every refresh). A session logged in before this change, or a client moved between tiers mid-session, needs a fresh login to pick up the current value. And this is still client-side only, same caveat as everywhere else in this article: createBusinessUser is still reachable directly with the Manager's own token, and the server-side _check_basic_tier_user_cap rule (not a hidden nav item) is the actual boundary that keeps Basic at one user. Nothing here changes server enforcement — it only stops the UI from presenting a tab that can never do anything useful on Basic.",
 			},
 		],
 		faqs: [

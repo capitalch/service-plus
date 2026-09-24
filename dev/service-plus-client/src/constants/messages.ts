@@ -56,8 +56,8 @@ export const MESSAGES = {
 	ERROR_BUSINESS_USER_UPDATE_FAILED: "Failed to update business user. Please try again.",
 	ERROR_BUSINESS_USER_USERNAME_EXISTS: "This username is already taken.",
 	ERROR_BUSINESS_USER_USERNAME_EXISTS_EDIT: "This username is already used by another user.",
-	INFO_MY_TEAM_DESCRIPTION: "Add a Technician or Receptionist for your own business unit.",
-	ERROR_MY_TEAM_ROLE_MANAGER_BLOCKED: "You can't create another Manager here.",
+	INFO_USERS_DESCRIPTION: "Add a Technician or Receptionist for your own business unit.",
+	ERROR_USERS_ROLE_MANAGER_BLOCKED: "You can't create another Manager here.",
 	SUCCESS_BUSINESS_USER_ACTIVATED: "Business user has been activated.",
 	SUCCESS_BUSINESS_USER_CREDENTIALS_MAILED: "Password reset link sent to the user's email.",
 	WARN_BUSINESS_USER_BU_ROLE_ASSIGN_FAILED:

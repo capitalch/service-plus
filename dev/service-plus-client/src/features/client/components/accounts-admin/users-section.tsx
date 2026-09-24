@@ -12,6 +12,7 @@ import {
 	ToggleLeftIcon,
 	ToggleRightIcon,
 	Trash2Icon,
+	Users,
 	X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,17 +34,17 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
-import { selectDbName } from "@/features/auth/store/auth-slice";
-import { useSubscriptionTier } from "@/features/client/components/layout/use-subscription-tier";
-import { selectSchema } from "@/store/context-slice";
-import { AddBranchDialog } from "./add-branch-dialog";
-import { DeleteBranchDialog } from "./delete-branch-dialog";
-import { EditBranchDialog } from "./edit-branch-dialog";
-import type { BranchType } from "./branch";
+import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
+import { ActivateBusinessUserDialog } from "@/features/admin/components/activate-business-user-dialog";
+import { DeactivateBusinessUserDialog } from "@/features/admin/components/deactivate-business-user-dialog";
+import { DeleteBusinessUserDialog } from "@/features/admin/components/delete-business-user-dialog";
+import { EditBusinessUserDialog } from "@/features/admin/components/edit-business-user-dialog";
+import type { BusinessUserType } from "@/features/admin/types/index";
+import { AddUserDialog } from "./add-user-dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type GenericQueryDataType = { genericQuery: BranchType[] | null };
+type GenericQueryDataType = { genericQuery: BusinessUserType[] | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -61,26 +62,31 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const BranchSection = () => {
+export const UsersSection = () => {
+	const currentUser = useAppSelector(selectCurrentUser);
 	const dbName = useAppSelector(selectDbName);
-	const schema = useAppSelector(selectSchema);
+	// availableBus already IS "every BU this user is listed against" — for a Manager
+	// that's exactly their own managed BU(s), since role is applied uniformly across
+	// every BU picked when the Manager themself was created/edited.
+	const myBuIds = useMemo(() => new Set((currentUser?.availableBus ?? []).map((bu) => bu.id)), [currentUser]);
 
+	const [activateUser, setActivateUser] = useState<BusinessUserType | null>(null);
 	const [addOpen, setAddOpen] = useState(false);
-	const [branches, setBranches] = useState<BranchType[]>([]);
-	const [deleteBranch, setDeleteBranch] = useState<BranchType | null>(null);
-	const [editBranch, setEditBranch] = useState<BranchType | null>(null);
+	const [deactivateUser, setDeactivateUser] = useState<BusinessUserType | null>(null);
+	const [deleteUser, setDeleteUser] = useState<BusinessUserType | null>(null);
+	const [editUser, setEditUser] = useState<BusinessUserType | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [search, setSearch] = useState("");
 	const [sortCol, setSortCol] = useState<string | null>(null);
 	const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-	// Basic tier is capped at one branch per BU — see plans/plan.md, Step 8. The
-	// server enforces this independently; this is only for the disabled-button UX.
-	const subscriptionTier = useSubscriptionTier();
+	const [users, setUsers] = useState<BusinessUserType[]>([]);
 
-	const atBasicBranchCap = subscriptionTier === "BASIC" && branches.length >= 1;
-
-	const loadBranches = useCallback(async () => {
-		if (!dbName || !schema) return;
+	// A Manager only ever manages their own BU(s), and never another Manager — the
+	// same restriction the server enforces independently when creating/editing
+	// (users_roles.py, _require_can_create_business_user). GET_BUSINESS_USERS has no
+	// BU filter of its own, so this list is narrowed down client-side.
+	const loadUsers = useCallback(async () => {
+		if (!dbName) return;
 		setLoading(true);
 		try {
 			const result = await apolloClient.query<GenericQueryDataType>({
@@ -88,41 +94,23 @@ export const BranchSection = () => {
 				query: GRAPHQL_MAP.genericQuery,
 				variables: {
 					db_name: dbName,
-					schema,
-					value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANCHES }),
+					schema: "security",
+					value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_BUSINESS_USERS }),
 				},
 			});
-			setBranches(result.data?.genericQuery ?? []);
+			const all = result.data?.genericQuery ?? [];
+			setUsers(all.filter((u) => u.role_name !== "Manager" && u.bu_ids.some((buId) => myBuIds.has(buId))));
 		} catch {
-			toast.error(MESSAGES.ERROR_BRANCH_LOAD_FAILED);
+			toast.error(MESSAGES.ERROR_BUSINESS_USER_LOAD_FAILED);
 		} finally {
 			setLoading(false);
 		}
-	}, [dbName, schema]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [dbName, currentUser]);
 
 	useEffect(() => {
-		loadBranches();
-	}, [loadBranches]);
-
-	async function handleToggleActive(branch: BranchType) {
-		if (!dbName || !schema) return;
-		try {
-			await apolloClient.mutate({
-				mutation: GRAPHQL_MAP.genericUpdate,
-				variables: {
-					db_name: dbName,
-					schema,
-					value: graphQlUtils.buildGenericUpdateValue({
-						tableName: "branch",
-						xData: { id: branch.id, is_active: !branch.is_active },
-					}),
-				},
-			});
-			await loadBranches();
-		} catch {
-			toast.error(MESSAGES.ERROR_BRANCH_UPDATE_FAILED);
-		}
-	}
+		loadUsers();
+	}, [loadUsers]);
 
 	function handleSort(col: string) {
 		if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -141,17 +129,16 @@ export const BranchSection = () => {
 		);
 	}
 
-	const displayBranches = useMemo(() => {
-		let rows = branches;
+	const displayUsers = useMemo(() => {
+		let rows = users;
 		if (search.trim()) {
 			const q = search.toLowerCase();
 			rows = rows.filter(
-				(r) =>
-					r.code.toLowerCase().includes(q) ||
-					r.name.toLowerCase().includes(q) ||
-					(r.state_name?.toLowerCase().includes(q) ?? false) ||
-					(r.city?.toLowerCase().includes(q) ?? false) ||
-					(r.phone?.toLowerCase().includes(q) ?? false),
+				(u) =>
+					u.full_name.toLowerCase().includes(q) ||
+					u.username.toLowerCase().includes(q) ||
+					u.email.toLowerCase().includes(q) ||
+					(u.role_name ?? "").toLowerCase().includes(q),
 			);
 		}
 		if (sortCol) {
@@ -165,9 +152,9 @@ export const BranchSection = () => {
 			});
 		}
 		return rows;
-	}, [branches, search, sortCol, sortDir]);
+	}, [users, search, sortCol, sortDir]);
 
-	if (!schema) {
+	if ((currentUser?.availableBus ?? []).length === 0) {
 		return (
 			<div className="flex items-center justify-center rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-20">
 				<div className="text-center">
@@ -190,9 +177,14 @@ export const BranchSection = () => {
 			>
 				{/* Page header */}
 				<div className="flex flex-wrap items-start justify-between gap-3">
-					<div>
-						<h1 className="text-xl font-bold text-(--cl-text)">Branches</h1>
-						<p className="mt-1 text-sm text-(--cl-text-muted)">Manage branches for this business unit.</p>
+					<div className="flex items-center gap-3">
+						<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
+							<Users className="h-4 w-4 text-teal-600" />
+						</div>
+						<div>
+							<h1 className="text-xl font-bold text-(--cl-text)">Users</h1>
+							<p className="mt-1 text-sm text-(--cl-text-muted)">{MESSAGES.INFO_USERS_DESCRIPTION}</p>
+						</div>
 					</div>
 					<div className="flex items-center gap-2">
 						<Button
@@ -200,32 +192,30 @@ export const BranchSection = () => {
 							disabled={loading}
 							size="sm"
 							variant="outline"
-							onClick={loadBranches}
+							onClick={loadUsers}
 						>
 							<RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
 							Refresh
 						</Button>
 						<Button
-							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={atBasicBranchCap}
+							className="bg-teal-600 text-white hover:bg-teal-700"
 							size="sm"
-							title={atBasicBranchCap ? MESSAGES.INFO_BASIC_TIER_BRANCH_LIMIT : undefined}
 							onClick={() => setAddOpen(true)}
 						>
 							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-							Add Branch
+							Add User
 						</Button>
 					</div>
 				</div>
 
 				{/* Search + count */}
 				<div className="flex items-center gap-3">
-					<div className="relative flex-1">
+					<div className="relative flex-1 sm:max-w-xs">
 						<SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
 						<Input
 							className="h-8 pl-8 text-sm"
 							disabled={loading}
-							placeholder="Search branches…"
+							placeholder="Search users…"
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
 						/>
@@ -239,23 +229,23 @@ export const BranchSection = () => {
 							</button>
 						)}
 					</div>
-					{!loading && branches.length > 0 && (
+					{!loading && users.length > 0 && (
 						<p className="shrink-0 text-xs text-(--cl-text-muted)">
-							{displayBranches.length} of {branches.length}
+							{displayUsers.length} of {users.length}
 						</p>
 					)}
 				</div>
 
 				{/* Table */}
-				{loading && branches.length === 0 ? (
+				{loading && users.length === 0 ? (
 					<div className="flex flex-col gap-2">
 						{Array.from({ length: 4 }).map((_, i) => (
 							<div key={i} className="h-12 animate-pulse rounded-lg bg-(--cl-surface-2)" />
 						))}
 					</div>
-				) : branches.length === 0 ? (
+				) : users.length === 0 ? (
 					<div className="rounded-xl border border-(--cl-border) bg-(--cl-surface-2) px-6 py-12 text-center text-sm text-(--cl-text-muted)">
-						No branches found. Click &quot;Add Branch&quot; to create one.
+						No users found. Click &quot;Add User&quot; to create one.
 					</div>
 				) : (
 					<div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-(--cl-border) bg-(--cl-surface-2) shadow-sm">
@@ -264,29 +254,29 @@ export const BranchSection = () => {
 								<TableHeader>
 									<TableRow className="sticky top-0 z-10 bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
 										<TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
-										<TableHead className={thSortClass} onClick={() => handleSort("code")}>
-											Code
-											<SortIcon col="code" />
-										</TableHead>
-										<TableHead className={thSortClass} onClick={() => handleSort("name")}>
+										<TableHead className={thSortClass} onClick={() => handleSort("full_name")}>
 											Name
-											<SortIcon col="name" />
+											<SortIcon col="full_name" />
 										</TableHead>
-										<TableHead className={thSortClass} onClick={() => handleSort("state_name")}>
-											State
-											<SortIcon col="state_name" />
+										<TableHead className={thSortClass} onClick={() => handleSort("username")}>
+											Username
+											<SortIcon col="username" />
 										</TableHead>
-										<TableHead className={thSortClass} onClick={() => handleSort("city")}>
-											City
-											<SortIcon col="city" />
+										<TableHead className={thSortClass} onClick={() => handleSort("email")}>
+											Email
+											<SortIcon col="email" />
 										</TableHead>
-										<TableHead className={thClass}>Phone</TableHead>
+										<TableHead className={thClass}>Mobile</TableHead>
+										<TableHead className={thSortClass} onClick={() => handleSort("role_name")}>
+											Role
+											<SortIcon col="role_name" />
+										</TableHead>
 										<TableHead className={thClass}>Status</TableHead>
 										<TableHead className={thClass}>Actions</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{displayBranches.length === 0 ? (
+									{displayUsers.length === 0 ? (
 										<tr>
 											<td
 												colSpan={99}
@@ -296,48 +286,57 @@ export const BranchSection = () => {
 											</td>
 										</tr>
 									) : (
-										displayBranches.map((branch, idx) => (
+										displayUsers.map((user, idx) => (
 											<motion.tr
 												animate="visible"
 												className="border-b border-(--cl-border) transition-colors last:border-b-0 hover:bg-(--cl-surface-3)"
 												custom={idx}
 												initial="hidden"
-												key={branch.id}
+												key={user.id}
 												variants={rowVariants}
 											>
 												<TableCell className="text-center text-xs text-(--cl-text-muted)">
 													{idx + 1}
 												</TableCell>
+												<TableCell className="font-medium text-(--cl-text)">
+													{user.full_name}
+												</TableCell>
 												<TableCell>
 													<span className="font-mono text-xs font-semibold text-(--cl-text)">
-														{branch.code}
+														{user.username}
 													</span>
 												</TableCell>
-												<TableCell className="font-medium text-(--cl-text)">
-													{branch.name}
+												<TableCell className="text-sm text-(--cl-text-muted)">
+													{user.email}
 												</TableCell>
 												<TableCell className="text-sm text-(--cl-text-muted)">
-													{branch.state_name ?? "—"}
+													{user.mobile ?? "—"}
 												</TableCell>
-												<TableCell className="text-sm text-(--cl-text-muted)">
-													{branch.city ?? "—"}
-												</TableCell>
-												<TableCell className="text-sm text-(--cl-text-muted)">
-													{branch.phone ?? "—"}
+												<TableCell>
+													{user.role_name ? (
+														<Badge
+															className="rounded-sm border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50"
+															variant="outline"
+														>
+															{user.role_name}
+														</Badge>
+													) : (
+														<span className="text-xs text-(--cl-text-muted)">No role</span>
+													)}
 												</TableCell>
 												<TableCell>
 													<Badge
 														className={
-															branch.is_active
+															user.is_active
 																? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
 																: "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-100"
 														}
 														variant="outline"
 													>
 														<span
-															className={`mr-1 h-1.5 w-1.5 rounded-full ${branch.is_active ? "bg-emerald-500" : "bg-slate-400"}`}
+															className={`mr-1 h-1.5 w-1.5 rounded-full ${user.is_active ? "bg-emerald-500" : "bg-slate-400"}`}
 														/>
-														{branch.is_active ? "Active" : "Inactive"}
+														{user.is_active ? "Active" : "Inactive"}
 													</Badge>
 												</TableCell>
 												<TableCell>
@@ -355,16 +354,17 @@ export const BranchSection = () => {
 														<DropdownMenuContent align="end" className="w-44">
 															<DropdownMenuItem
 																className="cursor-pointer text-sky-600 focus:text-sky-600"
-																onClick={() => setEditBranch(branch)}
+																disabled={!user.is_active}
+																onClick={() => setEditUser(user)}
 															>
 																<PencilIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
 																Edit
 															</DropdownMenuItem>
 															<DropdownMenuSeparator />
-															{branch.is_active ? (
+															{user.is_active ? (
 																<DropdownMenuItem
 																	className="cursor-pointer text-amber-600 focus:text-amber-600"
-																	onClick={() => handleToggleActive(branch)}
+																	onClick={() => setDeactivateUser(user)}
 																>
 																	<ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
 																	Deactivate
@@ -372,7 +372,7 @@ export const BranchSection = () => {
 															) : (
 																<DropdownMenuItem
 																	className="cursor-pointer text-emerald-600 focus:text-emerald-600"
-																	onClick={() => handleToggleActive(branch)}
+																	onClick={() => setActivateUser(user)}
 																>
 																	<ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
 																	Activate
@@ -381,7 +381,7 @@ export const BranchSection = () => {
 															<DropdownMenuSeparator />
 															<DropdownMenuItem
 																className="cursor-pointer text-red-600 focus:text-red-600"
-																onClick={() => setDeleteBranch(branch)}
+																onClick={() => setDeleteUser(user)}
 															>
 																<Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />
 																Delete
@@ -400,25 +400,45 @@ export const BranchSection = () => {
 			</motion.div>
 
 			{/* ── Dialogs ──────────────────────────────────────────────────────── */}
-			<AddBranchDialog open={addOpen} onOpenChange={setAddOpen} onSuccess={loadBranches} />
-			{editBranch && (
-				<EditBranchDialog
-					branch={editBranch}
-					open={!!editBranch}
-					onOpenChange={(o) => {
-						if (!o) setEditBranch(null);
+			<AddUserDialog open={addOpen} onOpenChange={setAddOpen} onSuccess={loadUsers} />
+			{editUser && (
+				<EditBusinessUserDialog
+					open={!!editUser}
+					user={editUser}
+					onOpenChange={(open) => {
+						if (!open) setEditUser(null);
 					}}
-					onSuccess={loadBranches}
+					onSuccess={loadUsers}
 				/>
 			)}
-			{deleteBranch && (
-				<DeleteBranchDialog
-					branch={deleteBranch}
-					open={!!deleteBranch}
-					onOpenChange={(o) => {
-						if (!o) setDeleteBranch(null);
+			{activateUser && (
+				<ActivateBusinessUserDialog
+					open={!!activateUser}
+					user={activateUser}
+					onOpenChange={(open) => {
+						if (!open) setActivateUser(null);
 					}}
-					onSuccess={loadBranches}
+					onSuccess={loadUsers}
+				/>
+			)}
+			{deactivateUser && (
+				<DeactivateBusinessUserDialog
+					open={!!deactivateUser}
+					user={deactivateUser}
+					onOpenChange={(open) => {
+						if (!open) setDeactivateUser(null);
+					}}
+					onSuccess={loadUsers}
+				/>
+			)}
+			{deleteUser && (
+				<DeleteBusinessUserDialog
+					open={!!deleteUser}
+					user={deleteUser}
+					onOpenChange={(open) => {
+						if (!open) setDeleteUser(null);
+					}}
+					onSuccess={loadUsers}
 				/>
 			)}
 		</>

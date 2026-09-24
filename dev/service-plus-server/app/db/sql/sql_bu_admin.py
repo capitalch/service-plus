@@ -557,7 +557,7 @@ class BuAdminSql(BuAdminDdl):
     GET_CLIENT_DB_NAME = """
         with "p_client_id" as (values(%(client_id)s::int))
         -- with "p_client_id" as (values(1::int)) -- Test line
-        SELECT db_name, code
+        SELECT db_name, code, subscription_tier
         FROM public.client
         WHERE id = (table "p_client_id")
           AND is_active = true

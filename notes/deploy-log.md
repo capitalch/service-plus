@@ -3,6 +3,26 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-24 16:33 (main)
+Admin: rework Users into a grid, hide it for Basic-tier Managers
+
+- Users (formerly My Team) is now an Add User button plus a searchable/sortable
+  grid of the Manager's own team, with Edit/Activate/Deactivate/Delete per row,
+  reusing the existing Admin business-user dialogs instead of duplicating them.
+- Hide the whole Admin tab (top nav, mobile nav, explorer sidebar, and a route
+  fallback for stale links) for a Manager on a Basic-tier client, since the
+  one-user cap means there is never anything usable behind it.
+- Fix the subscription-tier lookup that hiding depends on: the genericQuery call
+  it used (db_name: "" to reach the client-registry DB) was silently rejected by
+  require_own_tenant for every caller except Super Admin, so the tier was always
+  null. Now the server includes subscription_tier on the login response (piggy-
+  backed on the client-row lookup login already does), and the client reads it
+  straight from Redux instead of re-querying — also fixes branch-section.tsx's
+  pre-existing, equally-broken "disable Add Branch at the Basic cap" check.
+- Both help docs (staff-facing and developer) updated to match.
+
+Files: 14 changed (+532 / -529) — Base: 8691118
+
 ## 2026-09-23 15:53 (main)
 Extended Warranty: recolour Dashboard cards, drop State column
 

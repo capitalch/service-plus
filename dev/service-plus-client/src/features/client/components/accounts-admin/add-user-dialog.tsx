@@ -3,11 +3,11 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { AnimatePresence, motion } from "framer-motion";
-import { Check, Loader2, Users } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,23 +23,35 @@ import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slic
 import type { BranchType, RoleType } from "@/features/admin/types/index";
 import { useAppSelector } from "@/store/hooks";
 
-// This screen exists only because the Manager themself holds USERS_MANAGE_OWN_BU
+// This dialog exists only because the Manager themself holds USERS_MANAGE_OWN_BU
 // (see client-explorer-panel.tsx's AdminExplorer) — the server enforces the same
 // "own BU, never role Manager" rule independently either way (users_roles.py).
 
-type CheckQueryDataType = {
-	genericQuery: { exists: boolean }[] | null;
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type AddUserDialogPropsType = {
+	onOpenChange: (open: boolean) => void;
+	onSuccess: () => void;
+	open: boolean;
 };
 
-type GenericQueryDataType = {
-	genericQuery: BranchType[] | RoleType[] | null;
+type AddUserFormType = z.infer<typeof addUserSchema>;
+
+type CheckQueryDataType = {
+	genericQuery: { exists: boolean }[] | null;
 };
 
 type CreateBusinessUserMutationDataType = {
 	createBusinessUser: { email_sent: boolean; id: number };
 };
 
-const addTeamMemberSchema = z.object({
+type GenericQueryDataType = {
+	genericQuery: BranchType[] | RoleType[] | null;
+};
+
+// ─── Schema ───────────────────────────────────────────────────────────────────
+
+const addUserSchema = z.object({
 	email: z.string().email({ message: MESSAGES.ERROR_EMAIL_INVALID }),
 	full_name: z.string().min(2, MESSAGES.ERROR_FULL_NAME_REQUIRED),
 	mobile: z
@@ -53,26 +65,16 @@ const addTeamMemberSchema = z.object({
 		.min(5, MESSAGES.ERROR_USERNAME_MIN_LENGTH)
 		.regex(/^[a-zA-Z0-9]+$/, MESSAGES.ERROR_USERNAME_INVALID_FORMAT),
 });
-type AddTeamMemberFormType = z.infer<typeof addTeamMemberSchema>;
+
+// ─── Field error ──────────────────────────────────────────────────────────────
 
 function FieldError({ message }: { message?: string }) {
-	return (
-		<AnimatePresence>
-			{message && (
-				<motion.p
-					animate={{ opacity: 1, y: 0 }}
-					className="text-xs text-red-500"
-					exit={{ opacity: 0, y: -4 }}
-					initial={{ opacity: 0, y: -4 }}
-				>
-					{message}
-				</motion.p>
-			)}
-		</AnimatePresence>
-	);
+	return message ? <p className="text-xs text-red-500">{message}</p> : null;
 }
 
-export function AddTeamMemberSection() {
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export const AddUserDialog = ({ onOpenChange, onSuccess, open }: AddUserDialogPropsType) => {
 	const currentUser = useAppSelector(selectCurrentUser);
 	const dbName = useAppSelector(selectDbName);
 	// availableBus already IS "every BU this user is listed against" — for a Manager
@@ -91,10 +93,10 @@ export function AddTeamMemberSection() {
 	const [selectedRoleId, setSelectedRoleId] = useState<string>("");
 	const [usernameTaken, setUsernameTaken] = useState<boolean | null>(null);
 
-	const form = useForm<AddTeamMemberFormType>({
+	const form = useForm<AddUserFormType>({
 		defaultValues: { email: "", full_name: "", mobile: "", username: "" },
 		mode: "onChange",
-		resolver: zodResolver(addTeamMemberSchema),
+		resolver: zodResolver(addUserSchema),
 	});
 	const {
 		formState: { errors },
@@ -107,7 +109,7 @@ export function AddTeamMemberSection() {
 
 	// Roles, excluding Manager — a Manager can create anyone except another Manager.
 	useEffect(() => {
-		if (!dbName) return;
+		if (!open || !dbName) return;
 		setLoadingRoles(true);
 		apolloClient
 			.query<GenericQueryDataType>({
@@ -125,12 +127,12 @@ export function AddTeamMemberSection() {
 			})
 			.catch(() => {})
 			.finally(() => setLoadingRoles(false));
-	}, [dbName]);
+	}, [open, dbName]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Branches for each of my own BUs — the picker only shows for a BU with more
 	// than one, same rule as the Admin-side dialogs.
 	useEffect(() => {
-		if (!dbName) return;
+		if (!open || !dbName) return;
 		for (const bu of myBuIds) {
 			apolloClient
 				.query<GenericQueryDataType>({
@@ -148,7 +150,22 @@ export function AddTeamMemberSection() {
 				.catch(() => {});
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [dbName]);
+	}, [open, dbName]);
+
+	// Reset on close
+	useEffect(() => {
+		if (open) return;
+		setBranchesByBu({});
+		setBranchIdsByBu({});
+		setCheckingEmail(false);
+		setCheckingUsername(false);
+		setEmailTaken(null);
+		setRoleError("");
+		setRoles([]);
+		setSelectedRoleId("");
+		setUsernameTaken(null);
+		form.reset({ email: "", full_name: "", mobile: "", username: "" });
+	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
 		setEmailTaken(null);
@@ -241,7 +258,7 @@ export function AddTeamMemberSection() {
 		});
 	}
 
-	async function onSubmit(data: AddTeamMemberFormType) {
+	async function onSubmit(data: AddUserFormType) {
 		if (!dbName || myBuIds.length === 0) return;
 		if (!selectedRoleId) {
 			setRoleError(MESSAGES.ERROR_BUSINESS_USER_ROLE_REQUIRED);
@@ -276,9 +293,8 @@ export function AddTeamMemberSection() {
 			} else {
 				toast.success(MESSAGES.SUCCESS_BUSINESS_USER_CREATED);
 			}
-			setBranchIdsByBu({});
-			setSelectedRoleId("");
-			form.reset({ email: "", full_name: "", mobile: "", username: "" });
+			onSuccess();
+			onOpenChange(false);
 		} catch {
 			toast.error(MESSAGES.ERROR_BUSINESS_USER_CREATE_FAILED);
 		}
@@ -296,106 +312,103 @@ export function AddTeamMemberSection() {
 		myBuIds.length === 0;
 
 	return (
-		<motion.div
-			animate={{ opacity: 1 }}
-			className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
-			initial={{ opacity: 0 }}
-			transition={{ duration: 0.25 }}
-		>
-			<div className="flex items-center gap-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-2">
-				<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-					<Users className="h-4 w-4 text-teal-600" />
-				</div>
-				<div>
-					<h1 className="text-lg font-bold text-(--cl-text)">My Team</h1>
-					<p className="text-xs text-(--cl-text-muted)">{MESSAGES.INFO_MY_TEAM_DESCRIPTION}</p>
-				</div>
-			</div>
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent
+				aria-describedby={undefined}
+				className="sm:max-w-lg"
+				onInteractOutside={(e) => e.preventDefault()}
+			>
+				<DialogHeader>
+					<DialogTitle className="text-base font-semibold text-foreground">Add User</DialogTitle>
+				</DialogHeader>
 
-			<div className="flex-1 overflow-y-auto px-4 pb-4">
 				{myBuIds.length === 0 ? (
 					<p className="text-sm text-(--cl-text-muted)">No business unit found for your account.</p>
 				) : (
-					<form className="flex max-w-md flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="mt-full-name">
-								Full Name <span className="text-red-500">*</span>
-							</Label>
-							<Input
-								autoComplete="off"
-								disabled={form.formState.isSubmitting}
-								id="mt-full-name"
-								placeholder="e.g. John Smith"
-								{...form.register("full_name")}
-							/>
-							<FieldError message={errors.full_name?.message} />
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="mt-username">
-								Username <span className="text-red-500">*</span>
-							</Label>
-							<div className="relative">
+					<form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
+						<div className="grid grid-cols-2 gap-4">
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="us-full-name">
+									Full Name <span className="text-red-500">*</span>
+								</Label>
 								<Input
 									autoComplete="off"
-									className="pr-8"
 									disabled={form.formState.isSubmitting}
-									id="mt-username"
-									placeholder="e.g. johnsmith"
-									{...form.register("username")}
+									id="us-full-name"
+									placeholder="e.g. John Smith"
+									{...form.register("full_name")}
 								/>
-								{checkingUsername && (
-									<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
-								)}
-								{!checkingUsername && usernameTaken === false && !errors.username && (
-									<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
-								)}
+								<FieldError message={errors.full_name?.message} />
 							</div>
-							<FieldError message={errors.username?.message} />
+
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="us-username">
+									Username <span className="text-red-500">*</span>
+								</Label>
+								<div className="relative">
+									<Input
+										autoComplete="off"
+										className="pr-8"
+										disabled={form.formState.isSubmitting}
+										id="us-username"
+										placeholder="e.g. johnsmith"
+										{...form.register("username")}
+									/>
+									{checkingUsername && (
+										<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+									)}
+									{!checkingUsername && usernameTaken === false && !errors.username && (
+										<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+									)}
+								</div>
+								<FieldError message={errors.username?.message} />
+							</div>
 						</div>
 
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="mt-email">
-								Email <span className="text-red-500">*</span>
-							</Label>
-							<div className="relative">
+						<div className="grid grid-cols-2 gap-4">
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="us-email">
+									Email <span className="text-red-500">*</span>
+								</Label>
+								<div className="relative">
+									<Input
+										autoComplete="off"
+										className="pr-8"
+										disabled={form.formState.isSubmitting}
+										id="us-email"
+										placeholder="user@example.com"
+										type="email"
+										{...form.register("email")}
+									/>
+									{checkingEmail && (
+										<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+									)}
+									{!checkingEmail && emailTaken === false && !errors.email && (
+										<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+									)}
+								</div>
+								<FieldError message={errors.email?.message} />
+							</div>
+
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="us-mobile">Mobile</Label>
 								<Input
 									autoComplete="off"
-									className="pr-8"
 									disabled={form.formState.isSubmitting}
-									id="mt-email"
-									placeholder="user@example.com"
-									type="email"
-									{...form.register("email")}
+									id="us-mobile"
+									inputMode="numeric"
+									maxLength={15}
+									placeholder="+91 98765 43210"
+									type="tel"
+									{...form.register("mobile", {
+										onChange: (e) => {
+											const digits = normalizeMobile(e.target.value).slice(0, 10);
+											form.setValue("mobile", digits, { shouldValidate: true });
+										},
+									})}
 								/>
-								{checkingEmail && (
-									<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
-								)}
-								{!checkingEmail && emailTaken === false && !errors.email && (
-									<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
-								)}
+								<FieldError message={errors.mobile?.message} />
 							</div>
-							<FieldError message={errors.email?.message} />
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="mt-mobile">Mobile</Label>
-							<Input
-								autoComplete="off"
-								disabled={form.formState.isSubmitting}
-								id="mt-mobile"
-								inputMode="numeric"
-								maxLength={15}
-								placeholder="+91 98765 43210"
-								type="tel"
-								{...form.register("mobile", {
-									onChange: (e) => {
-										const digits = normalizeMobile(e.target.value).slice(0, 10);
-										form.setValue("mobile", digits, { shouldValidate: true });
-									},
-								})}
-							/>
-							<FieldError message={errors.mobile?.message} />
 						</div>
 
 						<div className="flex flex-col gap-1.5">
@@ -404,7 +417,7 @@ export function AddTeamMemberSection() {
 						</div>
 
 						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="mt-role">
+							<Label htmlFor="us-role">
 								Role <span className="text-red-500">*</span>
 							</Label>
 							<Select
@@ -415,7 +428,7 @@ export function AddTeamMemberSection() {
 									setRoleError("");
 								}}
 							>
-								<SelectTrigger id="mt-role">
+								<SelectTrigger id="us-role">
 									<SelectValue placeholder="Select a role" />
 								</SelectTrigger>
 								<SelectContent>
@@ -441,12 +454,12 @@ export function AddTeamMemberSection() {
 												<Checkbox
 													checked={(branchIdsByBu[bu.id] ?? []).includes(branch.id)}
 													disabled={form.formState.isSubmitting}
-													id={`mt-branch-${bu.id}-${branch.id}`}
+													id={`us-branch-${bu.id}-${branch.id}`}
 													onCheckedChange={() => handleBranchToggle(bu.id, branch.id)}
 												/>
 												<label
 													className="cursor-pointer select-none text-sm text-(--cl-text)"
-													htmlFor={`mt-branch-${bu.id}-${branch.id}`}
+													htmlFor={`us-branch-${bu.id}-${branch.id}`}
 												>
 													{branch.name}
 												</label>
@@ -457,23 +470,29 @@ export function AddTeamMemberSection() {
 							);
 						})}
 
-						<Button
-							className="mt-2 w-fit bg-emerald-600 text-white hover:bg-emerald-700"
-							disabled={submitDisabled}
-							type="submit"
-						>
-							{form.formState.isSubmitting ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Adding...
-								</>
-							) : (
-								"Add Team Member"
-							)}
-						</Button>
+						<DialogFooter className="pt-2">
+							<Button
+								disabled={form.formState.isSubmitting}
+								type="button"
+								variant="ghost"
+								onClick={() => onOpenChange(false)}
+							>
+								Cancel
+							</Button>
+							<Button
+								className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
+								disabled={submitDisabled}
+								type="submit"
+							>
+								{form.formState.isSubmitting ? (
+									<Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+								) : null}
+								Add User
+							</Button>
+						</DialogFooter>
 					</form>
 				)}
-			</div>
-		</motion.div>
+			</DialogContent>
+		</Dialog>
 	);
-}
+};

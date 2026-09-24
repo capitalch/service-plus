@@ -15,6 +15,7 @@ import {
 import { ROUTES } from "@/router/routes";
 import { selectExtendedWarrantyEnabled } from "@/store/context-slice";
 import { getVisibleCustomMenuItems } from "./custom-menu-registry";
+import { useIsAdminHiddenForBasicManager } from "./use-admin-tab-visibility";
 import { useLayout, useTheme } from "./client-layout";
 import type { Section } from "./client-layout";
 import { useNotificationsSummary } from "./use-notifications-summary";
@@ -58,7 +59,12 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 	// not bought.
 	const extendedWarrantyEnabled = useAppSelector(selectExtendedWarrantyEnabled);
 	const hasCustomItems = getVisibleCustomMenuItems(user, { extendedWarrantyEnabled }).length > 0;
-	const navItems = NAV_ITEMS.filter((item) => item.section !== "custom" || hasCustomItems);
+	const hideAdmin = useIsAdminHiddenForBasicManager();
+	const navItems = NAV_ITEMS.filter((item) => {
+		if (item.section === "custom") return hasCustomItems;
+		if (item.section === "admin") return !hideAdmin;
+		return true;
+	});
 	const { isDark, toggleTheme } = useTheme();
 	const { toggleExplorer } = useLayout();
 	const { ewOpenInterest, jobsOverdue, lowStockParts, unpostedDocs } = useNotificationsSummary();
@@ -76,13 +82,17 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 			label: "Overdue jobs",
 			onSelect: () => navigate(ROUTES.client.reports, { state: { subItem: "Dashboard" } }),
 		},
-		{
-			count: unpostedDocs,
-			icon: UploadCloud,
-			id: "unposted-docs",
-			label: "Unposted documents",
-			onSelect: () => navigate(ROUTES.client.admin, { state: { subItem: "Post / Unpost" } }),
-		},
+		...(hideAdmin
+			? []
+			: [
+					{
+						count: unpostedDocs,
+						icon: UploadCloud,
+						id: "unposted-docs",
+						label: "Unposted documents",
+						onSelect: () => navigate(ROUTES.client.admin, { state: { subItem: "Post / Unpost" } }),
+					},
+				]),
 		{
 			count: lowStockParts,
 			icon: PackageX,

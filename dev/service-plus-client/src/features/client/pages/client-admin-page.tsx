@@ -1,13 +1,21 @@
 import { ClientLayout, useClientSelection } from "../components/layout/client-layout";
+import { useIsAdminHiddenForBasicManager } from "../components/layout/use-admin-tab-visibility";
 import { AdminSection } from "../components/accounts-admin/admin-section";
-import { AddTeamMemberSection } from "../components/accounts-admin/add-team-member-section";
+import { UsersSection } from "../components/accounts-admin/users-section";
 
 function AdminContent() {
 	const { selected } = useClientSelection();
+	const hideAdmin = useIsAdminHiddenForBasicManager();
+
+	// Nav already hides the "Admin" tab for a Basic-tier Manager — this only guards a
+	// stale link/bookmark landing here directly (see AdminExplorer's matching guard).
+	if (hideAdmin) {
+		return <p className="p-6 text-sm text-(--cl-text-muted)">Not available on your plan.</p>;
+	}
 
 	switch (selected) {
-		case "My Team":
-			return <AddTeamMemberSection />;
+		case "Users":
+			return <UsersSection />;
 		case "Post / Unpost":
 		default:
 			return <AdminSection group="post-unpost" />;

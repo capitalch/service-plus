@@ -66,6 +66,7 @@ export type LoginResponseType = {
 	mobile?: string;
 	roleCode?: string;
 	roleName?: string;
+	subscriptionTier?: "BASIC" | "ENTERPRISE" | "PRO" | null;
 	username: string;
 	userType: "A" | "B" | "S";
 };
@@ -85,6 +86,7 @@ export type UserInstanceType = {
 	mobile?: string;
 	roleCode?: string;
 	roleName?: string;
+	subscriptionTier?: "BASIC" | "ENTERPRISE" | "PRO" | null;
 	userType: "A" | "B" | "S";
 	username: string;
 };
