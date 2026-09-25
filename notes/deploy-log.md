@@ -3,6 +3,24 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-25 15:36 (main)
+Admin: business users grid, and Users menu is Manager-only
+
+- Admin → Business Users: replace the card grid with a sortable/searchable
+  table (Name, Username, Email, Mobile, Business Units, Role, Status,
+  Actions), matching the grid pattern used elsewhere; all existing actions
+  (Edit, Reset password and mail, Associate BU/Role, Activate/Deactivate,
+  Delete) carry over unchanged.
+- Client Mode → Admin: the "Users" nav item and its route no longer show
+  for Admin/Super Admin — hasAccessRight's S/A bypass was letting it appear
+  as a confusing duplicate of their own Business Users screen; it now also
+  requires userType "B", both in the nav (client-explorer-panel.tsx) and as
+  a second guard on the route itself (client-admin-page.tsx).
+- plans/prompt1.md: add Standard and Enterprise to the subscription tier list.
+- dev-help-content.ts updated to match.
+
+Files: 5 changed (+299 / -223) — Base: feac074
+
 ## 2026-09-24 19:40 (main)
 Docs: start subscription-model notes with the tier list
 

@@ -457,7 +457,11 @@ function MastersExplorer() {
 
 function AdminExplorer() {
 	const currentUser = useAppSelector(selectCurrentUser);
-	const canManageOwnBu = hasAccessRight(currentUser, ACCESS_RIGHTS.USERS_MANAGE_OWN_BU);
+	// "Users" is a Manager self-service screen — hasAccessRight(USERS_MANAGE_OWN_BU)
+	// alone would also be true for Admin/Super Admin via their S/A bypass, but they
+	// have their own dedicated Admin → Business Users screen and never need this one.
+	const canManageOwnBu =
+		currentUser?.userType === "B" && hasAccessRight(currentUser, ACCESS_RIGHTS.USERS_MANAGE_OWN_BU);
 	const hideAdmin = useIsAdminHiddenForBasicManager();
 
 	// Nav (top bar + mobile strip) already hides the "Admin" tab entirely for a

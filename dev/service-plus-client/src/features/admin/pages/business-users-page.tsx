@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
+	ArrowDownIcon,
+	ArrowUpDownIcon,
+	ArrowUpIcon,
 	BuildingIcon,
 	ChevronDownIcon,
 	LinkIcon,
@@ -19,7 +22,6 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
 	DropdownMenu,
@@ -29,6 +31,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -64,14 +67,17 @@ type GenericBuQueryDataType = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const cardVariants = {
-	hidden: { opacity: 0, y: 10 },
+const rowVariants = {
+	hidden: { opacity: 0, y: 6 },
 	visible: (i: number) => ({
 		opacity: 1,
-		transition: { delay: i * 0.05, duration: 0.25, ease: "easeOut" as const },
+		transition: { delay: i * 0.04, duration: 0.22, ease: "easeOut" as const },
 		y: 0,
 	}),
 };
+
+const thClass = "text-xs font-semibold uppercase tracking-wide text-slate-500";
+const thSortClass = `${thClass} cursor-pointer select-none hover:text-slate-900`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -90,6 +96,8 @@ export const BusinessUsersPage = () => {
 	const [loading, setLoading] = useState(false);
 	const [mailCredentialsUser, setMailCredentialsUser] = useState<BusinessUserType | null>(null);
 	const [search, setSearch] = useState("");
+	const [sortCol, setSortCol] = useState<string | null>(null);
+	const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
 	const loadBusinessUsers = useCallback(async () => {
 		if (!dbName) return;
@@ -134,7 +142,7 @@ export const BusinessUsersPage = () => {
 				dispatch(setBusinessUnits(result.data.genericQuery));
 			}
 		} catch {
-			// BU names are supplementary to the card; a failed fetch just falls back to "N BUs".
+			// BU names are supplementary to the row; a failed fetch just falls back to "N BUs".
 		}
 	}, [dbName, dispatch]);
 
@@ -152,17 +160,47 @@ export const BusinessUsersPage = () => {
 		return map;
 	}, [businessUnits]);
 
-	const displayUsers = useMemo(() => {
-		const q = search.trim().toLowerCase();
-		if (!q) return businessUsers;
-		return businessUsers.filter(
-			(u) =>
-				u.full_name.toLowerCase().includes(q) ||
-				u.username.toLowerCase().includes(q) ||
-				u.email.toLowerCase().includes(q) ||
-				(u.role_name ?? "").toLowerCase().includes(q),
+	function handleSort(col: string) {
+		if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+		else {
+			setSortCol(col);
+			setSortDir("asc");
+		}
+	}
+
+	function SortIcon({ col }: { col: string }) {
+		if (sortCol !== col) return <ArrowUpDownIcon className="ml-1 inline h-3 w-3 opacity-40" />;
+		return sortDir === "asc" ? (
+			<ArrowUpIcon className="ml-1 inline h-3 w-3" />
+		) : (
+			<ArrowDownIcon className="ml-1 inline h-3 w-3" />
 		);
-	}, [businessUsers, search]);
+	}
+
+	const displayUsers = useMemo(() => {
+		let rows = businessUsers;
+		if (search.trim()) {
+			const q = search.trim().toLowerCase();
+			rows = rows.filter(
+				(u) =>
+					u.full_name.toLowerCase().includes(q) ||
+					u.username.toLowerCase().includes(q) ||
+					u.email.toLowerCase().includes(q) ||
+					(u.role_name ?? "").toLowerCase().includes(q),
+			);
+		}
+		if (sortCol) {
+			rows = [...rows].sort((a, b) => {
+				const av = (a as Record<string, unknown>)[sortCol];
+				const bv = (b as Record<string, unknown>)[sortCol];
+				if (av == null) return 1;
+				if (bv == null) return -1;
+				const cmp = typeof av === "number" ? av - (bv as number) : String(av).localeCompare(String(bv));
+				return sortDir === "asc" ? cmp : -cmp;
+			});
+		}
+		return rows;
+	}, [businessUsers, search, sortCol, sortDir]);
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	const handleActivate = (user: BusinessUserType) => setActivateUser(user);
@@ -207,244 +245,268 @@ export const BusinessUsersPage = () => {
 					</div>
 				</div>
 
-				{/* Search */}
-				<div className="relative w-full sm:max-w-xs">
-					<SearchIcon className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-					<Input
-						className="pl-8 text-sm"
-						placeholder="Search users…"
-						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-					/>
-					{search && (
-						<button
-							className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
-							type="button"
-							onClick={() => setSearch("")}
-						>
-							<X className="h-2.5 w-2.5 text-muted-foreground" />
-						</button>
+				{/* Search + count */}
+				<div className="flex items-center gap-3">
+					<div className="relative w-full sm:max-w-xs">
+						<SearchIcon className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+						<Input
+							className="pl-8 text-sm"
+							placeholder="Search users…"
+							value={search}
+							onChange={(e) => setSearch(e.target.value)}
+						/>
+						{search && (
+							<button
+								className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-slate-400 text-white hover:bg-slate-600 focus:outline-none"
+								type="button"
+								onClick={() => setSearch("")}
+							>
+								<X className="h-2.5 w-2.5" />
+							</button>
+						)}
+					</div>
+					{!loading && businessUsers.length > 0 && (
+						<p className="shrink-0 text-xs text-slate-500">
+							{displayUsers.length} of {businessUsers.length}
+						</p>
 					)}
 				</div>
 
 				{/* Skeleton */}
 				{loading && businessUsers.length === 0 && (
-					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					<div className="flex flex-col gap-2">
 						{Array.from({ length: 6 }).map((_, i) => (
-							<div key={i} className="h-44 animate-pulse rounded-xl bg-slate-100" />
+							<div key={i} className="h-12 animate-pulse rounded-lg bg-slate-100" />
 						))}
 					</div>
 				)}
 
 				{/* Empty state */}
-				{!loading && displayUsers.length === 0 && (
+				{!loading && businessUsers.length === 0 && (
 					<div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center text-sm text-slate-400 shadow-sm">
-						{search.trim()
-							? "No users match your search."
-							: "No business users found. Click \u201cAdd Business User\u201d to create one."}
+						No business users found. Click &quot;Add Business User&quot; to create one.
 					</div>
 				)}
 
-				{/* Scrollable card grid */}
-				{displayUsers.length > 0 && (
-					<div className="overflow-y-auto rounded-xl pr-1" style={{ maxHeight: "calc(100vh - 200px)" }}>
-						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-							{displayUsers.map((user, idx) => (
-								<motion.div
-									animate="visible"
-									custom={idx}
-									initial="hidden"
-									key={user.id}
-									variants={cardVariants}
-								>
-									<Card
-										className={`relative overflow-hidden border transition-shadow hover:shadow-md ${
-											user.is_active
-												? "border-slate-200 bg-white"
-												: "border-l-4 border-l-slate-300 bg-slate-50/30"
-										}`}
-									>
-										<CardContent className="p-4">
-											{/* Top row: avatar + name + action menu */}
-											<div className="flex items-start justify-between gap-2">
-												<div className="flex min-w-0 items-center gap-3">
-													<div
-														className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-															user.is_active
-																? "bg-teal-100 text-teal-700"
-																: "bg-slate-200 text-slate-400"
-														}`}
-													>
-														{user.full_name.charAt(0).toUpperCase()}
-													</div>
-													<div className="min-w-0">
-														<p
-															className={`truncate text-sm font-semibold ${
+				{/* Grid */}
+				{businessUsers.length > 0 && (
+					<div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+						<div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 260px)" }}>
+							<Table>
+								<TableHeader>
+									<TableRow className="sticky top-0 z-10 bg-slate-50 hover:bg-slate-50">
+										<TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
+										<TableHead className={thSortClass} onClick={() => handleSort("full_name")}>
+											Name
+											<SortIcon col="full_name" />
+										</TableHead>
+										<TableHead className={thSortClass} onClick={() => handleSort("username")}>
+											Username
+											<SortIcon col="username" />
+										</TableHead>
+										<TableHead className={thSortClass} onClick={() => handleSort("email")}>
+											Email
+											<SortIcon col="email" />
+										</TableHead>
+										<TableHead className={thClass}>Mobile</TableHead>
+										<TableHead className={thClass}>Business Units</TableHead>
+										<TableHead className={thSortClass} onClick={() => handleSort("role_name")}>
+											Role
+											<SortIcon col="role_name" />
+										</TableHead>
+										<TableHead className={thClass}>Status</TableHead>
+										<TableHead className={thClass}>Actions</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{displayUsers.length === 0 ? (
+										<tr>
+											<td colSpan={99} className="px-6 py-10 text-center text-sm text-slate-400">
+												No results match &ldquo;{search}&rdquo;.
+											</td>
+										</tr>
+									) : (
+										displayUsers.map((user, idx) => (
+											<motion.tr
+												animate="visible"
+												className={`border-b border-slate-100 transition-colors last:border-b-0 hover:bg-slate-50 ${
+													user.is_active ? "" : "bg-slate-50/60"
+												}`}
+												custom={idx}
+												initial="hidden"
+												key={user.id}
+												variants={rowVariants}
+											>
+												<TableCell className="text-center text-xs text-slate-400">
+													{idx + 1}
+												</TableCell>
+												<TableCell>
+													<div className="flex items-center gap-2.5">
+														<div
+															className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+																user.is_active
+																	? "bg-teal-100 text-teal-700"
+																	: "bg-slate-200 text-slate-400"
+															}`}
+														>
+															{user.full_name.charAt(0).toUpperCase()}
+														</div>
+														<span
+															className={`font-medium ${
 																user.is_active
 																	? "text-slate-900"
 																	: "text-slate-400 line-through decoration-slate-300"
 															}`}
 														>
 															{user.full_name}
-														</p>
-														<p className="truncate font-mono text-xs text-slate-400">
-															{user.username}
-														</p>
+														</span>
 													</div>
-												</div>
-
-												{/* Index badge */}
-												<span className="shrink-0 rounded-full bg-teal-600 px-2.5 py-1 font-mono text-xs font-bold text-white shadow-sm">
-													#{idx + 1}
-												</span>
-
-												{/* Action menu */}
-												<DropdownMenu>
-													<DropdownMenuTrigger asChild>
-														<Button
-															className="h-7 w-7 shrink-0 cursor-pointer text-slate-400 hover:text-slate-700"
-															size="icon"
-															variant="ghost"
-														>
-															<MoreHorizontalIcon className="h-4 w-4" />
-															<span className="sr-only">Actions</span>
-														</Button>
-													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end" className="w-44">
-														<DropdownMenuItem
-															className="cursor-pointer text-blue-600 focus:text-blue-600"
-															disabled={!user.is_active}
-															onClick={() => handleEdit(user)}
-														>
-															<PencilIcon className="mr-2 h-4 w-4 text-blue-600" />
-															Edit
-														</DropdownMenuItem>
-														<DropdownMenuItem
-															className="cursor-pointer text-blue-600 focus:text-blue-600"
-															disabled={!user.is_active}
-															onClick={() => handleMailCredentials(user)}
-														>
-															<MailIcon className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
-															Reset password and mail
-														</DropdownMenuItem>
-														<DropdownMenuItem
-															className="cursor-pointer text-teal-600 focus:text-teal-600"
-															disabled={!user.is_active}
-															onClick={() => handleAssociate(user)}
-														>
-															<LinkIcon className="mr-1.5 h-3.5 w-3.5" />
-															Associate BU / Role
-														</DropdownMenuItem>
-														<DropdownMenuSeparator />
-														{user.is_active ? (
-															<DropdownMenuItem
-																className="cursor-pointer text-amber-600 focus:text-amber-600"
-																onClick={() => handleDeactivate(user)}
-															>
-																<UserXIcon className="mr-1.5 h-3.5 w-3.5" />
-																Deactivate
-															</DropdownMenuItem>
-														) : (
-															<>
-																<DropdownMenuItem
-																	className="cursor-pointer text-emerald-600 focus:text-emerald-600"
-																	onClick={() => handleActivate(user)}
+												</TableCell>
+												<TableCell>
+													<span className="font-mono text-xs font-semibold text-slate-700">
+														{user.username}
+													</span>
+												</TableCell>
+												<TableCell className="text-sm text-slate-500">{user.email}</TableCell>
+												<TableCell className="text-sm text-slate-500">
+													{user.mobile ?? "—"}
+												</TableCell>
+												<TableCell>
+													{user.bu_ids && user.bu_ids.length > 0 ? (
+														<DropdownMenu>
+															<DropdownMenuTrigger asChild>
+																<button
+																	className="inline-flex cursor-pointer items-center gap-1 rounded-sm bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-200"
+																	type="button"
 																>
-																	<UserCheckIcon className="mr-1.5 h-3.5 w-3.5" />
-																	Activate
-																</DropdownMenuItem>
+																	{user.bu_ids.length} BU
+																	{user.bu_ids.length !== 1 ? "s" : ""}
+																	<ChevronDownIcon className="h-3 w-3" />
+																</button>
+															</DropdownMenuTrigger>
+															<DropdownMenuContent align="start" className="w-52">
+																<DropdownMenuLabel className="text-xs text-slate-500">
+																	Business Units
+																</DropdownMenuLabel>
 																<DropdownMenuSeparator />
-																<DropdownMenuItem
-																	className="cursor-pointer text-red-600 focus:text-red-600"
-																	onClick={() => handleDelete(user)}
-																>
-																	<Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />
-																	Delete
-																</DropdownMenuItem>
-															</>
-														)}
-													</DropdownMenuContent>
-												</DropdownMenu>
-											</div>
-
-											{/* Email */}
-											<p
-												className={`mt-3 truncate text-xs ${user.is_active ? "text-slate-500" : "text-slate-400"}`}
-											>
-												{user.email}
-											</p>
-
-											{/* Mobile */}
-											<p className="mt-0.5 text-xs text-slate-400">{user.mobile ?? "—"}</p>
-
-											{/* BU + Role */}
-											<div className="mt-3 flex flex-wrap items-center gap-1.5">
-												{user.bu_ids && user.bu_ids.length > 0 ? (
-													<DropdownMenu>
-														<DropdownMenuTrigger asChild>
-															<button
-																className="inline-flex cursor-pointer items-center gap-1 rounded-sm bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-200"
-																type="button"
-															>
-																{user.bu_ids.length} BU
-																{user.bu_ids.length !== 1 ? "s" : ""}
-																<ChevronDownIcon className="h-3 w-3" />
-															</button>
-														</DropdownMenuTrigger>
-														<DropdownMenuContent align="start" className="w-52">
-															<DropdownMenuLabel className="text-xs text-slate-500">
-																Business Units
-															</DropdownMenuLabel>
-															<DropdownMenuSeparator />
-															{user.bu_ids.map((buId) => (
-																<DropdownMenuItem
-																	className="cursor-default text-xs text-slate-700 focus:bg-transparent focus:text-slate-700"
-																	key={buId}
-																	onSelect={(e) => e.preventDefault()}
-																>
-																	<BuildingIcon className="mr-1.5 h-3.5 w-3.5 text-teal-600" />
-																	{buNameById.get(buId) ?? `BU #${buId}`}
-																</DropdownMenuItem>
-															))}
-														</DropdownMenuContent>
-													</DropdownMenu>
-												) : (
-													<span className="text-xs text-slate-400">No BU</span>
-												)}
-												{user.role_name ? (
+																{user.bu_ids.map((buId) => (
+																	<DropdownMenuItem
+																		className="cursor-default text-xs text-slate-700 focus:bg-transparent focus:text-slate-700"
+																		key={buId}
+																		onSelect={(e) => e.preventDefault()}
+																	>
+																		<BuildingIcon className="mr-1.5 h-3.5 w-3.5 text-teal-600" />
+																		{buNameById.get(buId) ?? `BU #${buId}`}
+																	</DropdownMenuItem>
+																))}
+															</DropdownMenuContent>
+														</DropdownMenu>
+													) : (
+														<span className="text-xs text-slate-400">No BU</span>
+													)}
+												</TableCell>
+												<TableCell>
+													{user.role_name ? (
+														<Badge
+															className="rounded-sm border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50"
+															variant="outline"
+														>
+															{user.role_name}
+														</Badge>
+													) : (
+														<span className="text-xs text-slate-400">No role</span>
+													)}
+												</TableCell>
+												<TableCell>
 													<Badge
-														className="rounded-sm border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50"
+														className={
+															user.is_active
+																? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
+																: "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-100"
+														}
 														variant="outline"
 													>
-														{user.role_name}
+														<span
+															className={`mr-1 h-1.5 w-1.5 rounded-full ${
+																user.is_active ? "bg-emerald-500" : "bg-slate-400"
+															}`}
+														/>
+														{user.is_active ? "Active" : "Inactive"}
 													</Badge>
-												) : (
-													<span className="text-xs text-slate-400">No role</span>
-												)}
-											</div>
-
-											{/* Status */}
-											<div className="mt-3">
-												<Badge
-													className={
-														user.is_active
-															? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
-															: "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-100"
-													}
-													variant="outline"
-												>
-													<span
-														className={`mr-1 h-1.5 w-1.5 rounded-full ${
-															user.is_active ? "bg-emerald-500" : "bg-slate-400"
-														}`}
-													/>
-													{user.is_active ? "Active" : "Inactive"}
-												</Badge>
-											</div>
-										</CardContent>
-									</Card>
-								</motion.div>
-							))}
+												</TableCell>
+												<TableCell>
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<Button
+																className="h-7 w-7 cursor-pointer text-slate-400 hover:text-slate-700"
+																size="icon"
+																variant="ghost"
+															>
+																<MoreHorizontalIcon className="h-4 w-4" />
+																<span className="sr-only">Actions</span>
+															</Button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent align="end" className="w-48">
+															<DropdownMenuItem
+																className="cursor-pointer text-blue-600 focus:text-blue-600"
+																disabled={!user.is_active}
+																onClick={() => handleEdit(user)}
+															>
+																<PencilIcon className="mr-2 h-4 w-4 text-blue-600" />
+																Edit
+															</DropdownMenuItem>
+															<DropdownMenuItem
+																className="cursor-pointer text-blue-600 focus:text-blue-600"
+																disabled={!user.is_active}
+																onClick={() => handleMailCredentials(user)}
+															>
+																<MailIcon className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+																Reset password and mail
+															</DropdownMenuItem>
+															<DropdownMenuItem
+																className="cursor-pointer text-teal-600 focus:text-teal-600"
+																disabled={!user.is_active}
+																onClick={() => handleAssociate(user)}
+															>
+																<LinkIcon className="mr-1.5 h-3.5 w-3.5" />
+																Associate BU / Role
+															</DropdownMenuItem>
+															<DropdownMenuSeparator />
+															{user.is_active ? (
+																<DropdownMenuItem
+																	className="cursor-pointer text-amber-600 focus:text-amber-600"
+																	onClick={() => handleDeactivate(user)}
+																>
+																	<UserXIcon className="mr-1.5 h-3.5 w-3.5" />
+																	Deactivate
+																</DropdownMenuItem>
+															) : (
+																<>
+																	<DropdownMenuItem
+																		className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+																		onClick={() => handleActivate(user)}
+																	>
+																		<UserCheckIcon className="mr-1.5 h-3.5 w-3.5" />
+																		Activate
+																	</DropdownMenuItem>
+																	<DropdownMenuSeparator />
+																	<DropdownMenuItem
+																		className="cursor-pointer text-red-600 focus:text-red-600"
+																		onClick={() => handleDelete(user)}
+																	>
+																		<Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />
+																		Delete
+																	</DropdownMenuItem>
+																</>
+															)}
+														</DropdownMenuContent>
+													</DropdownMenu>
+												</TableCell>
+											</motion.tr>
+										))
+									)}
+								</TableBody>
+							</Table>
 						</div>
 					</div>
 				)}
