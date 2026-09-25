@@ -12,6 +12,24 @@ Docs: add more domain-name candidates to marketing notes
 
 Files: 1 changed (+1 / -1) — Base: 6a42868
 
+## 2026-09-25 20:38 (main)
+Docs: portal hosting plan and fleshed-out subscription tiers
+
+- plans/plan3.md: new — how to stand up the myserviceplus.in marketing portal.
+  Concludes a fully static Next.js export on MilesWeb cPanel, with zero changes
+  to the Cloudjiffy production env and no API calls: the two sites are joined
+  only by the app's Login hyperlink.
+- plans/plan3.md: records why the prompt's proxy option was rejected — no Node
+  runtime in the Python image, nginx already serves the SPA at /, and a proxy
+  would collapse the per-IP rate limiter onto one address.
+- plans/prompt2.md: new — the source prompt asking how to host and integrate a
+  customer-facing portal with the production server.
+- plans/prompt1.md: subscription model filled in — Lite renamed to Trial, and
+  each of the four levels given its price, user/job/WhatsApp-message limits and
+  business-unit count, plus the start of the trial-provisioning notes.
+
+Files: 1 changed (+26 / -4) — Base: e2c4ef4
+
 ## 2026-09-25 15:36 (main)
 Admin: business users grid, and Users menu is Manager-only
 
