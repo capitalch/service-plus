@@ -28,8 +28,9 @@ def require_user_type(info, allowed: set[str]) -> None:
 
     Unlike require_access_right, this checks WHO is calling directly and has no
     bypass — use it for resolvers gated by identity (Super Admin only, or Admin
-    only), not by a specific access-right code. E.g. createBuSchemaAndFeedSeedData
-    is `require_user_type(info, {"S"})` — no tenant's own Admin ever reaches it.
+    only), not by a specific access-right code. E.g. createAdminUser is
+    `require_user_type(info, {"S"})`, while createBuSchemaAndFeedSeedData pairs
+    `require_own_tenant` with `{"S", "A"}` (plans/revert.md, constraint 2).
     """
     context = info.context or {}
     _reject_bad_token(context)

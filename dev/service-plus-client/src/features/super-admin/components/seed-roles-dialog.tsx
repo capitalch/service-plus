@@ -46,7 +46,6 @@ const ACCESS_RIGHT_PREVIEW_ITEMS = [
 	{ code: "JOBS_BATCH_WARRANTY_TRANSACTIONS", module: "Jobs", name: "Batch Warranty Jobs" },
 	{ code: "CUSTOM_MENU", module: "Custom", name: "Custom (whole tab)" },
 	{ code: "CUSTOM_EXTENDED_WARRANTY", module: "Custom", name: "Extended Warranty" },
-	{ code: "USERS_MANAGE_OWN_BU", module: "Admin", name: "Manage Own BU Users (Manager only)" },
 ];
 
 type SeedRolesDialogPropsType = {

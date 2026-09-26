@@ -70,7 +70,6 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
 				mobile: result.mobile,
 				roleCode: result.roleCode,
 				roleName: result.roleName,
-				subscriptionTier: result.subscriptionTier,
 				userType: result.userType,
 				username: result.username,
 			};

@@ -81,8 +81,6 @@ class LoginResponse(BaseModel):
     mobile: str = Field(description="User's mobile number")
     role_code: str = Field(default="", alias="roleCode", description="User's role code")
     role_name: str = Field(alias="roleName", description="User's role name")
-    subscription_tier: str | None = Field(
-        default=None, alias="subscriptionTier", description="Client's subscription tier (BASIC/PRO/ENTERPRISE)")
     username: str = Field(description="User's username")
     user_type: str = Field(
         alias="userType", description="User type (e.g., 'S' for Super Admin)")

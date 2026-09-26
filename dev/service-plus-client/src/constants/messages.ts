@@ -56,8 +56,6 @@ export const MESSAGES = {
 	ERROR_BUSINESS_USER_UPDATE_FAILED: "Failed to update business user. Please try again.",
 	ERROR_BUSINESS_USER_USERNAME_EXISTS: "This username is already taken.",
 	ERROR_BUSINESS_USER_USERNAME_EXISTS_EDIT: "This username is already used by another user.",
-	INFO_USERS_DESCRIPTION: "Add a Technician or Receptionist for your own business unit.",
-	ERROR_USERS_ROLE_MANAGER_BLOCKED: "You can't create another Manager here.",
 	SUCCESS_BUSINESS_USER_ACTIVATED: "Business user has been activated.",
 	SUCCESS_BUSINESS_USER_CREDENTIALS_MAILED: "Password reset link sent to the user's email.",
 	WARN_BUSINESS_USER_BU_ROLE_ASSIGN_FAILED:
@@ -106,7 +104,6 @@ export const MESSAGES = {
 	ERROR_BRANCH_DELETE_HEAD_OFFICE: "Head Office branch cannot be deleted.",
 	ERROR_BRANCH_DELETE_IN_USE: "This branch cannot be deleted as it is referenced by existing records.",
 	ERROR_BRANCH_LOAD_FAILED: "Failed to load branches. Please try again.",
-	INFO_BASIC_TIER_BRANCH_LIMIT: "This client is on the Basic plan, which allows only one branch per business unit.",
 	ERROR_BRANCH_NAME_EXISTS: "This name is already in use.",
 	ERROR_BRANCH_NAME_EXISTS_EDIT: "This name is already used by another branch.",
 	ERROR_BRANCH_UPDATE_FAILED: "Failed to update branch. Please try again.",

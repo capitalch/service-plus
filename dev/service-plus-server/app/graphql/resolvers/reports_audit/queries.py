@@ -407,7 +407,6 @@ async def resolve_super_admin_clients_data_helper():
             "phone":              client_row.get("phone"),
             "pincode":            client_row.get("pincode"),
             "state":              client_row.get("state"),
-            "subscription_tier":  client_row.get("subscription_tier"),
             "updated_at":         client_row["updated_at"].isoformat() if client_row.get("updated_at") else None,
         })
 

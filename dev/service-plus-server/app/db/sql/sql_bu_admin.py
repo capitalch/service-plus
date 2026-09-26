@@ -186,16 +186,6 @@ class BuAdminSql(BuAdminDdl):
         ORDER BY b.is_head_office DESC, b.name
     """
 
-    COUNT_BRANCHES = """
-        with "dummy" as (values(1::int))
-        SELECT COUNT(*) AS branch_count FROM branch
-    """
-
-    CHECK_BRANCH_IDS_EXIST = """
-        with "p_ids" as (values(%(ids)s::bigint[]))
-        SELECT id FROM branch WHERE id = ANY((table "p_ids"))
-    """
-
     # ── Business Units (BU) ───────────────────────────────────────────────────
 
     CHECK_BU_CODE_EXISTS = """
@@ -318,21 +308,6 @@ class BuAdminSql(BuAdminDdl):
         RETURNING id
     """
 
-    GET_BU_CODE_BY_ID = """
-        with "p_id" as (values(%(id)s::bigint))
-        SELECT code FROM security.bu WHERE id = (table "p_id")
-    """
-
-    # The Manager-created-users rule (plans/plan.md, Step 4) needs to know, for a
-    # given caller, exactly which BUs they themselves hold a MANAGER row for — not
-    # just "are they a Manager somewhere". role_id 1 is MANAGER (see ROLE_SEED_SQL).
-    GET_MANAGER_BU_IDS_FOR_USER = """
-        with "p_user_id" as (values(%(user_id)s::bigint))
-        SELECT bu_id
-        FROM security.user_bu_role
-        WHERE user_id = (table "p_user_id") AND role_id = 1
-    """
-
     # ── Business Users ────────────────────────────────────────────────────────
 
     CHECK_BUSINESS_USER_EMAIL_EXISTS = """
@@ -426,25 +401,6 @@ class BuAdminSql(BuAdminDdl):
         ORDER BY bu_id
     """
 
-    COUNT_BUSINESS_USERS = """
-        with "dummy" as (values(1::int))
-        SELECT COUNT(*) AS business_user_count
-        FROM security."user"
-        WHERE is_admin = false
-    """
-
-    # ── Branch restriction (plans/plan.md, Step 6) ──────────────────────────────
-    # branch_id is a soft reference (see scripts/user_bu_role_branch_schema.sql) —
-    # callers must validate it against the right BU schema before writing here.
-
-    GET_USER_BRANCH_RESTRICTIONS = """
-        with "p_user_id" as (values(%(user_id)s::bigint))
-        SELECT bu_id, branch_id
-        FROM security.user_bu_role_branch
-        WHERE user_id = (table "p_user_id")
-        ORDER BY bu_id, branch_id
-    """
-
     RESET_BUSINESS_USER_PASSWORD = """
         with
             "p_id"            as (values(%(id)s::bigint)),
@@ -530,41 +486,22 @@ class BuAdminSql(BuAdminDdl):
     GET_CLIENT_BY_ID = """
         with "p_id" as (values(%(id)s::int))
         -- with "p_id" as (values(1::int)) -- Test line
-        SELECT id, name, is_active, db_name, subscription_tier
+        SELECT id, name, is_active, db_name
         FROM public.client
         WHERE id = (table "p_id")
-    """
-
-    # Basic-tier caller checks (plans/plan.md, Step 4/8) key off the caller's own
-    # db_name, already on their token — no client_id round trip needed.
-    GET_CLIENT_SUBSCRIPTION_TIER_BY_DB_NAME = """
-        with "p_db_name" as (values(%(db_name)s::text))
-        SELECT subscription_tier
-        FROM public.client
-        WHERE db_name = (table "p_db_name")
-    """
-
-    UPDATE_CLIENT_SUBSCRIPTION_TIER = """
-        with
-            "p_id"   as (values(%(id)s::int)),
-            "p_tier" as (values(%(subscription_tier)s::text))
-        UPDATE public.client
-        SET subscription_tier = (table "p_tier")
-        WHERE id = (table "p_id")
-        RETURNING id, subscription_tier
     """
 
     GET_CLIENT_DB_NAME = """
         with "p_client_id" as (values(%(client_id)s::int))
         -- with "p_client_id" as (values(1::int)) -- Test line
-        SELECT db_name, code, subscription_tier
+        SELECT db_name, code
         FROM public.client
         WHERE id = (table "p_client_id")
           AND is_active = true
     """
 
     GET_CLIENT_DB_NAMES = """
-        SELECT id, code, name, is_active, db_name, subscription_tier,
+        SELECT id, code, name, is_active, db_name,
                address_line1, address_line2, city, country_code,
                email, gstin, pan, phone, pincode, state,
                created_at, updated_at

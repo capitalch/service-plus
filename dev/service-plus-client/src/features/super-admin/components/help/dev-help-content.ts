@@ -1692,11 +1692,11 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "para",
-				text: 'Found while implementing the Manager-created-users feature (plans/plan.md): createBusinessUser, createAdminUser, createBuSchemaAndFeedSeedData, and setUserBuRole are dedicated named mutations, not routed through genericUpdate/genericUpdateScript — so Gap 1\'s per-table allow-list never covered them, and unlike Gap 2 they had not even a client-side disable\'s worth of thought given to the server side: literally zero require_access_right/require_user_type/userType check. Any authenticated user, any role, could call any of the four directly and create a business user of any role for any BU, a second Admin, or a whole new BU schema. Fixed: createBusinessUser and setUserBuRole now call require_own_tenant + require_user_type(info, {"A", "B"}) in mutation.py, with the real role/BU/tier rule enforced inside users_roles.py (see "Manager-Created Users & Subscription Tiers" below); createAdminUser now calls require_user_type(info, {"S"}) — Super Admin only, permanently, on every tier.',
+				text: 'Found while implementing the Manager-created-users feature (plans/plan.md): createBusinessUser, createAdminUser, createBuSchemaAndFeedSeedData, and setUserBuRole are dedicated named mutations, not routed through genericUpdate/genericUpdateScript — so Gap 1\'s per-table allow-list never covered them, and unlike Gap 2 they had not even a client-side disable\'s worth of thought given to the server side: literally zero require_access_right/require_user_type/userType check. Any authenticated user, any role, could call any of the four directly and create a business user of any role for any BU, a second Admin, or a whole new BU schema. Fixed: createBusinessUser and setUserBuRole now call require_own_tenant + require_user_type(info, {"A"}) in mutation.py — Admin only, for their own tenant; createAdminUser calls require_user_type(info, {"S"}) — Super Admin only. These four guards are the one part of the Manager-created-users work that was KEPT when the rest of it was reverted on 2026-09-26 (plans/revert.md, constraint 1): the feature is gone, but the hole it exposed stays closed. They briefly read {"A", "B"} while a Manager could create users; the revert narrowed them back to {"A"}. tests/test_auth_guards.py covers require_user_type itself and was deliberately kept for that reason.',
 			},
 			{
 				type: "warning",
-				text: 'createBuSchemaAndFeedSeedData briefly went Super-Admin-only on 2026-09-17 as part of this same fix, per an earlier draft of plans/plan.md ("no tenant\'s own Admin ever gets this"). Reverted 2026-09-18: the client\'s Admin Panel (features/admin/components/create-business-unit-dialog.tsx) still shows "Add Business Unit" to tenant Admin, and Super Admin has no equivalent screen to create a BU for a tenant — the lockdown left BU creation broken for everyone. Now require_own_tenant(info, db_name) + require_user_type(info, {"S", "A"}): Super Admin (any tenant) or the tenant\'s own Admin (their tenant only, enforced by require_own_tenant). If a proper Super Admin BU-management screen is ever built, this can be tightened back to {"S"} only — see plans/plan.md "Flags and constraints" for this decision.',
+				text: 'createBuSchemaAndFeedSeedData briefly went Super-Admin-only on 2026-09-17 as part of this same fix, per an earlier draft of plans/plan.md ("no tenant\'s own Admin ever gets this"). Reverted 2026-09-18: the client\'s Admin Panel (features/admin/components/create-business-unit-dialog.tsx) still shows "Add Business Unit" to tenant Admin, and Super Admin has no equivalent screen to create a BU for a tenant — the lockdown left BU creation broken for everyone. Now require_own_tenant(info, db_name) + require_user_type(info, {"S", "A"}): Super Admin (any tenant) or the tenant\'s own Admin (their tenant only, enforced by require_own_tenant). If a proper Super Admin BU-management screen is ever built, this can be tightened back to {"S"} only. Re-confirmed as deliberate on 2026-09-26 and left untouched by the revert — see plans/revert.md, constraint 2.',
 			},
 			{
 				type: "warning",
@@ -1748,125 +1748,6 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "If I need to add enforcement to Receipts or Post/Unpost, what should I do first?",
 				a: "Read the full 'Step 10 blocker' section in plans/plan-access-control.md before writing code — this is a design decision (which of options a/b/c above), not a quick guard addition, and picking wrong risks either leaving a hole or blocking a role that must stay unrestricted.",
-			},
-		],
-	},
-
-	{
-		id: "dev-manager-created-users",
-		category: "Access Control & Security",
-		title: "Manager-Created Users & Subscription Tiers",
-		summary:
-			"USERS_MANAGE_OWN_BU, the Basic/Pro/Enterprise tier field, the Basic-tier one-user/one-branch caps, and user_bu_role_branch.",
-		tags: [
-			"USERS_MANAGE_OWN_BU",
-			"subscription_tier",
-			"BASIC",
-			"PRO",
-			"ENTERPRISE",
-			"MANAGER_ROLE_ID",
-			"user_bu_role_branch",
-			"Users",
-			"require_user_type",
-			"branch restriction",
-			"useIsAdminHiddenForBasicManager",
-			"useSubscriptionTier",
-			"plans/plan.md",
-		],
-		content: [
-			{
-				type: "para",
-				text: "Implements plans/plan.md: Admin is unchanged (any role, any BU in their own tenant); a Manager can now create Technician/Receptionist users for their own BU(s) only, never another Manager; BU creation is Super Admin (any tenant) or a tenant's own Admin for their own tenant only — reverted 2026-09-18 from a brief Super-Admin-only window, since the client's Admin Panel still exposes 'Add Business Unit' to Admin and Super Admin has no replacement screen; a client has a Basic/Pro/Enterprise tier, and Basic caps a client to one business user (role Manager) and one branch per BU; a user's BU assignment can optionally be restricted to specific branches.",
-			},
-			{ type: "heading", text: "USERS_MANAGE_OWN_BU (access_right id 21)" },
-			{
-				type: "para",
-				text: "Seeded to MANAGER only (seed_security_data.py) — TECHNICIAN and RECEPTIONIST never get it, by design; this is the one access right that is NOT simply 'does the role need this feature' but specifically gates a privilege-escalation-shaped capability. Existing tenants need scripts/seed_access_right_users_manage_own_bu.sql or a re-run of the Super Admin seed wizard to pick it up (same as every other right — see 'Seeding Roles & Access Rights').",
-			},
-			{ type: "heading", text: "The rule (users_roles.py)" },
-			{
-				type: "para",
-				text: "resolve_create_business_user_helper and resolve_set_user_bu_role_helper both now take info and run _check_basic_tier_user_cap(db_name, schema, role_id) FIRST, unconditionally — before checking who's calling — then _require_can_create_business_user(info, db_name, role_id, bu_ids). Admin/Super Admin: unrestricted (unless the Basic cap above already blocked it). A 'B' caller: must carry USERS_MANAGE_OWN_BU, role_id must not be MANAGER_ROLE_ID (1), and every bu_id in the payload must come back from GET_MANAGER_BU_IDS_FOR_USER for that caller — a fresh DB read each call, not trusted from the JWT's role_code claim, since role_code is a single string that can't represent 'MANAGER in BU 1, something else in BU 2' even though user_bu_role technically could.",
-			},
-			{
-				type: "note",
-				text: "setUserBuRole (the edit path) runs the identical _require_can_create_business_user check — a Manager can't use 'edit' to grant themselves or someone else a BU they don't manage, or promote someone to MANAGER, just because 'edit' sounds less privileged than 'create'.",
-			},
-			{ type: "heading", text: "require_user_type (auth_guards.py)" },
-			{
-				type: "para",
-				text: 'New guard, sibling to require_access_right/require_bu_access but with no S/A bypass — it checks WHO is calling, not what right they hold. createAdminUser calls require_user_type(info, {"S"}) in mutation.py — Super Admin only, permanently, no exceptions. createBuSchemaAndFeedSeedData calls require_own_tenant + require_user_type(info, {"S", "A"}) — Super Admin (any tenant) or the tenant\'s own Admin (own tenant only), reverted 2026-09-18 (see the warning under "Server-Side Authorization Gaps"). createBusinessUser and setUserBuRole call require_own_tenant + require_user_type(info, {"A", "B"}) as a coarse pre-filter, with the real rule inside the helper (above) since it needs more than a caller\'s bare identity.',
-			},
-			{ type: "heading", text: "subscription_tier (public.client)" },
-			{
-				type: "para",
-				text: "text column, CHECK'd to ('BASIC', 'PRO', 'ENTERPRISE'), default 'BASIC' — scripts/subscription_tier_schema.sql, run once against service_plus_client (there is only one). Read by db_name via GET_CLIENT_SUBSCRIPTION_TIER_BY_DB_NAME — deliberately keyed by db_name (already on the caller's token / already the resolver's own db_name argument once require_own_tenant has run) rather than by client_id, so no extra round trip or client_id JWT claim is needed. Edited from Super Admin's Edit Client dialog via the existing generic genericUpdate(tableName: \"client\") path — no new mutation needed, since the column just rides along with every other client field already saved that way. Surfaced read-side through resolve_super_admin_clients_data_helper (adds subscription_tier to the dict it already builds from GET_CLIENT_DB_NAMES) and GET_CLIENT_BY_ID.",
-			},
-			{ type: "heading", text: "Basic tier: one user, one branch" },
-			{
-				type: "para",
-				text: "One user: _check_basic_tier_user_cap counts COUNT_BUSINESS_USERS (is_admin = false rows) in the target schema; at BASIC with count >= 1, or count == 0 but role_id != MANAGER_ROLE_ID, it raises before anything else runs — this blocks Admin too, not just a Manager caller, since the cap is a plan limit, not a permission. The one Admin login every client gets at setup is_admin = true and is not counted.",
-			},
-			{
-				type: "para",
-				text: 'One branch: mutation.py\'s _require_basic_tier_branch_cap runs inside resolve_generic_update, scoped to tableName === "branch" and only a NEW row (xData.id absent, or present with isIdInsert — same insert-vs-update test process_details itself uses: `x_data.get("id") and not x_data.get("isIdInsert")` means update). Branch has no dedicated mutation of its own — same Gap-1 shape as everything else on genericUpdate — so this check had to be added narrowly inside the shared dispatcher rather than as a clean per-table right; it is NOT in GENERIC_UPDATE_TABLE_RIGHTS since it is not a right-based check at all. Client-side, branch-section.tsx fetches its own tier via GET_CLIENT_SUBSCRIPTION_TIER_BY_DB_NAME and disables the Add Branch button once at cap — the server check is the real boundary, that\'s only the UX.',
-			},
-			{ type: "heading", text: "Branch restriction — user_bu_role_branch" },
-			{
-				type: "para",
-				text: "New table in the `security` schema (scripts/user_bu_role_branch_schema.sql, one row per (user_id, bu_id, branch_id), PK on all three, FK on the (user_id, bu_id) pair back to user_bu_role with ON DELETE CASCADE). branch_id is a SOFT reference — branches live inside each BU's own schema (named after security.bu.code), which Postgres can't FK across generically. _validate_and_save_branch_restrictions (users_roles.py) resolves bu_id → code via GET_BU_CODE_BY_ID, then checks every branch_id actually exists in that schema via CHECK_BRANCH_IDS_EXIST before inserting — reject the whole call (BRANCH_NOT_IN_BU) rather than write a dangling reference. No rows for a (user_id, bu_id) = unrestricted, which is every user's state today, so this shipped with zero behavior change until someone actively sets a restriction.",
-			},
-			{
-				type: "warning",
-				text: "This plan only covers the ASSIGNMENT side — who can be tagged to which branch. It does not filter what a branch-restricted user can actually see or do in jobs/reports/etc.; that's explicitly out of scope (plans/plan.md, 'Flags and constraints') and would touch most genericQuery report/list resolvers, a materially bigger change than this one. Don't assume a branch-restricted Technician is actually confined to that branch's data — they aren't, yet.",
-			},
-			{ type: "heading", text: "Client-side surface" },
-			{
-				type: "para",
-				text: 'New route-free nav entry: client-explorer-panel.tsx\'s AdminExplorer renders a "Users" TreeItem (label must match the case in client-admin-page.tsx\'s AdminContent switch exactly, same pattern as "Post / Unpost") when currentUser.userType === "B" && hasAccessRight(currentUser, ACCESS_RIGHTS.USERS_MANAGE_OWN_BU) — deliberately NOT hasAccessRight alone, since that would also be true for Admin/Super Admin via their S/A bypass; Admin has their own dedicated Admin → Business Users screen (business-users-page.tsx) and was seeing a confusing duplicate entry here before the userType check was added, 2026-09-25. client-admin-page.tsx\'s AdminContent switch carries the identical userType/right check on the "Users" case (falls back to Post/Unpost otherwise) as a second guard against a stale link/nav-state reaching UsersSection for a non-Manager caller — same defensive pattern as its hideAdmin check just above. The screen itself, accounts-admin/users-section.tsx (component UsersSection), follows the same table + toolbar + add/edit-dialog convention as every other master list (e.g. masters/branch/branch-section.tsx): an Add User button opens accounts-admin/add-user-dialog.tsx (component AddUserDialog, the old inline create form lifted into a Dialog), and each row\'s dropdown wires Edit/Activate/Deactivate/Delete straight to the existing Admin dialogs — features/admin/components/{edit,activate,deactivate,delete}-business-user-dialog.tsx — reused unmodified since none of them are BU-scoped. UsersSection reads the caller\'s own BUs from currentUser.availableBus (client Redux state already populated at login for the BU switcher) rather than a fresh query — valid because a Manager\'s availableBus is already exactly their MANAGER-role BU set (role is applied uniformly across every BU an action touches, per the existing one-role-per-user UI constraint).',
-			},
-			{
-				type: "para",
-				text: "The grid's rows are GET_BUSINESS_USERS (schema security) filtered client-side to role_name !== \"Manager\" and bu_ids intersecting the caller's own BU set — GET_BUSINESS_USERS itself has no BU argument and returns every business user in the tenant. This filtering is UX only, not a security boundary: GET_BUSINESS_USERS (a genericQuery sqlId) and genericUpdate(tableName: \"user\") are both inside 'Known Gaps' Gap 1 — genericQuery has no per-table authorization at all, and \"user\" is not in GENERIC_UPDATE_TABLE_RIGHTS — so today any authenticated caller, any role, can already read every business user in the tenant or edit/deactivate/delete any of them directly against the API, Manager UI or not. Don't extend this screen's reach (e.g. wiring in cross-BU actions) on the assumption the server enforces the BU boundary it doesn't.",
-			},
-			{
-				type: "note",
-				text: "create-business-user-dialog.tsx and associate-bu-role-dialog.tsx (Admin's own screens) both gained the same branch picker — fetched per-BU via GET_BU_BRANCHES against that BU's own schema, shown only when a BU has more than one branch, sent as branch_ids: { \"<bu_id>\": [branch_id, ...] } alongside bu_ids/role_id on both createBusinessUser and setUserBuRole. add-user-dialog.tsx carries the same picker for the Manager's own create flow.",
-			},
-			{ type: "heading", text: "Hiding Admin for a Basic-tier Manager" },
-			{
-				type: "para",
-				text: 'ADMIN_MENU and USERS_MANAGE_OWN_BU are both granted to the Manager role unconditionally in seed data — there is no tier-aware seeding, so a Basic-tier Manager\'s JWT/accessRights carries both rights exactly like a Pro/Enterprise Manager\'s. But on Basic there\'s nothing usable behind them: the one-user cap (above) means the Manager\'s own account is already the client\'s single allowed business user, so create always fails, and UsersSection\'s grid (which excludes role_name === "Manager") shows nobody. Two hooks in features/client/components/layout/ close this client-side: use-subscription-tier.ts (useSubscriptionTier) and use-admin-tab-visibility.ts (useIsAdminHiddenForBasicManager: true when userType === "B" && hasAccessRight(ADMIN_MENU) && tier === "BASIC"). client-top-nav.tsx filters the Admin tab out of NAV_ITEMS and drops the "Unposted documents" notification-bell item (it deep-links straight to /client/admin, bypassing the nav filter); client-explorer-panel.tsx filters MOBILE_NAV_ITEMS the same way and AdminExplorer/AdminContent (client-admin-page.tsx) each render a "Not available on your plan." fallback instead of their normal content, in case a stale link/bookmark reaches the route directly.',
-			},
-			{
-				type: "warning",
-				text: 'useSubscriptionTier does NOT query the database — it reads currentUser.subscriptionTier from Redux, set once at login. It was originally written against genericQuery(GET_CLIENT_SUBSCRIPTION_TIER_BY_DB_NAME, db_name: "", schema: "public") — the same call branch-section.tsx already had inline for its Add-Branch-cap check — and that call is silently broken for every caller except Super Admin: query.py\'s resolve_generic_query calls require_own_tenant(info, db_name) BEFORE running the query, and that guard rejects any db_name that does not equal the caller\'s own tenant db_name (confirmed live: a simulated Manager context raises AuthorizationException(\'tenant_mismatch\')). db_name: "" is required here because subscription_tier lives in public.client in the separate service_plus_client registry database, not in the tenant\'s own database (confirmed live: service_plus_demo\'s public schema has zero tables) — so there was no db_name value that could satisfy both require_own_tenant and the connection-pool selection in exec_sql_query (db_name: "" picks pool_manager.client_pool; anything else picks the tenant\'s own pool). Net effect: branch-section.tsx\'s "disable Add Branch once at the Basic one-branch cap" UX has silently never worked for anyone but Super Admin since require_own_tenant was added — the server-side _require_basic_tier_branch_cap check was always the real boundary, same as below.',
-			},
-			{
-				type: "para",
-				text: 'Fixed by piggy-backing subscription_tier onto the client-row lookup login_helper already does to resolve db_name from client_id (GET_CLIENT_DB_NAME now SELECTs subscription_tier too), threading it onto LoginResponse (subscriptionTier, auth_schema.py) and onto the client\'s UserInstanceType/LoginResponseType (auth-service.ts) and the Redux user object (login-form.tsx). This sidesteps require_own_tenant entirely — no change to that guard, or to any other caller of genericQuery — since the server already resolves the caller\'s own client row using its own client_id/db_name, never a client-supplied lookup key. Verified end-to-end by calling login_helper in-process for user3 (Manager, client_id=1="demo"=BASIC): response includes subscriptionTier: "BASIC" after Pydantic alias serialization (model_dump(by_alias=True), matching how FastAPI actually serializes it over HTTP).',
-			},
-			{
-				type: "warning",
-				text: "subscriptionTier is login-time-only, like fullName/email/mobile — refresh_token_helper's RefreshTokenResponse carries only new tokens, no user fields, so it is never updated mid-session the way role_code/access_rights are (re-read from the DB on every refresh). A session logged in before this change, or a client moved between tiers mid-session, needs a fresh login to pick up the current value. And this is still client-side only, same caveat as everywhere else in this article: createBusinessUser is still reachable directly with the Manager's own token, and the server-side _check_basic_tier_user_cap rule (not a hidden nav item) is the actual boundary that keeps Basic at one user. Nothing here changes server enforcement — it only stops the UI from presenting a tab that can never do anything useful on Basic.",
-			},
-		],
-		faqs: [
-			{
-				q: "Why does the Basic-tier check run before the caller-identity check, not after?",
-				a: "It's a plan limit, not a permission — Admin is just as capped as a Manager would be. Checking identity first would let an Admin bypass the cap; checking the cap first makes it apply to literally anyone, which is the actual rule in plans/plan.md.",
-			},
-			{
-				q: "Can a Manager see or restrict users in a BU they don't manage?",
-				a: "No — _require_can_create_business_user checks every bu_id in the payload against GET_MANAGER_BU_IDS_FOR_USER for that specific caller, on both create and edit. A BU outside that set raises MANAGER_BU_NOT_OWNED.",
-			},
-			{
-				q: "I want to add branch-level READ enforcement (jobs, reports) — where do I start?",
-				a: "This isn't built yet — user_bu_role_branch only exists to record the restriction, nothing reads it outside the assignment screens themselves. Expect to touch most genericQuery report/list resolvers; treat it as a new, separate piece of work, not an extension of this one.",
-			},
-			{
-				q: "Does setting a client to Basic retroactively enforce the cap on an existing multi-user or multi-branch client?",
-				a: "No — the checks only fire on a NEW business-user or NEW branch insert. A client already over the cap when downgraded to Basic keeps what it has; nothing removes users or branches automatically. What should happen here isn't decided (plans/plan.md flags this explicitly).",
 			},
 		],
 	},

@@ -6,9 +6,7 @@ import json
 from typing import Any
 from urllib.parse import unquote
 from ariadne import MutationType  # pylint: disable=import-error
-from app.core.exceptions import AppMessages, ValidationException
-from app.db.connection.psycopg_driver import exec_sql
-from app.db.sql.sql_base import SqlStore
+from app.core.exceptions import AppMessages
 from app.graphql.resolvers.auth_guards import (
     require_access_right,
     require_any_access_right,
@@ -147,36 +145,6 @@ def _require_generic_update_table_right(info, value: str) -> None:
         require_access_right(info, right)
 
 
-async def _require_basic_tier_branch_cap(db_name: str, schema: str, value: str) -> None:
-    """Basic tier: at most one branch per BU (plans/plan.md, Step 8). Branch has no
-    dedicated mutation of its own — it's saved through genericUpdate like dozens of
-    other tables — so this is scoped narrowly to tableName == "branch" and only to a
-    NEW row; editing the existing branch's own fields is always allowed."""
-    try:
-        payload = json.loads(unquote(value))
-    except (ValueError, AttributeError):
-        return
-    if payload.get("tableName") != "branch":
-        return
-    x_data = payload.get("xData") or {}
-    is_update = bool(x_data.get("id")) and not x_data.get("isIdInsert")
-    if is_update:
-        return
-    tier_rows = await exec_sql(
-        db_name=None,
-        schema="public",
-        sql=SqlStore.GET_CLIENT_SUBSCRIPTION_TIER_BY_DB_NAME,
-        sql_args={"db_name": db_name},
-    )
-    tier = tier_rows[0]["subscription_tier"] if tier_rows else "BASIC"
-    if tier != "BASIC":
-        return
-    count_rows = await exec_sql(db_name=db_name, schema=schema, sql=SqlStore.COUNT_BRANCHES, sql_args={})
-    existing = count_rows[0]["branch_count"] if count_rows else 0
-    if existing >= 1:
-        raise ValidationException(message=AppMessages.BASIC_TIER_BRANCH_LIMIT)
-
-
 def _require_generic_update_script_right(info, value: str) -> None:
     """Gate genericUpdateScript calls whose sql_id is listed in GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS."""
     try:
@@ -194,7 +162,7 @@ async def resolve_create_admin_user(
     _, info, db_name: str = "", schema: str = "security", value: str = ""
 ) -> Any:
     """Create an admin user and email a password-reset link. Super Admin only —
-    no tenant's own Admin creates another Admin, on any tier (plans/plan.md)."""
+    no tenant's own Admin creates another Admin (plans/revert.md, constraint 1)."""
     require_user_type(info, {"S"})
     return await resolve_create_admin_user_helper(
         db_name, schema, value, request=info.context.get("request")
@@ -207,9 +175,9 @@ async def resolve_create_bu_schema_and_feed_seed_data(
     _, info, db_name: str = "", schema: str = "security", value: str = ""
 ) -> Any:
     """Create a BU schema and seed its lookup tables. Super Admin (any tenant), or
-    a tenant's own Admin for their own tenant only (plans/plan.md, reverted 2026-09-18
-    — the client's Admin Panel still exposes this and Super Admin has no equivalent
-    screen, so Admin keeps this ability)."""
+    a tenant's own Admin for their own tenant only — the client's Admin Panel still
+    exposes this and Super Admin has no equivalent screen, so Admin keeps this
+    ability (plans/revert.md, constraint 2)."""
     require_own_tenant(info, db_name)
     require_user_type(info, {"S", "A"})
     return await resolve_create_bu_schema_and_feed_seed_data_helper(db_name, schema, value)
@@ -229,13 +197,12 @@ async def resolve_create_client(
 async def resolve_create_business_user(
     _, info, db_name: str = "", schema: str = "security", value: str = ""
 ) -> Any:
-    """Create a business user in the security schema. Admin, or a Manager with
-    USERS_MANAGE_OWN_BU — the actual role/BU/Basic-tier rule is enforced inside
-    the helper, since it needs more than a flat access-right code (plans/plan.md)."""
+    """Create a business user in the security schema. Admin only
+    (plans/revert.md, constraint 1)."""
     require_own_tenant(info, db_name)
-    require_user_type(info, {"A", "B"})
+    require_user_type(info, {"A"})
     return await resolve_create_business_user_helper(
-        info, db_name, schema, value, request=info.context.get("request")
+        db_name, schema, value, request=info.context.get("request")
     )
 
 
@@ -300,7 +267,6 @@ async def resolve_generic_update(_, info, db_name="", schema="public", value="")
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
     _require_generic_update_table_right(info, value)
-    await _require_basic_tier_branch_cap(db_name, schema, value)
     result = await resolve_generic_update_helper(db_name, schema, value)
     # A lead entered, edited or deleted is the one Extended Warranty change with no
     # mutation of its own, so it would otherwise reach other sessions only on a refresh.
@@ -362,11 +328,11 @@ async def resolve_mail_business_user_credentials(
 async def resolve_set_user_bu_role(
     _, info, db_name: str = "", schema: str = "security", value: str = ""
 ) -> Any:
-    """Assign a BU and role to a business user. Same caller-identity rule as
-    createBusinessUser — see resolve_set_user_bu_role_helper (plans/plan.md)."""
+    """Assign a BU and role to a business user. Admin only, same as
+    createBusinessUser (plans/revert.md, constraint 1)."""
     require_own_tenant(info, db_name)
-    require_user_type(info, {"A", "B"})
-    return await resolve_set_user_bu_role_helper(info, db_name, schema, value)
+    require_user_type(info, {"A"})
+    return await resolve_set_user_bu_role_helper(db_name, schema, value)
 
 
 @mutation.field("createSingleJob")

@@ -34,7 +34,6 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { useSubscriptionTier } from "@/features/client/components/layout/use-subscription-tier";
 import { selectSchema } from "@/store/context-slice";
 import { AddBranchDialog } from "./add-branch-dialog";
 import { DeleteBranchDialog } from "./delete-branch-dialog";
@@ -73,11 +72,6 @@ export const BranchSection = () => {
 	const [search, setSearch] = useState("");
 	const [sortCol, setSortCol] = useState<string | null>(null);
 	const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-	// Basic tier is capped at one branch per BU — see plans/plan.md, Step 8. The
-	// server enforces this independently; this is only for the disabled-button UX.
-	const subscriptionTier = useSubscriptionTier();
-
-	const atBasicBranchCap = subscriptionTier === "BASIC" && branches.length >= 1;
 
 	const loadBranches = useCallback(async () => {
 		if (!dbName || !schema) return;
@@ -206,10 +200,8 @@ export const BranchSection = () => {
 							Refresh
 						</Button>
 						<Button
-							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={atBasicBranchCap}
+							className="bg-teal-600 text-white hover:bg-teal-700"
 							size="sm"
-							title={atBasicBranchCap ? MESSAGES.INFO_BASIC_TIER_BRANCH_LIMIT : undefined}
 							onClick={() => setAddOpen(true)}
 						>
 							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />

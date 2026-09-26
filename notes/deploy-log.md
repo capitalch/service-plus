@@ -3,6 +3,32 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-26 20:03 (main)
+Admin: revert Manager-created users and subscription tiers
+
+- Client: removed the Manager "Users" self-service screen and its Add User
+  dialog, the Branches pickers in the Admin create/associate-user dialogs, the
+  Basic-tier Admin-tab hiding hooks, and the Subscription Tier field on Super
+  Admin's Edit Client.
+- Server: dropped the Basic-tier one-user/one-branch caps, the
+  USERS_MANAGE_OWN_BU right and its seed row, per-user branch-restriction
+  storage and validation, and subscription_tier from the login path and the
+  client reads.
+- Security guards kept deliberately: createAdminUser stays Super-Admin-only,
+  createBusinessUser/setUserBuRole narrow back to require_own_tenant + {"A"},
+  and createBuSchemaAndFeedSeedData is unchanged at {"S", "A"} so tenant Admins
+  can still create BUs.
+- Database: dropped security.user_bu_role_branch from both tenant DBs,
+  public.client.subscription_tier, and access right 21; schema dumps and
+  sql_bu_admin_ddl.py regenerated, the latter byte-identical to pre-feature.
+- Help: deleted the "Manager-Created Users & Subscription Tiers" developer
+  article and the end-user Users/branch-restriction sections, and corrected the
+  Gap 3 security article, which still described the kept guards as {"A", "B"}.
+- Docs: added plans/revert.md with a per-step record and verification results;
+  renamed the scratch plan files to descriptive names.
+
+Files: 46 changed (+107 / -2911) — Base: 7caa4b7
+
 ## 2026-09-26 11:49 (main)
 Docs: add more domain-name candidates to marketing notes
 

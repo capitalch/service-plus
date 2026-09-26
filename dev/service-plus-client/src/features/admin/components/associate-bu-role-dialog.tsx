@@ -25,7 +25,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectBusinessUnits, selectRoles, setBusinessUnits, setRoles } from "@/features/admin/store/admin-slice";
-import type { BranchType, BusinessUnitType, BusinessUserType, RoleType } from "@/features/admin/types/index";
+import type { BusinessUnitType, BusinessUserType, RoleType } from "@/features/admin/types/index";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,10 +37,8 @@ type AssociateBuRoleDialogPropsType = {
 };
 
 type GenericQueryDataType = {
-	genericQuery: BranchType[] | BusinessUnitType[] | RoleType[] | null;
+	genericQuery: BusinessUnitType[] | RoleType[] | null;
 };
-
-type BranchRestrictionRowType = { branch_id: number; bu_id: number };
 
 const associateBuRoleSchema = z.object({
 	role_id: z.string().min(1),
@@ -63,76 +61,25 @@ export const AssociateBuRoleDialog = ({ onOpenChange, onSuccess, open, user }: A
 
 	const [loadingData, setLoadingData] = useState(false);
 	const [selectedBuIds, setSelectedBuIds] = useState<number[]>([]);
-	const [branchesByBu, setBranchesByBu] = useState<Record<number, BranchType[]>>({});
-	const [branchIdsByBu, setBranchIdsByBu] = useState<Record<number, number[]>>({});
-
-	function loadBranchesForBu(bu: BusinessUnitType) {
-		if (!dbName) return;
-		apolloClient
-			.query<GenericQueryDataType>({
-				fetchPolicy: "network-only",
-				query: GRAPHQL_MAP.genericQuery,
-				variables: {
-					db_name: dbName,
-					schema: bu.code,
-					value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_BU_BRANCHES }),
-				},
-			})
-			.then(({ data }) => {
-				setBranchesByBu((prev) => ({ ...prev, [bu.id]: (data?.genericQuery as BranchType[]) ?? [] }));
-			})
-			.catch(() => {
-				setBranchesByBu((prev) => ({ ...prev, [bu.id]: [] }));
-			});
-	}
 
 	// Load BUs and roles on open
 	useEffect(() => {
-		if (!open || !dbName || !user) return;
+		if (!open || !dbName) return;
 
 		const needsBus = businessUnits.length === 0;
 		const needsRoles = roles.length === 0;
 
-		function hydrateBranchRestrictions() {
-			if (!user) return;
-			apolloClient
-				.query<{ genericQuery: BranchRestrictionRowType[] | null }>({
-					fetchPolicy: "network-only",
-					query: GRAPHQL_MAP.genericQuery,
-					variables: {
-						db_name: dbName,
-						schema: "security",
-						value: graphQlUtils.buildGenericQueryValue({
-							sqlArgs: { user_id: user.id },
-							sqlId: SQL_MAP.GET_USER_BRANCH_RESTRICTIONS,
-						}),
-					},
-				})
-				.then(({ data }) => {
-					const rows = data?.genericQuery ?? [];
-					const byBu: Record<number, number[]> = {};
-					for (const row of rows) {
-						byBu[row.bu_id] = [...(byBu[row.bu_id] ?? []), row.branch_id];
-					}
-					setBranchIdsByBu(byBu);
-				})
-				.catch(() => {});
-		}
-
 		if (!needsBus && !needsRoles) {
 			// Pre-fill selections from user
-			setSelectedBuIds(user.bu_ids ?? []);
-			form.setValue("role_id", user.role_id ? String(user.role_id) : "", { shouldValidate: true });
-			for (const bu of businessUnits) {
-				if ((user.bu_ids ?? []).includes(bu.id)) loadBranchesForBu(bu);
+			if (user) {
+				setSelectedBuIds(user.bu_ids ?? []);
+				form.setValue("role_id", user.role_id ? String(user.role_id) : "", { shouldValidate: true });
 			}
-			hydrateBranchRestrictions();
 			return;
 		}
 
 		setLoadingData(true);
 		const promises: Promise<void>[] = [];
-		let freshlyFetchedBus: BusinessUnitType[] | null = null;
 
 		if (needsBus) {
 			promises.push(
@@ -150,8 +97,7 @@ export const AssociateBuRoleDialog = ({ onOpenChange, onSuccess, open, user }: A
 					})
 					.then(({ data }) => {
 						if (data?.genericQuery) {
-							freshlyFetchedBus = data.genericQuery as BusinessUnitType[];
-							dispatch(setBusinessUnits(freshlyFetchedBus));
+							dispatch(setBusinessUnits(data.genericQuery as BusinessUnitType[]));
 						}
 					})
 					.catch(() => {}),
@@ -183,14 +129,10 @@ export const AssociateBuRoleDialog = ({ onOpenChange, onSuccess, open, user }: A
 
 		Promise.all(promises).finally(() => {
 			setLoadingData(false);
-			setSelectedBuIds(user.bu_ids ?? []);
-			form.setValue("role_id", user.role_id ? String(user.role_id) : "", { shouldValidate: true });
-			// `businessUnits` from the store may still be the pre-dispatch closure
-			// value here — use the rows this effect itself just fetched instead.
-			for (const bu of freshlyFetchedBus ?? businessUnits) {
-				if ((user.bu_ids ?? []).includes(bu.id)) loadBranchesForBu(bu);
+			if (user) {
+				setSelectedBuIds(user.bu_ids ?? []);
+				form.setValue("role_id", user.role_id ? String(user.role_id) : "", { shouldValidate: true });
 			}
-			hydrateBranchRestrictions();
 		});
 	}, [open, dbName]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -198,34 +140,14 @@ export const AssociateBuRoleDialog = ({ onOpenChange, onSuccess, open, user }: A
 	useEffect(() => {
 		if (!open) {
 			setSelectedBuIds([]);
-			setBranchesByBu({});
-			setBranchIdsByBu({});
 			form.reset();
 		}
 	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	if (!user) return null;
 
-	function handleBuToggle(bu: BusinessUnitType) {
-		const nowSelected = !selectedBuIds.includes(bu.id);
-		setSelectedBuIds((prev) => (prev.includes(bu.id) ? prev.filter((id) => id !== bu.id) : [...prev, bu.id]));
-		if (!nowSelected) {
-			setBranchIdsByBu((prev) => {
-				const next = { ...prev };
-				delete next[bu.id];
-				return next;
-			});
-			return;
-		}
-		if (!branchesByBu[bu.id]) loadBranchesForBu(bu);
-	}
-
-	function handleBranchToggle(buId: number, branchId: number) {
-		setBranchIdsByBu((prev) => {
-			const current = prev[buId] ?? [];
-			const next = current.includes(branchId) ? current.filter((id) => id !== branchId) : [...current, branchId];
-			return { ...prev, [buId]: next };
-		});
+	function handleBuToggle(buId: number) {
+		setSelectedBuIds((prev) => (prev.includes(buId) ? prev.filter((id) => id !== buId) : [...prev, buId]));
 	}
 
 	async function executeSave(values: AssociateBuRoleFormValues) {
@@ -237,9 +159,6 @@ export const AssociateBuRoleDialog = ({ onOpenChange, onSuccess, open, user }: A
 					db_name: dbName,
 					schema: "security",
 					value: encodeObj({
-						branch_ids: Object.fromEntries(
-							Object.entries(branchIdsByBu).filter(([, ids]) => ids.length > 0),
-						),
 						bu_ids: selectedBuIds,
 						role_id: Number(values.role_id),
 						user_id: user.id,
@@ -284,7 +203,7 @@ export const AssociateBuRoleDialog = ({ onOpenChange, onSuccess, open, user }: A
 												checked={selectedBuIds.includes(bu.id)}
 												disabled={form.formState.isSubmitting || !bu.is_active}
 												id={`bu-${bu.id}`}
-												onCheckedChange={() => handleBuToggle(bu)}
+												onCheckedChange={() => handleBuToggle(bu.id)}
 											/>
 											<label
 												className={`cursor-pointer select-none text-sm ${!bu.is_active ? "text-slate-400 line-through" : "text-slate-700"}`}
@@ -300,39 +219,6 @@ export const AssociateBuRoleDialog = ({ onOpenChange, onSuccess, open, user }: A
 								</div>
 							)}
 						</div>
-
-						{/* Branch restriction — only worth showing for a BU that actually has
-						    more than one branch; a single-branch BU has nothing to restrict. */}
-						{selectedBuIds.map((buId) => {
-							const bu = businessUnits.find((b) => b.id === buId);
-							const branches = branchesByBu[buId];
-							if (!bu || !branches || branches.length <= 1) return null;
-							return (
-								<div className="flex flex-col gap-2" key={buId}>
-									<Label className="text-sm font-medium text-slate-700">
-										Branches for {bu.name} (optional — leave blank for all)
-									</Label>
-									<div className="flex max-h-32 flex-col gap-2 overflow-y-auto rounded-md border border-slate-200 p-3">
-										{branches.map((branch) => (
-											<div className="flex items-center gap-2" key={branch.id}>
-												<Checkbox
-													checked={(branchIdsByBu[buId] ?? []).includes(branch.id)}
-													disabled={form.formState.isSubmitting}
-													id={`assoc-branch-${buId}-${branch.id}`}
-													onCheckedChange={() => handleBranchToggle(buId, branch.id)}
-												/>
-												<label
-													className="cursor-pointer select-none text-sm text-slate-700"
-													htmlFor={`assoc-branch-${buId}-${branch.id}`}
-												>
-													{branch.name}
-												</label>
-											</div>
-										))}
-									</div>
-								</div>
-							);
-						})}
 
 						{/* Role */}
 						<div className="flex flex-col gap-1.5">

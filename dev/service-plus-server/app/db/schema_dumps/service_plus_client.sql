@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict WXjSp3OlfpRpY5NJMHhdtANgSesnjrUE9bFCyA9i7hlz7aeXVQgDcC10BCgfYHt
+\restrict MUiBaDwc2b10L0y45rdeJIWev83lP9lpkI2gyvApNsFhvK1lIhKV2WPOfKGKta1
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
@@ -76,9 +76,7 @@ CREATE TABLE public.client (
     country_code character(2) DEFAULT 'IN'::bpchar,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    db_name text,
-    subscription_tier text DEFAULT 'BASIC'::text NOT NULL,
-    CONSTRAINT client_subscription_tier_chk CHECK ((subscription_tier = ANY (ARRAY['BASIC'::text, 'PRO'::text, 'ENTERPRISE'::text])))
+    db_name text
 );
 
 
@@ -185,5 +183,5 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict WXjSp3OlfpRpY5NJMHhdtANgSesnjrUE9bFCyA9i7hlz7aeXVQgDcC10BCgfYHt
+\unrestrict MUiBaDwc2b10L0y45rdeJIWev83lP9lpkI2gyvApNsFhvK1lIhKV2WPOfKGKta1
 

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 6GQuZRv6S99dQQCr5dTAQv8Xm8MeQ3CJb6YOw163sGHmQ7EUSRRWQbIupcjSnEH
+\restrict oRhIW3MlYq3aVvrKM9osZnw0OEkOEsr7IctKbaNUNvFVeHRGQfKeWTlK4esQu0C
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
@@ -2053,20 +2053,6 @@ CREATE TABLE security.user_bu_role (
 ALTER TABLE security.user_bu_role OWNER TO webadmin;
 
 --
--- Name: user_bu_role_branch; Type: TABLE; Schema: security; Owner: webadmin
---
-
-CREATE TABLE security.user_bu_role_branch (
-    user_id bigint NOT NULL,
-    bu_id bigint NOT NULL,
-    branch_id bigint NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE security.user_bu_role_branch OWNER TO webadmin;
-
---
 -- Name: user_id_seq; Type: SEQUENCE; Schema: security; Owner: webadmin
 --
 
@@ -2801,14 +2787,6 @@ ALTER TABLE ONLY security.role
 
 
 --
--- Name: user_bu_role_branch user_bu_role_branch_pkey; Type: CONSTRAINT; Schema: security; Owner: webadmin
---
-
-ALTER TABLE ONLY security.user_bu_role_branch
-    ADD CONSTRAINT user_bu_role_branch_pkey PRIMARY KEY (user_id, bu_id, branch_id);
-
-
---
 -- Name: user_bu_role user_bu_role_pkey; Type: CONSTRAINT; Schema: security; Owner: webadmin
 --
 
@@ -3399,13 +3377,6 @@ CREATE INDEX role_access_right_access_right_id_idx ON security.role_access_right
 --
 
 CREATE INDEX role_is_system_idx ON security.role USING btree (is_system) WITH (deduplicate_items='true');
-
-
---
--- Name: user_bu_role_branch_user_bu_idx; Type: INDEX; Schema: security; Owner: webadmin
---
-
-CREATE INDEX user_bu_role_branch_user_bu_idx ON security.user_bu_role_branch USING btree (user_id, bu_id);
 
 
 --
@@ -4193,14 +4164,6 @@ ALTER TABLE ONLY security.role_access_right
 
 
 --
--- Name: user_bu_role_branch user_bu_role_branch_user_bu_fkey; Type: FK CONSTRAINT; Schema: security; Owner: webadmin
---
-
-ALTER TABLE ONLY security.user_bu_role_branch
-    ADD CONSTRAINT user_bu_role_branch_user_bu_fkey FOREIGN KEY (user_id, bu_id) REFERENCES security.user_bu_role(user_id, bu_id) ON DELETE CASCADE;
-
-
---
 -- Name: user_bu_role user_bu_role_bu_id_fkey; Type: FK CONSTRAINT; Schema: security; Owner: webadmin
 --
 
@@ -4228,5 +4191,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 6GQuZRv6S99dQQCr5dTAQv8Xm8MeQ3CJb6YOw163sGHmQ7EUSRRWQbIupcjSnEH
+\unrestrict oRhIW3MlYq3aVvrKM9osZnw0OEkOEsr7IctKbaNUNvFVeHRGQfKeWTlK4esQu0C
 

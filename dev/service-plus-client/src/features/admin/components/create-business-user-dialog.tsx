@@ -30,7 +30,7 @@ import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectBusinessUnits, selectRoles, setBusinessUnits, setRoles } from "@/features/admin/store/admin-slice";
-import type { BranchType, BusinessUnitType, RoleType } from "@/features/admin/types/index";
+import type { BusinessUnitType, RoleType } from "@/features/admin/types/index";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,7 +51,7 @@ type CreateBusinessUserMutationDataType = {
 };
 
 type GenericQueryDataType = {
-	genericQuery: BranchType[] | BusinessUnitType[] | RoleType[] | null;
+	genericQuery: BusinessUnitType[] | RoleType[] | null;
 };
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -98,8 +98,6 @@ export const CreateBusinessUserDialog = ({ onOpenChange, onSuccess, open }: Crea
 	const businessUnits = useAppSelector(selectBusinessUnits);
 	const roles = useAppSelector(selectRoles);
 
-	const [branchesByBu, setBranchesByBu] = useState<Record<number, BranchType[]>>({});
-	const [branchIdsByBu, setBranchIdsByBu] = useState<Record<number, number[]>>({});
 	const [buError, setBuError] = useState<string>("");
 	const [checkingEmail, setCheckingEmail] = useState(false);
 	const [checkingUsername, setCheckingUsername] = useState(false);
@@ -281,8 +279,6 @@ export const CreateBusinessUserDialog = ({ onOpenChange, onSuccess, open }: Crea
 	// Reset state when dialog closes
 	useEffect(() => {
 		if (!open) {
-			setBranchesByBu({});
-			setBranchIdsByBu({});
 			setBuError("");
 			setCheckingEmail(false);
 			setCheckingUsername(false);
@@ -296,43 +292,9 @@ export const CreateBusinessUserDialog = ({ onOpenChange, onSuccess, open }: Crea
 		}
 	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	function handleBuToggle(bu: BusinessUnitType) {
-		const nowSelected = !selectedBuIds.includes(bu.id);
-		setSelectedBuIds((prev) => (prev.includes(bu.id) ? prev.filter((id) => id !== bu.id) : [...prev, bu.id]));
+	function handleBuToggle(buId: number) {
+		setSelectedBuIds((prev) => (prev.includes(buId) ? prev.filter((id) => id !== buId) : [...prev, buId]));
 		setBuError("");
-		if (!nowSelected) {
-			setBranchIdsByBu((prev) => {
-				const next = { ...prev };
-				delete next[bu.id];
-				return next;
-			});
-			return;
-		}
-		if (branchesByBu[bu.id] || !dbName) return;
-		apolloClient
-			.query<GenericQueryDataType>({
-				fetchPolicy: "network-only",
-				query: GRAPHQL_MAP.genericQuery,
-				variables: {
-					db_name: dbName,
-					schema: bu.code,
-					value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_BU_BRANCHES }),
-				},
-			})
-			.then(({ data }) => {
-				setBranchesByBu((prev) => ({ ...prev, [bu.id]: (data?.genericQuery as BranchType[]) ?? [] }));
-			})
-			.catch(() => {
-				setBranchesByBu((prev) => ({ ...prev, [bu.id]: [] }));
-			});
-	}
-
-	function handleBranchToggle(buId: number, branchId: number) {
-		setBranchIdsByBu((prev) => {
-			const current = prev[buId] ?? [];
-			const next = current.includes(branchId) ? current.filter((id) => id !== branchId) : [...current, branchId];
-			return { ...prev, [buId]: next };
-		});
 	}
 
 	async function onSubmit(data: CreateBusinessUserFormType) {
@@ -357,9 +319,6 @@ export const CreateBusinessUserDialog = ({ onOpenChange, onSuccess, open }: Crea
 					db_name: dbName,
 					schema: "security",
 					value: encodeObj({
-						branch_ids: Object.fromEntries(
-							Object.entries(branchIdsByBu).filter(([, ids]) => ids.length > 0),
-						),
 						bu_ids: selectedBuIds,
 						email: data.email,
 						full_name: data.full_name,
@@ -515,7 +474,7 @@ export const CreateBusinessUserDialog = ({ onOpenChange, onSuccess, open }: Crea
 											checked={selectedBuIds.includes(bu.id)}
 											disabled={form.formState.isSubmitting || !bu.is_active}
 											id={`create-bu-${bu.id}`}
-											onCheckedChange={() => handleBuToggle(bu)}
+											onCheckedChange={() => handleBuToggle(bu.id)}
 										/>
 										<label
 											className={`cursor-pointer select-none text-sm ${!bu.is_active ? "text-slate-400 line-through" : "text-slate-700"}`}
@@ -532,37 +491,6 @@ export const CreateBusinessUserDialog = ({ onOpenChange, onSuccess, open }: Crea
 						)}
 						<FieldError message={buError} />
 					</div>
-
-					{/* Branch restriction — only worth showing for a BU that actually has
-					    more than one branch; a single-branch BU has nothing to restrict. */}
-					{selectedBuIds.map((buId) => {
-						const bu = businessUnits.find((b) => b.id === buId);
-						const branches = branchesByBu[buId];
-						if (!bu || !branches || branches.length <= 1) return null;
-						return (
-							<div className="flex flex-col gap-2" key={buId}>
-								<Label>Branches for {bu.name} (optional — leave blank for all)</Label>
-								<div className="flex max-h-32 flex-col gap-2 overflow-y-auto rounded-md border border-slate-200 p-3">
-									{branches.map((branch) => (
-										<div className="flex items-center gap-2" key={branch.id}>
-											<Checkbox
-												checked={(branchIdsByBu[buId] ?? []).includes(branch.id)}
-												disabled={form.formState.isSubmitting}
-												id={`create-branch-${buId}-${branch.id}`}
-												onCheckedChange={() => handleBranchToggle(buId, branch.id)}
-											/>
-											<label
-												className="cursor-pointer select-none text-sm text-slate-700"
-												htmlFor={`create-branch-${buId}-${branch.id}`}
-											>
-												{branch.name}
-											</label>
-										</div>
-									))}
-								</div>
-							</div>
-						);
-					})}
 
 					{/* Role */}
 					<div className="flex flex-col gap-1.5">

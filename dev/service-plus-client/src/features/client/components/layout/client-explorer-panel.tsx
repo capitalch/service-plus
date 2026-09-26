@@ -47,7 +47,6 @@ import { ROUTES } from "@/router/routes";
 import { useAppSelector } from "@/store/hooks";
 import { selectExtendedWarrantyEnabled, selectPostDataToAccounts } from "@/store/context-slice";
 import { getVisibleCustomMenuItems } from "./custom-menu-registry";
-import { useIsAdminHiddenForBasicManager } from "./use-admin-tab-visibility";
 import { HelpHint } from "@/components/shared/help/help-hint";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 
@@ -456,24 +455,9 @@ function MastersExplorer() {
 }
 
 function AdminExplorer() {
-	const currentUser = useAppSelector(selectCurrentUser);
-	// "Users" is a Manager self-service screen — hasAccessRight(USERS_MANAGE_OWN_BU)
-	// alone would also be true for Admin/Super Admin via their S/A bypass, but they
-	// have their own dedicated Admin → Business Users screen and never need this one.
-	const canManageOwnBu =
-		currentUser?.userType === "B" && hasAccessRight(currentUser, ACCESS_RIGHTS.USERS_MANAGE_OWN_BU);
-	const hideAdmin = useIsAdminHiddenForBasicManager();
-
-	// Nav (top bar + mobile strip) already hides the "Admin" tab entirely for a
-	// Basic-tier Manager — this only guards a stale link/bookmark landing here directly.
-	if (hideAdmin) {
-		return <p className="px-1 text-xs text-(--cl-text-muted)">Not available on your plan.</p>;
-	}
-
 	return (
 		<div className="space-y-1">
 			<TreeItem icon={BookCheck} iconColor="text-emerald-600" label="Post / Unpost" />
-			{canManageOwnBu && <TreeItem icon={Users} iconColor="text-teal-600" label="Users" />}
 		</div>
 	);
 }
@@ -573,8 +557,6 @@ const MOBILE_NAV_ITEMS: MobileNavItem[] = [
 export const ClientExplorerPanel = ({ activeSection }: Props) => {
 	const { explorerOpen, toggleExplorer } = useLayout();
 	const ExplorerContent = EXPLORERS[activeSection];
-	const hideAdmin = useIsAdminHiddenForBasicManager();
-	const mobileNavItems = MOBILE_NAV_ITEMS.filter((item) => item.section !== "admin" || !hideAdmin);
 
 	// Position: left-0 on mobile (activity bar hidden), left-16 on md+ (right of activity bar)
 	// Slide in/out with transform
@@ -602,7 +584,7 @@ export const ClientExplorerPanel = ({ activeSection }: Props) => {
 			{/* Mobile section nav — hidden on md+ since top nav covers it */}
 			<div className="border-b border-(--cl-border) px-2 py-2 md:hidden">
 				<div className="grid grid-cols-3 gap-1">
-					{mobileNavItems.map(({ label, section, to, end }) => (
+					{MOBILE_NAV_ITEMS.map(({ label, section, to, end }) => (
 						<NavLink
 							key={to}
 							to={to}
