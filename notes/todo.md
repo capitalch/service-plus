@@ -11,7 +11,7 @@
 	- domain
 		- available
 			- jobservice, serviceworks, servicebase, servicemate, serviceprime, serviceforge, servicemain, servicechoice, servicegate, servicepure, serviceroot, servicework, serviceto, servicedo, serviceop, servicenail.com, serviceclick, servicecon, servicebyte
-			servicebench, :.in: 549/yr
+			servicebench, myserviceplus, servicebyte, serviceforge, servicevice.com, servicequick, serviceside :.in: 549/yr
 			- repairjob.in, repairplus.in, repairtrack, repairsuite, repairbase, repaircore  :.in: 549/yr
 		- Not available
 			- serviceplus, servicejob, serviceflow, serviceking,serviceforce
