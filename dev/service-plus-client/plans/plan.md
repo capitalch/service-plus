@@ -1,162 +1,255 @@
-# Manager-created users + Basic/Pro/Enterprise subscription tiers
+# Plan — `service-plus-portal`: public marketing & pricing website
+
+> Source: `plans/prompt1.md`. Implemented 2026-09-27; see the step markers for what is left.
+> Builds on `plans/improvements/plan-market-site.md` (hosting and deploy analysis), and keeps its package name,
+> **`service-plus-portal`**. One thing changes: the pricing page's
+> enquiry form now needs a **server endpoint**. That plan assumed a site with no API at all.
 
 ## Goal
 
-   1. Admin (one per client/tenant) keeps full power: sees every BU in their client, creates users of any role for any BU. No change from today.
-2. A Manager can create users for their own BU — any role except Manager. Today only Admin can create users at all, so this is new.
-   3. Super Admin is unchanged.
-   4. Add three subscription tiers: Basic, Pro, Enterprise. Pro and Enterprise work like points 1 and 2 above (Manager can create users). Basic is different — see point 7.
-   5. Creating a new BU stays Super Admin only, for every tier, Enterprise included. No client-side Admin, on any tier, can create a BU themselves.
-6. A user can be restricted to specific branches inside a BU. By default a user (any role) can see/work in every branch of their BU. A Manager or an Admin can narrow a specific user down to only certain branches.
-7. Basic tier is capped at one business user, and that user's role must be Manager. That one Manager has no permission to create more users — Basic stays single-person by design.
-8. Basic tier is also capped at one branch per BU — a Basic BU can't add a second location. Branch restriction (point 6) doesn't come up on Basic in practice, since there's only ever one branch to be restricted to.
+A new Next.js site, `dev/service-plus-portal/`, that sells Service+ to repair-shop owners:
 
+- **Home**: features, benefits, product screenshots, testimonials.
+- **Pricing**: four plans (Lite, Basic, Standard, Enterprise), setup fees, and an enquiry form that
+  captures who wants which plan, so the team can provision it by hand.
+- **Contact**: mobile number, email address and street address.
 
-## How it works today
+## Present context and current design
 
-- A tenant database has a `security` schema (logins, roles) and one schema per BU (jobs, branches, etc.).
-- A login user gets access to a BU through a row in `user_bu_role` (user, BU, role). Three roles exist: Manager, Technician, Receptionist.
-- Manager already has every permission a normal user can have inside their BU (jobs, inventory, masters, configs, reports — everything except two admin-only screens). This is already true today, nothing to change there.
-- "Admin" is a separate flag on the user (`is_admin = true`), not a role. An Admin does not need a `user_bu_role` row — they already see and act on every BU in their tenant automatically. This already matches "one admin per client with full power," so nothing to change there either.
-- Only Admin can create users today, from an Admin-only page. The button to create a user calls a server function that inserts the new user and assigns their BU(s) and role. Super Admin doesn't do this — Super Admin manages clients/tenants themselves, not individual business users inside one.
-- **That server function has no check on who is calling it.** It only looks safe because the button is hidden from everyone except Admin. Anyone who already has a login (even a Technician) could currently call it directly and create a user of any role for any BU. The same is true for the "create Admin user" function and the "create a new BU" function.
-- A separate, different fix (already done) stops a logged-in user from reading or writing another tenant's data or another BU's data through the general-purpose data-query functions. That fix does not cover the three functions above — they are separate code paths and were never touched by it. This is why the gap above still needs to be closed as part of this plan.
-- There is no subscription/tier idea anywhere in the system today — no column, no table, nothing.
-- Every client (tenant) already gets its own private database today, regardless of size. That part doesn't need to change for Enterprise — it's already true.
-- A BU can have more than one branch (more than one physical location). Branches already exist as real records today, but a user's access is only ever recorded at the BU level — there is no "this user can only see branch X" setting anywhere today. Every existing user is effectively "all branches" right now, which is exactly the default we want to keep.
-- A new branch is added through the same shared, generic "save a record" function used for dozens of unrelated tables (masters, config, etc.). There's no dedicated "add branch" function to attach a check to — today it has no per-table check at all for branch specifically, same gap as several other tables on that shared path.
+| Project | What it is | Relevance |
+|---|---|---|
+| `dev/service-plus-web` | Next.js 16 static export for **end customers** (track repair, buy parts), port 3002 | Same stack; copy its `globals.css` oklch tokens, `lib/api.ts` `publicPost` + `X-Website-Key` pattern, and the `deploy/` script |
+| `../kush-infotech-web` | Next.js 16 static export, the parent-company marketing site, port 3004 | Closest model. It has `typedRoutes`, `site-config.ts`, a `TestimonialCard`, a `ScreenshotGallery`, and **20 Service+ screenshots already captured** in `public/images/products/*.jpg` |
+| `service-plus-server` `app/routers/public/website_router.py` | `/api/public/*` REST, guarded by `require_website_key` + per-IP `rate_limit` | `POST /api/public/contact` (email only, no DB row) is the template for the new enquiry endpoint |
+| `service-plus-client` | The app itself | Its "Login" URL is the call to action; screenshots come from its demo tenant |
 
-## Key constraints
+Stack to match: Next.js 16, React 19, TypeScript 7 (`experimental.useTypeScriptCli`), Tailwind 4,
+shadcn (radix-nova, `radix-ui`), lucide-react, framer-motion, sonner, react-hook-form + zod, pnpm.
 
-1. The user-creation function, the admin-creation function, and the create-BU function have no server-side check today — only a hidden button. This must be fixed before Manager gets any access to user-creation, or "Manager can only create users for their own BU" would be a suggestion, not a rule.
-2. Roles and what they're allowed to do are fixed in the system's setup data, not editable per tenant from a screen. Giving Manager a new permission (create users) means adding it to that setup data, and re-running it for tenants that already exist.
-3. Creating a new BU today means creating a whole new set of tables for it and copying starting data into them — a bigger, slower operation than creating a user. Only Super Admin can trigger it, and that stays true on every tier — this plan doesn't change who can create a BU.
-4. Basic vs. Pro feature differences are not decided yet. This plan only adds the on/off switch (the tier value) — it does not decide which features turn off for Basic.
-5. Branches live inside each BU's own set of tables, not in the shared login/security area. A branch restriction on a user has to be checked by hand ("does this branch actually belong to this user's BU?") rather than relying on the database to enforce it automatically — the database can't link the two directly.
-6. This plan restricts branches for who can be *assigned* where. It does not go through every existing screen (jobs, reports, etc.) and make each one respect that restriction — that's a much bigger, separate piece of work. See "Flags and constraints" for exactly what is and isn't covered.
-7. There's no dedicated "add a branch" function to attach the one-branch-on-Basic check to — branch is saved through the same shared, generic function as many other unrelated tables. The check has to be added narrowly, just for the branch table, inside that shared function, without touching how it behaves for every other table that goes through it.
+## Key constraints of the present design
 
-## New design
+1. **Hosting is MilesWeb shared cPanel, which serves static files only.** `output: "export"` and
+   `trailingSlash: true` are required (see `dev/service-plus-web/deploy/README.md`). That rules out
+   Next API routes and server actions, so the form **must** post to `service-plus-server`.
+2. **The website key ships in the browser bundle.** It is a coarse gate, not a secret, so the
+   enquiry endpoint relies on rate limiting, zod/pydantic validation and a honeypot field, not on
+   the key.
+3. **CORS**: the production server's `CORS_ORIGINS` must list the new site's origin(s).
+4. **Pricing must be defined in one place.** A price or limit is edited in a single typed module,
+   and both the plan cards and the comparison table render from it.
+5. **No real customer data in screenshots.** Capture only from the `demo` tenant.
+6. House conventions: tabs/width 4/double quotes (add `.prettierrc` to match the client, since
+   `service-plus-web` uses 2 spaces); `type` not `interface`, names end in `Type`; arrow-function
+   components; alphabetical sorting; no `index.ts` barrels; text longer than two words goes in
+   `constants/messages.ts`; red only for errors and the mandatory `*`; responsive layouts.
 
-**A. Close the gap on the three functions. ✅** Add a real check to "create user," "create Admin user," and "create BU" so each only runs for the right kind of caller. This is needed either way, and should happen first.
+## New design brief
 
-**B. Manager can create users for their own BU. ✅** New permission, given only to the Manager role: "create users for my own BU." When a Manager uses it:
-   - They can only create users for a BU they themselves are a Manager of.
-   - They can pick any role except Manager.
-   - Admin is unaffected — still creates any role for any BU in their tenant, exactly as today. Super Admin doesn't create business users, on any tier — that's not changing.
+### Routes
 
-**C. Subscription tier on the client (tenant). ✅ code done and migrated.** A new field on the client record: Basic, Pro, or Enterprise, set only by Super Admin — nobody self-upgrades. This plan adds the field and wires up point E below (the Basic cap); it does not build any Basic/Pro/Enterprise feature differences beyond that, since those aren't decided yet.
+| Route | Content |
+|---|---|
+| `/` | Hero ("Run your repair workshop end to end") with Login and See pricing CTAs. Pain/benefit strip. Feature grid (Jobs, Inventory, WhatsApp, Reports, Multi-branch/BU, Extended warranty, GST invoicing, Role-based access). Screenshot gallery (tabbed by module, lightbox). Testimonials. Final CTA |
+| `/pricing` | 4 plan cards, a feature comparison table, a one-time setup fee note, FAQ, and the **Plan enquiry form** (`#enquire`; each card's button scrolls there with the plan preselected via `?plan=basic`) |
+| `/contact` | Mobile (`tel:`), email (`mailto:`), address, map link, WhatsApp link. A short general-enquiry form is optional (see Flags) |
+| `404` | Branded not-found page |
 
-**D. Branch restriction on a user. ✅ code done and migrated.** A new, optional list attached to each user's BU assignment: which branches they're allowed to work in. Empty list = every branch (the default, and what every existing user already effectively has, so nothing changes for anyone until someone deliberately narrows a user down). Both a Manager (for users in their own BU) and an Admin (for any user in their tenant) can set or change this list. A user with a restricted list only shows up / only acts within those branches wherever branch already matters today (e.g. picking a branch for a new job).
+The header has the logo, nav (Home, Pricing, Contact), a theme toggle and a **Login** button linking
+to the app URL (`NEXT_PUBLIC_APP_URL`). On mobile the nav moves into a Sheet. The footer holds the
+contact block, links and copyright.
 
-**E. Basic tier: one user, and that user can't create more. ✅** A Basic client is capped at exactly one business user, and that user's role must be Manager. The new "create users for my own BU" permission from point B is simply never given out on a Basic client, so that lone Manager has no way to add anyone else. (The one separate Admin login every client already gets when it's first set up is not counted in this cap — that account is for tenant setup, not day-to-day work.)
+### Pricing data (`content/pricing.ts`, the only source)
 
-**F. Basic tier: one branch. ✅** A Basic BU is capped at exactly one branch. Adding a second branch to a Basic BU is rejected, the same way adding a second business user is. Nothing changes for Pro/Enterprise, which can already have more than one branch today.
+| | Lite | Basic | Standard | Enterprise |
+|---|---|---|---|---|
+| Price / month | Free | ₹2,999 | ₹5,999 | ₹10,999 |
+| One-time setup | — | ₹2,000 | ₹2,000 | ₹5,000 |
+| Users | 1 (unlimited logins) | 1 (unlimited logins) | Multiple | Multiple |
+| Jobs / month | 50 | 100 | 500 | Unlimited |
+| WhatsApp messages / month | — | 100 | 500 | 2,000 |
+| Spare-parts inventory | — | — | ✓ | ✓ |
+| Business units | 1 | 1 | 1 | 5 |
+| Provisioning | New BU (shared DB) | New BU | New BU | **Dedicated database** (super admin) |
+
+```ts
+type PlanCodeType = "basic" | "enterprise" | "lite" | "standard";
+type PlanType = {
+	businessUnits: number;
+	code: PlanCodeType;
+	highlighted?: boolean;          // Standard = "Most popular"
+	inventory: boolean;
+	jobsPerMonth: number | null;    // null = unlimited
+	monthlyPrice: number;           // 0 = free
+	name: string;
+	setupFee: number;
+	users: "multi" | "single";
+	whatsappPerMonth: number;       // 0 = not included
+};
+```
+
+Show a "✗" for features a plan lacks in a muted colour, **not red** (red is reserved for errors).
+
+### Plan enquiry form (`components/pricing/sales-enquiry-form.tsx`)
+
+react-hook-form + zod, errors shown on change, and submit disabled while the form is invalid.
+
+| Field | Rule |
+|---|---|
+| Plan * | select, preselected from `?plan=` |
+| Your name * | 2–100 chars |
+| Business name * | 2–200 chars |
+| Mobile * | 10-digit Indian mobile (reuse the client's `lib` mobile regex) |
+| Email * | email |
+| City / State * | text |
+| GSTIN | optional; validated with the client's GSTIN helper if present |
+| Branches needed | number (default 1). Show an "Enterprise suggested" hint when it exceeds 1 on Basic/Standard |
+| Message | optional, ≤ 2000 chars |
+| `website` (honeypot) | hidden, must be empty |
+
+On success, show a confirmation card: "we'll contact you within one business day", then the
+payment instructions (**manual bank transfer**: account details come from
+`content/site-config.ts`), the setup fee for the chosen plan, and what happens next (BU created, or a
+dedicated DB for Enterprise, then login credentials sent).
+
+### Server endpoint (new, in `service-plus-server`)
+
+`POST /api/public/sales-enquiry` in `website_router.py`, reusing `require_website_key` and
+`rate_limit("sales-enquiry", limit=5, window_seconds=60)`.
+
+- **Stores a row**, because it is the input to provisioning. The contact form only sends email, but
+  a lost enquiry here is a lost sale. New table `public.sales_enquiry` in `service_plus_client`:
+  `id, plan_code, name, business_name, mobile, email, city, gstin, branches, message, status
+  ('new'|'contacted'|'converted'|'rejected'), created_at, ip`.
+- **Then emails** `contact_notify_email` (HTML + text, like `_build_contact_email_html`), with
+  reply-to set to the enquirer. The row is already saved, so an email failure is logged and
+  swallowed, the same way `_notify_staff_of_order` handles it.
+- Returns `{status: "ok"}` only. No ids or amounts go back to the browser.
+- Later, not in this plan: a super-admin "Plan enquiries" grid, then Razorpay. The table's `status`
+  column is designed for that grid.
+
+## Steps
+
+- **Step 1 — Your Part: business inputs.** Before content is final, provide:
+  real mobile/email/street address; 3–5 **real** testimonials (quote, name, shop, city, and the
+  customer's permission); bank account details for transfer; the domain (`myserviceplus.in` per
+  earlier notes) and whether prices are **GST-inclusive or +18% GST**.
+- ✅ **Done.** **Step 2 — Scaffold `dev/service-plus-portal/`.** `create-next-app`, then align deps with
+  `service-plus-web`. Add `next.config.ts` (`output: "export"`, `trailingSlash`, `typedRoutes`,
+  `images.unoptimized`, `experimental.useTypeScriptCli`), `.prettierrc` (tabs), `eslint.config.js`,
+  `components.json`, `.env.example` (`NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_WEBSITE_KEY`,
+  `NEXT_PUBLIC_APP_URL`). Dev port **3005**.
+- ✅ **Done.** **Step 3 — Shell and theme.** `app/globals.css` copied from `service-plus-web` tokens.
+  `app/layout.tsx` with metadata/OG, the theme init script, `SiteHeader`, `SiteFooter` and `Toaster`.
+  Add the shadcn primitives needed: button, card, badge, input, label, textarea, select, sheet,
+  accordion, tabs, dialog.
+- ✅ **Done** (placeholders marked `TODO(real)`). **Step 4 — Content modules.** `content/site-config.ts` (contact, app URL, bank details, nav),
+  `content/pricing.ts`, `content/features.ts`, `content/testimonials.ts`, `content/faq.ts`,
+  `content/screenshots.ts`, `constants/messages.ts`.
+- ◐ **Partly done** (20 JPGs copied; new captures and WebP not done). **Step 5 — Screenshots.** Copy the 20 existing JPGs from
+  `kush-infotech-web/public/images/products/` into `public/images/screens/`. Capture the missing ones
+  (WhatsApp messaging/settings, multi-BU switcher, role/user management, job sheet PDF, a mobile
+  view) from the **demo tenant** with Chrome automation at 1440×900 (plus a 390×844 mobile shot),
+  in light theme. Export them as WebP at ≤200 KB each.
+  **Your Part:** confirm the demo tenant shows no real customer names or mobiles.
+- ✅ **Done.** **Step 6 — Home page.** Hero, benefit strip, `FeatureGrid`, `ScreenshotGallery` (tabs + dialog
+  lightbox), `TestimonialCarousel`, CTA band. Use framer-motion fade/slide on scroll and respect
+  `prefers-reduced-motion`.
+- ✅ **Done.** **Step 7 — Pricing page.** `PlanCard` ×4, `PlanComparisonTable` (it scrolls sideways on phones and
+  has a sticky first column), setup-fee note, `Faq` accordion, `SalesEnquiryForm` + success card.
+  `lib/api.ts` gets a `publicPost` copied from `service-plus-web`.
+- ✅ **Done.** **Step 8 — Contact page.** Contact cards, map link, WhatsApp deep link, business hours.
+- ◐ **Code done** (`scripts/sales_enquiry.sql` + route); running the SQL, the dump and gen-types are Your Part. **Step 9 — Server endpoint.** Migration for `sales_enquiry` (`db/` scripts + update the
+  `service_plus_client` schema dump), `SalesEnquiryIn`/`Out` models, route, email builders,
+  rate limit. Then regenerate `src/types/db-schema-client.ts` here (`pnpm gen-types-client`).
+- ✅ **Done.** **Step 10 — Help docs.** Add one developer article to
+  `features/super-admin/components/help/dev-help-content.ts` covering the public site, the
+  endpoint, the `sales_enquiry` table, its env vars and CORS. Skip the client `help-content.ts`,
+  since staff-facing screens don't change. Add the full article once the super-admin enquiry grid
+  exists.
+- ✅ **Script done**; the rest is Your Part. **Step 11 — Deploy pipeline.** Port `deploy/build-and-deploy-milesweb.sh` + `README.md` from
+  `service-plus-web` (it writes `.htaccess`, rsyncs, and smoke-checks each route).
+  **Your Part:** buy the domain, add it in cPanel as an addon domain with AutoSSL, fill
+  `deploy/.env.deploy`, add `https://myserviceplus.in` and `https://www.myserviceplus.in` to the
+  production `CORS_ORIGINS`, set `WEBSITE_API_KEY`/`contact_notify_email`, and run the migration
+  on production.
+- ✅ **Done.** **Step 12 — SEO basics.** `sitemap.ts`, `robots.ts`, `opengraph-image.tsx`, `icon`, and
+  `SoftwareApplication` + `Offer` JSON-LD on `/pricing` (prices in INR).
 
 ## Files touched
 
-Server (`dev/service-plus-server`):
-- `app/graphql/resolvers/mutation.py` — add the missing checks to `createBusinessUser`, `createAdminUser`, and `createBuSchemaAndFeedSeedData`; add the new Manager-vs-Admin rule to `createBusinessUser`.
-- `app/graphql/resolvers/bu_admin/users_roles.py` — the "who can create what" rule for creating a user (including the Basic-tier one-user cap), and saving/reading a user's branch restriction list.
-- `app/graphql/resolvers/bu_admin/provisioning.py` — add a Super-Admin-only check to `createBuSchemaAndFeedSeedData`. No tenant's own Admin gets this, on any tier.
-- `app/db/seeds/seed_security_data.py` — one new permission code, given to Manager only.
-- `app/db/sql/sql_bu_admin.py` — read/write the new tier field on the client record; read/write branch restrictions for a user; check whether a client already has a business user (for the Basic cap); look up a BU's branches and count them (for the one-branch cap).
-- The shared "save a record" function (generic update/write path) — add the one-branch-on-Basic check, scoped to just the branch table, when a new branch row is being inserted.
-- A small migration/script adding: the `subscription_tier` column to the client table, and a new small table linking a user's BU assignment to a list of branch ids. Run once.
+**New package** `dev/service-plus-portal/`:
+`package.json`, `next.config.ts`, `tsconfig.json`, `.prettierrc`, `eslint.config.js`, `components.json`,
+`postcss.config.mjs`, `.env.example`, `.gitignore`,
+`app/{layout,page,not-found,sitemap,robots,opengraph-image}.tsx|ts`, `app/globals.css`,
+`app/pricing/page.tsx`, `app/contact/page.tsx`,
+`components/layout/{site-header,site-footer,logo,theme-toggle,theme-provider}.tsx`,
+`components/home/{hero,benefit-strip,feature-grid,screenshot-gallery,testimonial-carousel,cta-band}.tsx`,
+`components/pricing/{plan-card,plan-comparison-table,sales-enquiry-form,enquiry-success,faq}.tsx`,
+`components/contact/contact-cards.tsx`, `components/ui/*` (shadcn),
+`content/{site-config,pricing,features,testimonials,faq,screenshots}.ts`, `constants/messages.ts`,
+`lib/{api,utils,validators}.ts`, `public/images/screens/*.webp`,
+`deploy/{build-and-deploy-milesweb.sh,README.md,.env.deploy.example}`.
 
-Client (`dev/service-plus-client`):
-- `src/features/auth/utils/access-rights.ts` — add the new permission code.
-- `src/features/super-admin/components/seed-roles-dialog.tsx` — list the new permission so existing tenants can be re-seeded with it.
-- New page/section under `src/features/client/` — where a Manager creates a user for their own BU (Manager works in the normal client area, not the Admin-only area).
-- `src/router/routes.ts` and the router file that wires it — new route for that page, shown only to users who have the new permission.
-- `src/features/super-admin/` — a tier field (Basic/Pro/Enterprise) on the client create/edit screen.
-- The existing Admin "create/edit user" screens, and the new Manager "add a team member" screen — both gain a branch picker (only shown for a BU that has more than one branch).
-- `src/features/client/components/masters/branch/add-branch-dialog.tsx` — disable/hide "add branch" (with a short explanation) when the BU's client is Basic tier and already has one branch.
-- `src/features/client/components/help/help-content.ts` and `src/features/super-admin/components/help/dev-help-content.ts` — updated to describe all of the above (both files, every time, per this repo's own rule).
+**Server** (`service-plus-server`): `app/routers/public/website_router.py` (endpoint + models +
+email builders), a new migration SQL under `db/` or the server's migration folder, and
+`app/db/schema_dumps/` (client DB).
+
+**Client** (`service-plus-client`): `src/types/db-schema-client.ts` (regenerated) and
+`src/features/super-admin/components/help/dev-help-content.ts`.
 
 ## Implementation
 
-All 9 steps below are implemented in code and type-check/pytest clean (21 new automated tests, all passing). Both migrations have been run and verified live: Step 2's `subscription_tier` column against `service_plus_client`, and Step 6's `user_bu_role_branch` table against both tenant databases (`service_plus_demo`, `service_plus_capitalgroup`). Both reference files the migration scripts call for afterward are also regenerated and verified: `app/db/schema_dumps/service_plus_service.sql` (also `service_plus_client.sql`), and `app/db/sql/sql_bu_admin_ddl.py` (via `python -m app.db.tools.extract_schema`, so a brand-new tenant now gets `user_bu_role_branch` automatically too). Nothing outstanding.
-
-**Step 1 — Add the missing checks. ✅ Implemented.** `createBusinessUser`, `createAdminUser`, and `createBuSchemaAndFeedSeedData` currently run for anyone with a valid login, no matter their role. Add a proper check to each:
-   - `createBusinessUser`: Admin only for now (not Super Admin — Super Admin doesn't create business users), until Step 4 below opens a narrower door for Manager.
-   - `createAdminUser` and `createBuSchemaAndFeedSeedData`: Super Admin only — both stay that way permanently, nobody's own Admin ever gets these, on any tier.
-
-   Worth doing even on its own.
-
-**Step 2 — Subscription tier field. ✅ Implemented and migrated.** `subscription_tier` on the client record (Basic / Pro / Enterprise, default Basic) and the Select on the client edit screen are both done. `scripts/subscription_tier_schema.sql` has been run against `service_plus_client` — verified live: the column, its `BASIC`/`PRO`/`ENTERPRISE` check constraint, and every existing client row defaulted to `BASIC` are all in place.
-
-**Step 3 — New permission for Manager. ✅ Implemented.** Added as `USERS_MANAGE_OWN_BU`, given to the Manager role only (not Technician, not Receptionist) in the main seed data, plus a standalone delta script for tenants that already exist. New tenants get it automatically; existing ones need the seed-roles tool re-run (or that script), same as before.
-
-**Step 4 — The actual rule. ✅ Implemented, with automated tests.** In the "create user" function:
-   - If the target client is Basic tier: allow exactly one business user, and only with role Manager. Reject a second business user, and reject any role other than Manager, no matter who's asking (Admin included).
-   - If the caller is Admin (and the Basic cap above doesn't block it): unchanged — any role, any BU in their tenant. (Super Admin never calls this — see above.)
-   - If the caller is a Manager with the new permission (and the Basic cap doesn't apply, since a Basic Manager never has this permission): they may only pick a BU they themselves manage, and any role except Manager.
-   - Anyone else calling it: rejected.
-
-**Step 5 — Manager's own screen. ✅ Implemented.** Built as "My Team," a new item in Client Mode → Admin (next to Post/Unpost, not a separate top-level route), shown only to a user holding the new permission. Same form as today's "create user" screen; BU is fixed to the Manager's own BU(s) and the role list excludes Manager.
-
-**Step 6 — Branch restriction, storage and rule. ✅ Implemented and migrated.** The validation/save logic is written and tested; `scripts/user_bu_role_branch_schema.sql` has been run and verified live against both tenant databases (`service_plus_demo`, `service_plus_capitalgroup`) — table, primary key, the cascading FK on `(user_id, bu_id)`, and the index all present. New table linking a user's BU assignment to a list of branch ids. Saving it checks that every branch id actually belongs to that BU (branches live in a different part of the database per BU, so this has to be checked by hand, not by the database itself). Empty/no rows = unrestricted, which is what every user already has today, so this step changes nothing until someone actively sets a restriction.
-
-**Step 7 — Branch restriction, screens. ✅ Implemented.** Add a branch picker to the existing Admin "create/edit user" screens and to the new Manager screen from Step 5 — only shown when the BU being assigned has more than one branch. Both Admin and Manager can set or clear it for any user they're otherwise allowed to manage.
-
-**Step 8 — Basic tier: one branch. ✅ Implemented, with automated tests.** In the shared "save a record" function, add a check that runs only when the table is "branch" and it's a new row (not an edit): count the BU's existing branches, and if the client is Basic tier and the count is already 1, reject it. Update the "add branch" screen to disable the button and explain why once a Basic BU already has its one branch.
-
-**Step 9 — Update both help docs. ✅ Implemented.** End-user doc: explain the new "add a team member" screen for Managers, the branch picker, and the one-branch limit on Basic. Developer doc: explain the new permission, the rule in Step 4 (including the Basic cap), the branch table and its check in Step 6, the one-branch check in Step 8, and that BU creation stays Super-Admin-only on every tier (so nobody "fixes" that later by mistake), so the next person doesn't have to rediscover any of this by reading code.
+- **Step 1 — Scaffold + config**: Step 2 above; `pnpm dev` shows a blank page on :3005.
+- **Step 2 — Theme, layout, nav**: Step 3.
+- **Step 3 — Content + messages**: Step 4 (placeholder testimonials clearly marked `// TODO real`).
+- **Step 4 — Screenshots**: Step 5.
+- **Step 5 — Home**: Step 6.
+- **Step 6 — Pricing + form (UI only, mocked submit)**: Step 7.
+- **Step 7 — Contact**: Step 8.
+- **Step 8 — Server endpoint + table**: Step 9, then wire the form to the real endpoint.
+- **Step 9 — Help docs**: Step 10.
+- **Step 10 — Deploy script + SEO**: Steps 11–12.
 
 ## Testing
 
-- Automated tests for the Step 4 rule: Manager can create a Technician/Receptionist for their own BU; Manager cannot create another Manager; Manager cannot create a user for a BU they don't manage; Admin is unaffected.
-- Automated test confirming `createBuSchemaAndFeedSeedData` rejects any caller who isn't Super Admin — Admin included, on every tier.
-- Automated tests for the Basic cap: creating a second business user on a Basic client fails, no matter who's asking; creating that one user with any role other than Manager fails.
-- Automated tests for branch restriction: a restricted user's branch list is saved and read back correctly; saving a branch that belongs to a different BU is rejected; a user with no restriction behaves exactly as before (all branches).
-- Automated tests for the one-branch cap: adding a second branch to a Basic BU fails; adding a second (or third, etc.) branch to a Pro/Enterprise BU still works exactly as today; editing the existing single branch on a Basic BU still works (only a new branch is blocked).
-- Type-check the client build (this repo's linter is currently broken, so this is the real check).
-- Manually check in the browser: log in as a Manager and confirm the new screen works and is scoped correctly; log in as an Admin on each tier and confirm none of them see a "create BU" option anywhere; confirm a Basic BU's "add branch" button is disabled once it has one, and a Pro BU's isn't.
+1. `pnpm lint`, `pnpm exec tsc --noEmit` and `pnpm build` all clean, and `out/pricing/index.html`
+   exists (this confirms the trailing-slash setting took effect).
+2. `npx serve out -l 3005`: click every route; hard-refresh `/pricing/` and `/contact/` directly.
+3. Form: each field shows its error immediately and submit stays disabled while any field is
+   invalid. `?plan=enterprise` preselects Enterprise. A filled honeypot is rejected. A 6th submit
+   within a minute gets a 429 and a friendly toast.
+4. Server: `curl` the endpoint with and without `X-Website-Key` (expect 401). A valid post creates a
+   row in `sales_enquiry` and sends the email. With SMTP disabled, the row is still saved and the
+   response is still `ok`.
+5. Responsive checks at 360, 768 and 1280 widths: the comparison table scrolls sideways, cards
+   stack, and the mobile nav sheet works. Check both light and dark themes.
+6. Lighthouse run on `/` and `/pricing`: aim for ≥ 90 in performance, accessibility and SEO.
+7. After deploy: https redirect, long cache headers on `/_next/`, the branded 404, and a live form
+   submission from the production origin (proves CORS).
 
 ## Flags and constraints
 
-- Basic vs. Pro feature differences (beyond user management) are not part of this plan — only the tier field itself. Deciding and building those differences is separate, later work.
-- Branch restriction in this plan is only about *who can be assigned to which branch* — it does not change what data a restricted user can see or do. Actually filtering jobs/reports/etc. by a user's allowed branches, screen by screen, is bigger, separate work and is not built here.
-- Assumption, stated plainly since it wasn't spelled out: "Basic = one user" counts business users only (the Manager and anyone they'd otherwise create). The one Admin login every client gets automatically when it's first set up is separate infrastructure, not a second "user" for this purpose. Flag if that's wrong.
-- The one-branch cap only blocks *adding a new* branch on Basic — it doesn't touch an existing branch's other data (address, GST details, etc.), and doesn't retroactively do anything if a client is ever moved from Pro/Enterprise down to Basic while already having more than one branch. What should happen in that downgrade case isn't decided — flagged here, not handled by this plan.
-- `createAdminUser` and `createBuSchemaAndFeedSeedData` become Super-Admin-only in Step 1 and stay that way for the rest of this plan — no tenant's own Admin gets either one, on any tier, Enterprise included.
-- With BU creation off the table, Enterprise has no behavior difference from Pro in this plan yet — both just get the Manager-can-create-users capability. Whatever should actually distinguish Enterprise is left for later, same as the undecided Basic-vs-Pro feature differences above.
-- Nobody self-upgrades their own tier — it's set by Super Admin only.
-
-## Update — 2026-09-18: `createBuSchemaAndFeedSeedData` reopened to tenant Admin
-
-The "Super Admin only, permanently" line above shipped without its other half: nothing
-was built for Super Admin to actually create a BU for a tenant. The client's Admin Panel
-(`features/admin/pages/business-units-page.tsx` → `create-business-unit-dialog.tsx`) still
-shows "Add Business Unit" to tenant Admin, and it's the only UI path that ever called this
-mutation — Super Admin's Clients page only shows a read-only BU count chip, and
-`/admin/business-units` requires an exact `userType === "A"` match, so Super Admin can't
-even reach the existing screen. Net effect: nobody could create a BU through the UI at all.
-
-Reverted, at the user's explicit direction after being shown the tradeoff: server guard on
-`createBuSchemaAndFeedSeedData` (`app/graphql/resolvers/mutation.py`) is now
-`require_own_tenant(info, db_name)` + `require_user_type(info, {"S", "A"})` — Super Admin
-(any tenant) or the tenant's own Admin (own tenant only, enforced by `require_own_tenant`).
-The client-side dialog and route are unchanged. If a dedicated Super Admin BU-management
-screen is ever built, this can be tightened back to Super-Admin-only. Until then, treat
-"BU creation stays Super-Admin-only" elsewhere in this document as superseded by this note.
-
-## Update — 2026-09-20: Step 6's missing branch-restriction tests added
-
-Line 79's "21 new automated tests, all passing" was checked against the actual test
-files and found short — only 17 existed (`tests/bu_admin/test_users_roles_rules.py` +
-`tests/test_generic_update_branch_cap.py`), and the ones missing were exactly the
-Step 6 / Testing-section bullet for branch restriction: saved-and-read-back, a branch
-from a different BU rejected, and no-restriction-writes-nothing. The underlying logic
-(`_validate_and_save_branch_restrictions` in `bu_admin/users_roles.py`) was already
-correct — only the tests were missing.
-
-Added 4 tests to `test_users_roles_rules.py` (a fifth, `test_unknown_bu_id_raises_not_found`,
-covers an adjacent branch of the same function not called out in the original Testing
-list): saving across multiple BUs writes exactly the right `(user_id, bu_id, branch_id)`
-rows against each BU's own schema; a branch id that exists only in another BU's schema
-is rejected and nothing is written; an unknown `bu_id` is rejected; and an absent/empty
-`branch_ids_by_bu` performs no lookup and no write at all. Full server suite (53 tests)
-passes. The total is now 21 — matching line 79's original count, which was aspirational
-until today.
+- **Testimonials must be real.** Invented quotes attributed to named customers are misleading, and
+  in India they can breach consumer-protection advertising rules. Until real quotes arrive, ship
+  the section hidden behind `testimonials.length > 0`, or use clearly generic placeholders
+  **without** names, never live on production.
+- **GST**: the prompt doesn't say whether ₹2,999 etc. include GST. This decides the card copy
+  ("+ GST") and the JSON-LD price.
+- **Lite has no setup fee and is free.** It still goes through the enquiry form for now (manual BU
+  creation). A self-serve Lite signup with email verification is covered in `plans/plan-claude.md`
+  (`signup_request`) and is out of scope here. Keep `sales_enquiry` separate so it doesn't collide
+  with that design.
+- **Plan limits are marketing copy only.** Nothing in the app enforces 50/100/500 jobs, WhatsApp
+  quotas, the single-user limit or BU counts yet (`subscription_tier` was reverted in `15588b7`).
+  The site promises what the entitlement work in `plan-claude.md` must later deliver.
+- **"Single user, unlimited login"** reads ambiguously; the copy should say "1 user account; log
+  in from any number of devices".
+- **Annual billing / discounts** are not specified. The layout leaves room for a monthly/annual
+  toggle later.
+- **Razorpay later**: the success card's "bank transfer" block lives in one component, so swapping
+  it for a checkout button later is a contained change.
+- **Contact page form**: the prompt asks only for details. Adding a general form that reuses
+  `POST /api/public/contact` is cheap. Its email subject currently says "Service+" but the footer
+  text says "kush-infotech-web"; parameterise the source if reused.
+- `service-plus-web` (end customers) and `service-plus-portal` (shop owners) stay separate sites,
+  on purpose.

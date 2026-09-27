@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict MUiBaDwc2b10L0y45rdeJIWev83lP9lpkI2gyvApNsFhvK1lIhKV2WPOfKGKta1
+\restrict Kl2Lfgy6vrZPyUj1ULfW4cefWsRCt2N4GwMI8dihid0jF6RzlLTCJQH9K81zkxu
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
@@ -97,6 +97,46 @@ ALTER TABLE public.client ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 
 
 --
+-- Name: sales_enquiry; Type: TABLE; Schema: public; Owner: webadmin
+--
+
+CREATE TABLE public.sales_enquiry (
+    id bigint NOT NULL,
+    plan_code text NOT NULL,
+    name text NOT NULL,
+    business_name text NOT NULL,
+    mobile text NOT NULL,
+    email text NOT NULL,
+    city text NOT NULL,
+    gstin text,
+    branches integer DEFAULT 1 NOT NULL,
+    message text,
+    status text DEFAULT 'new'::text NOT NULL,
+    ip text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT sales_enquiry_branches_check CHECK (((branches >= 1) AND (branches <= 50))),
+    CONSTRAINT sales_enquiry_plan_code_check CHECK ((plan_code = ANY (ARRAY['lite'::text, 'basic'::text, 'standard'::text, 'enterprise'::text]))),
+    CONSTRAINT sales_enquiry_status_check CHECK ((status = ANY (ARRAY['new'::text, 'contacted'::text, 'converted'::text, 'rejected'::text])))
+);
+
+
+ALTER TABLE public.sales_enquiry OWNER TO webadmin;
+
+--
+-- Name: sales_enquiry_id_seq; Type: SEQUENCE; Schema: public; Owner: webadmin
+--
+
+ALTER TABLE public.sales_enquiry ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.sales_enquiry_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: client client_code_unique; Type: CONSTRAINT; Schema: public; Owner: webadmin
 --
 
@@ -137,6 +177,14 @@ ALTER TABLE ONLY public.client
 
 
 --
+-- Name: sales_enquiry sales_enquiry_pkey; Type: CONSTRAINT; Schema: public; Owner: webadmin
+--
+
+ALTER TABLE ONLY public.sales_enquiry
+    ADD CONSTRAINT sales_enquiry_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: client_gstin_idx; Type: INDEX; Schema: public; Owner: webadmin
 --
 
@@ -165,6 +213,20 @@ CREATE INDEX client_phone_idx ON public.client USING btree (phone);
 
 
 --
+-- Name: sales_enquiry_created_at_idx; Type: INDEX; Schema: public; Owner: webadmin
+--
+
+CREATE INDEX sales_enquiry_created_at_idx ON public.sales_enquiry USING btree (created_at DESC);
+
+
+--
+-- Name: sales_enquiry_status_idx; Type: INDEX; Schema: public; Owner: webadmin
+--
+
+CREATE INDEX sales_enquiry_status_idx ON public.sales_enquiry USING btree (status);
+
+
+--
 -- Name: client trg_client_updated; Type: TRIGGER; Schema: public; Owner: webadmin
 --
 
@@ -183,5 +245,5 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict MUiBaDwc2b10L0y45rdeJIWev83lP9lpkI2gyvApNsFhvK1lIhKV2WPOfKGKta1
+\unrestrict Kl2Lfgy6vrZPyUj1ULfW4cefWsRCt2N4GwMI8dihid0jF6RzlLTCJQH9K81zkxu
 

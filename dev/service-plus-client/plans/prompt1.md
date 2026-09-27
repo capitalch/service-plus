@@ -1,0 +1,34 @@
+# New public facing website for subscription plans and product features
+- Create a new project named as service-plus-public as peer project in Next.js and using technology used in other projects of service plus. This website will be used for marketing and sales purposes. 
+- Create a home page for the product service plus highlighting the features and benefits of the product.
+    - Create multiple screenshots of the product and use them in the website. 
+    - Provide a few testimonials for now from our existing customers. We can add more later.
+- create page for Contact us. Provide mobile number, email address and physical address. 
+- create pricing page with 4 plans namely Lite, Basic, Standard and Enterprise.
+    - There will be 4 subscription levels
+    - Lite: Free plan
+        - Single user, unlimited login
+        - 50 jobs per month
+        - No whatsapp integration
+        - No spare parts inventory management
+        - Single business unit
+    - Basic: Paid plan: INR 2999/- per month
+        - 1 user, unlimited login
+        - 100 jobs per month
+        - whatsapp integration: 100 messages per month
+        - No spare parts inventory management
+        - Single business unit
+    - Standard (Previously Pro): INR 5999/- per month
+        - multi users, unlimited login
+        - 500 jobs per month
+        - whatsapp integration: 500 messages per month
+        - Spare parts inventory management
+        - Single business unit
+    - Enterprise: INR 10999/- per month
+        - multi users, unlimited login
+        - unlimited jobs
+        - whatsapp integration: 2000 messages
+        - Spare parts inventory management
+        - 5 business units
+    - In the pricing page, provide a contact form for initiating the process of subscribing to a plan. This form will be used to collect the user's information and the plan they are interested in. This information will be later used to create a new business unit and assign it to the user for basic and standard version. For enterprise version super admin has to create a new db. The user will then be able to login to the service plus client application and use the features of the plan. Payment is at present manual and done via bank transfer. In future we will be using razorpay for payment gateway integration.
+    - First time initiation cost for database setup  etc. will be Rs 2000/- for Basic and Standard plans and Rs 5,000/- for enterprise plans.

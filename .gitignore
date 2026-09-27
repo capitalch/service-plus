@@ -152,6 +152,12 @@ node_modules
 logs/
 deployment/
 
+# Next.js build output (service-plus-portal relies on this file, not its own .gitignore)
+.next/
+out/
+*.tsbuildinfo
+.DS_Store
+
 # Claude Code sandbox write-protection placeholders
 .bash_profile
 .bashrc

@@ -1,4 +1,15 @@
 # To Do
+- Subscriptions
+	- Public facing site
+		- Home, Contacts, Pricing, Product details
+	- Api to serviceplus
+		- Registered customers
+		- Spin lite version
+		- Customer queries
+	- DB changes to accommodate subscription plans
+	- Set lite version with api
+	- Set other plans with manual initiate
+	- Initiate enterprise version
 - Credentials for clients
 	- demo-> bu: demo1, demo2
 		- demo1: manager: pwd service123
@@ -11,10 +22,11 @@
 	- domain
 		- available
 			- jobservice, serviceworks, servicebase, servicemate, serviceprime, serviceforge, servicemain, servicechoice, servicegate, servicepure, serviceroot, servicework, serviceto, servicedo, serviceop, servicenail.com, serviceclick, servicecon, servicebyte
-			servicebench, myserviceplus, servicebyte, serviceforge, servicevice.com, servicequick, serviceside :.in: 549/yr
+			servicebench, myserviceplus, servicebyte, serviceforge, servicevice.com, servicequick, serviceside 
+			servicevista, servicequick, servicemake.com, 					:.in: 549/yr
 			- repairjob.in, repairplus.in, repairtrack, repairsuite, repairbase, repaircore  :.in: 549/yr
 		- Not available
-			- serviceplus, servicejob, serviceflow, serviceking,serviceforce
+			- serviceplus, servicejob, serviceflow, serviceking, serviceforce, servicebench, serviceone, servicego, servicefast, servicebest
 			- repairplus.com, repairflow, repairdesk, repairhub, 
 - Ali
 								- Advance info in job control

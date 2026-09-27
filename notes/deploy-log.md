@@ -3,6 +3,23 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-27 19:51 (main)
+Portal: add service-plus-portal marketing site and sales enquiries
+
+- service-plus-portal: new Next.js static site (home, pricing, contact) with
+  4 plans from content/pricing.ts, screenshot gallery and a sales enquiry form
+- service-plus-server: POST /api/public/sales-enquiry saves to
+  service_plus_client.public.sales_enquiry, then emails; scripts/sales_enquiry.sql
+  (no triggers); localhost:3005 added to default CORS origins
+- Schema: regenerated service_plus_client dumps and db-schema-client types
+  for sales_enquiry
+- Help: new developer article for the portal and enquiries; registry DB
+  article now lists two tables
+- Chore: root .gitignore covers Next.js build output; portal env example
+  file added (contents not read); old plan files replaced by the portal plan
+
+Files: 17 changed (+757 / -1158) — Base: 15588b7
+
 ## 2026-09-26 20:03 (main)
 Admin: revert Manager-created users and subscription tiers
 

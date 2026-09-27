@@ -1,6 +1,7 @@
 """
 Public REST API for the company's marketing websites: service-plus-web (the
-Service+ product site) and kush-infotech-web (the parent company site).
+Service+ product site), service-plus-portal (the Service+ marketing and pricing
+site) and kush-infotech-web (the parent company site).
 
 Endpoints:
     GET /api/public/companies    - Dropdown list of companies (BUs across active clients)
@@ -12,6 +13,8 @@ Endpoints:
     GET /api/public/parts/{id}   - Single catalogue part, with its full photo gallery
     POST /api/public/part-orders - Submit a spare-parts order request (no payment, §7)
     POST /api/public/contact     - kush-infotech-web contact-form submission (email only, no DB row)
+    POST /api/public/sales-enquiry - service-plus-portal pricing-page enquiry (DB row in
+                                    service_plus_client.public.sales_enquiry, then email)
 
 Every route here is guarded by require_website_key (X-Website-Key header) and
 per-IP rate limiting. No amounts and no internal ids are ever returned — see
@@ -25,7 +28,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 import psycopg.sql as pgsql
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
 
@@ -33,7 +36,7 @@ from app.config import settings
 from app.core.dependencies import require_website_key
 from app.core.email import send_email
 from app.core.rate_limit import rate_limit
-from app.db.connection.psycopg_driver import exec_sql_query, get_service_db_connection
+from app.db.connection.psycopg_driver import exec_sql, exec_sql_query, get_service_db_connection
 from app.db.sql.sql_base import SqlStore
 from app.db.sql.sql_public import PublicSql
 from app.logger import logger
@@ -749,3 +752,161 @@ async def submit_contact_message(payload: ContactMessageIn) -> ContactMessageOut
         ) from mail_err
 
     return ContactMessageOut(status="ok")
+
+
+# ─── service-plus-portal sales enquiry ────────────────────────────────────────
+
+
+PLAN_NAMES = {"lite": "Lite", "basic": "Basic", "standard": "Standard", "enterprise": "Enterprise"}
+
+
+class SalesEnquiryIn(BaseModel):
+    plan_code: str = Field(pattern=r"^(lite|basic|standard|enterprise)$")
+    name: str = Field(min_length=2, max_length=100)
+    business_name: str = Field(min_length=2, max_length=200)
+    mobile: str = Field(pattern=r"^[6-9]\d{9}$")
+    email: str = Field(min_length=3, max_length=200, pattern=r"^.+@.+\..+$")
+    city: str = Field(min_length=2, max_length=100)
+    gstin: str | None = Field(
+        default=None,
+        pattern=r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$",
+    )
+    branches: int = Field(default=1, ge=1, le=50)
+    message: str | None = Field(default=None, max_length=2000)
+
+
+class SalesEnquiryOut(BaseModel):
+    status: str
+
+
+def _sales_enquiry_rows(payload: SalesEnquiryIn) -> list[tuple[str, str]]:
+    """(label, value) pairs shared by the text and HTML notifications."""
+    return [
+        ("Plan", PLAN_NAMES[payload.plan_code]),
+        ("Name", payload.name),
+        ("Business", payload.business_name),
+        ("Mobile", payload.mobile),
+        ("Email", payload.email),
+        ("City / State", payload.city),
+        ("GSTIN", payload.gstin or "—"),
+        ("Branches", str(payload.branches)),
+    ]
+
+
+def _build_sales_enquiry_email_text(payload: SalesEnquiryIn, enquiry_id: int) -> str:
+    lines = [f"{label}: {value}" for label, value in _sales_enquiry_rows(payload)]
+    return "\n".join(
+        [
+            f"Sales enquiry #{enquiry_id}",
+            "",
+            *lines,
+            "",
+            payload.message or "(no message)",
+            "",
+            "—",
+            "Sent from the service-plus-portal pricing page. Reply to this email to respond directly.",
+        ]
+    )
+
+
+def _build_sales_enquiry_email_html(payload: SalesEnquiryIn, enquiry_id: int) -> str:
+    """Same table-based, inline-styled layout as the contact-form email."""
+    esc = html.escape
+    message_html = esc(payload.message).replace("\n", "<br>") if payload.message else "—"
+    rows = "".join(
+        f"""
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #e5e9f2;color:#64748b;font-size:13px;width:140px;vertical-align:top;">{esc(label)}</td>
+          <td style="padding:10px 0;border-bottom:1px solid #e5e9f2;color:#0f172a;font-size:14px;font-weight:600;vertical-align:top;">{esc(value)}</td>
+        </tr>"""
+        for label, value in _sales_enquiry_rows(payload)
+    )
+
+    return f"""\
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f6fb;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+            <tr>
+              <td style="background:#2563eb;padding:24px 32px;">
+                <div style="color:#ffffff;font-size:18px;font-weight:700;">Service+</div>
+                <div style="color:#dbeafe;font-size:13px;margin-top:8px;">Sales enquiry #{enquiry_id} — {esc(PLAN_NAMES[payload.plan_code])}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 32px 8px 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  {rows}
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px 28px 32px;">
+                <div style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Message</div>
+                <div style="background:#eff6ff;border-left:3px solid #2563eb;border-radius:6px;padding:14px 16px;color:#0f172a;font-size:14px;line-height:1.6;">{message_html}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px 24px 32px;border-top:1px solid #e5e9f2;">
+                <div style="color:#94a3b8;font-size:12px;">Sent from the service-plus-portal pricing page. Reply to this email to respond directly to {esc(payload.name)}.</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>"""
+
+
+@router.post(
+    "/sales-enquiry",
+    response_model=SalesEnquiryOut,
+    dependencies=[Depends(rate_limit("sales-enquiry", limit=5, window_seconds=60))],
+)
+async def submit_sales_enquiry(payload: SalesEnquiryIn, request: Request) -> SalesEnquiryOut:
+    """
+    service-plus-portal pricing-page enquiry — the input to manual provisioning
+    (a BU for Lite/Basic/Standard, a dedicated DB for Enterprise). Unlike the
+    contact form, the enquiry is saved first (service_plus_client.public.sales_enquiry),
+    so a lost email never loses a lead: an email failure is logged and swallowed,
+    the same way `_notify_staff_of_order` treats a durably saved order. Returns
+    only a status — never the row id.
+    """
+    rows = await exec_sql(
+        db_name=None,
+        schema="public",
+        sql=PublicSql.INSERT_SALES_ENQUIRY,
+        sql_args={
+            "plan_code": payload.plan_code,
+            "name": payload.name.strip(),
+            "business_name": payload.business_name.strip(),
+            "mobile": payload.mobile,
+            "email": payload.email.strip(),
+            "city": payload.city.strip(),
+            "gstin": payload.gstin,
+            "branches": payload.branches,
+            "message": payload.message.strip() if payload.message else None,
+            "ip": request.client.host if request.client else None,
+        },
+    )
+    enquiry_id = rows[0]["id"]
+
+    if settings.contact_notify_email:
+        try:
+            await send_email(
+                to=settings.contact_notify_email,
+                subject=f"Service+ sales enquiry — {PLAN_NAMES[payload.plan_code]} — {payload.business_name}",
+                body=_build_sales_enquiry_email_text(payload, enquiry_id),
+                html_body=_build_sales_enquiry_email_html(payload, enquiry_id),
+                reply_to=payload.email,
+            )
+        except Exception as mail_err:  # pylint: disable=broad-except
+            logger.warning("Failed to send email for sales enquiry #%s: %s", enquiry_id, mail_err)
+    else:
+        logger.warning("Sales enquiry #%s saved but contact_notify_email is not set", enquiry_id)
+
+    return SalesEnquiryOut(status="ok")

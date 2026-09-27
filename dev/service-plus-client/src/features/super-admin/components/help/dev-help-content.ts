@@ -274,7 +274,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "1. The registry database (service_plus_client)" },
 			{
 				type: "para",
-				text: "A single platform-wide database whose schema is db/service_plus_client.sql. It holds exactly one table, public.client — the list of tenants: client_code, db_name, name, email, phone, gstin, is_active, plus unique constraints on code/db_name/email/name. This is what Super Admin's client list is reading from.",
+				text: "A single platform-wide database whose schema is db/service_plus_client.sql. It holds two tables. public.client is the list of tenants: client_code, db_name, name, email, phone, gstin, is_active, plus unique constraints on code/db_name/email/name. This is what Super Admin's client list is reading from. public.sales_enquiry holds sales leads from the service-plus-portal pricing page (see 'Public Marketing Portal & Plan Enquiries'); it is not tenant data.",
 			},
 			{ type: "heading", text: "2. Per-tenant databases (pattern: service_plus_demo)" },
 			{
@@ -3334,6 +3334,104 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "What happens to an order's notification email if the branch has no email and no app-setting is configured?",
 				a: "The order is still inserted — recipient resolution failing is logged as a warning, not treated as a submission failure. An unnotified order is recoverable by querying the table directly; a lost order isn't, which is why persistence never depends on the email succeeding.",
+			},
+		],
+	},
+
+	{
+		id: "dev-public-portal-sales-enquiry",
+		category: "Integrations",
+		title: "Public Marketing Portal & Plan Enquiries",
+		summary:
+			"service-plus-portal is the static Next.js marketing site (home, pricing, contact). Its pricing-page enquiry form posts to POST /api/public/sales-enquiry, which saves a row in service_plus_client.public.sales_enquiry and then emails the team.",
+		tags: [
+			"service-plus-portal",
+			"marketing site",
+			"pricing",
+			"plan enquiry",
+			"sales_enquiry",
+			"subscription plans",
+			"website_router",
+			"myserviceplus.in",
+		],
+		content: [
+			{
+				type: "para",
+				text: "service-plus-portal (dev/service-plus-portal, dev port 3005) sells Service+ to repair-shop owners. It is a different site from service-plus-web, which serves those shops' end customers (track a repair, buy parts). Like service-plus-web it is a Next.js 16 static export (output: 'export', trailingSlash: true) deployed to MilesWeb cPanel by deploy/build-and-deploy-milesweb.sh. It has no server of its own, so its only runtime dependency on this codebase is one REST call.",
+			},
+			{ type: "heading", text: "Where things live in the portal" },
+			{
+				type: "table",
+				headers: ["File", "Holds"],
+				rows: [
+					[
+						"content/pricing.ts",
+						"The only source for plans, prices, setup fees and limits (Lite, Basic, Standard, Enterprise). Cards, the comparison table, the enquiry form and JSON-LD all read it.",
+					],
+					[
+						"content/site-config.ts",
+						"Phone, email, address, WhatsApp, bank details (null until supplied), app URL for the Login button.",
+					],
+					[
+						"content/testimonials.ts",
+						"Empty on purpose until real, permitted quotes exist. The home section hides itself when it is empty.",
+					],
+					[
+						"content/screenshots.ts",
+						"Gallery groups. The images are in public/images/screens/, copied from kush-infotech-web.",
+					],
+					["lib/api.ts", "submitSalesEnquiry → POST /api/public/sales-enquiry with the X-Website-Key header."],
+				],
+			},
+			{ type: "heading", text: "Server side" },
+			{
+				type: "bullets",
+				items: [
+					"Route: POST /api/public/sales-enquiry in app/routers/public/website_router.py. It uses the router-wide require_website_key guard and rate_limit('sales-enquiry', 5 per 60 s per IP).",
+					"Model: SalesEnquiryIn. plan_code must be lite|basic|standard|enterprise; mobile must be 10 digits starting 6-9; gstin is optional but, if given, must match the 15-character pattern; branches must be 1-50. These mirror the portal's zod schema and service-plus-client's lib/mobile.ts and lib/gstin.ts.",
+					"SQL: PublicSql.INSERT_SALES_ENQUIRY (app/db/sql/sql_public.py). It runs through exec_sql with db_name=None, i.e. against the service_plus_client registry DB, not a tenant DB.",
+					"The row is saved first, then contact_notify_email is emailed (HTML and text, reply-to set to the enquirer). An email failure is logged and swallowed, since the lead is already saved. The response is always {status: 'ok'} and never includes the row id.",
+				],
+			},
+			{ type: "heading", text: "Table: service_plus_client.public.sales_enquiry" },
+			{
+				type: "para",
+				text: "Created by service-plus-server/scripts/sales_enquiry.sql (idempotent, run once per environment on the service_plus_client DB). Columns: id, plan_code, name, business_name, mobile, email, city, gstin, branches, message, status ('new' | 'contacted' | 'converted' | 'rejected', default 'new'), ip, created_at. No triggers and no updated_at column: whatever later updates rows (the future enquiries grid) adds updated_at and sets it explicitly. CHECK constraints enforce the plan_code, status and branches ranges.",
+			},
+			{
+				type: "warning",
+				text: "Until scripts/sales_enquiry.sql has been run on an environment's service_plus_client DB, every enquiry there fails with a 500. After running it, regenerate app/db/schema_dumps/service_plus_client.sql and this client's src/types/db-schema-client.ts (pnpm gen-types-client).",
+			},
+			{ type: "heading", text: "Configuration per environment" },
+			{
+				type: "bullets",
+				items: [
+					"Portal build env: NEXT_PUBLIC_API_BASE_URL, NEXT_PUBLIC_WEBSITE_KEY (must equal the server's WEBSITE_API_KEY), NEXT_PUBLIC_APP_URL.",
+					"Server .env: the portal's origins in CORS_ORIGINS, plus CONTACT_NOTIFY_EMAIL.",
+				],
+			},
+			{ type: "heading", text: "Not built yet" },
+			{
+				type: "bullets",
+				items: [
+					"There is no super-admin screen for enquiries yet. Read the table directly for now; the status column exists for that future grid.",
+					"Nothing in the app enforces plan limits (jobs per month, WhatsApp quota, user count, BU count). The pricing page describes the plans; it does not gate anything.",
+					"Payment is a manual bank transfer. The enquiry success card's payment block (components/pricing/enquiry-success.tsx) is the one place to swap for a Razorpay checkout later.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Why store enquiries in a table when the kush-infotech-web contact form only sends an email?",
+				a: "An enquiry is the input to provisioning a paying customer. If the email fails, a contact message can be resent, but a lost enquiry is a lost sale. Saving first makes the email a convenience rather than the only record.",
+			},
+			{
+				q: "Why the registry DB rather than a tenant DB?",
+				a: "An enquirer is not a tenant yet, so there is no tenant DB or BU to put the row in. The registry DB is the one platform-wide database.",
+			},
+			{
+				q: "Where do I change a price?",
+				a: "content/pricing.ts in service-plus-portal, then rebuild and redeploy the portal. The server does not know prices; it only validates plan_code.",
 			},
 		],
 	},
