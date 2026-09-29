@@ -1,4 +1,5 @@
-import { CheckCircle2, Landmark } from "lucide-react";
+import { Check, CheckCircle2, ClipboardCopy, Landmark } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { MESSAGES } from "@/constants/messages";
@@ -8,6 +9,16 @@ import { siteConfig } from "@/content/site-config";
 type EnquirySuccessPropsType = {
 	onReset: () => void;
 	plan: PlanType;
+	// Echoed back so the visitor can confirm what was actually sent before they close the tab.
+	values: {
+		branches: number;
+		businessName: string;
+		city: string;
+		email: string;
+		gstin: string;
+		mobile: string;
+		name: string;
+	};
 };
 
 function nextStep(plan: PlanType): string {
@@ -57,23 +68,104 @@ const PaymentDetails = ({ plan }: { plan: PlanType }) => {
 	);
 };
 
-export const EnquirySuccess = ({ onReset, plan }: EnquirySuccessPropsType) => {
+const CopyMobile = ({ mobile }: { mobile: string }) => {
+	const [copied, setCopied] = useState(false);
+
+	// A static export, so this is a copy button rather than a link that depends on a handler.
+	const onCopy = async () => {
+		try {
+			await navigator.clipboard.writeText(mobile);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		} catch {
+			// Clipboard blocked (insecure origin or denied permission) — the number stays selectable.
+		}
+	};
+
 	return (
-		<div className="space-y-5 text-center sm:text-left" role="status">
-			<div className="flex flex-col items-center gap-3 sm:flex-row">
-				<CheckCircle2 className="size-10 shrink-0 text-success" />
+		<button
+			className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/40 inline-flex items-center gap-1 rounded-md p-0.5 align-middle transition-colors focus-visible:ring-3 focus-visible:outline-none"
+			onClick={onCopy}
+			title={`Copy ${mobile}`}
+			type="button"
+		>
+			{copied ? (
+				<Check aria-hidden className="text-success size-3.5" />
+			) : (
+				<ClipboardCopy aria-hidden className="size-3.5" />
+			)}
+			<span aria-live="polite" className="sr-only">
+				{copied ? "Mobile number copied" : "Copy mobile number"}
+			</span>
+		</button>
+	);
+};
+
+export const EnquirySuccess = ({ onReset, plan, values }: EnquirySuccessPropsType) => {
+	const recap: { label: string; value: string }[] = [
+		{ label: "Name", value: values.name },
+		{ label: "Business", value: values.businessName },
+		{ label: "Mobile", value: values.mobile },
+		{ label: "Email", value: values.email },
+		{ label: "City / State", value: values.city },
+		{ label: "Branches", value: String(values.branches) },
+		{ label: "Plan", value: plan.name },
+	];
+	if (values.gstin) recap.push({ label: "GSTIN", value: values.gstin });
+
+	const steps = [MESSAGES.successBody, nextStep(plan), MESSAGES.successSignIn];
+
+	return (
+		<div className="space-y-6 text-left" role="status">
+			<div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+				<CheckCircle2 aria-hidden className="size-10 shrink-0 text-success" />
 				<div>
 					<h3 className="text-xl font-semibold">{MESSAGES.successTitle}</h3>
-					<p className="text-sm text-muted-foreground">{MESSAGES.successBody}</p>
+					<p className="text-sm text-muted-foreground">Keep this page — you can check what you sent below.</p>
 				</div>
 			</div>
 
-			<div className="text-left text-sm">
-				<p className="font-semibold">{MESSAGES.whatNext}</p>
-				<p className="mt-1 text-muted-foreground">{nextStep(plan)}</p>
+			<div>
+				<p className="text-sm font-semibold">{MESSAGES.whatNext}</p>
+				<ol className="mt-3 space-y-3">
+					{steps.map((step, index) => (
+						<li className="flex items-start gap-3 text-sm" key={step}>
+							<span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+								{index + 1}
+							</span>
+							<span className="text-muted-foreground pt-0.5">{step}</span>
+						</li>
+					))}
+				</ol>
 			</div>
 
 			{plan.monthlyPrice > 0 && <PaymentDetails plan={plan} />}
+
+			<div className="rounded-xl border border-border bg-muted/40 p-4 text-sm">
+				<p className="font-semibold">What you sent</p>
+				<dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+					{recap.map((row) => (
+						<div className="contents" key={row.label}>
+							<dt className="text-muted-foreground">{row.label}</dt>
+							<dd className="flex min-w-0 items-center gap-1 font-medium break-words">
+								{row.label === "Mobile" && <CopyMobile mobile={row.value} />}
+								{row.value}
+							</dd>
+						</div>
+					))}
+				</dl>
+			</div>
+
+			<p className="text-muted-foreground text-sm">
+				In a hurry? Call us on{" "}
+				<a
+					className="text-foreground font-medium underline underline-offset-4"
+					href={`tel:${siteConfig.phoneE164}`}
+				>
+					{siteConfig.phone}
+				</a>{" "}
+				during {siteConfig.businessHours}.
+			</p>
 
 			<Button onClick={onReset} type="button" variant="outline">
 				Send another enquiry

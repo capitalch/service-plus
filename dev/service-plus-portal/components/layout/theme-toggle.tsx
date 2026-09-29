@@ -1,12 +1,19 @@
 "use client";
 
+import type { VariantProps } from "class-variance-authority";
 import { Moon, Sun } from "lucide-react";
 
 import { useTheme } from "@/components/layout/theme-provider";
-import { Button } from "@/components/ui/button";
+import { Button, type buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export const ThemeToggle = ({ className }: { className?: string }) => {
+type ThemeToggleProps = {
+	className?: string;
+	/** Defaults to the outlined icon button used in the header. */
+	variant?: VariantProps<typeof buttonVariants>["variant"];
+};
+
+export const ThemeToggle = ({ className, variant = "outline" }: ThemeToggleProps = {}) => {
 	const { theme, toggleTheme } = useTheme();
 	const isDark = theme === "dark";
 	const label = isDark ? "Light theme" : "Dark theme";
@@ -19,7 +26,7 @@ export const ThemeToggle = ({ className }: { className?: string }) => {
 			size="icon"
 			title={label}
 			type="button"
-			variant="outline"
+			variant={variant}
 		>
 			<Sun
 				className={cn(

@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 type PlanCardPropsType = {
 	onSelect: (code: PlanCodeType) => void;
 	plan: PlanType;
+	/** Set once this card has been chosen, so the grid shows what the form below is set to. */
+	selected?: boolean;
 };
 
 type LineType = {
@@ -27,21 +29,30 @@ function planLines(plan: PlanType): LineType[] {
 	return [
 		{ included: true, label: usersLabel(plan) },
 		{ included: true, label: jobsLabel(plan) },
+		{ included: true, label: "GST & non-GST billing" },
 		{ included: plan.whatsappPerMonth > 0, label: whatsappLabel(plan) },
 		{ included: plan.inventory, label: plan.inventory ? "Spare-parts inventory" : "No spare-parts inventory" },
 		{ included: true, label: businessUnitsLabel(plan) },
+		{ included: true, label: "Unlimited branches" },
 		...(plan.provisioning === "database" ? [{ included: true, label: "Dedicated database" }] : []),
 	];
 }
 
-export const PlanCard = ({ onSelect, plan }: PlanCardPropsType) => {
+export const PlanCard = ({ onSelect, plan, selected }: PlanCardPropsType) => {
 	const isFree = plan.monthlyPrice === 0;
 
 	return (
 		<article
+			aria-current={selected ? "true" : undefined}
 			className={cn(
-				"relative flex h-full flex-col rounded-2xl border bg-card p-6 shadow-xs",
-				plan.highlighted ? "border-primary shadow-lg shadow-primary/10 ring-1 ring-primary" : "border-border",
+				"relative flex h-full flex-col rounded-2xl border bg-card p-6 shadow-xs transition-all duration-300",
+				// A chosen plan needs to be obvious: previously the click only scrolled the page and
+				// the form's own select was the single source of truth.
+				selected
+					? "border-primary ring-primary/20 ring-4"
+					: plan.highlighted
+						? "border-primary shadow-lg shadow-primary/10 ring-1 ring-primary"
+						: "border-border hover:-translate-y-0.5 hover:shadow-md",
 			)}
 		>
 			{plan.highlighted && (
@@ -49,6 +60,14 @@ export const PlanCard = ({ onSelect, plan }: PlanCardPropsType) => {
 					Most popular
 				</Badge>
 			)}
+
+			{selected && (
+				<span className="bg-primary text-primary-foreground absolute -top-2.5 right-4 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium">
+					<Check aria-hidden className="size-3" />
+					Selected
+				</span>
+			)}
+
 			<h3 className="text-lg font-semibold">{plan.name}</h3>
 			<p className="mt-1 min-h-10 text-sm text-muted-foreground">{plan.tagline}</p>
 
@@ -69,9 +88,9 @@ export const PlanCard = ({ onSelect, plan }: PlanCardPropsType) => {
 						key={line.label}
 					>
 						{line.included ? (
-							<Check className="mt-0.5 size-4 shrink-0 text-success" />
+							<Check aria-hidden className="text-success mt-0.5 size-4 shrink-0" />
 						) : (
-							<X className="mt-0.5 size-4 shrink-0 text-muted-foreground/70" />
+							<X aria-hidden className="text-muted-foreground/70 mt-0.5 size-4 shrink-0" />
 						)}
 						{line.label}
 					</li>
@@ -79,12 +98,13 @@ export const PlanCard = ({ onSelect, plan }: PlanCardPropsType) => {
 			</ul>
 
 			<Button
+				aria-pressed={selected}
 				className="mt-6 w-full"
 				onClick={() => onSelect(plan.code)}
 				type="button"
-				variant={plan.highlighted ? "default" : "outline"}
+				variant={selected ? "secondary" : plan.highlighted ? "default" : "outline"}
 			>
-				{isFree ? "Start free" : `Choose ${plan.name}`}
+				{selected ? "Selected" : isFree ? "Start free" : `Choose ${plan.name}`}
 			</Button>
 		</article>
 	);

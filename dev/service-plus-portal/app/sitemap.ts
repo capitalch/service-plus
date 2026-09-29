@@ -5,9 +5,9 @@ import { siteConfig } from "@/content/site-config";
 export const dynamic = "force-static";
 
 const sitemap = (): MetadataRoute.Sitemap => {
-	return ["/", "/pricing/", "/contact/"].map((path) => ({
+	return ["/", "/features/", "/pricing/", "/contact/", "/privacy/", "/terms/"].map((path) => ({
 		changeFrequency: "monthly",
-		priority: path === "/" ? 1 : 0.8,
+		priority: path === "/" ? 1 : path === "/privacy/" || path === "/terms/" ? 0.3 : 0.8,
 		url: `${siteConfig.url}${path}`,
 	}));
 };

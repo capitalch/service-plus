@@ -3,6 +3,18 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-29 15:18 (main)
+Portal: features/privacy/terms pages, redesigned home and pricing, real screenshots
+
+- service-plus-portal: new /features, /privacy and /terms routes (legal.ts, proof.ts, stats.ts content), plus sitemap entries
+- home: new hero visual, owner benefits, proof and service-centre sections; animated tabs, count-up, scroll progress and mobile action bar
+- pricing/contact: rewritten sales enquiry form, plan recommender, richer enquiry-success card, contact enquiry form
+- screenshots: 42 real demo-tenant captures replace the placeholders; branches.jpg removed, existing images recompressed
+- client help: dev-help-content portal article updated for the new routes, content files and screenshot notes
+- plans/notes: plan.md rewritten, plan-codex.md moved to plans/history, todo.md domain candidates added
+
+Files: 53 changed (+1570 / -1352) — Base: 9a44895
+
 ## 2026-09-27 19:51 (main)
 Portal: add service-plus-portal marketing site and sales enquiries
 

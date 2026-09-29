@@ -70,7 +70,11 @@
   --gradient-brand: linear-gradient(135deg, oklch(0.72 0.18 275) 0%, oklch(0.72 0.14 262) 45%, oklch(0.68 0.17 292) 100%);
   --glow-strong: oklch(0.72 0.14 262 / 18%);
   --glow-soft: oklch(0.72 0.14 262 / 8%);
-  --bg-decor: none;
+  /* Dark mode used to drop the ambient wash entirely, which left it flat next to the light
+     theme. Same two washes as light, with a deeper hue and lower alpha so they read as depth
+     rather than as a tinted overlay. */
+  --bg-decor: radial-gradient(1100px 520px at 50% -10%, oklch(0.62 0.16 268 / 16%), transparent 60%),
+    radial-gradient(700px 480px at 105% 105%, oklch(0.6 0.19 292 / 12%), transparent 55%);
   color-scheme: dark;
 }
 
@@ -108,6 +112,14 @@
   --radius-2xl: calc(var(--radius) + 10px);
   --radius-3xl: calc(var(--radius) + 16px);
   --radius-4xl: calc(var(--radius) + 22px);
+
+  /* Section rhythm. Declared as spacing tokens rather than repeated py-16 / lg:py-20 / px-4 /
+     lg:px-6 pairs, so the vertical cadence and the page gutter are tunable in one place and
+     Tailwind still generates responsive variants (py-section, lg:py-section-lg). */
+  --spacing-section: 4rem;
+  --spacing-section-lg: 5rem;
+  --spacing-page: 1rem;
+  --spacing-page-lg: 1.5rem;
 }
 
 @layer base {
@@ -116,12 +128,23 @@
   }
   html {
     scroll-behavior: smooth;
+    /* The opaque background lives on html, not body. The root element is the stacking context,
+       so its background paints before the negative-z pseudo-element below, which in turn paints
+       before the page content. Putting it on body instead would cover the decor entirely. */
+    @apply bg-background;
   }
   body {
-    @apply font-sans bg-background text-foreground antialiased;
+    @apply font-sans text-foreground antialiased;
+  }
+  /* The ambient wash sits on a fixed pseudo-layer rather than background-attachment: fixed,
+     which janks scroll on iOS Safari. It is clipped to the viewport, not the page. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     background-image: var(--bg-decor);
-    background-attachment: fixed;
-    background-repeat: no-repeat;
   }
   ::selection {
     background: var(--primary);
@@ -145,4 +168,97 @@
     linear-gradient(to right, oklch(0.5 0.02 262 / 5%) 1px, transparent 1px),
     linear-gradient(to bottom, oklch(0.5 0.02 262 / 5%) 1px, transparent 1px);
   background-size: 42px 42px;
+}
+
+/* Underline that scales in under the active tab trigger. Cheaper and more robust than a
+   measured sliding indicator, and it needs no measurement pass on resize. */
+@utility tab-underline {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0.6rem;
+    bottom: -0.25rem;
+    height: 2px;
+    border-radius: 9999px;
+    background-image: var(--gradient-brand);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  &:where([data-state="active"])::after {
+    transform: scaleX(1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      transition: none;
+    }
+  }
+}
+
+/* One slow sweep of light across a gradient surface, for the primary CTA. Paused rather than
+   removed under reduced motion so the highlight still reads, just without movement. */
+@utility sheen {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      oklch(1 0 0 / 22%) 45%,
+      transparent 70%
+    );
+    transform: translateX(-120%);
+    animation: sheen-sweep 4.5s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      animation: none;
+      transform: none;
+    }
+  }
+}
+
+@keyframes sheen-sweep {
+  0%,
+  55% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+/* Shared hover treatment for the tile cards, so the lift reads identically wherever a card
+   appears. Kept as a class rather than repeated utilities to stop the copies drifting. */
+@utility card-lift {
+  transition:
+    transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 300ms ease,
+    border-color 300ms ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in oklch, var(--primary) 35%, var(--border));
+    box-shadow:
+      0 2px 4px -2px oklch(0.22 0.028 262 / 10%),
+      0 18px 40px -20px oklch(0.22 0.028 262 / 30%);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: border-color 300ms ease;
+    &:hover {
+      transform: none;
+    }
+  }
 }

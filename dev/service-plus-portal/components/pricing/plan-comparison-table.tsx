@@ -20,8 +20,10 @@ const rows: RowType[] = [
 	},
 	{ label: "Spare-parts inventory", value: (p) => p.inventory },
 	{ label: "Business units", value: (p) => String(p.businessUnits) },
+	{ label: "Branches", value: () => "Unlimited" },
 	{ label: "Dedicated database", value: (p) => p.provisioning === "database" },
-	{ label: "Reports & GST invoicing", value: () => true },
+	{ label: "GST & non-GST billing", value: () => true },
+	{ label: "Reports & analytics", value: () => true },
 ];
 
 const Cell = ({ value }: { value: boolean | string }) => {

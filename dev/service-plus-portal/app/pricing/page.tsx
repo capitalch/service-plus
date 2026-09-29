@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { SectionHeading } from "@/components/layout/section-heading";
+import { PageHero } from "@/components/layout/page-hero";
 import { Faq } from "@/components/pricing/faq";
 import { PlanComparisonTable } from "@/components/pricing/plan-comparison-table";
 import { PricingSection } from "@/components/pricing/pricing-section";
@@ -34,14 +34,13 @@ const PricingPage = () => {
 	return (
 		<>
 			<script dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} type="application/ld+json" />
-			<section className="bg-grid">
-				<div className="mx-auto w-full max-w-6xl px-4 py-14 sm:py-20 lg:px-6">
-					<SectionHeading eyebrow="Pricing" intro={MESSAGES.pricingIntro} title={MESSAGES.pricingTitle} />
-					<PricingSection />
-				</div>
+			<PageHero eyebrow="Pricing" intro={MESSAGES.pricingIntro} title={MESSAGES.pricingTitle} />
+
+			<section className="mx-auto w-full max-w-6xl px-page lg:px-page-lg">
+				<PricingSection />
 			</section>
 
-			<section className="mx-auto w-full max-w-6xl px-4 pt-8 lg:px-6">
+			<section className="mx-auto w-full max-w-6xl px-page pt-8 lg:px-page-lg">
 				<h2 className="mb-4 text-2xl font-bold tracking-tight">Compare plans</h2>
 				<PlanComparisonTable />
 				<p className="mt-3 text-xs text-muted-foreground">{MESSAGES.limitsNote}</p>

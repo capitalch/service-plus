@@ -5,7 +5,7 @@ import { faqs } from "@/content/faq";
 
 export const Faq = () => {
 	return (
-		<section className="mx-auto w-full max-w-3xl px-4 py-16 lg:px-6" id="faq">
+		<section className="mx-auto w-full max-w-3xl px-page py-section lg:px-page-lg lg:py-section-lg" id="faq">
 			<SectionHeading title={MESSAGES.faqTitle} />
 			<Accordion className="mt-8 rounded-2xl border border-border bg-card px-5" collapsible type="single">
 				{faqs.map((faq) => (

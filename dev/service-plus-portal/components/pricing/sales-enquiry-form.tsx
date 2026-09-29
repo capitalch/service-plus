@@ -1,8 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Send } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlertCircle, Loader2, Lock, Send } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -16,7 +17,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { MESSAGES } from "@/constants/messages";
 import { findPlan, formatInr, planCodes, plans, type PlanCodeType } from "@/content/pricing";
 import { ApiError, submitSalesEnquiry } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { GSTIN_REGEX, MOBILE_REGEX, normalizeGstin, normalizeMobile } from "@/lib/validators";
+
+const MESSAGE_LIMIT = 2000;
 
 const enquirySchema = z.object({
 	branches: z
@@ -28,7 +32,7 @@ const enquirySchema = z.object({
 	city: z.string().trim().min(2, MESSAGES.errCity).max(100, MESSAGES.errCity),
 	email: z.email(MESSAGES.errEmail).max(200, MESSAGES.errEmail),
 	gstin: z.string().refine((v) => v === "" || GSTIN_REGEX.test(v), MESSAGES.errGstin),
-	message: z.string().max(2000, MESSAGES.errMessage),
+	message: z.string().max(MESSAGE_LIMIT, MESSAGES.errMessage),
 	mobile: z.string().regex(MOBILE_REGEX, MESSAGES.errMobile),
 	name: z.string().trim().min(2, MESSAGES.errName).max(100, MESSAGES.errName),
 	plan: z.enum(planCodes, { error: MESSAGES.errPlan }),
@@ -42,6 +46,21 @@ type SalesEnquiryFormPropsType = {
 	selectedPlan: PlanCodeType;
 };
 
+type FieldMetaType = { id: keyof EnquiryFormType; label: string };
+
+// Order here is the order the error summary reads in, so it matches the form top to bottom.
+const fieldOrder: FieldMetaType[] = [
+	{ id: "plan", label: "Plan" },
+	{ id: "name", label: "Your name" },
+	{ id: "businessName", label: "Business name" },
+	{ id: "mobile", label: "Mobile" },
+	{ id: "email", label: "Email" },
+	{ id: "city", label: "City / State" },
+	{ id: "gstin", label: "GSTIN" },
+	{ id: "branches", label: "Branches needed" },
+	{ id: "message", label: "Message" },
+];
+
 const Required = () => (
 	<span aria-hidden className="text-destructive">
 		*
@@ -50,17 +69,77 @@ const Required = () => (
 
 const FieldError = ({ id, message }: { id: string; message?: string }) =>
 	message ? (
-		<p className="text-xs text-destructive" id={id}>
+		<p className="flex items-start gap-1.5 text-xs text-destructive" id={id}>
+			<AlertCircle aria-hidden className="mt-px size-3.5 shrink-0" />
 			{message}
 		</p>
 	) : null;
 
+type FieldRenderPropsType = {
+	"aria-describedby"?: string;
+	"aria-invalid"?: true;
+	"aria-required"?: true;
+	id: string;
+};
+
+type FieldPropsType = {
+	children: (props: FieldRenderPropsType) => React.ReactNode;
+	error?: string;
+	htmlFor: string;
+	label: string;
+	required?: boolean;
+};
+
+// Owns the label, the error text and the aria wiring for one control. The render prop hands the
+// control its id plus aria-describedby/aria-invalid/aria-required, so a field can't forget them.
+const Field = ({ children, error, htmlFor, label, required }: FieldPropsType) => (
+	<div className="space-y-2">
+		<Label htmlFor={htmlFor}>
+			{label} {required && <Required />}
+		</Label>
+		{children({
+			...(error ? { "aria-describedby": `${htmlFor}-error` } : {}),
+			...(error ? { "aria-invalid": true as const } : {}),
+			...(required ? { "aria-required": true as const } : {}),
+			id: htmlFor,
+		})}
+		<FieldError id={`${htmlFor}-error`} message={error} />
+	</div>
+);
+
+type ErrorSummaryPropsType = {
+	errors: { id: string; label: string; message: string }[];
+	ref?: React.Ref<HTMLDivElement>;
+};
+
+// Announced on submit failure and focusable, so a keyboard or screen-reader user lands on the
+// list of problems first and can jump to any field from it. Collapses away once everything passes.
+const ErrorSummary = ({ errors, ref }: ErrorSummaryPropsType) => (
+	<div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4" ref={ref} role="alert" tabIndex={-1}>
+		<p className="flex items-center gap-2 text-sm font-semibold text-destructive">
+			<AlertCircle aria-hidden className="size-4 shrink-0" />
+			{errors.length === 1 ? "Please fix this field" : `Please fix these ${errors.length} fields`} to send your
+			enquiry
+		</p>
+		<ul className="mt-2 space-y-1 pl-6 text-sm">
+			{errors.map((error) => (
+				<li className="list-disc" key={error.id}>
+					<a className="underline underline-offset-2 hover:no-underline" href={`#${error.id}`}>
+						{error.label}: {error.message}
+					</a>
+				</li>
+			))}
+		</ul>
+	</div>
+);
+
 export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) => {
-	const [submittedPlan, setSubmittedPlan] = useState<PlanCodeType | null>(null);
+	const [submitted, setSubmitted] = useState<EnquiryFormType | null>(null);
+	const summaryRef = useRef<HTMLDivElement>(null);
 
 	const {
 		control,
-		formState: { errors, isSubmitting, isValid },
+		formState: { errors, isSubmitted, isSubmitting, submitCount },
 		handleSubmit,
 		register,
 		reset,
@@ -79,7 +158,9 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 			plan: selectedPlan,
 			website: "",
 		},
-		mode: "all",
+		// Errors appear on blur rather than on every keystroke, then re-check as the visitor types.
+		mode: "onTouched",
+		reValidateMode: "onChange",
 		resolver: zodResolver(enquirySchema),
 	});
 
@@ -88,19 +169,36 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 		setValue("plan", selectedPlan, { shouldValidate: true });
 	}, [selectedPlan, setValue]);
 
+	// Move focus to the summary after a failed submit so the problems are read out and reachable.
+	// submitCount is a dep so a second failed attempt re-focuses it even though isSubmitted stays
+	// true. On a valid submit no summary is rendered and summaryRef.current is null, so this no-ops.
+	useEffect(() => {
+		if (!isSubmitted) return;
+		summaryRef.current?.focus();
+		summaryRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+	}, [isSubmitted, submitCount]);
+
+	const errorList = useMemo(
+		() =>
+			fieldOrder.flatMap((field) => {
+				const message = errors[field.id]?.message;
+				return message ? [{ id: field.id, label: field.label, message: String(message) }] : [];
+			}),
+		[errors],
+	);
+
 	const plan = findPlan(watch("plan"));
-	const branches = watch("branches");
-	const showBranchesHint = plan !== undefined && plan.provisioning === "bu" && branches > 1;
+	const messageLength = watch("message")?.length ?? 0;
 
 	async function onSubmit(values: EnquiryFormType) {
 		// A bot filled the honeypot: pretend it worked, send nothing.
 		if (values.website) {
-			setSubmittedPlan(values.plan);
+			setSubmitted(values);
 			return;
 		}
 		try {
 			await submitSalesEnquiry(values);
-			setSubmittedPlan(values.plan);
+			setSubmitted(values);
 		} catch (error) {
 			toast.error(
 				error instanceof ApiError && error.status === 429
@@ -112,157 +210,140 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 
 	function handleReset() {
 		reset({ ...watch(), businessName: "", city: "", email: "", gstin: "", message: "", mobile: "", name: "" });
-		setSubmittedPlan(null);
+		setSubmitted(null);
 	}
 
-	const submittedPlanData = findPlan(submittedPlan);
-	if (submittedPlanData) return <EnquirySuccess onReset={handleReset} plan={submittedPlanData} />;
+	const submittedPlan = findPlan(submitted?.plan);
+	if (submittedPlan && submitted)
+		return <EnquirySuccess onReset={handleReset} plan={submittedPlan} values={submitted} />;
 
 	return (
 		<form className="grid gap-5 sm:grid-cols-2" noValidate onSubmit={handleSubmit(onSubmit)}>
-			<div className="space-y-2 sm:col-span-2">
-				<Label htmlFor="plan">
-					Plan <Required />
-				</Label>
-				<Controller
-					control={control}
-					name="plan"
-					render={({ field }) => (
-						<Select onValueChange={field.onChange} value={field.value}>
-							<SelectTrigger aria-invalid={!!errors.plan} className="w-full" id="plan">
-								<SelectValue placeholder="Choose a plan" />
-							</SelectTrigger>
-							<SelectContent>
-								{plans.map((p) => (
-									<SelectItem key={p.code} value={p.code}>
-										{p.name} —{" "}
-										{p.monthlyPrice === 0 ? "Free" : `${formatInr(p.monthlyPrice)} / month`}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					)}
-				/>
-				<FieldError id="plan-error" message={errors.plan?.message} />
-			</div>
+			{isSubmitted && errorList.length > 0 && <ErrorSummary errors={errorList} ref={summaryRef} />}
 
-			<div className="space-y-2">
-				<Label htmlFor="name">
-					Your name <Required />
-				</Label>
-				<Input aria-invalid={!!errors.name} autoComplete="name" id="name" {...register("name")} />
-				<FieldError id="name-error" message={errors.name?.message} />
-			</div>
-
-			<div className="space-y-2">
-				<Label htmlFor="businessName">
-					Business name <Required />
-				</Label>
-				<Input
-					aria-invalid={!!errors.businessName}
-					autoComplete="organization"
-					id="businessName"
-					{...register("businessName")}
-				/>
-				<FieldError id="businessName-error" message={errors.businessName?.message} />
-			</div>
-
-			<div className="space-y-2">
-				<Label htmlFor="mobile">
-					Mobile <Required />
-				</Label>
-				<Controller
-					control={control}
-					name="mobile"
-					render={({ field }) => (
-						<Input
-							aria-invalid={!!errors.mobile}
-							autoComplete="tel-national"
-							id="mobile"
-							inputMode="numeric"
-							name={field.name}
-							onBlur={field.onBlur}
-							onChange={(e) => field.onChange(normalizeMobile(e.target.value))}
-							placeholder="10-digit mobile"
-							ref={field.ref}
-							value={field.value}
+			<div className="sm:col-span-2">
+				<Field error={errors.plan?.message} htmlFor="plan" label="Plan" required>
+					{(aria) => (
+						<Controller
+							control={control}
+							name="plan"
+							render={({ field }) => (
+								<Select onValueChange={field.onChange} value={field.value}>
+									<SelectTrigger className="w-full" {...aria}>
+										<SelectValue placeholder="Choose a plan" />
+									</SelectTrigger>
+									<SelectContent>
+										{plans.map((p) => (
+											<SelectItem key={p.code} value={p.code}>
+												{p.name} —{" "}
+												{p.monthlyPrice === 0 ? "Free" : `${formatInr(p.monthlyPrice)} / month`}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							)}
 						/>
 					)}
-				/>
-				<FieldError id="mobile-error" message={errors.mobile?.message} />
+				</Field>
 			</div>
 
-			<div className="space-y-2">
-				<Label htmlFor="email">
-					Email <Required />
-				</Label>
-				<Input
-					aria-invalid={!!errors.email}
-					autoComplete="email"
-					id="email"
-					type="email"
-					{...register("email")}
-				/>
-				<FieldError id="email-error" message={errors.email?.message} />
-			</div>
+			<Field error={errors.name?.message} htmlFor="name" label="Your name" required>
+				{(aria) => <Input autoComplete="name" {...aria} {...register("name")} />}
+			</Field>
 
-			<div className="space-y-2">
-				<Label htmlFor="city">
-					City / State <Required />
-				</Label>
-				<Input aria-invalid={!!errors.city} autoComplete="address-level2" id="city" {...register("city")} />
-				<FieldError id="city-error" message={errors.city?.message} />
-			</div>
+			<Field error={errors.businessName?.message} htmlFor="businessName" label="Business name" required>
+				{(aria) => <Input autoComplete="organization" {...aria} {...register("businessName")} />}
+			</Field>
 
-			<div className="space-y-2">
-				<Label htmlFor="gstin">GSTIN</Label>
-				<Controller
-					control={control}
-					name="gstin"
-					render={({ field }) => (
-						<Input
-							aria-invalid={!!errors.gstin}
-							id="gstin"
-							maxLength={15}
-							name={field.name}
-							onBlur={field.onBlur}
-							onChange={(e) => field.onChange(normalizeGstin(e.target.value))}
-							placeholder="Optional"
-							ref={field.ref}
-							value={field.value}
-						/>
-					)}
-				/>
-				<FieldError id="gstin-error" message={errors.gstin?.message} />
-			</div>
-
-			<div className="space-y-2">
-				<Label htmlFor="branches">Branches needed</Label>
-				<Input
-					aria-invalid={!!errors.branches}
-					id="branches"
-					inputMode="numeric"
-					max={50}
-					min={1}
-					type="number"
-					{...register("branches", { valueAsNumber: true })}
-				/>
-				<FieldError id="branches-error" message={errors.branches?.message} />
-				{showBranchesHint && !errors.branches && (
-					<p className="text-xs text-muted-foreground">{MESSAGES.branchesHint}</p>
+			<Field error={errors.mobile?.message} htmlFor="mobile" label="Mobile" required>
+				{(aria) => (
+					<Controller
+						control={control}
+						name="mobile"
+						render={({ field }) => (
+							<Input
+								autoComplete="tel-national"
+								enterKeyHint="next"
+								inputMode="numeric"
+								name={field.name}
+								onBlur={field.onBlur}
+								onChange={(e) => field.onChange(normalizeMobile(e.target.value))}
+								placeholder="10-digit mobile"
+								ref={field.ref}
+								type="tel"
+								value={field.value}
+								{...aria}
+							/>
+						)}
+					/>
 				)}
-			</div>
+			</Field>
 
-			<div className="space-y-2 sm:col-span-2">
-				<Label htmlFor="message">Message</Label>
-				<Textarea
-					aria-invalid={!!errors.message}
-					id="message"
-					placeholder="Anything we should know: current software, number of technicians, brands you service…"
-					rows={4}
-					{...register("message")}
-				/>
-				<FieldError id="message-error" message={errors.message?.message} />
+			<Field error={errors.email?.message} htmlFor="email" label="Email" required>
+				{(aria) => <Input autoComplete="email" type="email" {...aria} {...register("email")} />}
+			</Field>
+
+			<Field error={errors.city?.message} htmlFor="city" label="City / State" required>
+				{(aria) => <Input autoComplete="address-level2" {...aria} {...register("city")} />}
+			</Field>
+
+			<Field error={errors.gstin?.message} htmlFor="gstin" label="GSTIN">
+				{(aria) => (
+					<Controller
+						control={control}
+						name="gstin"
+						render={({ field }) => (
+							<Input
+								autoCapitalize="characters"
+								maxLength={15}
+								name={field.name}
+								onBlur={field.onBlur}
+								onChange={(e) => field.onChange(normalizeGstin(e.target.value))}
+								placeholder="Optional"
+								ref={field.ref}
+								value={field.value}
+								{...aria}
+							/>
+						)}
+					/>
+				)}
+			</Field>
+
+			<Field error={errors.branches?.message} htmlFor="branches" label="Branches needed">
+				{(aria) => (
+					<Input
+						inputMode="numeric"
+						max={50}
+						min={1}
+						type="number"
+						{...aria}
+						{...register("branches", { valueAsNumber: true })}
+					/>
+				)}
+			</Field>
+
+			<div className="sm:col-span-2">
+				<Field error={errors.message?.message} htmlFor="message" label="Message">
+					{(aria) => (
+						<>
+							<Textarea
+								placeholder="Anything we should know: current software, number of technicians, brands you service…"
+								rows={4}
+								{...aria}
+								{...register("message")}
+							/>
+							<p
+								aria-live="polite"
+								className={cn(
+									"text-right text-xs tabular-nums",
+									messageLength > MESSAGE_LIMIT * 0.9 ? "text-destructive" : "text-muted-foreground",
+								)}
+							>
+								{messageLength} / {MESSAGE_LIMIT}
+							</p>
+						</>
+					)}
+				</Field>
 			</div>
 
 			<div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
@@ -270,17 +351,32 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 				<input autoComplete="off" id="website" tabIndex={-1} type="text" {...register("website")} />
 			</div>
 
-			<div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
-				{plan && (
-					<p className="text-sm text-muted-foreground">
-						{plan.name}: {plan.monthlyPrice === 0 ? "Free" : `${formatInr(plan.monthlyPrice)} / month`}
-						{plan.setupFee > 0 && ` + ${formatInr(plan.setupFee)} setup`}
-					</p>
-				)}
-				<Button disabled={!isValid || isSubmitting} size="lg" type="submit">
-					{isSubmitting ? <Loader2 className="animate-spin" /> : <Send />}
-					Send enquiry
-				</Button>
+			<div className="flex flex-col gap-4 sm:col-span-2">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					{plan ? (
+						<p className="text-sm text-muted-foreground">
+							<span className="font-medium text-foreground">{plan.name}:</span>{" "}
+							{plan.monthlyPrice === 0 ? "Free" : `${formatInr(plan.monthlyPrice)} / month`}
+							{plan.setupFee > 0 && ` + ${formatInr(plan.setupFee)} setup`}
+						</p>
+					) : (
+						<span />
+					)}
+					<Button disabled={isSubmitting} size="lg" type="submit">
+						{isSubmitting ? <Loader2 className="animate-spin" /> : <Send />}
+						{isSubmitting ? "Sending…" : "Send enquiry"}
+					</Button>
+				</div>
+				<p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+					<Lock aria-hidden className="mt-px size-3.5 shrink-0" />
+					<span>
+						We reply within one business day. Your details stay with us — see our{" "}
+						<Link className="underline underline-offset-2 hover:no-underline" href="/privacy">
+							privacy notice
+						</Link>
+						.
+					</span>
+				</p>
 			</div>
 		</form>
 	);

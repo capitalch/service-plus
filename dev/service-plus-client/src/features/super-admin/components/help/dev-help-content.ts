@@ -3357,7 +3357,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "service-plus-portal (dev/service-plus-portal, dev port 3005) sells Service+ to repair-shop owners. It is a different site from service-plus-web, which serves those shops' end customers (track a repair, buy parts). Like service-plus-web it is a Next.js 16 static export (output: 'export', trailingSlash: true) deployed to MilesWeb cPanel by deploy/build-and-deploy-milesweb.sh. It has no server of its own, so its only runtime dependency on this codebase is one REST call.",
+				text: "service-plus-portal (dev/service-plus-portal, dev port 3005) sells Service+ to repair-shop owners. Its routes are home, features, pricing and contact. It is a different site from service-plus-web, which serves those shops' end customers (track a repair, buy parts). Like service-plus-web it is a Next.js 16 static export (output: 'export', trailingSlash: true) deployed to MilesWeb cPanel by deploy/build-and-deploy-milesweb.sh. It has no server of its own, so its only runtime dependency on this codebase is one REST call.",
 			},
 			{ type: "heading", text: "Where things live in the portal" },
 			{
@@ -3378,9 +3378,16 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"content/screenshots.ts",
-						"Gallery groups. The images are in public/images/screens/, copied from kush-infotech-web.",
+						"5 gallery groups (jobs, inventory, reports, warranty, setup; 42 shots total), plus findScreenshot(file) which looks a shot up by filename across every group. The images are in public/images/screens/ — real captures from the demo tenant (client demo, BU demo1), not the original kush-infotech-web placeholders.",
 					],
-					["lib/api.ts", "submitSalesEnquiry → POST /api/public/sales-enquiry with the X-Website-Key header."],
+					[
+						"content/features.ts",
+						"The 8 marketed features, each with a short description (home grid) and a detail/highlights/screenshotFiles set used by the /features page (app/features/page.tsx, components/features/feature-detail-section.tsx). screenshotFiles resolves through content/screenshots.ts's findScreenshot; an empty array renders a 'Screenshot coming soon' placeholder instead of failing.",
+					],
+					[
+						"lib/api.ts",
+						"submitSalesEnquiry → POST /api/public/sales-enquiry with the X-Website-Key header.",
+					],
 				],
 			},
 			{ type: "heading", text: "Server side" },
@@ -3415,6 +3422,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				type: "bullets",
 				items: [
 					"There is no super-admin screen for enquiries yet. Read the table directly for now; the status column exists for that future grid.",
+					"The Role-based access /features section has no screenshotFiles and renders the placeholder — no roles/access-rights screen was reachable from the client workspace to capture. Branches & business units uses the header's branch switcher and Inventory > Branch Transfer instead of the Masters > Branch or Configurations > Divisions list pages, which were deliberately excluded from marketing screenshots.",
 					"Nothing in the app enforces plan limits (jobs per month, WhatsApp quota, user count, BU count). The pricing page describes the plans; it does not gate anything.",
 					"Payment is a manual bank transfer. The enquiry success card's payment block (components/pricing/enquiry-success.tsx) is the one place to swap for a Razorpay checkout later.",
 				],

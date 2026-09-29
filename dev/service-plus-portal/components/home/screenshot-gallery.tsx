@@ -1,41 +1,56 @@
 "use client";
 
+import { Maximize2 } from "lucide-react";
 import { useState } from "react";
 
+import { AnimatedTabsList } from "@/components/layout/animated-tabs";
 import { SectionHeading } from "@/components/layout/section-heading";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScreenshotLightbox } from "@/components/screenshots/screenshot-lightbox";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { MESSAGES } from "@/constants/messages";
 import { screenshotGroups } from "@/content/screenshots";
-import type { ScreenshotType } from "@/content/screenshots";
 
+// The lightbox walks the tab you are on, so the open set has to follow the active tab.
 export const ScreenshotGallery = () => {
-	const [active, setActive] = useState<ScreenshotType | null>(null);
+	const [tab, setTab] = useState(screenshotGroups[0].id);
+	const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+	const group = screenshotGroups.find((candidate) => candidate.id === tab) ?? screenshotGroups[0];
 
 	return (
-		<section className="bg-muted/40 py-16 sm:py-20" id="screens">
-			<div className="mx-auto w-full max-w-6xl px-4 lg:px-6">
+		<section className="bg-muted/40 py-section lg:py-section-lg" id="screens">
+			<div className="mx-auto w-full max-w-6xl px-page lg:px-page-lg">
 				<SectionHeading eyebrow="Product" intro={MESSAGES.galleryIntro} title={MESSAGES.galleryTitle} />
 
-				<Tabs className="mt-10" defaultValue={screenshotGroups[0].id}>
-					<div className="flex justify-center overflow-x-auto">
-						<TabsList>
-							{screenshotGroups.map((group) => (
-								<TabsTrigger key={group.id} value={group.id}>
-									{group.label}
-								</TabsTrigger>
-							))}
-						</TabsList>
+				<Tabs className="mt-10" onValueChange={setTab} value={tab}>
+					{/* Scroll wrapper outside the list: the highlight is measured against the list's
+					    own box, so the list itself must not be inside a transformed or scrolled
+					    ancestor that would offset the measurements. */}
+					<div className="-mx-4 flex justify-start overflow-x-auto px-4 sm:justify-center sm:px-0">
+						<AnimatedTabsList
+							items={screenshotGroups.map((candidate) => ({
+								id: candidate.id,
+								label: (
+									<>
+										{candidate.label}
+										<span className="text-muted-foreground ml-1.5 text-xs tabular-nums">
+											{candidate.shots.length}
+										</span>
+									</>
+								),
+							}))}
+							value={tab}
+						/>
 					</div>
 
-					{screenshotGroups.map((group) => (
-						<TabsContent className="mt-6" key={group.id} value={group.id}>
+					{screenshotGroups.map((candidate) => (
+						<TabsContent className="mt-6" key={candidate.id} value={candidate.id}>
 							<div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-								{group.shots.map((shot) => (
+								{candidate.shots.map((shot, index) => (
 									<button
-										className="group overflow-hidden rounded-2xl border border-border bg-card text-left shadow-xs transition-shadow hover:shadow-lg focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+										className="group bg-card focus-visible:ring-ring/40 cursor-pointer overflow-hidden rounded-2xl border border-border text-left shadow-xs transition-shadow hover:shadow-lg focus-visible:ring-3 focus-visible:outline-none"
 										key={shot.src}
-										onClick={() => setActive(shot)}
+										onClick={() => setSelectedIndex(index)}
 										type="button"
 									>
 										{/* eslint-disable-next-line @next/next/no-img-element -- static export, images unoptimized */}
@@ -45,8 +60,12 @@ export const ScreenshotGallery = () => {
 											loading="lazy"
 											src={shot.src}
 										/>
-										<p className="border-t border-border px-4 py-3 text-sm font-medium">
+										<p className="text-muted-foreground group-hover:text-foreground flex items-center justify-between gap-2 border-t border-border px-4 py-3 text-sm font-medium transition-colors">
 											{shot.caption}
+											<Maximize2
+												aria-hidden
+												className="size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+											/>
 										</p>
 									</button>
 								))}
@@ -56,20 +75,11 @@ export const ScreenshotGallery = () => {
 				</Tabs>
 			</div>
 
-			<Dialog onOpenChange={(open) => !open && setActive(null)} open={active !== null}>
-				<DialogContent className="max-w-[min(96vw,80rem)] p-2 sm:max-w-[min(96vw,80rem)]">
-					<DialogTitle className="px-2 pt-1">{active?.caption}</DialogTitle>
-					<DialogDescription className="sr-only">{active?.alt}</DialogDescription>
-					{active && (
-						// eslint-disable-next-line @next/next/no-img-element -- static export, images unoptimized
-						<img
-							alt={active.alt}
-							className="max-h-[80vh] w-full rounded-lg object-contain"
-							src={active.src}
-						/>
-					)}
-				</DialogContent>
-			</Dialog>
+			<ScreenshotLightbox
+				onSelectedIndexChange={setSelectedIndex}
+				selectedIndex={selectedIndex}
+				shots={group.shots}
+			/>
 		</section>
 	);
 };
