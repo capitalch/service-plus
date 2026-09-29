@@ -39,23 +39,23 @@ konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-client" 
 sleep 1
 
 # Window 7: Git Pull (Trace Plus)
-konsole --workdir "/home/sushant/projects/trace-plus" -e bash -c "git pull; exec bash" &
+# konsole --workdir "/home/sushant/projects/trace-plus" -e bash -c "git pull; exec bash" &
 sleep 5
 
 # Window 8: Trace client
-konsole --workdir "/home/sushant/projects/trace-plus/dev/trace-client" -e bash -ic "npm start; exec bash" &
+# konsole --workdir "/home/sushant/projects/trace-plus/dev/trace-client" -e bash -ic "npm start; exec bash" &
 sleep 5
 
 # Window 9: Claude (Trace) - Fixed syntax error here (removed the stray middle &)
-konsole --workdir "/home/sushant/projects/trace-plus/dev/trace-client" -e bash -c "claude; exec bash" &
+# konsole --workdir "/home/sushant/projects/trace-plus/dev/trace-client" -e bash -c "claude; exec bash" &
 sleep 5
 
 # Window 10.1: Trace deployment
-konsole --workdir "/home/sushant/projects/trace-plus/deployment/final" &
+# konsole --workdir "/home/sushant/projects/trace-plus/deployment/final" &
 sleep 1
 
 # Window 10: Trace Client Shell 1
-konsole --workdir "/home/sushant/projects/trace-plus/dev/trace-client" &
+# konsole --workdir "/home/sushant/projects/trace-plus/dev/trace-client" &
 sleep 5
 
 # konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" & -e bash -ic "pnpm start; exec bash" &
@@ -69,6 +69,9 @@ sleep 5
 #
 # konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" &
 # sleep 1
+
+konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-portal" &
+sleep 1
 #
 # konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" & -e bash -ic "git pull; exec bash" &
 # sleep 5

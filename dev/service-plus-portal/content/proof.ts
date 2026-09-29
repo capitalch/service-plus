@@ -1,10 +1,8 @@
 import { DatabaseBackup, Headset, IndianRupee, ShieldCheck, UserCog } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-// The home page has no testimonials — content/testimonials.ts is deliberately empty because
-// invented quotes attributed to named people would be misleading. This is the honest substitute:
-// how onboarding actually works, and facts we can already stand behind from the product and
-// pricing content. Nothing here claims a customer count, a ranking or a result we cannot prove.
+// How onboarding actually works, and facts we can stand behind from the product and pricing
+// content. Nothing here claims a customer count, a ranking or a result we cannot prove.
 
 export type OnboardingStepType = {
 	description: string;

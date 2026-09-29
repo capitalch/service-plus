@@ -63,6 +63,7 @@ export const MESSAGES = {
 	successPayment: "Payment is by bank transfer. Pay the setup fee and first month after we confirm your account.",
 	successSignIn: "You sign in and start taking jobs — our team stays on call for setup help.",
 	successTitle: "Enquiry received",
-	testimonialsTitle: "What workshop owners say",
+	testimonialsIntro: "Repair workshops and authorised service centres on what changed after they moved to Service+.",
+	testimonialsTitle: "What service centres say",
 	whatNext: "What happens next",
 };

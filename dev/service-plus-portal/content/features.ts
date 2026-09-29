@@ -147,9 +147,6 @@ export const features: FeatureType[] = [
 	},
 ];
 
-// The old `benefits` strip (value "100%" / "Live" / "GST") was replaced by content/stats.ts,
-// which derives its numbers from features, pricing and screenshots instead of hardcoding them.
-
 export const ownerBenefits: OwnerBenefitType[] = [
 	{
 		description:

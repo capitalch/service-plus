@@ -3374,7 +3374,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"content/testimonials.ts",
-						"Empty on purpose until real, permitted quotes exist. The home section hides itself when it is empty.",
+						"Real customer quotes, published with permission (2 today: Casio and Sony authorised service centres in Kolkata). Never add an invented one. The home carousel hides itself if the list is empty, and with 2 or fewer quotes it shows them side by side from sm up with no paging controls.",
 					],
 					[
 						"content/screenshots.ts",

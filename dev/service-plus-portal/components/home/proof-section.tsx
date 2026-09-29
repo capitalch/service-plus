@@ -3,8 +3,8 @@ import { SectionHeading } from "@/components/layout/section-heading";
 import { MESSAGES } from "@/constants/messages";
 import { onboardingSteps, trustPoints } from "@/content/proof";
 
-// Stands in for the testimonials section, which stays hidden until there are real quotes with
-// permission to publish. Everything here is a fact about the product or how onboarding works.
+// How onboarding works and what the product guarantees. Sits alongside the customer testimonials;
+// everything here is a fact about the product, not a claim about who uses it.
 export const ProofSection = () => {
 	return (
 		<section className="mx-auto w-full max-w-6xl px-page py-section lg:px-page-lg lg:py-section-lg" id="onboarding">

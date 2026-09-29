@@ -3,6 +3,17 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-09-29 20:27 (main)
+Portal: add customer testimonials, drop home stat strip; Lite signup plan
+
+- Portal home: replace the empty testimonial carousel with an always-visible TestimonialSection showing two Kolkata service-centre managers (Casio and Sony authorised), with a new intro line and the heading "What service centres say"
+- Portal content: testimonials now carry paragraph-split quotes and a service-centre field; proof-section comments no longer describe testimonials as missing
+- Portal home: remove the derived-number stat strip under the hero along with content/stats.ts and the CountUp component
+- Plans: replace plan.md with the Lite self-signup design (tenant-admin approval, shared default customer DB, server-side isolation fixes); refresh prompt.md; remove obsolete prompt1/prompt2
+- Dev help: portal article describes the live testimonials instead of an empty list
+- start-all-terminals.sh: comment out the trace-plus windows and open a service-plus-portal shell
+Files: 16 changed (+237 / -763) — Base: 9ca0636
+
 ## 2026-09-29 15:18 (main)
 Portal: features/privacy/terms pages, redesigned home and pricing, real screenshots
 
