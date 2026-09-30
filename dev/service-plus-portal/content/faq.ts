@@ -13,7 +13,7 @@ export const faqs: FaqType[] = [
 		question: "How do I pay?",
 	},
 	{
-		answer: "Yes. Tell us through the enquiry form or call us, and we move your business unit to the new plan. Your data stays as it is.",
+		answer: "Yes. Tell us through the enquiry form or call us, and we move your business unit to the new plan. Your data stays as it is. To move to a plan with fewer branches, you first delete the data of your extra branches and the branches themselves.",
 		question: "Can I upgrade or downgrade later?",
 	},
 	{
@@ -23,6 +23,10 @@ export const faqs: FaqType[] = [
 	{
 		answer: "A business unit is one workshop or company with its own jobs, stock, numbering and reports. Enterprise lets you run up to five of them on a dedicated database.",
 		question: "What is a business unit?",
+	},
+	{
+		answer: "Lite and Basic include one branch, the head office. Standard and Enterprise include unlimited branches, which you add and edit yourself.",
+		question: "How many branches can I have?",
 	},
 	{
 		answer: "Service+ runs in the cloud with daily backups. Enterprise customers get a separate database of their own.",

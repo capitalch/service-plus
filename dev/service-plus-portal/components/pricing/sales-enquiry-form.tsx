@@ -22,23 +22,29 @@ import { GSTIN_REGEX, MOBILE_REGEX, normalizeGstin, normalizeMobile } from "@/li
 
 const MESSAGE_LIMIT = 2000;
 
-const enquirySchema = z.object({
-	branches: z
-		.number({ error: MESSAGES.errBranches })
-		.int(MESSAGES.errBranches)
-		.min(1, MESSAGES.errBranches)
-		.max(50, MESSAGES.errBranches),
-	businessName: z.string().trim().min(2, MESSAGES.errBusinessName).max(200, MESSAGES.errBusinessName),
-	city: z.string().trim().min(2, MESSAGES.errCity).max(100, MESSAGES.errCity),
-	email: z.email(MESSAGES.errEmail).max(200, MESSAGES.errEmail),
-	gstin: z.string().refine((v) => v === "" || GSTIN_REGEX.test(v), MESSAGES.errGstin),
-	message: z.string().max(MESSAGE_LIMIT, MESSAGES.errMessage),
-	mobile: z.string().regex(MOBILE_REGEX, MESSAGES.errMobile),
-	name: z.string().trim().min(2, MESSAGES.errName).max(100, MESSAGES.errName),
-	plan: z.enum(planCodes, { error: MESSAGES.errPlan }),
-	// Honeypot: hidden from people, filled in by bots.
-	website: z.string(),
-});
+const enquirySchema = z
+	.object({
+		branches: z
+			.number({ error: MESSAGES.errBranches })
+			.int(MESSAGES.errBranches)
+			.min(1, MESSAGES.errBranches)
+			.max(50, MESSAGES.errBranches),
+		businessName: z.string().trim().min(2, MESSAGES.errBusinessName).max(200, MESSAGES.errBusinessName),
+		city: z.string().trim().min(2, MESSAGES.errCity).max(100, MESSAGES.errCity),
+		email: z.email(MESSAGES.errEmail).max(200, MESSAGES.errEmail),
+		gstin: z.string().refine((v) => v === "" || GSTIN_REGEX.test(v), MESSAGES.errGstin),
+		message: z.string().max(MESSAGE_LIMIT, MESSAGES.errMessage),
+		mobile: z.string().regex(MOBILE_REGEX, MESSAGES.errMobile),
+		name: z.string().trim().min(2, MESSAGES.errName).max(100, MESSAGES.errName),
+		plan: z.enum(planCodes, { error: MESSAGES.errPlan }),
+		// Honeypot: hidden from people, filled in by bots.
+		website: z.string(),
+	})
+	// Lite and Basic are limited to the head office, so more than one branch needs a bigger plan.
+	.refine((v) => v.branches === 1 || findPlan(v.plan)?.branches === null, {
+		message: MESSAGES.errBranchesPlan,
+		path: ["branches"],
+	});
 
 type EnquiryFormType = z.infer<typeof enquirySchema>;
 

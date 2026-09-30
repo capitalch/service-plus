@@ -3,6 +3,7 @@ import { Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+	branchesLabel,
 	businessUnitsLabel,
 	formatInr,
 	jobsLabel,
@@ -33,7 +34,7 @@ function planLines(plan: PlanType): LineType[] {
 		{ included: plan.whatsappPerMonth > 0, label: whatsappLabel(plan) },
 		{ included: plan.inventory, label: plan.inventory ? "Spare-parts inventory" : "No spare-parts inventory" },
 		{ included: true, label: businessUnitsLabel(plan) },
-		{ included: true, label: "Unlimited branches" },
+		{ included: true, label: branchesLabel(plan) },
 		...(plan.provisioning === "database" ? [{ included: true, label: "Dedicated database" }] : []),
 	];
 }

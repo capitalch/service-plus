@@ -20,7 +20,7 @@ const rows: RowType[] = [
 	},
 	{ label: "Spare-parts inventory", value: (p) => p.inventory },
 	{ label: "Business units", value: (p) => String(p.businessUnits) },
-	{ label: "Branches", value: () => "Unlimited" },
+	{ label: "Branches", value: (p) => (p.branches === null ? "Unlimited" : "1 (head office)") },
 	{ label: "Dedicated database", value: (p) => p.provisioning === "database" },
 	{ label: "GST & non-GST billing", value: () => true },
 	{ label: "Reports & analytics", value: () => true },

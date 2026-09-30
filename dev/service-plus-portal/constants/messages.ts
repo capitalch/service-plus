@@ -13,6 +13,8 @@ export const MESSAGES = {
 	enquiryRateLimited: "Too many attempts. Please wait a minute and try again.",
 	enquiryTitle: "Start your subscription",
 	errBranches: "Enter a number between 1 and 50",
+	errBranchesPlan:
+		"Lite and Basic include the head office branch only. Choose Standard or Enterprise for more branches",
 	errBusinessName: "Enter your business name (2 to 200 characters)",
 	errCity: "Enter your city and state",
 	errEmail: "Enter a valid email address",
@@ -42,7 +44,9 @@ export const MESSAGES = {
 	paymentPending: "We will share our bank account details when we call you.",
 	pricingIntro: "Start free. Upgrade when your workshop grows. No lock-in.",
 	pricingTitle: "Simple, transparent pricing",
-	reasonBranches: "You run more than one branch, so you need more than one business unit",
+	reasonBranches: "You run more than one branch, which needs the Standard plan or above",
+	reasonBusinessUnits:
+		"You run more than five branches or several businesses, so you need more than one business unit",
 	reasonInventory: "You stock spare parts, which the Lite and Basic plans do not include",
 	reasonStarter: "A single-user shop with no extra needs, so the free Lite plan covers you",
 	reasonTeam: "More than one person needs their own login, which Lite and Basic do not allow",

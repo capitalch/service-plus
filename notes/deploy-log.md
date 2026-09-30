@@ -3,6 +3,18 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-01 00:02 (main)
+Docs: subscription-plan sign-up plan; portal per-plan branch limits
+
+- plans/plan.md: rewrite as one step-by-step plan for Lite/Basic/Standard sign-up in the default customer database and Enterprise via Super Admin, with setup-fee gate, monthly view-only billing, branch limits and your-part steps interleaved
+- plans/plan.md: record Step 1 decisions and put "guard every resolver" first after finding many GraphQL resolvers callable without a login
+- portal pricing: Lite and Basic get one branch (head office), Standard and Enterprise unlimited, shown on cards, comparison table, features, proof text and a new FAQ
+- portal enquiry form and recommender: refuse more than one branch for Lite/Basic; send 2-5 branches to Standard and more to Enterprise
+- portal FAQ: downgrading needs extra branches' data and the branches deleted first
+- server .env.example: updated with a new Customer settings section (contents not read by the deploy)
+
+Files: 12 changed (+832 / -165) — Base: 3aa3002
+
 ## 2026-09-29 20:27 (main)
 Portal: add customer testimonials, drop home stat strip; Lite signup plan
 

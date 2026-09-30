@@ -68,7 +68,8 @@ function recommend(answers: AnswersType): { plan: PlanType; reasons: string[] } 
 	if (needsMultiUser) reasons.push(MESSAGES.reasonTeam);
 	if (needsInventory) reasons.push(MESSAGES.reasonInventory);
 	if (needsWhatsapp) reasons.push(MESSAGES.reasonWhatsapp);
-	if (branches > 0) reasons.push(MESSAGES.reasonBranches);
+	if (branches === 2) reasons.push(MESSAGES.reasonBranches);
+	if (branches >= 3) reasons.push(MESSAGES.reasonBusinessUnits);
 	if (reasons.length === 0) reasons.push(MESSAGES.reasonStarter);
 
 	const ladder: PlanCodeType[] = ["lite", "basic", "standard", "enterprise"];
@@ -78,7 +79,8 @@ function recommend(answers: AnswersType): { plan: PlanType; reasons: string[] } 
 		if (needsInventory && !plan.inventory) return false;
 		if (needsMultiUser && plan.users === "single") return false;
 		if (needsWhatsapp && plan.whatsappPerMonth === 0) return false;
-		if (branches >= 2 && plan.businessUnits < 2) return false;
+		if (branches >= 2 && plan.branches !== null) return false;
+		if (branches >= 3 && plan.businessUnits < 2) return false;
 		return true;
 	});
 

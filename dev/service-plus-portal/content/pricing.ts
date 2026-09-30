@@ -4,6 +4,8 @@
 export type PlanCodeType = "basic" | "enterprise" | "lite" | "standard";
 
 export type PlanType = {
+	/** null = unlimited. Lite and Basic are limited to the head office branch only. */
+	branches: number | null;
 	businessUnits: number;
 	code: PlanCodeType;
 	/** Marked "Most popular" on its card. */
@@ -26,6 +28,7 @@ export type PlanType = {
 
 export const plans: PlanType[] = [
 	{
+		branches: 1,
 		businessUnits: 1,
 		code: "lite",
 		inventory: false,
@@ -39,6 +42,7 @@ export const plans: PlanType[] = [
 		whatsappPerMonth: 0,
 	},
 	{
+		branches: 1,
 		businessUnits: 1,
 		code: "basic",
 		inventory: false,
@@ -52,6 +56,7 @@ export const plans: PlanType[] = [
 		whatsappPerMonth: 100,
 	},
 	{
+		branches: null,
 		businessUnits: 1,
 		code: "standard",
 		highlighted: true,
@@ -66,6 +71,7 @@ export const plans: PlanType[] = [
 		whatsappPerMonth: 500,
 	},
 	{
+		branches: null,
 		businessUnits: 5,
 		code: "enterprise",
 		inventory: true,
@@ -102,6 +108,10 @@ export function whatsappLabel(plan: PlanType): string {
 	return plan.whatsappPerMonth === 0
 		? "No WhatsApp messaging"
 		: `${plan.whatsappPerMonth.toLocaleString("en-IN")} WhatsApp messages / month`;
+}
+
+export function branchesLabel(plan: PlanType): string {
+	return plan.branches === null ? "Unlimited branches" : "1 branch (head office only)";
 }
 
 export function businessUnitsLabel(plan: PlanType): string {
