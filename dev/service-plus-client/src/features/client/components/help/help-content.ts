@@ -626,58 +626,25 @@ export const HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
-		id: "warranty-invoice-backfill",
+		id: "warranty-w-series-invoices",
 		category: "Jobs",
-		title: "Warranty Invoice Backfill",
-		summary:
-			"One-time, Admin-only screen that creates the missing invoices for delivered warranty jobs that carried a real charge.",
-		tags: ["warranty", "invoice", "backfill", "missing invoice", "W series", "admin"],
+		title: "W-Series Warranty Invoices",
+		summary: "Why some job invoices are numbered with a W, and dated in the past.",
+		tags: ["warranty", "invoice", "W series", "backdated", "invoice number"],
 		content: [
 			{
 				type: "para",
-				text: "Warranty jobs used to be refused an invoice at delivery, even when the customer was charged. Their cost reached the profit reports but their revenue did not. Jobs → Warranty Invoice Backfill lists every delivered warranty job whose amount is above ₹0 and that has no invoice, so you can create those invoices once. New deliveries invoice priced warranty jobs automatically, so this screen is only for the jobs delivered before that.",
-			},
-			{
-				type: "steps",
-				items: [
-					"Go to Jobs → Warranty Invoice Backfill (shown to Admin users only).",
-					"Review each row: job no, customer, delivery date, branch, amount, lines total and status.",
-					"Click Create Invoice on a Ready row and confirm, or Create All to invoice every Ready row one by one.",
-					"Created jobs drop out of the list. When it is empty, post the new invoices through Jobs → Accounts Posting.",
-				],
-			},
-			{
-				type: "table",
-				headers: ["Status", "Meaning"],
-				rows: [
-					["Ready", "The job has priced parts or charges and can be invoiced."],
-					[
-						"No lines — cannot invoice",
-						"The job has no parts or charges, so there is nothing to put on an invoice.",
-					],
-					[
-						"Lines total ₹0 — fix the job first",
-						"The job has an amount but every line is priced ₹0. Correct the prices first.",
-					],
-				],
+				text: "Warranty jobs used to be refused an invoice at delivery, even when the customer was charged. Those past jobs were invoiced once, in a one-time catch-up, and the screen used for it has since been removed. New deliveries invoice priced warranty jobs automatically.",
 			},
 			{
 				type: "note",
-				text: "Each invoice is dated with the job's delivery date, so the revenue lands in the month the job was delivered, and uses the job's own branch. It is numbered in a separate series — the division's normal prefix and separator, then W and a running number (e.g. SI/W00001) — so your running invoice numbers are not disturbed.",
-			},
-			{
-				type: "warning",
-				text: "Backdated invoices change the GST return of the month they are dated in. Run the backfill before that month's GSTR-1 is filed, and check with your accountant that a separate W series is acceptable.",
+				text: "Each catch-up invoice is dated with its job's delivery date and numbered in a separate series — the division's normal prefix and separator, then W and a running number (e.g. SI/W00001). Your running invoice numbers were not disturbed, and the W series is reported as its own series in the GST document summary.",
 			},
 		],
 		faqs: [
 			{
-				q: "Can I run it twice by mistake?",
-				a: "Yes, safely. A job that already has an invoice is not listed, and creating an invoice again for the same job returns the existing one.",
-			},
-			{
-				q: "Why don't I see this screen?",
-				a: "It is shown to Admin users only, because it creates backdated invoices.",
+				q: "Will new W-numbered invoices appear?",
+				a: "No. Every new job invoice uses the normal running number.",
 			},
 		],
 	},

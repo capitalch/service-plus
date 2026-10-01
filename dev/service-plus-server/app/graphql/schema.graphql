@@ -31,7 +31,6 @@ type Mutation {
     setUserBuRole(db_name: String!, schema: String, value: String!): Generic
     createSalesInvoice(db_name: String!, schema: String, value: String!): Generic
     createJobInvoice(db_name: String!, schema: String, value: String!): Generic
-    createBackfillJobInvoice(db_name: String!, schema: String, value: String!): Generic
     regenerateJobInvoice(db_name: String!, schema: String, value: String!): Generic
     createJobPayment(db_name: String!, schema: String, value: String!): Generic
     createSingleJob(db_name: String!, schema: String, value: String!): Generic

@@ -1876,9 +1876,9 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 	{
 		id: "dev-warranty-pricing-invoicing",
 		category: "Jobs",
-		title: "Warranty Pricing, ₹0 No-Invoice Rule and Invoice Backfill — Implementation",
+		title: "Warranty Pricing, ₹0 No-Invoice Rule and W-Series Invoices — Implementation",
 		summary:
-			"Warranty is only a ₹0 starting price, not a lock; no job of any type is invoiced at amount 0; the shared job-invoice builder; and the one-time W-series backfill (GET_WARRANTY_JOBS_MISSING_INVOICE, createBackfillJobInvoice).",
+			"Warranty is only a ₹0 starting price, not a lock; no job of any type is invoiced at amount 0; the shared job-invoice builder; and the W-numbered invoices left by the one-time backfill (screen, mutation and SQL since removed).",
 		tags: [
 			"UNDER_WARRANTY",
 			"warranty",
@@ -1886,10 +1886,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			"isJobInvoiceable",
 			"buildJobInvoicePayload",
 			"job-invoice-builder",
-			"GET_WARRANTY_JOBS_MISSING_INVOICE",
-			"createBackfillJobInvoice",
 			"GET_JOB_CLOSED_AND_AMOUNT",
-			"GET_NEXT_W_SERIES_NUMBER",
 			"W series",
 			"backfill",
 		],
@@ -1938,38 +1935,16 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Shared invoice builder" },
 			{
 				type: "para",
-				text: "deliver-job/job-invoice-builder.ts holds buildInvoiceLines(), reconcileLineAmounts() and buildJobInvoicePayload(job, isGst, forceIgst, showPartsSetting), which returns { ok: true, payload: { aggregate, amount, cgst_amount, igst_amount, lines, sgst_amount } } or { ok: false, reason: 'NO_LINES' | 'LINES_ZERO' }. LINES_ZERO = job.amount > 0 but the lines total 0 — reconciling would push the whole amount into the last line as untaxed value, so it is refused (WARN_JOB_INVOICE_LINES_ZERO). Delivery create, Regenerate Invoice and the backfill screen all use it; never re-inline the calculation.",
+				text: "deliver-job/job-invoice-builder.ts holds buildInvoiceLines(), reconcileLineAmounts() and buildJobInvoicePayload(job, isGst, forceIgst, showPartsSetting), which returns { ok: true, payload: { aggregate, amount, cgst_amount, igst_amount, lines, sgst_amount } } or { ok: false, reason: 'NO_LINES' | 'LINES_ZERO' }. LINES_ZERO = job.amount > 0 but the lines total 0 — reconciling would push the whole amount into the last line as untaxed value, so it is refused (WARN_JOB_INVOICE_LINES_ZERO). Delivery create and Regenerate Invoice both use it; never re-inline the calculation.",
 			},
-			{ type: "heading", text: "One-time backfill — W series" },
+			{ type: "heading", text: "W-series invoices — backfill removed" },
 			{
-				type: "table",
-				headers: ["Piece", "Detail"],
-				rows: [
-					[
-						"GET_WARRANTY_JOBS_MISSING_INVOICE (sql_jobs.py, SQL_MAP)",
-						"Warranty + DELIVERED_OK/NOT_OK + amount > 0 + no job_invoice, all branches, no params. Returns id, job_no, customer_name, delivery_date, amount, branch_id/name, division_id/name, line_count, lines_selling_total; ordered by delivery_date.",
-					],
-					[
-						"createBackfillJobInvoice (schema.graphql, mutation.py, GRAPHQL_MAP)",
-						"require_user_type({'S','A'}) + require_own_tenant — not an access right, so nothing to seed. Helper: resolve_create_backfill_job_invoice_helper in jobs/invoicing.py.",
-					],
-					[
-						"What the server decides",
-						"Drops any branch_id/division_id/invoice_date/invoice_no in the payload. Returns the existing invoice if there is one; refuses unless warranty, closed, delivered status, amount > 0, delivery_date and division present (GET_JOB_FOR_BACKFILL_INVOICE); invoice_date = job.delivery_date.",
-					],
-					[
-						"Numbering",
-						"LOCK_SERVICE_INVOICE_SEQUENCE takes the branch + division SERVICE_INVOICE row FOR UPDATE and reads only prefix/separator/padding; GET_NEXT_W_SERIES_NUMBER = MAX of <prefix><separator>W<digits> + 1 (matched with LEFT/SUBSTRING, not LIKE). next_number is never touched, and normal numbers never have W after the separator, so the two series cannot collide.",
-					],
-					[
-						"Screen",
-						"jobs/warranty-invoice-backfill/warranty-invoice-backfill-section.tsx, Jobs sidebar item 'Warranty Invoice Backfill' shown only to userType A/S (client-explorer-panel.tsx), case in client-jobs-page.tsx. Loads lines with GET_DELIVERABLE_JOBS_DETAIL_MULTI and builds with buildJobInvoicePayload, exactly like Deliver Job.",
-					],
-				],
+				type: "para",
+				text: "Past priced warranty jobs that were never invoiced were caught up once through a temporary Admin screen (Jobs → Warranty Invoice Backfill) and the createBackfillJobInvoice mutation. Each invoice was dated with the job's delivery_date, used the job's branch, and was numbered <prefix><separator>W<digits> per SERVICE_INVOICE prefix without touching document_sequence.next_number. Once every tenant had run it, the screen, its sidebar item and page case, its WARRANTY_BACKFILL messages, the mutation, GET_WARRANTY_JOBS_MISSING_INVOICE, GET_JOB_FOR_BACKFILL_INVOICE, LOCK_SERVICE_INVOICE_SEQUENCE and GET_NEXT_W_SERIES_NUMBER were all deleted.",
 			},
 			{
 				type: "warning",
-				text: "The backfill screen is temporary. Once every tenant has run it, delete the warranty-invoice-backfill folder, its sidebar item and page case, its INFO/ERROR_WARRANTY_BACKFILL_* messages, this table and the client 'warranty-invoice-backfill' help article. The server mutation and SQL can stay or go in the same change.",
+				text: "The W-numbered rows stay in job_invoice and are ordinary invoices (print, regenerate, accounts posting). Normal numbers never have W after the separator, so the series cannot collide — keep it that way if invoice numbering is ever changed, and do not reuse W in a prefix scheme.",
 			},
 		],
 		faqs: [
@@ -2003,7 +1978,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "A Lock checkbox on each Additional Charge row in the finalize form excludes that row from Apply (target-amount back-calculation), in both directions and at every step. Parts have no equivalent — the cost-price floor is their protection. The column shows on every job type — warranty jobs included since the warranty pricing change (see 'Warranty Pricing, ₹0 No-Invoice Rule and Invoice Backfill — Implementation').",
+				text: "A Lock checkbox on each Additional Charge row in the finalize form excludes that row from Apply (target-amount back-calculation), in both directions and at every step. Parts have no equivalent — the cost-price floor is their protection. The column shows on every job type — warranty jobs included since the warranty pricing change (see 'Warranty Pricing, ₹0 No-Invoice Rule and W-Series Invoices — Implementation').",
 			},
 			{ type: "heading", text: "Where it lives" },
 			{

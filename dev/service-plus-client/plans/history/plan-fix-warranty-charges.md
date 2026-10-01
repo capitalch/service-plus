@@ -326,7 +326,7 @@ Needs: Steps 1–10.
   series, the Batch Warranty eligibility change and the Job Control job-type fix. Re-check sibling articles that describe these for stale wording.
 - Done when: a search of both files finds no remaining "always ₹0" style claims about warranty.
 
-### Step 12 — Your Part
+### Step 12 — Your Part 🟢 Done
 Needs: Steps 1–11 deployed.
 - Ask the accountant to confirm that a separate `W` invoice series is acceptable for the GST
   return (it is reported as its own series in the document summary).
@@ -336,6 +336,21 @@ Needs: Steps 1–11 deployed.
 - Check September's Profit Summary for navtechnology now shows warranty revenue for these jobs.
 - Once every tenant is done, remove the backfill screen and its sidebar item (the server
   mutation can stay or be removed in the same change).
+- Cleanup done (1 Oct 2026), server mutation removed too:
+  - Client: deleted `jobs/warranty-invoice-backfill/`; removed the sidebar item and `FileClock`
+    import (`client-explorer-panel.tsx`), the page case (`client-jobs-page.tsx`),
+    `createBackfillJobInvoice` (`graphql-map.ts`), `GET_WARRANTY_JOBS_MISSING_INVOICE`
+    (`sql-map.ts`) and the `*_WARRANTY_BACKFILL_*` messages; builder comment updated.
+  - Server: removed `createBackfillJobInvoice` (schema, `mutation.py`),
+    `resolve_create_backfill_job_invoice_helper` (`jobs/invoicing.py`),
+    `GET_WARRANTY_JOBS_MISSING_INVOICE` (`sql_jobs.py`), `GET_JOB_FOR_BACKFILL_INVOICE`,
+    `LOCK_SERVICE_INVOICE_SEQUENCE`, `GET_NEXT_W_SERIES_NUMBER` (`sql_bu_admin.py`). Kept
+    `_require_invoice_lines` and `GET_JOB_CLOSED_AND_AMOUNT`, which `createJobInvoice` uses.
+  - Help: the client `warranty-invoice-backfill` article is replaced by
+    `warranty-w-series-invoices` (why W-numbered, backdated invoices exist); the developer article
+    is retitled "… and W-Series Invoices" and its backfill table replaced by a note that the
+    W rows stay in `job_invoice` and what was removed.
+  - Checks: `tsc -b --noEmit` passes; server `app.main` imports and builds the GraphQL schema.
 
 ## Files touched
 
@@ -393,6 +408,7 @@ End-to-end, on demo1:
 ## Flags
 
 Decided
+- Server backfill mutation and SQL removed together with the screen (Step 12).
 - Backfill dated by delivery date; separate `W` number series; one-time admin screen; warranty
   jobs follow normal receipt rules.
 - The HSN/GST check skips ₹0 lines only on warranty jobs.
@@ -401,7 +417,6 @@ Decided
 
 Open
 - Accountant to confirm the separate `W` series for GST reporting (Step 12).
-- Whether the server backfill mutation is removed along with the screen.
 - ₹0 invoices already issued for ordinary jobs before this change are left as they are; this
   plan only stops new ones.
 - The September GSTR-1 deadline (11 Oct 2026) sets the latest sensible date to run the backfill.

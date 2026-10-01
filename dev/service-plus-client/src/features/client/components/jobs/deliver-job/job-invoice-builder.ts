@@ -1,7 +1,7 @@
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 
-// Shared job-invoice payload builder. Used by Deliver Job (create + regenerate) and the
-// one-time warranty invoice backfill, so every job invoice is built the same way.
+// Shared job-invoice payload builder. Used by Deliver Job (create + regenerate), so every
+// job invoice is built the same way.
 
 export type ShowPartsInInvoiceSettingType = { gst_rate: number; hsn: number; show: boolean; text: string };
 

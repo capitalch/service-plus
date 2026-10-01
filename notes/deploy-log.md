@@ -3,6 +3,17 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-01 23:56 (main)
+Jobs: remove one-time warranty invoice backfill screen and mutation
+
+- Jobs sidebar/page: drop the Admin-only Warranty Invoice Backfill screen, its menu item and page case
+- Server: remove createBackfillJobInvoice (schema, resolver, helper) and its four backfill-only SQL queries; createJobInvoice untouched
+- Constants: drop the backfill GraphQL op, SQL id and WARRANTY_BACKFILL messages
+- Help: staff article replaced by a short note on W-numbered backdated invoices; developer article records what was removed and keeps the W-series invariant
+- Plans: warranty-charges plan Step 12 marked done and moved to plans/history
+
+Files: 15 changed (+18 / -1028) — Base: 301eaa5
+
 ## 2026-10-01 20:05 (main)
 Jobs: warranty jobs priced and invoiced like any job; W-series backfill
 

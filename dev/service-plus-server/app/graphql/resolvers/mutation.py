@@ -51,7 +51,6 @@ from app.graphql.resolvers.inventory.mutations import (
     resolve_import_spare_parts_helper,
 )
 from app.graphql.resolvers.jobs.invoicing import (
-    resolve_create_backfill_job_invoice_helper,
     resolve_create_job_invoice_helper,
     resolve_regenerate_job_invoice_helper,
 )
@@ -437,17 +436,6 @@ async def resolve_create_job_invoice(
     """Create an invoice for a job."""
     require_access_right(info, "JOBS_DELIVER_JOB")
     return await resolve_create_job_invoice_helper(db_name, schema, value)
-
-
-@mutation.field("createBackfillJobInvoice")
-@handle_graphql_errors("Error creating backfill job invoice")
-async def resolve_create_backfill_job_invoice(
-    _, info, db_name: str = "", schema: str = "public", value: str = ""
-) -> Any:
-    """One-time warranty invoice backfill — backdated, W-numbered. Admin only."""
-    require_user_type(info, {"S", "A"})
-    require_own_tenant(info, db_name)
-    return await resolve_create_backfill_job_invoice_helper(db_name, schema, value)
 
 
 @mutation.field("regenerateJobInvoice")

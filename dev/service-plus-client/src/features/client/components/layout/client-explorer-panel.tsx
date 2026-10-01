@@ -11,7 +11,6 @@ import {
 	ChevronRight,
 	ClipboardList,
 	DollarSign,
-	FileClock,
 	FileText,
 	Globe,
 	Hash,
@@ -262,8 +261,6 @@ function JobsExplorer() {
 	const canDeliverJob = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_DELIVER_JOB);
 	const canBatchWarranty = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_BATCH_WARRANTY_TRANSACTIONS);
 	const canCustomerConnect = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_CUSTOMER_CONNECT);
-	// One-time warranty invoice backfill — Admin only, hidden for everyone else.
-	const isAdmin = currentUser?.userType === "A" || currentUser?.userType === "S";
 
 	return (
 		<div className="space-y-4">
@@ -339,14 +336,6 @@ function JobsExplorer() {
 					helpArticleId="receipts"
 				/>
 				<TreeItem icon={Package} iconColor="text-slate-600" label="Part Used (Job)" />
-				{isAdmin && (
-					<TreeItem
-						icon={FileClock}
-						iconColor="text-orange-600"
-						label="Warranty Invoice Backfill"
-						helpArticleId="warranty-invoice-backfill"
-					/>
-				)}
 			</div>
 		</div>
 	);
