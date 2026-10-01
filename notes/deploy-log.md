@@ -3,6 +3,17 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-02 00:53 (main)
+Docs: review and shorten the sign-up and monthly-billing plan
+
+- plans/plan.md: Step 3 now closes the hole where a business user can run any SqlStore id (e.g. RESET_ADMIN_PASSWORD) from their own BU schema, via sqlId allowlists
+- plans/plan.md: approval resume reworked (BU row saved with the enquiry, new bu_schema_ready_at) since the BU table script cannot run twice
+- plans/plan.md: branch limit enforced by a database trigger; payments lock the BU row; new startClientBilling for existing customers
+- plans/plan.md: extra Enterprise BU confirmed at Rs 3,000 per month; duplicated context, testing and flag text condensed (860 -> 448 lines)
+- plans/history: full pre-shortening copy of the plan kept for reference
+
+Files: 2 changed (+351 / -724 in plan.md, plus 1 new file) — Base: 22e3ef9
+
 ## 2026-10-01 23:56 (main)
 Jobs: remove one-time warranty invoice backfill screen and mutation
 
