@@ -129,7 +129,7 @@ Your answers, which the rest of the plan now follows:
 5. **Public company list:** yes, Lite/Basic/Standard BUs appear in service-plus-web's company dropdown. Nothing to build.
 6. **Business-unit count:** Enterprise includes 5 BUs. The customer's admin can add more, each costing an extra ₹3,000 (Step 15). *Assumed to be per month, added to the monthly fee — confirm.*
 7. **Portal form:** behaves like the client forms — errors show at once and Submit stays disabled while the form is invalid (Step 13).
-8. **Prices:** confirmed. Prices and setup costs are settings, not code, so they can be changed without a code change (Step 7).
+8. **Prices:** confirmed. They live only in the server's `.env` and the portal fetches them live on each page load, so a price change needs only a server restart, no portal rebuild (Steps 7, 12, 13; decided 1 Oct 2026, replacing the earlier `.env.local` idea).
 9. **Client name in the login picker:** "Service+ Service Centers".
 
 ### Step 2 — Your Part: set up the default customer database
@@ -268,11 +268,12 @@ Several others check an access right but never check the tenant or the BU: `deli
     - `payment_status = 'received'` requires mode, reference, received-on date and an amount of at least `setup_fee_paise`;
     - `payment_status = 'not_required'` is allowed only when `setup_fee_paise = 0`.
 6. **Starting payment status:** Lite `not_required`; Basic, Standard and Enterprise `pending`.
-7. **Price list** in `app/core/plan_prices.py`, read from settings, not written in code (decided):
-    - server `.env` keys (documented in `.env.example`, "Customer settings"): `PRICE_BASIC_SETUP`, `PRICE_BASIC_MONTHLY`, `PRICE_STANDARD_SETUP`, `PRICE_STANDARD_MONTHLY`, `PRICE_ENTERPRISE_SETUP`, `PRICE_ENTERPRISE_MONTHLY`, `PRICE_EXTRA_BU_MONTHLY`, `ENTERPRISE_INCLUDED_BUS`. Values are whole rupees; the module converts to paise. Lite is always 0;
+7. **Price list** in `app/core/plan_prices.py`, read from the server's `.env`, not written in code (decided). **This is the only place prices live.**
+    - keys (documented in `.env.example`, "Customer settings"): `PRICE_BASIC_SETUP`, `PRICE_BASIC_MONTHLY`, `PRICE_STANDARD_SETUP`, `PRICE_STANDARD_MONTHLY`, `PRICE_ENTERPRISE_SETUP`, `PRICE_ENTERPRISE_MONTHLY`, `PRICE_EXTRA_BU_MONTHLY`, `ENTERPRISE_INCLUDED_BUS`. Values are whole rupees; the module converts to paise. Lite is always 0;
     - defaults are today's confirmed prices: Basic ₹2,000 setup + ₹2,999/month; Standard ₹2,000 + ₹5,999; Enterprise ₹5,000 + ₹10,999; extra BU ₹3,000; 5 BUs included;
-    - the portal reads the same amounts from its `.env.local` (Step 13). Its values are fixed when the portal is built, so a price change means editing both files, rebuilding the portal and restarting the server;
-    - **mismatch check:** the portal sends the setup fee it displayed along with the enquiry, and the server refuses the enquiry with a clear message if that differs from its own price. A forgotten file is then caught on the first test enquiry, not by a customer.
+    - one function returns the whole list; the enquiry endpoints, approval, plan change, extra Enterprise BUs and the public price endpoint (Step 12) all use it;
+    - the server never takes a price from the browser. Whatever the visitor saw, the enquiry is stamped with the server's current price;
+    - a price change: edit `.env`, restart the server. The portal picks it up on the next page load.
 8. Run `pnpm gen-types-all` in the client and refresh the schema dump for `public.sales_enquiry`.
 
 **Rules:**
@@ -389,6 +390,7 @@ Several others check an access right but never check the tenant or the BU: `deli
 **Where:** server `app/routers/public/website_router.py`, `app/db/sql/sql_signups.py`, `app/core/exceptions.py`, `app/core/plan_prices.py`.
 
 **Build:**
+0. **New `GET /api/public/plan-prices`** — the portal's live price source. Same guards as the other public routes (`require_website_key`, plus `rate_limit("plan-prices", 60 per minute)`). Returns, for each plan, the setup fee and monthly fee in rupees, plus the Enterprise included-BU count and the extra-BU monthly fee, all from `plan_prices.py`. Nothing else: no ids, no internal settings. Send a short cache header (about 5 minutes) so repeat page loads are cheap and a change still shows up quickly.
 1. **Existing `POST /api/public/sales-enquiry`** (`submit_sales_enquiry`) now accepts **only** `enterprise`:
     - tighten `SalesEnquiryIn.plan_code` to `enterprise`; any other plan gets a clear error telling the caller to use `/signup`;
     - insert into `public.sales_enquiry` as today, plus `reference`, the list setup fee and `payment_status = 'pending'`;
@@ -437,7 +439,13 @@ Several others check an access right but never check the tenant or the BU: `deli
     - Lite: "Your request is pending approval. We have emailed you." plus a link to the status page;
     - the other three: "Thank you. Our sales team will be in contact with you shortly. We have emailed you."
 6. New `/signup-status` page (Lite): a small form with mobile and email; shows pending approval, approved (with the login link and the client name to pick), or not approved (with the reason). The portal is a static export, so this page fetches from the browser. Add it to the sitemap.
-7. **Prices from settings.** `content/pricing.ts` reads each price from `.env.local` (`NEXT_PUBLIC_PRICE_BASIC_SETUP`, `NEXT_PUBLIC_PRICE_BASIC_MONTHLY`, and the same for Standard and Enterprise, plus `NEXT_PUBLIC_PRICE_EXTRA_BU_MONTHLY`), falling back to today's amounts when a key is missing. Every card, table and JSON-LD already renders from that file, so nothing else changes. The form sends the displayed setup fee with the enquiry.
+7. **Live prices from the server (decided).**
+    - New `lib/plan-prices.ts`: calls `GET /api/public/plan-prices` once per page load and shares the result with every component that shows a price (a small React context or hook).
+    - `content/pricing.ts` keeps today's amounts as the **fallback**. The page first renders with them, then swaps in the live prices when the call returns. If the call fails or is slow, the fallback stays and nothing looks broken.
+    - Components that show a price read it from the shared loader, not straight from `content/pricing.ts`: plan cards, comparison table, recommender, enquiry form (setup fee), Enterprise business-unit text, and any other price mention found by searching for `monthlyPrice` and `setupFee`.
+    - The pricing JSON-LD and the pre-built HTML carry the fallback amounts, which is what search engines read. After a price change, update the fallback in `content/pricing.ts` at the next portal release so search results catch up; customers always see the live price.
+    - Nothing about price is sent with the enquiry; the server stamps its own.
+    - Check the new endpoint answers from the portal's domain the same way the enquiry post already does (cross-site access).
 8. **Form behaves like the client forms (decided).** Validation runs as the visitor types, errors show at once, and Submit is disabled while the form is invalid. This replaces the current validate-on-blur behaviour.
 9. **Enterprise business units.** The Enterprise card, comparison table and the "What is a business unit?" answer say: 5 business units included, more at ₹3,000 each.
 10. Texts that are now wrong and must be reworded in `constants/messages.ts` and `content/faq.ts`:
@@ -730,7 +738,7 @@ Several others check an access right but never check the tenant or the BU: `deli
 - `app/graphql/resolvers/mutation.py`, `query.py`, `shared/generic_query.py` — guards on every resolver, security table lists, new mutations and queries registered (Steps 10, 14–18)
 - `app/graphql/schema.py`, `resolvers/subscription.py`, `pubsub.py`, publishers in `app/whatsapp/sender.py`, `app/routers/webhooks/whatsapp_webhook_router.py`, `resolvers/sales_accounts/mutations.py` — authenticated, BU-scoped subscriptions (Step 10)
 - `app/routers/media/image_router.py` — caller checks; blocked when read-only (Steps 10, 16)
-- `app/routers/public/website_router.py`, `app/db/sql/sql_public.py` — Enterprise-only enquiry, new sign-up and status endpoints, part orders refused when read-only (Steps 12, 16)
+- `app/routers/public/website_router.py`, `app/db/sql/sql_public.py` — Enterprise-only enquiry, new sign-up, status and plan-price endpoints, part orders refused when read-only (Steps 12, 16)
 - New `app/graphql/resolvers/bu_admin/signups.py`, `enterprise_enquiries.py`, `billing.py`; `resolvers/bu_admin/users_roles.py` (sign-up email wording) (Steps 14–18)
 - `app/graphql/schema.graphql` — new mutations, queries and the enquiry-count subscription
 - `app/scheduler.py` — daily reminder job (Step 18)
@@ -752,7 +760,7 @@ Several others check an access right but never check the tenant or the BU: `deli
 
 **service-plus-portal**
 - Branch limit (already done): `content/pricing.ts`, `components/pricing/plan-card.tsx`, `plan-comparison-table.tsx`, `plan-recommender.tsx`, `sales-enquiry-form.tsx`, `content/proof.ts`, `features.ts`, `faq.ts`, `constants/messages.ts`
-- Still to do (Step 13): `components/pricing/sales-enquiry-form.tsx`, `enquiry-success.tsx`, new `lite-confirm-dialog.tsx`, new `app/signup-status/page.tsx`, new `components/signup/signup-status-form.tsx`, `lib/api.ts`, `lib/validators.ts`, `constants/messages.ts`, `content/faq.ts`, `app/sitemap.ts`
+- Still to do (Step 13): new `lib/plan-prices.ts` and the price-showing components (`plan-card.tsx`, `plan-comparison-table.tsx`, `plan-recommender.tsx`, JSON-LD), `components/pricing/sales-enquiry-form.tsx`, `enquiry-success.tsx`, new `lite-confirm-dialog.tsx`, new `app/signup-status/page.tsx`, new `components/signup/signup-status-form.tsx`, `lib/api.ts`, `lib/validators.ts`, `constants/messages.ts`, `content/faq.ts`, `app/sitemap.ts`
 
 ## Testing
 
@@ -788,7 +796,7 @@ Each step already lists its own "Done when" checks. This is the end-to-end pass 
 ## Flags and constraints
 
 - **Central lead list (decided).** No copy of Lite/Basic/Standard enquiries is kept in the control-plane table. Enterprise leads are in `public.sales_enquiry`; the others are in the default customer database.
-- **Prices (decided).** Confirmed, and held in settings: the server's `.env` and the portal's `.env.local`. They are two files, so a price change means editing both; the server refuses an enquiry whose displayed setup fee differs from its own, which catches a missed file. Amounts are stored in paise.
+- **Prices (decided 1 Oct 2026).** Prices live only in the server's `.env`. The portal fetches them live on each page load, with today's amounts built in as a fallback. A price change needs only a server restart. Search engines see the fallback amounts until the portal's fallback is updated at a later release. Amounts are stored in paise.
 - **Business-unit count (decided).** Enterprise includes 5 BUs; the customer's admin can add more at ₹3,000 each. **To confirm:** the plan treats ₹3,000 as a monthly amount added to the client's fee. If it is a one-time charge, Step 15 part 8 changes.
 - **Payment is recorded manually.** No gateway is integrated; the admin marks money received after checking the bank. There is no automatic verification, so the audit trail and the "who recorded it" column matter.
 - **Who records lt payments (decided).** The default-customer-database admin is the platform owner, so setup-fee and monthly payments for lt are recorded there.

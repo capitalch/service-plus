@@ -3,6 +3,17 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-01 15:37 (main)
+Docs: live server prices for the portal; warranty-charges fix plan
+
+- plans/plan.md: prices live only in the server's .env; portal fetches them on each page load from a new GET /api/public/plan-prices, with built-in fallback amounts
+- plans/plan.md: drop the portal .env.local price copy and the displayed-fee mismatch check; record the 1 Oct pricing decision in Step 1 and the flags
+- plans/plan-fix-warranty-charges.md: new plan so warranty jobs can carry real charges, get invoiced when above zero, and backfill missing invoices
+- notes/todo.md: add bug "warranty parts show as loss although charged to customers"
+- server .env.example: updated (contents not read by the deploy)
+
+Files: 4 changed (+21 / -12, plus new plan file) — Base: 3a1d39f
+
 ## 2026-10-01 00:02 (main)
 Docs: subscription-plan sign-up plan; portal per-plan branch limits
 

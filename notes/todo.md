@@ -1,4 +1,6 @@
 # To Do
+- Bug fix
+	- Warranty parts show as loss, although charged to customers
 - Subscriptions
 	- Public facing site
 		- Home, Contacts, Pricing, Product details
