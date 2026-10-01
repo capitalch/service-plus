@@ -12,6 +12,7 @@ import { JobPipelineSection } from "../components/jobs/job-pipeline/job-pipeline
 import { AccountsPostingSection } from "../components/jobs/accounts-posting/accounts-posting-section";
 import { BatchWarrantySection } from "../components/jobs/batch-warranty-transactions/batch-warranty-section";
 import { CustomerConnectSection } from "../components/jobs/customer-connect/customer-connect-section";
+import { WarrantyInvoiceBackfillSection } from "../components/jobs/warranty-invoice-backfill/warranty-invoice-backfill-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -83,6 +84,8 @@ function JobsContent() {
 			return <JobControlSection />;
 		case "Batch Warranty Jobs":
 			return <BatchWarrantySection />;
+		case "Warranty Invoice Backfill":
+			return <WarrantyInvoiceBackfillSection />;
 		default:
 			return <ComingSoon label={selected || "Jobs"} />;
 	}

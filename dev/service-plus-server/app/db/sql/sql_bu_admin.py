@@ -747,8 +747,41 @@ class BuAdminSql(BuAdminDdl):
         SELECT is_final FROM job WHERE id = %(id)s
     """
 
-    GET_JOB_IS_CLOSED = """
-        SELECT is_closed FROM job WHERE id = %(job_id)s
+    GET_JOB_CLOSED_AND_AMOUNT = """
+        SELECT is_closed, amount FROM job WHERE id = %(job_id)s
+    """
+
+    # createBackfillJobInvoice: everything the server needs to vet and date a backfill
+    # invoice, read from the job itself — never from the client payload.
+    GET_JOB_FOR_BACKFILL_INVOICE = """
+        SELECT j.id, j.branch_id, j.division_id, j.amount, j.delivery_date, j.is_closed,
+               jt.code AS job_type_code, js.code AS job_status_code
+        FROM job j
+        JOIN job_type   jt ON jt.id = j.job_type_id
+        JOIN job_status js ON js.id = j.job_status_id
+        WHERE j.id = %(job_id)s
+    """
+
+    # Locks the branch + division SERVICE_INVOICE sequence row so two backfill requests
+    # cannot pick the same W number. Only prefix/separator/padding are read — the row's
+    # next_number counter is never touched by the W series.
+    LOCK_SERVICE_INVOICE_SEQUENCE = """
+        SELECT prefix, separator, padding
+        FROM document_sequence
+        WHERE document_type_id = (SELECT id FROM document_type WHERE code = 'SERVICE_INVOICE')
+          AND branch_id = %(branch_id)s
+          AND division_id = %(division_id)s
+        FOR UPDATE
+    """
+
+    # Next number in the backfill W series: invoice numbers of the form
+    # <prefix><separator>W<digits>. Matched with left()/substring() rather than LIKE
+    # so a prefix holding % or _ cannot widen the match.
+    GET_NEXT_W_SERIES_NUMBER = """
+        SELECT COALESCE(MAX(SUBSTRING(invoice_no FROM LENGTH(%(stem)s) + 1)::bigint), 0) + 1 AS next_number
+        FROM job_invoice
+        WHERE LEFT(invoice_no, LENGTH(%(stem)s)) = %(stem)s
+          AND SUBSTRING(invoice_no FROM LENGTH(%(stem)s) + 1) ~ '^[0-9]+$'
     """
 
     GET_JOB_INVOICE_ID_BY_JOB_FOR_UPDATE = """

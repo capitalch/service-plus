@@ -132,7 +132,6 @@ export function JobChargesReadonlyPanel({
 }: PanelProps) {
 	// ── Totals ──────────────────────────────────────────────────────────────
 	const partsTotal = parts.reduce((s, p) => s + partSaleGst(p, isGst) * p.qty, 0);
-	const partsCostTotal = parts.reduce((s, p) => s + (p.cost_price ?? 0) * p.qty, 0);
 	const partsQtyTotal = parts.reduce((s, p) => s + p.qty, 0);
 	const partsGstTotal = isGst
 		? parts.reduce((s, p) => s + ((p.selling_price ?? 0) * p.qty * (p.gst_rate ?? 0)) / 100, 0)
@@ -143,7 +142,6 @@ export function JobChargesReadonlyPanel({
 	const profitPartsTotal = parts.reduce((s, p) => s + ((p.selling_price ?? 0) - (p.cost_price ?? 0)) * p.qty, 0);
 
 	const chargesTotal = charges.reduce((s, c) => s + chargeSaleGst(c, isGst) * c.qty, 0);
-	const chargesCostTotal = charges.reduce((s, c) => s + c.cost_price * c.qty, 0);
 	const chargesQtyTotal = charges.reduce((s, c) => s + c.qty, 0);
 	const chargesGstTotal = isGst
 		? charges.reduce((s, c) => s + (c.selling_price * c.qty * (c.gst_rate ?? 0)) / 100, 0)
@@ -210,12 +208,12 @@ export function JobChargesReadonlyPanel({
 										<th className={thRo}>Part Code</th>
 										<th className={`${thRo} w-full`}>Part Name</th>
 										<th className={thRo}>Remarks</th>
-										{isGst && !isWarranty && <th className={thRo}>HSN</th>}
-										{isGst && !isWarranty && <th className={`${thRo} text-right`}>GST%</th>}
+										{isGst && <th className={thRo}>HSN</th>}
+										{isGst && <th className={`${thRo} text-right`}>GST%</th>}
 										<th className={`${thRo} text-right`}>Qty</th>
 										<th className={`${thRo} text-right`}>Cost</th>
-										{!isWarranty && <th className={`${thRo} text-right`}>Sale</th>}
-										{isGst && !isWarranty && <th className={`${thRo} text-right`}>Sale+GST</th>}
+										<th className={`${thRo} text-right`}>Sale</th>
+										{isGst && <th className={`${thRo} text-right`}>Sale+GST</th>}
 										<th className={`${thRo} text-right`}>Amount</th>
 									</tr>
 								</thead>
@@ -224,7 +222,7 @@ export function JobChargesReadonlyPanel({
 										const gr = p.gst_rate ?? 0;
 										const sp = p.selling_price ?? 0;
 										const spg = sp * (1 + (isGst ? gr : 0) / 100);
-										const amt = isWarranty ? (p.cost_price ?? 0) * p.qty : spg * p.qty;
+										const amt = spg * p.qty;
 										return (
 											<tr key={p.id} className="hover:bg-(--cl-surface-2)/40 transition-colors">
 												<td className={`${tdRo} text-(--cl-text-muted)`}>{idx + 1}</td>
@@ -237,24 +235,22 @@ export function JobChargesReadonlyPanel({
 												<td className={`${tdRo} text-(--cl-text-muted) text-xs`}>
 													{p.remarks || "—"}
 												</td>
-												{isGst && !isWarranty && (
+												{isGst && (
 													<td className={`${tdRo} font-mono text-xs`}>{p.hsn_code || "—"}</td>
 												)}
-												{isGst && !isWarranty && (
-													<td className={`${tdRo} text-right tabular-nums`}>{gr}%</td>
-												)}
+												{isGst && <td className={`${tdRo} text-right tabular-nums`}>{gr}%</td>}
 												<td className={`${tdRo} text-right tabular-nums`}>
 													{fmtCurrency(p.qty)}
 												</td>
 												<td className={`${tdRo} text-right tabular-nums`}>
 													₹{fmtCurrency(p.cost_price ?? 0)}
 												</td>
-												{!isWarranty && (
-													<td className={`${tdRo} text-right tabular-nums`}>
-														₹{fmtCurrency(sp)}
-													</td>
-												)}
-												{isGst && !isWarranty && (
+
+												<td className={`${tdRo} text-right tabular-nums`}>
+													₹{fmtCurrency(sp)}
+												</td>
+
+												{isGst && (
 													<td className={`${tdRo} text-right tabular-nums`}>
 														₹{fmtCurrency(spg)}
 													</td>
@@ -273,19 +269,18 @@ export function JobChargesReadonlyPanel({
 										<td colSpan={100} className="border-t border-(--cl-border)/30 px-2 py-2">
 											<div className="flex items-center justify-between gap-6">
 												<div className="flex flex-wrap items-center gap-4">
-													{!isWarranty && (
-														<div className="flex items-center gap-1.5">
-															<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
-																Profit
-															</span>
-															<span
-																className={`tabular-nums text-sm font-semibold ${profitPartsTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}
-															>
-																{profitPartsTotal < 0 ? "-" : ""}₹
-																{fmtCurrency(Math.abs(profitPartsTotal))}
-															</span>
-														</div>
-													)}
+													<div className="flex items-center gap-1.5">
+														<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
+															Profit
+														</span>
+														<span
+															className={`tabular-nums text-sm font-semibold ${profitPartsTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}
+														>
+															{profitPartsTotal < 0 ? "-" : ""}₹
+															{fmtCurrency(Math.abs(profitPartsTotal))}
+														</span>
+													</div>
+
 													<div className="flex items-center gap-1.5">
 														<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
 															Qty
@@ -294,7 +289,7 @@ export function JobChargesReadonlyPanel({
 															{fmtCurrency(partsQtyTotal)}
 														</span>
 													</div>
-													{isGst && !isWarranty && (
+													{isGst && (
 														<>
 															{forceIgst ? (
 																<div className="flex items-center gap-1.5">
@@ -333,7 +328,7 @@ export function JobChargesReadonlyPanel({
 														Parts Total
 													</span>
 													<span className="tabular-nums text-base font-bold text-(--cl-text)">
-														₹{fmtCurrency(isWarranty ? partsCostTotal : partsTotal)}
+														₹{fmtCurrency(partsTotal)}
 													</span>
 												</div>
 											</div>
@@ -365,12 +360,12 @@ export function JobChargesReadonlyPanel({
 										<th className={thRo}>Charge Name</th>
 										<th className={thRo}>Ref No</th>
 										<th className={`${thRo} w-full`}>Description</th>
-										{isGst && !isWarranty && <th className={thRo}>HSN</th>}
-										{isGst && !isWarranty && <th className={`${thRo} text-right`}>GST%</th>}
+										{isGst && <th className={thRo}>HSN</th>}
+										{isGst && <th className={`${thRo} text-right`}>GST%</th>}
 										<th className={`${thRo} text-right`}>Qty</th>
 										<th className={`${thRo} text-right`}>Cost</th>
-										{!isWarranty && <th className={`${thRo} text-right`}>Sale</th>}
-										{isGst && !isWarranty && <th className={`${thRo} text-right`}>Sale+GST</th>}
+										<th className={`${thRo} text-right`}>Sale</th>
+										{isGst && <th className={`${thRo} text-right`}>Sale+GST</th>}
 										<th className={`${thRo} text-right`}>Amount</th>
 									</tr>
 								</thead>
@@ -379,7 +374,7 @@ export function JobChargesReadonlyPanel({
 										const gr = c.gst_rate ?? 0;
 										const sp = c.selling_price ?? 0;
 										const spg = sp * (1 + (isGst ? gr : 0) / 100);
-										const amt = isWarranty ? c.cost_price * c.qty : spg * c.qty;
+										const amt = spg * c.qty;
 										return (
 											<tr key={c.id} className="hover:bg-(--cl-surface-2)/40 transition-colors">
 												<td className={`${tdRo} text-(--cl-text-muted)`}>{idx + 1}</td>
@@ -390,24 +385,22 @@ export function JobChargesReadonlyPanel({
 												<td className={`${tdRo} min-w-[80px] text-xs text-(--cl-text-muted)`}>
 													{c.description || "—"}
 												</td>
-												{isGst && !isWarranty && (
+												{isGst && (
 													<td className={`${tdRo} font-mono text-xs`}>{c.hsn_code || "—"}</td>
 												)}
-												{isGst && !isWarranty && (
-													<td className={`${tdRo} text-right tabular-nums`}>{gr}%</td>
-												)}
+												{isGst && <td className={`${tdRo} text-right tabular-nums`}>{gr}%</td>}
 												<td className={`${tdRo} text-right tabular-nums`}>
 													{fmtCurrency(c.qty)}
 												</td>
 												<td className={`${tdRo} text-right tabular-nums`}>
 													₹{fmtCurrency(c.cost_price)}
 												</td>
-												{!isWarranty && (
-													<td className={`${tdRo} text-right tabular-nums`}>
-														₹{fmtCurrency(sp)}
-													</td>
-												)}
-												{isGst && !isWarranty && (
+
+												<td className={`${tdRo} text-right tabular-nums`}>
+													₹{fmtCurrency(sp)}
+												</td>
+
+												{isGst && (
 													<td className={`${tdRo} text-right tabular-nums`}>
 														₹{fmtCurrency(spg)}
 													</td>
@@ -426,19 +419,18 @@ export function JobChargesReadonlyPanel({
 										<td colSpan={100} className="border-t border-(--cl-border)/30 px-2 py-2">
 											<div className="flex items-center justify-between gap-6">
 												<div className="flex flex-wrap items-center gap-4">
-													{!isWarranty && (
-														<div className="flex items-center gap-1.5">
-															<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
-																Profit
-															</span>
-															<span
-																className={`tabular-nums text-sm font-semibold ${profitChargesTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}
-															>
-																{profitChargesTotal < 0 ? "-" : ""}₹
-																{fmtCurrency(Math.abs(profitChargesTotal))}
-															</span>
-														</div>
-													)}
+													<div className="flex items-center gap-1.5">
+														<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
+															Profit
+														</span>
+														<span
+															className={`tabular-nums text-sm font-semibold ${profitChargesTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}
+														>
+															{profitChargesTotal < 0 ? "-" : ""}₹
+															{fmtCurrency(Math.abs(profitChargesTotal))}
+														</span>
+													</div>
+
 													<div className="flex items-center gap-1.5">
 														<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
 															Qty
@@ -447,7 +439,7 @@ export function JobChargesReadonlyPanel({
 															{fmtCurrency(chargesQtyTotal)}
 														</span>
 													</div>
-													{isGst && !isWarranty && (
+													{isGst && (
 														<>
 															{forceIgst ? (
 																<div className="flex items-center gap-1.5">
@@ -486,7 +478,7 @@ export function JobChargesReadonlyPanel({
 														Charges Total
 													</span>
 													<span className="tabular-nums text-base font-bold text-(--cl-text)">
-														₹{fmtCurrency(isWarranty ? chargesCostTotal : chargesTotal)}
+														₹{fmtCurrency(chargesTotal)}
 													</span>
 												</div>
 											</div>
@@ -504,19 +496,14 @@ export function JobChargesReadonlyPanel({
 						<div className="flex flex-1 items-end px-3 py-3">
 							<SummaryRows
 								rows={[
-									...(!isWarranty
-										? [
-												{
-													amount: Math.abs(grandProfitTotal),
-													colorClass:
-														grandProfitTotal < 0 ? "text-amber-600" : "text-emerald-600",
-													label: "Profit",
-													negative: grandProfitTotal < 0,
-												},
-											]
-										: []),
+									{
+										amount: Math.abs(grandProfitTotal),
+										colorClass: grandProfitTotal < 0 ? "text-amber-600" : "text-emerald-600",
+										label: "Profit",
+										negative: grandProfitTotal < 0,
+									},
 									{ amount: grandQtyTotal, currency: false, label: "Qty" },
-									...(isGst && !isWarranty
+									...(isGst
 										? forceIgst
 											? [{ amount: grandIgstTotal, label: "IGST" }]
 											: [
@@ -525,17 +512,17 @@ export function JobChargesReadonlyPanel({
 												]
 										: []),
 									{
-										amount: isWarranty ? partsCostTotal : partsTotal,
+										amount: partsTotal,
 										dividerBefore: true,
 										label: "Parts",
 									},
-									{ amount: isWarranty ? chargesCostTotal : chargesTotal, label: "Charges" },
+									{ amount: chargesTotal, label: "Charges" },
 								]}
 							/>
 						</div>
 						<div className="w-px self-stretch bg-(--cl-border)/30" />
 						<div className="flex shrink-0 translate-y-[3px] flex-col items-end justify-end gap-1 px-5 py-3">
-							{!isWarranty && grandTotal !== effectiveTotal && (
+							{grandTotal !== effectiveTotal && (
 								<div className="flex items-center gap-1.5">
 									<span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">
 										Calculated
@@ -547,10 +534,10 @@ export function JobChargesReadonlyPanel({
 							)}
 							<div className="flex items-center gap-2">
 								<span className="text-xs font-bold uppercase tracking-wide text-(--cl-accent)">
-									{isWarranty ? "Final Amount" : "Total"}
+									Total
 								</span>
 								<span className="tabular-nums text-base font-black text-(--cl-text)">
-									{isWarranty ? "₹0.00" : `₹${fmtCurrency(effectiveTotal)}`}
+									₹{fmtCurrency(effectiveTotal)}
 								</span>
 							</div>
 						</div>

@@ -87,17 +87,23 @@ export async function finalizeJobSave(args: FinalizeJobSaveArgs): Promise<boolea
 	const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
 	setSubmitting(true);
 	try {
-		if (isGst && !isWarrantyJob) {
-			const missingHsnParts = partLines.filter((l) => l.part_id && !l.hsn_code.trim()).length;
-			const missingHsnCharges = chargeLines.filter((c) => c.charge_name.trim() && !c.hsn_code.trim()).length;
+		if (isGst) {
+			// A warranty line left at its ₹0 starting price is free and goes on no invoice, so it
+			// needs neither HSN nor GST rate. Every other line — and every line of other job
+			// types — must carry both.
+			function needsTax(sellingPrice: string): boolean {
+				return !isWarrantyJob || (parseFloat(sellingPrice) || 0) > 0;
+			}
+			const taxedParts = partLines.filter((l) => l.part_id && needsTax(l.selling_price));
+			const taxedCharges = chargeLines.filter((c) => c.charge_name.trim() && needsTax(c.selling_price));
+			const missingHsnParts = taxedParts.filter((l) => !l.hsn_code.trim()).length;
+			const missingHsnCharges = taxedCharges.filter((c) => !c.hsn_code.trim()).length;
 			if (missingHsnParts > 0 || missingHsnCharges > 0) {
 				toast.error("HSN is required for all parts and charges in a GST invoice.");
 				return false;
 			}
-			const missingGstParts = partLines.filter((l) => l.part_id && !(parseFloat(l.gst_rate) > 0)).length;
-			const missingGstCharges = chargeLines.filter(
-				(c) => c.charge_name.trim() && !(parseFloat(c.gst_rate) > 0),
-			).length;
+			const missingGstParts = taxedParts.filter((l) => !(parseFloat(l.gst_rate) > 0)).length;
+			const missingGstCharges = taxedCharges.filter((c) => !(parseFloat(c.gst_rate) > 0)).length;
 			if (missingGstParts > 0 || missingGstCharges > 0) {
 				toast.error("GST rate must be greater than 0 for all parts and charges in a GST invoice.");
 				return false;
@@ -164,11 +170,11 @@ export async function finalizeJobSave(args: FinalizeJobSaveArgs): Promise<boolea
 				charge_name: c.charge_name.trim(),
 				ref_no: c.ref_no.trim() || null,
 				description: c.description.trim() || null,
-				hsn_code: isGst && !isWarrantyJob ? c.hsn_code.trim() || null : null,
-				gst_rate: !isWarrantyJob ? parseFloat(c.gst_rate) || 0 : 0,
+				hsn_code: isGst ? c.hsn_code.trim() || null : null,
+				gst_rate: parseFloat(c.gst_rate) || 0,
 				qty: parseFloat(c.qty) || 1,
 				cost_price: parseFloat(c.cost_price) || 0,
-				selling_price: isWarrantyJob ? 0 : parseFloat(c.selling_price) || 0,
+				selling_price: parseFloat(c.selling_price) || 0,
 			}));
 
 		const xDetails: Record<string, unknown>[] = [];
@@ -179,21 +185,21 @@ export async function finalizeJobSave(args: FinalizeJobSaveArgs): Promise<boolea
 				id: l.id,
 				part_id: l.part_id,
 				cost_price: parseFloat(l.cost_price) || 0,
-				selling_price: isWarrantyJob ? 0 : parseFloat(l.selling_price) || 0,
-				gst_rate: !isWarrantyJob ? parseFloat(l.gst_rate) || 0 : 0,
+				selling_price: parseFloat(l.selling_price) || 0,
+				gst_rate: parseFloat(l.gst_rate) || 0,
 				qty: l.qty,
 				remarks: l.remarks.trim() || null,
-				hsn_code: isGst && !isWarrantyJob ? l.hsn_code.trim() || null : null,
+				hsn_code: isGst ? l.hsn_code.trim() || null : null,
 			}));
 
 		const newInserts = newParts.map((l) => ({
 			part_id: l.part_id,
 			cost_price: parseFloat(l.cost_price) || 0,
-			selling_price: isWarrantyJob ? 0 : parseFloat(l.selling_price) || 0,
-			gst_rate: !isWarrantyJob ? parseFloat(l.gst_rate) || 0 : 0,
+			selling_price: parseFloat(l.selling_price) || 0,
+			gst_rate: parseFloat(l.gst_rate) || 0,
 			qty: l.qty,
 			remarks: l.remarks.trim() || null,
-			hsn_code: isGst && !isWarrantyJob ? l.hsn_code.trim() || null : null,
+			hsn_code: isGst ? l.hsn_code.trim() || null : null,
 			xDetails: {
 				tableName: "stock_transaction",
 				fkeyName: "job_part_used_id",
@@ -234,13 +240,13 @@ export async function finalizeJobSave(args: FinalizeJobSaveArgs): Promise<boolea
 		// The job is always saved with the true achieved line total — not the
 		// aspirational Apply target, which may be unreachable (e.g. part selling
 		// prices are floored at cost and can't be discounted further).
-		const amount = isWarrantyJob ? 0 : computedTotal;
+		const amount = computedTotal;
 
 		// Hard block: the entered target must be aligned with the actual line
 		// total (via Apply) before saving. After a correct Apply this diff is ~0;
 		// a diff over ₹0.02 means the target was never applied (or the lines were
 		// hand-edited away from it). No override.
-		if (!isWarrantyJob && hasTarget) {
+		if (hasTarget) {
 			const diff = Math.abs(backCalcNum - computedTotal);
 			if (diff > 0.02) {
 				setDiffAlertMsg(

@@ -239,8 +239,6 @@ export const PartUsedSection = () => {
 			return;
 		}
 
-		const isWarrantyJob = selectedJob.job_type_code === "UNDER_WARRANTY";
-
 		const newLines = values.newLines ?? [];
 		const deletedIds = values.deletedIds ?? [];
 		const validNewLines = newLines.filter((l) => l.part_id && l.qty > 0);
@@ -250,7 +248,7 @@ export const PartUsedSection = () => {
 			part_id: line.part_id,
 			qty: line.qty,
 			cost_price: line.cost_price ?? 0,
-			selling_price: isWarrantyJob ? 0 : (line.selling_price ?? 0),
+			selling_price: line.selling_price ?? 0,
 			gst_rate: line.gst_rate ?? 0,
 			hsn_code: line.hsn_code?.trim() || null,
 			remarks: line.remarks?.trim() || null,

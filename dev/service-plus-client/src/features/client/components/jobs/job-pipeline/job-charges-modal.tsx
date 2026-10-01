@@ -246,7 +246,8 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 
 	function handleCostPriceChange(index: number, cost: number | null) {
 		setValue(`parts.${index}.cost_price`, cost);
-		setValue(`parts.${index}.selling_price`, isWarranty ? 0 : applyMarkup(cost, markupPct));
+		// A warranty price is only ever typed by staff — a cost edit must not overwrite it.
+		if (!isWarranty) setValue(`parts.${index}.selling_price`, applyMarkup(cost, markupPct));
 	}
 
 	// ── Charge handlers ──────────────────────────────────────────────────────
@@ -327,7 +328,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 						id: p.id!,
 						qty: p.qty,
 						cost_price: p.cost_price,
-						selling_price: isWarranty ? 0 : p.selling_price,
+						selling_price: p.selling_price,
 						remarks: p.remarks || null,
 					})),
 					...validNewParts.map((p) => ({
@@ -335,7 +336,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 						part_id: p.part_id,
 						qty: p.qty,
 						cost_price: p.cost_price,
-						selling_price: isWarranty ? 0 : p.selling_price,
+						selling_price: p.selling_price,
 						remarks: p.remarks || null,
 						gst_rate: p.gst_rate ?? defaultGstRate,
 						hsn_code: p.hsn_code || defaultHsnForSparePart || null,
@@ -365,7 +366,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 						ref_no: c.ref_no || null,
 						description: c.description || null,
 						cost_price: c.cost_price,
-						selling_price: isWarranty ? 0 : c.selling_price,
+						selling_price: c.selling_price,
 					})),
 					...validNewCharges.map((c) => ({
 						job_id: job.id,
@@ -373,7 +374,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 						ref_no: c.ref_no || null,
 						description: c.description || null,
 						cost_price: c.cost_price,
-						selling_price: isWarranty ? 0 : c.selling_price,
+						selling_price: c.selling_price,
 						gst_rate: c.gst_rate || defaultGstRate,
 						hsn_code: c.hsn_code || defaultHsnForServiceCharge || null,
 					})),
@@ -439,7 +440,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 						</span>
 						{isWarranty && (
 							<span className="inline-flex items-center rounded-sm bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-								Warranty — cost only, selling ₹0
+								Warranty — prices start at ₹0
 							</span>
 						)}
 						{markupPct > 0 && !isWarranty && (
@@ -602,8 +603,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 																min={0}
 																step="0.01"
 																type="number"
-																disabled={isWarranty}
-																value={isWarranty ? 0 : (row?.selling_price ?? "")}
+																value={row?.selling_price ?? ""}
 																placeholder="0.00"
 																onFocus={(e) => e.target.select()}
 																onChange={(e) =>
@@ -789,13 +789,10 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 																min={0.01}
 																step="0.01"
 																placeholder="0.00"
-																disabled={isWarranty}
 																value={
-																	isWarranty
-																		? 0
-																		: (row?.selling_price ?? 0) === 0
-																			? ""
-																			: (row?.selling_price ?? "")
+																	(row?.selling_price ?? 0) === 0
+																		? ""
+																		: (row?.selling_price ?? "")
 																}
 																onFocus={(e) => e.target.select()}
 																onChange={(e) =>

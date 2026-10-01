@@ -132,6 +132,7 @@ function computePartPricesOnSelect(
 	inflateCostForNonGst: boolean, // true in Final-a-Job for non-GST: absorb supplier GST into cost
 	defaultGstRate: number,
 	markupPct: number,
+	isWarranty: boolean, // warranty lines start at ₹0 instead of the markup price
 	currentCostPrice = 0, // customcp — existing line cost before selection
 	currentSellingPrice = 0, // customsp — existing line selling price before selection
 ): Pick<EditablePartLine, "cost_price" | "selling_price" | "sale_pr_gst" | "gst_rate"> {
@@ -147,7 +148,7 @@ function computePartPricesOnSelect(
 	}
 
 	// sp = customsp or cp*(1+markup/100)  [first non-zero]
-	const sp = currentSellingPrice > 0 ? currentSellingPrice : applyMarkup(cp, markupPct);
+	const sp = currentSellingPrice > 0 ? currentSellingPrice : isWarranty ? 0 : applyMarkup(cp, markupPct);
 
 	return {
 		cost_price: cp.toFixed(2),
@@ -233,6 +234,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
 	// Derived: effective division and GST flag for the currently-open job
 	const division = availableDivisions.find((d) => d.id === selectedDivisionId) ?? null;
 	const isGst = isGstDivision(division);
+	const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
 
 	// ── Load brands + JOB_CONSUME type once ─────────────────────────────────
 	useEffect(() => {
@@ -794,6 +796,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
 				!newIsGst,
 				defaultGstRate,
 				markupPct,
+				isWarrantyJob,
 				0,
 				0,
 			);
@@ -904,7 +907,6 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
 	// Cost edit cascades: selling = cost*(1+markup%), sale_pr_gst = selling*(1+gst%) when GST,
 	// then re-seed the back-calc target to the new grand total.
 	function handleCostChange(key: string, value: string) {
-		const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
 		const cp = parseFloat(value) || 0;
 		const next = partLines.map((l) => {
 			if (l._key !== key) return l;
@@ -931,6 +933,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
 			!isGst,
 			defaultGstRate,
 			markupPct,
+			isWarrantyJob,
 			currentCostPrice,
 			currentSellingPrice,
 		);
@@ -1000,6 +1003,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
 					!isGst,
 					defaultGstRate,
 					markupPct,
+					isWarrantyJob,
 					0,
 					0, // force fresh computation — no custom overrides
 				);

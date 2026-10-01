@@ -3,6 +3,18 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-01 20:05 (main)
+Jobs: warranty jobs priced and invoiced like any job; W-series backfill
+
+- Final a Job / Job Control: warranty is only a ₹0 starting price, not a lock — full pricing grid, real amount saved, HSN/GST skipped only on ₹0 warranty lines; Job Control now loads the job type
+- Job Charges, Part Used, read-only charges view, Receipts: warranty prices editable and shown as saved; cost edits keep a typed warranty price; warranty jobs can take receipts
+- Delivery: shared job-invoice builder; no invoice for any ₹0 job (client and createJobInvoice on the server); amount above ₹0 with all lines at ₹0 is skipped with a warning
+- Server: Batch Warranty skips jobs with a priced charge; new GET_WARRANTY_JOBS_MISSING_INVOICE and admin-only createBackfillJobInvoice (delivery-dated, W-numbered)
+- Jobs → Warranty Invoice Backfill: one-time Admin screen to invoice past priced warranty jobs
+- Help: staff and developer articles rewritten for the new warranty rules and backfill; plan steps 1–11 marked done
+
+Files: 25 changed (+906 / -704) — Base: 3a67ca3
+
 ## 2026-10-01 15:37 (main)
 Docs: live server prices for the portal; warranty-charges fix plan
 

@@ -39,7 +39,6 @@ function receiptJobRestrictionReason(job: JobLookupForReceiptType): string | nul
 		return "Job is final — fully paid, no due";
 	if (job.job_status_code === "ON_HOLD") return "Job is on hold";
 	if (job.job_status_code === "ESTIMATE_REJECTED") return "Estimate was rejected";
-	if (job.job_type_code === "UNDER_WARRANTY") return "Under warranty — no payment required";
 	return null;
 }
 

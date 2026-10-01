@@ -102,6 +102,7 @@ function computePartPricesOnSelect(
 	inflateCostForNonGst: boolean,
 	defaultGstRate: number,
 	markupPct: number,
+	isWarranty: boolean, // warranty lines start at ₹0 instead of the markup price
 	currentCostPrice = 0,
 	currentSellingPrice = 0,
 ): Pick<EditablePartLine, "cost_price" | "selling_price" | "sale_pr_gst" | "gst_rate"> {
@@ -113,7 +114,7 @@ function computePartPricesOnSelect(
 	} else {
 		cp = dbcp > 0 ? dbcp : currentCostPrice;
 	}
-	const sp = currentSellingPrice > 0 ? currentSellingPrice : applyMarkup(cp, markupPct);
+	const sp = currentSellingPrice > 0 ? currentSellingPrice : isWarranty ? 0 : applyMarkup(cp, markupPct);
 	return {
 		cost_price: cp.toFixed(2),
 		selling_price: sp.toFixed(2),
@@ -170,6 +171,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
 
 	const division = availableDivisions.find((d) => d.id === selectedDivisionId) ?? null;
 	const isGst = isGstDivision(division);
+	const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
 
 	// ── Load meta once ────────────────────────────────────────────────────────
 
@@ -253,8 +255,8 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
 				is_opening_job: job.is_opening_job,
 				purchase_date: job.purchase_date,
 				job_date: job.job_date,
-				job_type_name: "",
-				job_type_code: "",
+				job_type_name: job.job_type_name ?? "",
+				job_type_code: job.job_type_code ?? "",
 				customer_name: job.customer_name ?? "",
 				customer_gstin: job.customer_gstin ?? null,
 				mobile: job.mobile,
@@ -373,7 +375,6 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
 	}
 
 	function handleCostChange(key: string, value: string) {
-		const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
 		const cp = parseFloat(value) || 0;
 		const next = partLines.map((l) => {
 			if (l._key !== key) return l;
@@ -400,6 +401,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
 			!isGst,
 			defaultGstRate,
 			markupPct,
+			isWarrantyJob,
 			currentCostPrice,
 			currentSellingPrice,
 		);
@@ -474,6 +476,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
 				!newIsGst,
 				defaultGstRate,
 				markupPct,
+				isWarrantyJob,
 				0,
 				0,
 			);
@@ -578,6 +581,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
 					!isGst,
 					defaultGstRate,
 					markupPct,
+					isWarrantyJob,
 					0,
 					0,
 				);

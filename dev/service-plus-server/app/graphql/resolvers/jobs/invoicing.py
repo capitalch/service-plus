@@ -13,6 +13,20 @@ from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
 
 
+def _require_invoice_lines(x_data: dict) -> None:
+    """Raise unless the invoice payload carries at least one job_invoice_line row."""
+    x_details = x_data.get("xDetails")
+    has_lines = bool(x_details) and any(
+        item.get("tableName") == "job_invoice_line" and item.get("xData")
+        for item in (x_details if isinstance(x_details, list) else [x_details])
+    )
+    if not has_lines:
+        raise ValidationException(
+            message="Invoice must have at least one line item",
+            extensions={"field": "xDetails"},
+        )
+
+
 async def resolve_create_job_invoice_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
@@ -34,16 +48,7 @@ async def resolve_create_job_invoice_helper(
             extensions={"field": "branch_id/division_id"},
         )
 
-    x_details = x_data.get("xDetails")
-    has_lines = bool(x_details) and any(
-        item.get("tableName") == "job_invoice_line" and item.get("xData")
-        for item in (x_details if isinstance(x_details, list) else [x_details])
-    )
-    if not has_lines:
-        raise ValidationException(
-            message="Invoice must have at least one line item",
-            extensions={"field": "xDetails"},
-        )
+    _require_invoice_lines(x_data)
 
     db_name_arg: str = db_name or ""
     schema_name = schema or "public"
@@ -64,12 +69,19 @@ async def resolve_create_job_invoice_helper(
                 return existing["id"]
 
             # 1b. Enforce that the job must be delivered before an invoice can be created
-            await cur.execute(SqlStore.GET_JOB_IS_CLOSED, {"job_id": x_data.get("job_id")})
+            await cur.execute(SqlStore.GET_JOB_CLOSED_AND_AMOUNT, {"job_id": x_data.get("job_id")})
             job_row = await cur.fetchone()
             if not job_row or not job_row["is_closed"]:
                 raise ValidationException(
                     message="Invoice can only be created for a delivered job",
                     extensions={"field": "job_id"},
+                )
+
+            # 1c. A job with no charge never gets an invoice, whatever its job type
+            if (job_row["amount"] or 0) <= 0:
+                raise ValidationException(
+                    message="Invoice cannot be created for a job whose amount is 0",
+                    extensions={"field": "amount"},
                 )
 
             # 2. Claim next invoice number atomically
@@ -146,4 +158,95 @@ async def resolve_regenerate_job_invoice_helper(
                 await process_data(line_data, cur, "job_invoice_line", None, None)
 
     logger.info("Job invoice id=%s regenerated with %s lines", invoice_id, len(lines))
+    return invoice_id
+
+
+async def resolve_create_backfill_job_invoice_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
+    """
+    One-time backfill: invoice a delivered warranty job that carries a real amount but
+    was never invoiced (plans/plan-fix-warranty-charges.md, Step 9).
+
+    Differs from createJobInvoice in three ways, all decided by the server from the job
+    row, never from the payload:
+      - invoice_date = the job's delivery_date, so the revenue lands in its own period;
+      - branch = the job's branch;
+      - invoice_no = <prefix><separator>W<n>, a separate series per SERVICE_INVOICE
+        prefix, so the running sequence counter is never touched.
+    The client supplies only job_id, supply_state_code, the amounts and the lines.
+    """
+    # pylint: disable=too-many-locals
+    payload = _decode_value(value, "createBackfillJobInvoice")
+    x_data = payload.get("xData", {})
+    job_id = x_data.get("job_id")
+    if not job_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING, extensions={"field": "job_id"}
+        )
+    for key in ("branch_id", "division_id", "invoice_date", "invoice_no"):
+        x_data.pop(key, None)
+    _require_invoice_lines(x_data)
+
+    db_name_arg: str = db_name or ""
+    schema_name = schema or "public"
+
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+
+            # 1. Idempotency — a repeat call returns the invoice already created
+            await cur.execute(SqlStore.GET_JOB_INVOICE_ID_BY_JOB_FOR_UPDATE, {"job_id": job_id})
+            existing = await cur.fetchone()
+            if existing:
+                return existing["id"]
+
+            # 2. Only a delivered warranty job with a real amount qualifies
+            await cur.execute(SqlStore.GET_JOB_FOR_BACKFILL_INVOICE, {"job_id": job_id})
+            job = await cur.fetchone()
+            if (
+                not job
+                or job["job_type_code"] != "UNDER_WARRANTY"
+                or not job["is_closed"]
+                or job["job_status_code"] not in ("DELIVERED_OK", "DELIVERED_NOT_OK")
+                or (job["amount"] or 0) <= 0
+                or not job["delivery_date"]
+                or not job["division_id"]
+            ):
+                raise ValidationException(
+                    message="Backfill invoice is only for a delivered warranty job "
+                    "with an amount above 0",
+                    extensions={"field": "job_id"},
+                )
+
+            # 3. W-series number, under a lock on the branch + division sequence row
+            await cur.execute(
+                SqlStore.LOCK_SERVICE_INVOICE_SEQUENCE,
+                {"branch_id": job["branch_id"], "division_id": job["division_id"]},
+            )
+            seq = await cur.fetchone()
+            if not seq or not (seq["prefix"] or "").strip():
+                raise ValidationException(
+                    message=AppMessages.RESOURCE_NOT_FOUND,
+                    extensions={
+                        "detail": "SERVICE_INVOICE sequence not configured for this division"
+                    },
+                )
+            stem = f"{seq['prefix'] or ''}{seq['separator'] or ''}W"
+            await cur.execute(SqlStore.GET_NEXT_W_SERIES_NUMBER, {"stem": stem})
+            next_row = await cur.fetchone()
+            next_number = next_row["next_number"] if next_row else 1
+            invoice_no = f"{stem}{str(next_number).zfill(seq['padding'] or 0)}"
+
+            # 4. Insert job_invoice + lines in the same transaction
+            x_data["invoice_no"] = invoice_no
+            x_data["invoice_date"] = job["delivery_date"]
+            invoice_id = await process_data(x_data, cur, "job_invoice", None, None)
+            logger.info(
+                "Backfill job invoice created id=%s invoice_no=%s job_id=%s",
+                invoice_id, invoice_no, job_id,
+            )
+
     return invoice_id

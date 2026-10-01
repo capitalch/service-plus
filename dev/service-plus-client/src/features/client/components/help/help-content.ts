@@ -219,7 +219,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					["Job Date", "Defaults to today. Can be backdated."],
 					[
 						"Job Type",
-						"Sets the workflow. UNDER_WARRANTY disables selling prices and sets final amount to ₹0.",
+						"Sets the workflow. On an UNDER_WARRANTY job every part and charge starts at ₹0 — enter a price only if the customer is being charged.",
 					],
 					[
 						"Division",
@@ -539,7 +539,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 		category: "Jobs",
 		title: "Batch Warranty Jobs",
 		summary:
-			"Advance several existing zero-parts warranty jobs for one customer through their transactions together — not the same as Batch Jobs.",
+			"Advance several existing free warranty jobs (no parts, no priced charges) for one customer through their transactions together — not the same as Batch Jobs.",
 		tags: [
 			"batch warranty jobs",
 			"warranty",
@@ -555,7 +555,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "Jobs → Batch Warranty Jobs lets you push several existing, zero-parts warranty jobs for one customer through their pipeline transactions in a single run — Completed OK, Final a Job, Deliver a Job, or the vendor Send-to-Company / Received-from-Company cycle — instead of opening each job separately.",
+				text: "Jobs → Batch Warranty Jobs lets you push several existing free warranty jobs for one customer (no parts used, no charge priced above ₹0) through their pipeline transactions in a single run — Completed OK, Final a Job, Deliver a Job, or the vendor Send-to-Company / Received-from-Company cycle — instead of opening each job separately.",
 			},
 			{
 				type: "warning",
@@ -566,7 +566,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "steps",
 				items: [
 					"Go to Jobs → Batch Warranty Jobs.",
-					"Pick a customer — only customers with open (not yet delivered), zero-parts warranty jobs are listed.",
+					"Pick a customer — only customers with open (not yet delivered) warranty jobs that have no parts and no priced charge are listed. A warranty job with a real charge is finalized and delivered the normal way, so its charge is not wiped.",
 					"The grid shows that customer's eligible jobs. Select one or more with the checkboxes.",
 					"Click 'Process N Jobs' to open the process modal.",
 					"Set the technician (only required if Completed OK is checked), the date (required, defaults to today), and optional remarks.",
@@ -625,6 +625,62 @@ export const HELP_ARTICLES: HelpArticle[] = [
 		],
 	},
 
+	{
+		id: "warranty-invoice-backfill",
+		category: "Jobs",
+		title: "Warranty Invoice Backfill",
+		summary:
+			"One-time, Admin-only screen that creates the missing invoices for delivered warranty jobs that carried a real charge.",
+		tags: ["warranty", "invoice", "backfill", "missing invoice", "W series", "admin"],
+		content: [
+			{
+				type: "para",
+				text: "Warranty jobs used to be refused an invoice at delivery, even when the customer was charged. Their cost reached the profit reports but their revenue did not. Jobs → Warranty Invoice Backfill lists every delivered warranty job whose amount is above ₹0 and that has no invoice, so you can create those invoices once. New deliveries invoice priced warranty jobs automatically, so this screen is only for the jobs delivered before that.",
+			},
+			{
+				type: "steps",
+				items: [
+					"Go to Jobs → Warranty Invoice Backfill (shown to Admin users only).",
+					"Review each row: job no, customer, delivery date, branch, amount, lines total and status.",
+					"Click Create Invoice on a Ready row and confirm, or Create All to invoice every Ready row one by one.",
+					"Created jobs drop out of the list. When it is empty, post the new invoices through Jobs → Accounts Posting.",
+				],
+			},
+			{
+				type: "table",
+				headers: ["Status", "Meaning"],
+				rows: [
+					["Ready", "The job has priced parts or charges and can be invoiced."],
+					[
+						"No lines — cannot invoice",
+						"The job has no parts or charges, so there is nothing to put on an invoice.",
+					],
+					[
+						"Lines total ₹0 — fix the job first",
+						"The job has an amount but every line is priced ₹0. Correct the prices first.",
+					],
+				],
+			},
+			{
+				type: "note",
+				text: "Each invoice is dated with the job's delivery date, so the revenue lands in the month the job was delivered, and uses the job's own branch. It is numbered in a separate series — the division's normal prefix and separator, then W and a running number (e.g. SI/W00001) — so your running invoice numbers are not disturbed.",
+			},
+			{
+				type: "warning",
+				text: "Backdated invoices change the GST return of the month they are dated in. Run the backfill before that month's GSTR-1 is filed, and check with your accountant that a separate W series is acceptable.",
+			},
+		],
+		faqs: [
+			{
+				q: "Can I run it twice by mistake?",
+				a: "Yes, safely. A job that already has an invoice is not listed, and creating an invoice again for the same job returns the existing one.",
+			},
+			{
+				q: "Why don't I see this screen?",
+				a: "It is shown to Admin users only, because it creates backdated invoices.",
+			},
+		],
+	},
 	{
 		id: "opening-jobs",
 		category: "Jobs",
@@ -798,7 +854,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Locking a charge" },
 			{
 				type: "para",
-				text: "Every Additional Charge row has a Lock checkbox (hidden on warranty jobs). Tick it and Apply will never reprice that row — not in step 2, not in step 4, and not in either direction. Use it to protect a figure you negotiated with the customer, e.g. 'on this job the diagnostic fee stays at ₹500'.",
+				text: "Every Additional Charge row has a Lock checkbox, on every job type. Tick it and Apply will never reprice that row — not in step 2, not in step 4, and not in either direction. Use it to protect a figure you negotiated with the customer, e.g. 'on this job the diagnostic fee stays at ₹500'.",
 			},
 			{
 				type: "para",
@@ -831,12 +887,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Warranty Jobs" },
 			{
 				type: "para",
-				text: "If the job type is UNDER_WARRANTY, the selling-price fields are hidden entirely (not just disabled) — only Cost Price remains editable, for internal tracking. The final amount is always ₹0.",
+				text: "A warranty job shows the same grid as any other job. Every part and charge starts at a ₹0 selling price, so a free warranty job finalizes at ₹0. If the customer is being charged — a visit fee, a part the warranty does not cover — type the real selling price; it is saved as entered, and the job is invoiced at delivery like any other.",
 			},
 			{ type: "heading", text: "GST Divisions" },
 			{
 				type: "para",
-				text: "In a GST division, HSN code and a GST rate greater than 0 are both mandatory on every part and charge row. Rows with a missing HSN show a red border, and Save is blocked until every row has both a valid HSN and a non-zero GST rate.",
+				text: "In a GST division, HSN code and a GST rate greater than 0 are both mandatory on every part and charge row — except a warranty-job row left at ₹0, which needs neither. Rows with a missing HSN show a red border, and Save is blocked until every row has both a valid HSN and a non-zero GST rate.",
 			},
 			{ type: "heading", text: "Customer GSTIN" },
 			{
@@ -907,8 +963,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				a: "Enter a valid HSN code (4, 6, or 8 digits) on that row. Alternatively, set a default HSN in App Settings so it auto-fills for all parts.",
 			},
 			{
-				q: "Why don't I see selling price fields?",
-				a: "The job type is UNDER_WARRANTY. Selling-price inputs are hidden entirely for warranty jobs — only cost price is tracked, and the final amount is always ₹0.",
+				q: "Why are all selling prices ₹0 on this job?",
+				a: "The job type is UNDER_WARRANTY, so every part and charge starts at ₹0. Leave them at ₹0 for a free warranty repair, or type the real price if the customer is being charged.",
 			},
 			{
 				q: "I changed the division — why did prices change?",
@@ -977,7 +1033,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "Columns adapt automatically: warranty jobs hide Sale/GST columns (only Cost is tracked, Total shows ₹0.00); non-GST divisions hide the GST% and HSN columns entirely.",
+				text: "Columns adapt automatically: non-GST divisions hide the GST% and HSN columns entirely. Warranty jobs show the same columns and their real figures — ₹0 for a free repair, the real amount when the customer was charged.",
 			},
 			{
 				type: "note",
@@ -990,8 +1046,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				a: "No. It's strictly read-only — to change parts, charges, or prices, use Final a Job → Undo (if already finalized) → re-open and edit there.",
 			},
 			{
-				q: "Why don't I see Sale Price or GST columns?",
-				a: "The job is UNDER_WARRANTY. Warranty jobs never charge the customer, so only Cost Price is shown and the Total is always ₹0.00.",
+				q: "Why does a warranty job show ₹0 sale prices?",
+				a: "Warranty parts and charges start at ₹0. A ₹0 total means it was a free repair; if the customer was charged, the real prices and total are shown here.",
 			},
 			{
 				q: "Where else can I open this besides Job View?",
@@ -1132,7 +1188,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "For UNDER_WARRANTY jobs the selling price of every part is forced to ₹0 — only cost is tracked internally.",
+				text: "On an UNDER_WARRANTY job a part's selling price starts at ₹0. Leave it for a free repair, or type the real price if the customer pays for the part; changing the cost afterwards does not overwrite a price you typed.",
 			},
 			{ type: "heading", text: "Reviewing and editing" },
 			{
@@ -1158,8 +1214,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				a: "Yes. Saving creates a Consumption stock transaction and reduces the part's quantity at the current branch right away.",
 			},
 			{
-				q: "Why is the selling price ₹0 and greyed out?",
-				a: "The job type is UNDER_WARRANTY. Warranty jobs never charge the customer, so selling prices are fixed at ₹0.",
+				q: "Why is the selling price ₹0 on a warranty job?",
+				a: "Warranty parts start at ₹0. The field stays editable — type the real price if the customer is paying for this part.",
 			},
 		],
 	},
@@ -1192,7 +1248,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Step 3 — Service Invoice" },
 			{
 				type: "para",
-				text: "Invoices are not created manually here — they are generated automatically as part of the single delivery action in Step 4. A job becomes invoiceable once it reaches DELIVERED_OK or DELIVERED_NOT_OK; UNDER_WARRANTY, RETURN, and CANCELLED jobs are excluded. Invoice numbers come from the SERVICE_INVOICE document sequence.",
+				text: "Invoices are not created manually here — they are generated automatically as part of the single delivery action in Step 4. A job becomes invoiceable once it reaches DELIVERED_OK or DELIVERED_NOT_OK and its amount is above ₹0; RETURN and CANCELLED jobs are excluded. A job with no charge — amount ₹0, of any type, including a free warranty repair — never gets an invoice and shows 'Skipped — No charge'. A warranty job with a real amount is invoiced like any other. If a job's amount is above ₹0 but every part and charge is priced ₹0, the invoice is skipped with a warning — price the lines in Final a Job first. Invoice numbers come from the SERVICE_INVOICE document sequence.",
 			},
 			{
 				type: "bullets",
@@ -2124,7 +2180,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "warning",
-				text: "Editing and deleting are restricted. A receipt cannot be edited or deleted when its job is in a restricted status (Closed, Final, or On Hold), and a receipt that has been posted to accounts cannot be deleted. New receipts also cannot be recorded against an UNDER_WARRANTY job or one in ESTIMATE_REJECTED status.",
+				text: "Editing and deleting are restricted. A receipt cannot be edited or deleted when its job is in a restricted status (Closed, Final, or On Hold), and a receipt that has been posted to accounts cannot be deleted. New receipts also cannot be recorded against a job in ESTIMATE_REJECTED status. Warranty jobs take receipts like any other job — useful when the customer pays for something the warranty does not cover.",
 			},
 			{
 				type: "note",
@@ -3744,7 +3800,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Can I issue a zero-value GST invoice?",
-				a: "Yes — warranty jobs generate invoices with ₹0 selling prices. The invoice still has GST fields but with zero amounts.",
+				a: "No. A job whose amount is ₹0 never gets an invoice, whatever its type — this includes a free warranty repair. A warranty job with a real amount gets a normal invoice with GST on its priced lines.",
 			},
 		],
 	},

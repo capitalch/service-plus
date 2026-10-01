@@ -98,7 +98,10 @@ export function DeliveryModalInvoicesSection({
 	return (
 		<div className="space-y-3">
 			{jobs.map((job) => {
-				const invoiceable = isJobInvoiceable(job.job_type_code, job.job_status_code);
+				// A job that already has an invoice keeps its invoice controls even if it would not be
+				// invoiced today (e.g. a ₹0 invoice issued before the no-charge rule).
+				const invoiceable = !!job.invoice_id || isJobInvoiceable(job.job_status_code, job.amount);
+				const isNoCharge = !(Number(job.amount ?? 0) > 0);
 				const division = availableDivisions.find((d) => d.id === job.division_id) ?? null;
 				const isGst = isGstDivision(division);
 				const hasTaxLines =
@@ -117,7 +120,7 @@ export function DeliveryModalInvoicesSection({
 							<div className="flex items-center gap-2">
 								{!invoiceable ? (
 									<span className="rounded-full bg-amber-100 dark:bg-amber-950/40 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
-										Skipped — {job.job_type_name || job.job_status_name}
+										Skipped — {isNoCharge ? "No charge" : job.job_status_name}
 									</span>
 								) : job.invoice_id ? (
 									<span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">

@@ -489,8 +489,26 @@ export const MESSAGES = {
 		"Job saved, but failed to regenerate invoice. Please regenerate manually.",
 	WARN_JOB_INVOICE_NO_LINES:
 		"no parts or charges — invoice skipped. Add at least one part or charge before invoicing.",
+	WARN_JOB_INVOICE_LINES_ZERO:
+		"amount is above ₹0 but every part and charge is priced ₹0 — invoice skipped. Price the lines in Final a Job first.",
 	ERROR_JOB_INVOICE_REGEN_NO_LINES: "Invoice cannot be regenerated: no parts or charges found.",
 	INFO_JOB_INVOICE_REGEN_SKIPPED_NO_LINES: "Job saved. Invoice not regenerated — no parts or charges found.",
+	INFO_WARRANTY_JOB_PRICING:
+		"Warranty job — prices start at ₹0. Enter an amount only if the customer is being charged.",
+	// Warranty Invoice Backfill (one-time)
+	ERROR_WARRANTY_BACKFILL_CREATE_FAILED: "Failed to create the backfill invoice. Please try again.",
+	ERROR_WARRANTY_BACKFILL_DIVISION_MISSING: "This job's division is not available, so its invoice cannot be built.",
+	ERROR_WARRANTY_BACKFILL_LOAD_FAILED: "Failed to load warranty jobs missing an invoice. Please try again.",
+	INFO_WARRANTY_BACKFILL_CONFIRM_ALL:
+		"Create backdated W-series invoices for every Ready job? Each is dated with its job's delivery date.",
+	INFO_WARRANTY_BACKFILL_CONFIRM_ONE:
+		"Create a backdated W-series invoice for this job? It is dated with the job's delivery date.",
+	INFO_WARRANTY_BACKFILL_EMPTY: "No delivered warranty job is missing an invoice.",
+	INFO_WARRANTY_BACKFILL_INTRO:
+		"Delivered warranty jobs with an amount above ₹0 but no invoice. Each invoice is dated with the job's delivery date and numbered in a separate W series, so running invoice numbers are not disturbed.",
+	INFO_WARRANTY_BACKFILL_STATUS_LINES_ZERO: "Lines total ₹0 — fix the job first",
+	INFO_WARRANTY_BACKFILL_STATUS_NO_LINES: "No lines — cannot invoice",
+	SUCCESS_WARRANTY_BACKFILL_DONE: "Backfill finished.",
 	// Deliver Job
 	ERROR_DELIVERABLE_JOBS_LOAD_FAILED: "Failed to load jobs for delivery. Please try again.",
 	ERROR_JOB_DELIVERY_DETAIL_FAILED: "Failed to load job delivery details. Please try again.",

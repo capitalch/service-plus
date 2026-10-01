@@ -494,9 +494,8 @@ export function NewPartUsedForm({ onJobSelect, form }: Props) {
 															setValue(`newLines.${idx}.cost_price`, cost, {
 																shouldValidate: true,
 															});
-															if (isWarranty)
-																setValue(`newLines.${idx}.selling_price`, 0);
-															else if (markupPct > 0)
+															// A cost edit never overwrites a warranty price staff typed.
+															if (!isWarranty && markupPct > 0)
 																setValue(
 																	`newLines.${idx}.selling_price`,
 																	applyMarkup(cost, markupPct),
@@ -507,8 +506,7 @@ export function NewPartUsedForm({ onJobSelect, form }: Props) {
 												<td className={tdClass}>
 													<PriceInput
 														className={`${inputCls} text-right`}
-														disabled={isWarranty}
-														value={isWarranty ? 0 : (line?.selling_price ?? 0)}
+														value={line?.selling_price ?? 0}
 														onChange={(v) => setValue(`newLines.${idx}.selling_price`, v)}
 													/>
 												</td>

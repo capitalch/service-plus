@@ -15,7 +15,8 @@ Outcomes:
   A line left at ₹0 needs neither, as today.
 - Every screen that shows a warranty job's prices shows the real figures.
 - A warranty job can take money receipts like any other job.
-- At delivery, a warranty job gets an invoice exactly when its amount is above ₹0.
+- At delivery, any job — warranty or not — gets an invoice exactly when its amount is above ₹0.
+  A ₹0 job never gets an invoice, in any situation.
 - Warranty jobs already delivered with a real amount but no invoice get one through a one-time
   maintenance screen. These invoices carry the job's delivery date and a separate number
   series, so the running invoice numbers are not disturbed.
@@ -26,6 +27,7 @@ Decisions already made:
   then the letter `W`, then a running number (e.g. `SI/W00001`).
 - The backfill is a one-time maintenance screen, removed after use.
 - Warranty jobs follow the normal receipt rules; the warranty block is removed.
+- No invoice is ever created for a ₹0 job, whatever its job type.
 
 ## Present context and current design
 
@@ -75,8 +77,9 @@ job ("Under warranty — no payment required").
 ### Delivery and invoicing
 
 - `isJobInvoiceable()` in `deliver-job/deliver-job-helpers.ts` refuses every warranty job,
-  whatever its amount. It is called from `delivery-modal.tsx` and
-  `delivery-modal-invoices-section.tsx`.
+  whatever its amount, but does not look at the amount for other job types — a delivered ₹0
+  ordinary job with lines is invoiced at ₹0 and uses up a number in the running series. It is
+  called from `delivery-modal.tsx` and `delivery-modal-invoices-section.tsx`.
 - `delivery-modal.tsx` builds the invoice inline: `buildInvoiceLines()` turns parts and
   charges into lines with GST, `reconcileLineAmounts()` moves any rounding difference into the
   last line so the lines add up to the job amount, and `doCreateInvoices()` sends
@@ -131,8 +134,9 @@ invoices from the normal sequence would put them after October ones.
    warranty block; the other receipt rules stay (Step 6).
 9. **Batch Warranty would wipe a real charge.** Resolution: Batch Warranty lists only jobs with
    no parts and no charge priced above ₹0 (Step 7).
-10. **A ₹0 warranty job must still get no invoice.** Resolution: the warranty refusal stays, but
-    only when the amount is ₹0 (Step 8).
+10. **A ₹0 job must never get an invoice.** Resolution: `isJobInvoiceable()` refuses any job
+    whose amount is ₹0, whatever its job type; the warranty-specific refusal is removed. The
+    server's `createJobInvoice` also refuses a ₹0 amount, so no path can create one (Step 8).
 11. **Amount above ₹0 with all lines at ₹0 gives a wrong invoice.** Resolution: delivery and
     backfill skip such a job with a clear message. Final a Job already prevents it, because the
     target-must-match-lines check now applies to warranty too (Steps 1, 8).
@@ -160,7 +164,8 @@ invoices from the normal sequence would put them after October ones.
 - Job Charges and Part Used become editable for warranty, keeping the ₹0 start → Step 5.
 - Warranty jobs take receipts normally → Step 6.
 - Batch Warranty only handles truly free jobs → Step 7.
-- Delivery invoices a warranty job with a real amount, through one shared invoice builder → Step 8.
+- Delivery invoices any job with a real amount and never a ₹0 job, through one shared invoice
+  builder → Step 8.
 - Server: list affected jobs and create backfill invoices dated by delivery, `W`-numbered,
   admin-only → Step 9.
 - One-time admin screen to review and create the backfill invoices → Step 10.
@@ -169,7 +174,7 @@ invoices from the normal sequence would put them after October ones.
 
 ## Steps
 
-### Step 1 — Save path: remove the warranty lock
+### Step 1 — Save path: remove the warranty lock 🟢 Done
 Needs: none.
 - File: `src/features/client/components/jobs/final-a-job/finalize-job-save.ts`.
 - Selling price, GST rate, HSN and the job amount are saved the same way for every job type.
@@ -180,7 +185,7 @@ Needs: none.
 - Done when: `pnpm exec tsc -b --noEmit` passes, and a warranty job in a GST division with all
   lines at ₹0 saves without asking for HSN or GST rate.
 
-### Step 2 — ₹0 default in price calculation, and Job Control job type
+### Step 2 — ₹0 default in price calculation, and Job Control job type 🟢 Done
 Needs: Step 1.
 - `computePartPricesOnSelect()` in `final-a-job-section.tsx` and `final-job-dialog.tsx` gets a
   warranty flag. When the line has no price yet: ₹0 for warranty, markup price otherwise. A
@@ -191,7 +196,7 @@ Needs: Step 1.
 - Done when: type check passes; picking a part, changing division, or Reset Prices on a warranty
   job gives ₹0 in both Final a Job and Job Control.
 
-### Step 3 — Final job form: same grid for every job type
+### Step 3 — Final job form: same grid for every job type 🟢 Done
 Needs: Steps 1, 2.
 - File: `src/features/client/components/jobs/final-a-job/final-job-form.tsx`.
 - Show Sale, Sale+GST, Lock, HSN and GST% columns and cells for warranty jobs (remove every
@@ -204,7 +209,7 @@ Needs: Steps 1, 2.
 - Warranty Card No and other non-pricing warranty logic stay.
 - Done when: a warranty job shows the full grid and its total matches what Step 1 saves.
 
-### Step 4 — Read-only charges view
+### Step 4 — Read-only charges view 🟢 Done
 Needs: Step 3.
 - File: `src/features/client/components/jobs/final-a-job/job-charges-readonly-modal.tsx`.
 - Remove the warranty special cases on columns, amounts, totals and the "Final Amount ₹0.00"
@@ -214,7 +219,7 @@ Needs: Step 3.
 - Done when: a warranty job with a priced line shows that price and the job amount in all three
   places.
 
-### Step 5 — Job Charges modal and Part Used
+### Step 5 — Job Charges modal and Part Used 🟢 Done
 Needs: Step 1.
 - `job-pipeline/job-charges-modal.tsx`:
   - Save the entered selling price for parts and charges (remove the four forced ₹0s).
@@ -228,14 +233,14 @@ Needs: Step 1.
   when a part is picked; cost change on a warranty line leaves the selling price alone.
 - Done when: in both screens a typed warranty price survives a cost edit and is saved.
 
-### Step 6 — Receipts
+### Step 6 — Receipts 🟢 Done
 Needs: none.
 - File: `src/features/client/components/jobs/receipts/job-lookup-combobox.tsx`.
 - Remove the warranty line from `receiptJobRestrictionReason()`. Closed, fully-paid final,
   On Hold and Estimate Rejected rules stay.
 - Done when: a warranty job can be picked for a new receipt; a closed one still cannot.
 
-### Step 7 — Batch Warranty eligibility (server)
+### Step 7 — Batch Warranty eligibility (server) 🟢 Done
 Needs: none.
 - `service-plus-server/app/db/sql/sql_jobs.py`: in the Batch Warranty queries that list
   warranty jobs with no parts used, also require no additional charge with a selling price
@@ -243,21 +248,24 @@ Needs: none.
 - Done when: a warranty job with a priced charge no longer appears in Batch Warranty; jobs with
   only ₹0 charges still do.
 
-### Step 8 — Delivery: invoice warranty jobs with a real amount
+### Step 8 — Delivery: invoice warranty jobs with a real amount 🟢 Done
 Needs: Steps 1–5.
 - New file `src/features/client/components/jobs/deliver-job/job-invoice-builder.ts`: move
   `buildInvoiceLines()` and `reconcileLineAmounts()` out of `delivery-modal.tsx`, and add one
   function that builds the full invoice payload (lines, GST totals, header amount) for a job.
   Delivery and the backfill screen both use it.
-- `isJobInvoiceable()` takes the job amount; it refuses a warranty job only when the amount is
-  ₹0. Update both callers to pass `job.amount`.
+- `isJobInvoiceable()` takes the job amount and refuses any job whose amount is ₹0 (or less),
+  for every job type; remove the warranty-specific refusal. Update both callers to pass
+  `job.amount`. The invoices section shows such a job as not invoiceable.
+- Server `createJobInvoice`: refuse a job whose amount is ₹0, so no other path can create a ₹0
+  invoice.
 - Before sending an invoice, skip a job whose amount is above ₹0 but whose lines total ₹0, with
   a warning message in `constants/messages.ts`.
 - Normal delivery still dates the invoice today and uses the normal number sequence.
-- Done when: delivering a priced warranty job creates a correct invoice; a ₹0 warranty job gets
-  none; ordinary jobs invoice exactly as before.
+- Done when: delivering a priced warranty job creates a correct invoice; a ₹0 job of any type
+  gets none; priced ordinary jobs invoice exactly as before.
 
-### Step 9 — Server: affected-job query and backfill invoice mutation
+### Step 9 — Server: affected-job query and backfill invoice mutation 🟢 Done
 Needs: Step 8.
 - Read query `GET_WARRANTY_JOBS_MISSING_INVOICE` (server SQL store and `src/constants/sql-map.ts`):
   warranty jobs with status Delivered OK or Delivered Not OK, amount above ₹0 and no invoice.
@@ -276,8 +284,15 @@ Needs: Step 8.
     requests cannot get the same number. The sequence's own counter is not changed.
 - Done when: the query returns the 6 navtechnology jobs; a test call on a demo1 job creates
   `<prefix>/W00001` dated with its delivery date, and a second call returns the same invoice.
+- Built: `GET_WARRANTY_JOBS_MISSING_INVOICE` (`sql_jobs.py`); `GET_JOB_FOR_BACKFILL_INVOICE`,
+  `LOCK_SERVICE_INVOICE_SEQUENCE`, `GET_NEXT_W_SERIES_NUMBER` (`sql_bu_admin.py`, server-only);
+  `resolve_create_backfill_job_invoice_helper` (`jobs/invoicing.py`), guarded by
+  `require_user_type({"S","A"})` + `require_own_tenant`. The W number is the highest existing
+  `<prefix><separator>W<digits>` + 1, so it stays unique even if two divisions share a prefix.
+- Live checks not yet run (needs the server with a database): the navtechnology query and the
+  demo1 test call above.
 
-### Step 10 — One-time backfill screen
+### Step 10 — One-time backfill screen 🟢 Done
 Needs: Step 9.
 - New folder `src/features/client/components/jobs/warranty-invoice-backfill/`, with a Jobs
   sidebar item shown only to admin users.
@@ -290,8 +305,11 @@ Needs: Step 9.
 - After each invoice the list reloads; created jobs drop out.
 - Texts longer than two words go in `constants/messages.ts`. Responsive layout.
 - Done when: on demo1 both demo jobs can be invoiced from the screen and the list ends empty.
+- Built: `warranty-invoice-backfill/warranty-invoice-backfill-section.tsx`; sidebar item in
+  `client-explorer-panel.tsx` (userType A/S only); case in `client-jobs-page.tsx`. Not yet run
+  against demo1 — needs the server and Step 9 live.
 
-### Step 11 — Help content
+### Step 11 — Help content 🟢 Done
 Needs: Steps 1–10.
 - `features/client/components/help/help-content.ts`: rewrite every statement that warranty
   prices are fixed, hidden or ₹0, or that warranty jobs are never invoiced or cannot take
@@ -299,12 +317,13 @@ Needs: Steps 1–10.
   Part Used, invoice eligibility, receipts, and the FAQ saying warranty invoices carry ₹0).
   New wording: warranty jobs start at ₹0; enter a real amount if the customer is charged; GST
   applies normally to priced lines; a priced warranty job is invoiced at delivery and can take
-  receipts. Add a short article on the backfill screen.
+  receipts; a job whose amount is ₹0 never gets an invoice, whatever its type. Add a short
+  article on the backfill screen.
 - `features/super-admin/components/help/dev-help-content.ts`: one new article covering the
   warranty pricing rule, the HSN/GST check for ₹0 warranty lines, `isJobInvoiceable`'s amount
-  rule, the shared invoice builder, `GET_WARRANTY_JOBS_MISSING_INVOICE`,
-  `createBackfillJobInvoice` and the W number series, the Batch Warranty eligibility change and
-  the Job Control job-type fix. Re-check sibling articles that describe these for stale wording.
+  rule (no invoice for any ₹0 job) and the matching server refusal, the shared invoice
+  builder, `GET_WARRANTY_JOBS_MISSING_INVOICE`, `createBackfillJobInvoice` and the W number
+  series, the Batch Warranty eligibility change and the Job Control job-type fix. Re-check sibling articles that describe these for stale wording.
 - Done when: a search of both files finds no remaining "always ₹0" style claims about warranty.
 
 ### Step 12 — Your Part
@@ -348,7 +367,7 @@ Server
 - `app/db/sql/sql_jobs.py` — Batch Warranty eligibility.
 - SQL store — `GET_WARRANTY_JOBS_MISSING_INVOICE` and the W-series number query.
 - GraphQL schema, `app/graphql/resolvers/mutation.py`, `app/graphql/resolvers/jobs/invoicing.py`
-  — `createBackfillJobInvoice`.
+  — `createBackfillJobInvoice`, and the ₹0 refusal in `createJobInvoice`.
 - Unchanged: profit and report queries.
 
 ## Testing
@@ -361,12 +380,14 @@ End-to-end, on demo1:
 4. Read-only charges view in Final a Job, Job Control and Pipeline shows the real figures.
 5. Take a receipt on the priced warranty job.
 6. Deliver it — invoice created with correct lines, GST and amount, normal number, today's date.
-   Deliver a ₹0 warranty job — no invoice.
+   Deliver a ₹0 warranty job and a ₹0 ordinary job — no invoice for either; calling
+   `createJobInvoice` directly for a ₹0 job is refused.
 7. Batch Warranty: the priced job is not listed; a free one is, and processes as before.
 8. Backfill screen: lists remaining affected jobs; create one, then all; numbers are W-series,
    dated by delivery date, branch matches the job; running it again creates nothing.
 9. Profit Summary for the delivery dates shows the revenue.
-10. Ordinary (non-warranty) job: pricing, checks, delivery invoicing and numbering unchanged.
+10. Ordinary (non-warranty) priced job: pricing, checks, delivery invoicing and numbering
+    unchanged.
 11. `pnpm exec tsc -b --noEmit` and `pnpm build` pass; `pnpm format` on touched files.
 
 ## Flags
@@ -375,9 +396,12 @@ Decided
 - Backfill dated by delivery date; separate `W` number series; one-time admin screen; warranty
   jobs follow normal receipt rules.
 - The HSN/GST check skips ₹0 lines only on warranty jobs.
+- No invoice for a ₹0 job of any type, enforced in the client and on the server.
 - Profit and report SQL need no change.
 
 Open
 - Accountant to confirm the separate `W` series for GST reporting (Step 12).
 - Whether the server backfill mutation is removed along with the screen.
+- ₹0 invoices already issued for ordinary jobs before this change are left as they are; this
+  plan only stops new ones.
 - The September GSTR-1 deadline (11 Oct 2026) sets the latest sensible date to run the backfill.

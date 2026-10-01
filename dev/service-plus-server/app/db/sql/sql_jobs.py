@@ -871,7 +871,9 @@ class JobsSql:
     """
 
     # Batch Warranty Transactions — Job Control: warranty jobs for one customer,
-    # not closed, with zero parts used (the only jobs this batch flow can act on).
+    # not closed, with zero parts used and no additional charge priced above 0 (the
+    # only jobs this batch flow can act on — it finalizes at amount 0, so a priced
+    # charge would be wiped).
     GET_WARRANTY_JOBS_BY_CUSTOMER = """
         with
             "p_customer_contact_id" as (values(%(customer_contact_id)s::bigint)),
@@ -923,6 +925,7 @@ class JobsSql:
           AND j.is_closed = false
           AND js.code NOT IN ('DELIVERED_OK', 'DELIVERED_NOT_OK', 'DISPOSED')
           AND (SELECT COUNT(*) FROM job_part_used jpu2 WHERE jpu2.job_id = j.id) = 0
+          AND NOT EXISTS (SELECT 1 FROM job_additional_charge jac WHERE jac.job_id = j.id AND jac.selling_price > 0)
         ORDER BY j.job_date DESC, j.id DESC
     """
 
@@ -943,6 +946,7 @@ class JobsSql:
           AND j.is_closed = false
           AND js.code NOT IN ('DELIVERED_OK', 'DELIVERED_NOT_OK', 'DISPOSED')
           AND (SELECT COUNT(*) FROM job_part_used jpu WHERE jpu.job_id = j.id) = 0
+          AND NOT EXISTS (SELECT 1 FROM job_additional_charge jac WHERE jac.job_id = j.id AND jac.selling_price > 0)
         GROUP BY cc.id, cc.full_name, cc.mobile
         ORDER BY full_name
     """
@@ -1054,6 +1058,44 @@ class JobsSql:
         ORDER BY j.delivery_date DESC, cc.full_name
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
+    """
+
+    # One-time warranty invoice backfill (plans/plan-fix-warranty-charges.md, Step 9):
+    # delivered warranty jobs that carry a real amount but never got an invoice —
+    # warranty jobs used to be refused an invoice whatever their amount. Lines are
+    # counted the way the invoice builder counts them (every part, every charge row).
+    GET_WARRANTY_JOBS_MISSING_INVOICE = """
+        SELECT
+            j.id,
+            j.job_no,
+            cc.full_name   AS customer_name,
+            j.delivery_date,
+            j.amount,
+            j.branch_id,
+            br.name        AS branch_name,
+            j.division_id,
+            dv.name        AS division_name,
+            COALESCE(pu.line_count, 0) + COALESCE(ch.line_count, 0)       AS line_count,
+            COALESCE(pu.selling_total, 0) + COALESCE(ch.selling_total, 0) AS lines_selling_total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type         jt ON jt.id = j.job_type_id
+        JOIN job_status       js ON js.id = j.job_status_id
+        JOIN branch           br ON br.id = j.branch_id
+        LEFT JOIN division    dv ON dv.id = j.division_id
+        LEFT JOIN LATERAL (
+            SELECT COUNT(*) AS line_count, SUM(jpu.selling_price * jpu.qty) AS selling_total
+            FROM job_part_used jpu WHERE jpu.job_id = j.id
+        ) pu ON true
+        LEFT JOIN LATERAL (
+            SELECT COUNT(*) AS line_count, SUM(jac.selling_price * jac.qty) AS selling_total
+            FROM job_additional_charge jac WHERE jac.job_id = j.id
+        ) ch ON true
+        WHERE jt.code = 'UNDER_WARRANTY'
+          AND js.code IN ('DELIVERED_OK', 'DELIVERED_NOT_OK')
+          AND j.amount > 0
+          AND NOT EXISTS (SELECT 1 FROM job_invoice ji WHERE ji.job_id = j.id)
+        ORDER BY j.delivery_date, j.id
     """
 
     GET_JOB_IMAGE_DOCS = """

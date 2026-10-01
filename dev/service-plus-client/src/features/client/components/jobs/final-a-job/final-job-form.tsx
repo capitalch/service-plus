@@ -456,9 +456,8 @@ export function FinalJobForm({
 	// Amount this job will be finalised at — mirrors the total shown in the
 	// Grand Summary (back-calc target, else existing job amount, else computed).
 	const parsedTarget = parseFloat(backCalcTarget);
-	const finalAmount = isWarranty
-		? 0
-		: backCalcTarget !== "" && !isNaN(parsedTarget) && parsedTarget > 0
+	const finalAmount =
+		backCalcTarget !== "" && !isNaN(parsedTarget) && parsedTarget > 0
 			? parsedTarget
 			: selectedJob.amount != null && Number(selectedJob.amount) > 0
 				? Number(selectedJob.amount)
@@ -567,7 +566,7 @@ export function FinalJobForm({
 					{isWarranty && (
 						<div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
 							<AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-							Warranty job — only cost prices are recorded; selling prices and final amount are ₹0.
+							{MESSAGES.INFO_WARRANTY_JOB_PRICING}
 						</div>
 					)}
 
@@ -653,19 +652,18 @@ export function FinalJobForm({
 									<span className="text-xs font-semibold text-(--cl-text-muted)">Force IGST</span>
 								</label>
 							)}
-							{!isWarranty && (
-								<label className="flex items-center gap-2 cursor-pointer select-none">
-									<input
-										type="checkbox"
-										checked={showPartsInInvoice}
-										className="h-4 w-4 accent-(--cl-accent) cursor-pointer"
-										onChange={(e) => setShowPartsInInvoice(e.target.checked)}
-									/>
-									<span className="text-xs font-semibold text-(--cl-text-muted)">
-										Show part / charge details in invoice
-									</span>
-								</label>
-							)}
+
+							<label className="flex items-center gap-2 cursor-pointer select-none">
+								<input
+									type="checkbox"
+									checked={showPartsInInvoice}
+									className="h-4 w-4 accent-(--cl-accent) cursor-pointer"
+									onChange={(e) => setShowPartsInInvoice(e.target.checked)}
+								/>
+								<span className="text-xs font-semibold text-(--cl-text-muted)">
+									Show part / charge details in invoice
+								</span>
+							</label>
 						</div>
 					</div>
 
@@ -691,9 +689,8 @@ export function FinalJobForm({
 						{partLines.length > 0 && (
 							<div className="flex flex-col gap-1 bg-white">
 								{partLines.map((line, idx) => {
-									const costAmt = (parseFloat(line.cost_price) || 0) * line.qty;
 									// sale_pr_gst already encodes GST (or not) per the job's division
-									const saleAmt = isWarranty ? 0 : (parseFloat(line.sale_pr_gst) || 0) * line.qty;
+									const saleAmt = (parseFloat(line.sale_pr_gst) || 0) * line.qty;
 									const profit =
 										((parseFloat(line.selling_price) || 0) - (parseFloat(line.cost_price) || 0)) *
 										line.qty;
@@ -778,7 +775,7 @@ export function FinalJobForm({
 														}
 													/>
 												</div>
-												{isGst && !isWarranty && (
+												{isGst && (
 													<div className="relative w-28 shrink-0">
 														<span className="absolute -top-3 left-0 text-[10px] text-(--cl-text-muted) leading-none pointer-events-none">
 															HSN
@@ -830,20 +827,17 @@ export function FinalJobForm({
 											</div>
 											{/* Pricing row */}
 											<div className="flex flex-wrap items-center gap-x-3 gap-y-2 pl-7">
-												{!isWarranty && (
-													<div className="flex items-center gap-1">
-														<span className="text-[10px] text-(--cl-text-muted)">
-															Profit
-														</span>
-														<span
-															className={`tabular-nums text-sm font-semibold ${profit < 0 ? "text-amber-600" : "text-emerald-600"}`}
-														>
-															{profit < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profit))}
-														</span>
-													</div>
-												)}
+												<div className="flex items-center gap-1">
+													<span className="text-[10px] text-(--cl-text-muted)">Profit</span>
+													<span
+														className={`tabular-nums text-sm font-semibold ${profit < 0 ? "text-amber-600" : "text-emerald-600"}`}
+													>
+														{profit < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profit))}
+													</span>
+												</div>
+
 												<div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
-													{isGst && !isWarranty && (
+													{isGst && (
 														<div className="flex items-center gap-1.5">
 															<span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">
 																GST%
@@ -913,32 +907,32 @@ export function FinalJobForm({
 															onFocus={(e) => e.target.select()}
 														/>
 													</div>
-													{!isWarranty && (
-														<div className="flex items-center gap-1.5">
-															<span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">
-																Sale
-															</span>
-															<Input
-																className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
-																min="0"
-																step="0.01"
-																type="number"
-																value={line.selling_price}
-																onChange={(e) =>
-																	onUpdatePart(
-																		line._key,
-																		calculateLinePricing(
-																			line,
-																			{ selling_price: e.target.value },
-																			isGst,
-																		),
-																	)
-																}
-																onFocus={(e) => e.target.select()}
-															/>
-														</div>
-													)}
-													{isGst && !isWarranty && (
+
+													<div className="flex items-center gap-1.5">
+														<span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">
+															Sale
+														</span>
+														<Input
+															className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
+															min="0"
+															step="0.01"
+															type="number"
+															value={line.selling_price}
+															onChange={(e) =>
+																onUpdatePart(
+																	line._key,
+																	calculateLinePricing(
+																		line,
+																		{ selling_price: e.target.value },
+																		isGst,
+																	),
+																)
+															}
+															onFocus={(e) => e.target.select()}
+														/>
+													</div>
+
+													{isGst && (
 														<div className="flex items-center gap-1.5">
 															<span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">
 																+GST
@@ -969,7 +963,7 @@ export function FinalJobForm({
 															Amt
 														</span>
 														<span className="tabular-nums text-sm text-(--cl-text) truncate text-right">
-															₹{fmtCurrency(isWarranty ? costAmt : saleAmt)}
+															₹{fmtCurrency(saleAmt)}
 														</span>
 													</div>
 												</div>
@@ -987,18 +981,17 @@ export function FinalJobForm({
 						{partLines.length > 0 && (
 							<div className="flex items-center justify-between gap-6 px-2 py-2.5 border-t-2 border-(--cl-border) bg-(--cl-surface-2)/60">
 								<div className="flex items-center gap-4">
-									{!isWarranty && (
-										<div className="flex items-center gap-1.5">
-											<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
-												Profit
-											</span>
-											<span
-												className={`tabular-nums text-sm font-semibold ${profitTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}
-											>
-												{profitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profitTotal))}
-											</span>
-										</div>
-									)}
+									<div className="flex items-center gap-1.5">
+										<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
+											Profit
+										</span>
+										<span
+											className={`tabular-nums text-sm font-semibold ${profitTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}
+										>
+											{profitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profitTotal))}
+										</span>
+									</div>
+
 									<div className="flex items-center gap-1.5">
 										<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
 											Qty
@@ -1007,7 +1000,7 @@ export function FinalJobForm({
 											{fmtCurrency(partsQtyTotal)}
 										</span>
 									</div>
-									{isGst && !isWarranty && (
+									{isGst && (
 										<>
 											<div className="flex items-center gap-1.5">
 												<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
@@ -1041,15 +1034,7 @@ export function FinalJobForm({
 										Parts Total
 									</span>
 									<span className="tabular-nums text-base font-bold text-(--cl-text)">
-										₹
-										{fmtCurrency(
-											isWarranty
-												? partLines.reduce(
-														(s, l) => s + (parseFloat(l.cost_price) || 0) * l.qty,
-														0,
-													)
-												: partsTotal,
-										)}
+										₹{fmtCurrency(partsTotal)}
 									</span>
 								</div>
 							</div>
@@ -1086,14 +1071,12 @@ export function FinalJobForm({
 											</th>
 											<th className={`${thClass} w-24`}>Ref No</th>
 											<th className={thClass}>Description</th>
-											{isGst && !isWarranty && (
+											{isGst && (
 												<th className={`${thClass} w-28`}>
 													HSN <span className="text-red-500">*</span>
 												</th>
 											)}
-											{isGst && !isWarranty && (
-												<th className={`${thClass} w-20 text-right`}>GST%</th>
-											)}
+											{isGst && <th className={`${thClass} w-20 text-right`}>GST%</th>}
 											<th className={`${thClass} w-20 text-right`}>Qty</th>
 											{/* No asterisk: cost is required only on spare/parts charges (chargeNeedsCost). */}
 											<th
@@ -1102,18 +1085,16 @@ export function FinalJobForm({
 											>
 												Cost
 											</th>
-											{!isWarranty && (
-												<th className={`${thClass} w-28 text-right`}>
-													Sale <span className="text-red-500">*</span>
-												</th>
-											)}
-											{isGst && !isWarranty && (
-												<th className={`${thClass} w-28 text-right`}>Sale+GST</th>
-											)}
+
+											<th className={`${thClass} w-28 text-right`}>
+												Sale <span className="text-red-500">*</span>
+											</th>
+
+											{isGst && <th className={`${thClass} w-28 text-right`}>Sale+GST</th>}
 											<th className={`${thClass} w-32 text-right whitespace-nowrap`}>Amount</th>
-											{!isWarranty && (
-												<th className={`${thClass} w-12 px-0 text-center`}>Lock</th>
-											)}
+
+											<th className={`${thClass} w-12 px-0 text-center`}>Lock</th>
+
 											<th className={`${thClass} w-20`}></th>
 										</tr>
 									</thead>
@@ -1154,7 +1135,7 @@ export function FinalJobForm({
 														}
 													/>
 												</td>
-												{isGst && !isWarranty && (
+												{isGst && (
 													<td className={tdClass}>
 														<div className="relative">
 															<Input
@@ -1173,7 +1154,7 @@ export function FinalJobForm({
 														</div>
 													</td>
 												)}
-												{isGst && !isWarranty && (
+												{isGst && (
 													<td className={`${tdClass} text-right`}>
 														<Input
 															className="h-7 w-16 border-(--cl-border) bg-white text-xs text-right"
@@ -1233,45 +1214,43 @@ export function FinalJobForm({
 														onFocus={(e) => e.target.select()}
 													/>
 												</td>
-												{!isWarranty && (
-													<td className={`${tdClass} text-right`}>
-														<div className="flex justify-end">
-															{/* Locked rows get a quiet amber ring so it's obvious why Apply
+
+												<td className={`${tdClass} text-right`}>
+													<div className="flex justify-end">
+														{/* Locked rows get a quiet amber ring so it's obvious why Apply
                                                                 skipped them. Still hand-editable — lock blocks Apply, not typing. */}
-															<Input
-																className={`h-7 w-24 border-(--cl-border) bg-white text-xs text-right ${
-																	c.is_locked
-																		? "ring-1 ring-amber-400 bg-amber-50/60"
-																		: ""
-																}`}
-																min="0"
-																step="0.01"
-																type="number"
-																title={
-																	c.is_locked
-																		? "Locked — Apply will not change this price"
-																		: undefined
-																}
-																value={c.selling_price}
-																onChange={(e) => {
-																	const sp = e.target.value;
-																	const gstRate = isGst
-																		? parseFloat(c.gst_rate) || 0
-																		: 0;
-																	onPatchCharge(c._key, {
-																		selling_price: sp,
-																		sale_pr_gst: (
-																			(parseFloat(sp) || 0) *
-																			(1 + gstRate / 100)
-																		).toFixed(2),
-																	});
-																}}
-																onFocus={(e) => e.target.select()}
-															/>
-														</div>
-													</td>
-												)}
-												{isGst && !isWarranty && (
+														<Input
+															className={`h-7 w-24 border-(--cl-border) bg-white text-xs text-right ${
+																c.is_locked
+																	? "ring-1 ring-amber-400 bg-amber-50/60"
+																	: ""
+															}`}
+															min="0"
+															step="0.01"
+															type="number"
+															title={
+																c.is_locked
+																	? "Locked — Apply will not change this price"
+																	: undefined
+															}
+															value={c.selling_price}
+															onChange={(e) => {
+																const sp = e.target.value;
+																const gstRate = isGst ? parseFloat(c.gst_rate) || 0 : 0;
+																onPatchCharge(c._key, {
+																	selling_price: sp,
+																	sale_pr_gst: (
+																		(parseFloat(sp) || 0) *
+																		(1 + gstRate / 100)
+																	).toFixed(2),
+																});
+															}}
+															onFocus={(e) => e.target.select()}
+														/>
+													</div>
+												</td>
+
+												{isGst && (
 													<td className={`${tdClass} text-right`}>
 														<div className="flex justify-end">
 															<Input
@@ -1303,41 +1282,39 @@ export function FinalJobForm({
 												>
 													₹
 													{fmtCurrency(
-														isWarranty
-															? (parseFloat(c.cost_price) || 0) * (parseFloat(c.qty) || 1)
-															: (parseFloat(c.sale_pr_gst) ||
-																	parseFloat(c.selling_price) ||
-																	0) * (parseFloat(c.qty) || 1),
+														(parseFloat(c.sale_pr_gst) ||
+															parseFloat(c.selling_price) ||
+															0) * (parseFloat(c.qty) || 1),
 													)}
 												</td>
-												{!isWarranty && (
-													<td className={`${tdClass} px-0`}>
-														{/* Session-only lock: excludes this row from Apply. Never saved
+
+												<td className={`${tdClass} px-0`}>
+													{/* Session-only lock: excludes this row from Apply. Never saved
                                                             with the job — see plans/plan.md. onPatchCharge (not
                                                             onUpdateCharge) because this is a boolean, not a string.
                                                             The Radix root is display:flex, so it needs a flex parent to
                                                             centre — text-center on the td does nothing. */}
-														<div className="flex justify-center">
-															<Checkbox
-																className={`size-[18px] cursor-pointer border-2 [&_svg]:text-white ${
-																	c.is_locked
-																		? "border-amber-500 bg-amber-500 data-checked:border-amber-500 data-checked:bg-amber-500 dark:data-checked:bg-amber-500"
-																		: "border-(--cl-text-muted)/50 hover:border-amber-500 hover:bg-amber-100/70"
-																}`}
-																checked={c.is_locked}
-																disabled={!c.charge_name.trim()}
-																title={
-																	c.is_locked
-																		? "Price is locked — Apply will not change it"
-																		: "Lock this price against Apply"
-																}
-																onCheckedChange={(v) =>
-																	onPatchCharge(c._key, { is_locked: v === true })
-																}
-															/>
-														</div>
-													</td>
-												)}
+													<div className="flex justify-center">
+														<Checkbox
+															className={`size-[18px] cursor-pointer border-2 [&_svg]:text-white ${
+																c.is_locked
+																	? "border-amber-500 bg-amber-500 data-checked:border-amber-500 data-checked:bg-amber-500 dark:data-checked:bg-amber-500"
+																	: "border-(--cl-text-muted)/50 hover:border-amber-500 hover:bg-amber-100/70"
+															}`}
+															checked={c.is_locked}
+															disabled={!c.charge_name.trim()}
+															title={
+																c.is_locked
+																	? "Price is locked — Apply will not change it"
+																	: "Lock this price against Apply"
+															}
+															onCheckedChange={(v) =>
+																onPatchCharge(c._key, { is_locked: v === true })
+															}
+														/>
+													</div>
+												</td>
+
 												<td className={`${tdClass} px-1 align-middle`}>
 													<div className="flex items-center gap-1.5">
 														<Button
@@ -1367,19 +1344,18 @@ export function FinalJobForm({
 											<td colSpan={100} className="px-2 py-1 border-t-2 border-(--cl-border)">
 												<div className="flex items-center justify-between gap-6">
 													<div className="flex items-center gap-4">
-														{!isWarranty && (
-															<div className="flex items-center gap-1.5">
-																<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
-																	Profit
-																</span>
-																<span
-																	className={`tabular-nums text-sm font-semibold ${chargesProfitTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}
-																>
-																	{chargesProfitTotal < 0 ? "-" : ""}₹
-																	{fmtCurrency(Math.abs(chargesProfitTotal))}
-																</span>
-															</div>
-														)}
+														<div className="flex items-center gap-1.5">
+															<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
+																Profit
+															</span>
+															<span
+																className={`tabular-nums text-sm font-semibold ${chargesProfitTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}
+															>
+																{chargesProfitTotal < 0 ? "-" : ""}₹
+																{fmtCurrency(Math.abs(chargesProfitTotal))}
+															</span>
+														</div>
+
 														<div className="flex items-center gap-1.5">
 															<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
 																Qty
@@ -1388,7 +1364,7 @@ export function FinalJobForm({
 																{fmtCurrency(chargesQtyTotal)}
 															</span>
 														</div>
-														{isGst && !isWarranty && (
+														{isGst && (
 															<>
 																<div className="flex items-center gap-1.5">
 																	<span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">
@@ -1422,18 +1398,7 @@ export function FinalJobForm({
 															Charges Total
 														</span>
 														<span className="tabular-nums text-base font-bold text-(--cl-text)">
-															₹
-															{fmtCurrency(
-																isWarranty
-																	? chargeLines.reduce(
-																			(s, c) =>
-																				s +
-																				(parseFloat(c.cost_price) || 0) *
-																					(parseFloat(c.qty) || 1),
-																			0,
-																		)
-																	: chargesAmountTotal,
-															)}
+															₹{fmtCurrency(chargesAmountTotal)}
 														</span>
 													</div>
 												</div>
@@ -1457,18 +1422,17 @@ export function FinalJobForm({
 					<div className="rounded-lg border-2 border-(--cl-accent)/30 bg-(--cl-surface) overflow-hidden">
 						<div className="flex items-stretch">
 							<div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1.5 px-3 py-3">
-								{!isWarranty && (
-									<div className="flex items-center gap-1.5">
-										<span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">
-											Profit
-										</span>
-										<span
-											className={`tabular-nums text-sm font-semibold ${grandProfitTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}
-										>
-											{grandProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(grandProfitTotal))}
-										</span>
-									</div>
-								)}
+								<div className="flex items-center gap-1.5">
+									<span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">
+										Profit
+									</span>
+									<span
+										className={`tabular-nums text-sm font-semibold ${grandProfitTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}
+									>
+										{grandProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(grandProfitTotal))}
+									</span>
+								</div>
+
 								<div className="flex items-center gap-1.5">
 									<span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">
 										Qty
@@ -1477,7 +1441,7 @@ export function FinalJobForm({
 										{fmtCurrency(grandQtyTotal)}
 									</span>
 								</div>
-								{isGst && !isWarranty && (
+								{isGst && (
 									<>
 										<div className="flex items-center gap-1.5">
 											<span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">
@@ -1510,15 +1474,7 @@ export function FinalJobForm({
 										Parts
 									</span>
 									<span className="tabular-nums text-sm font-semibold text-(--cl-text)">
-										₹
-										{fmtCurrency(
-											isWarranty
-												? partLines.reduce(
-														(s, l) => s + (parseFloat(l.cost_price) || 0) * l.qty,
-														0,
-													)
-												: partsTotal,
-										)}
+										₹{fmtCurrency(partsTotal)}
 									</span>
 								</div>
 								<div className="flex items-center gap-1.5">
@@ -1526,142 +1482,121 @@ export function FinalJobForm({
 										Charges
 									</span>
 									<span className="tabular-nums text-sm font-semibold text-(--cl-text)">
-										₹
-										{fmtCurrency(
-											isWarranty
-												? chargeLines.reduce(
-														(s, c) =>
-															s +
-															(parseFloat(c.cost_price) || 0) * (parseFloat(c.qty) || 1),
-														0,
-													)
-												: chargesSaleTotal,
-										)}
+										₹{fmtCurrency(chargesSaleTotal)}
 									</span>
 								</div>
 							</div>
 							<div className="w-px self-stretch bg-(--cl-border)" />
-							{isWarranty ? (
-								<div className="flex shrink-0 flex-col justify-center px-4 py-3">
-									<div className="flex items-center gap-1.5">
-										<span className="text-xs font-bold uppercase tracking-wide text-(--cl-accent)">
-											Final Amount
-										</span>
-										<span className="tabular-nums text-md font-bold">₹0.00</span>
-									</div>
-								</div>
-							) : (
-								(() => {
-									const backCalcNum = parseFloat(backCalcTarget);
-									const effectiveTotal =
-										backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0
-											? backCalcNum
-											: selectedJob.amount != null && Number(selectedJob.amount) > 0
-												? Number(selectedJob.amount)
-												: grandTotal;
-									const diff = Math.round((effectiveTotal - grandTotal) * 100) / 100;
-									const hasDiff = Math.abs(diff) >= 0.005;
-									const isTallied = !hasDiff;
-									return (
-										<div className="flex shrink-0 flex-col justify-center gap-2 px-4 py-3">
-											<div className="flex items-center justify-between gap-4">
-												{isTallied ? (
-													<div className="flex items-center gap-1 text-emerald-600">
-														<CheckCircle2 className="h-4 w-4 text-emerald-600" />
-														<span className="text-xs font-semibold">Tallied</span>
-													</div>
-												) : (
-													<div />
-												)}
-												<div className="flex items-center gap-4">
-													<div className="flex items-center gap-1.5">
-														<span className="text-xs font-medium uppercase tracking-wide text-(--cl-text-muted)">
-															Calculated
-														</span>
-														<span className="tabular-nums text-sm font-semibold text-(--cl-text)">
-															₹{fmtCurrency(grandTotal)}
-														</span>
-													</div>
-													<div className="flex items-center gap-1.5">
-														<span className="text-xs font-bold uppercase tracking-wide text-amber-600">
-															Diff
-														</span>
-														<span
-															className={`tabular-nums text-sm font-semibold ${hasDiff ? "text-amber-700" : "text-emerald-600"}`}
-														>
-															{diff > 0 ? "+" : ""}
-															{fmtCurrency(diff)}
-														</span>
-													</div>
-													<div className="flex items-center gap-1.5">
-														<span className="text-xs font-bold uppercase tracking-wide text-(--cl-accent)">
-															Total
-														</span>
-														<span className="tabular-nums text-md font-bold">
-															₹{fmtCurrency(effectiveTotal)}
-														</span>
-														<button
-															className="ml-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-(--cl-surface-2) border border-(--cl-border) text-(--cl-text-muted) hover:bg-(--cl-accent) hover:text-white hover:border-(--cl-accent) cursor-pointer transition-all shadow-sm"
-															title="Round off to nearest rupee"
-															type="button"
-															onClick={() => {
-																const rounded = Math.round(effectiveTotal);
-																setBackCalcTarget(String(rounded));
-																applyBackCalc(rounded);
-															}}
-														>
-															<Radius className="h-3 w-3 text-muted-foreground" />
-														</button>
-													</div>
+							{(() => {
+								const backCalcNum = parseFloat(backCalcTarget);
+								const effectiveTotal =
+									backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0
+										? backCalcNum
+										: selectedJob.amount != null && Number(selectedJob.amount) > 0
+											? Number(selectedJob.amount)
+											: grandTotal;
+								const diff = Math.round((effectiveTotal - grandTotal) * 100) / 100;
+								const hasDiff = Math.abs(diff) >= 0.005;
+								const isTallied = !hasDiff;
+								return (
+									<div className="flex shrink-0 flex-col justify-center gap-2 px-4 py-3">
+										<div className="flex items-center justify-between gap-4">
+											{isTallied ? (
+												<div className="flex items-center gap-1 text-emerald-600">
+													<CheckCircle2 className="h-4 w-4 text-emerald-600" />
+													<span className="text-xs font-semibold">Tallied</span>
+												</div>
+											) : (
+												<div />
+											)}
+											<div className="flex items-center gap-4">
+												<div className="flex items-center gap-1.5">
+													<span className="text-xs font-medium uppercase tracking-wide text-(--cl-text-muted)">
+														Calculated
+													</span>
+													<span className="tabular-nums text-sm font-semibold text-(--cl-text)">
+														₹{fmtCurrency(grandTotal)}
+													</span>
+												</div>
+												<div className="flex items-center gap-1.5">
+													<span className="text-xs font-bold uppercase tracking-wide text-amber-600">
+														Diff
+													</span>
+													<span
+														className={`tabular-nums text-sm font-semibold ${hasDiff ? "text-amber-700" : "text-emerald-600"}`}
+													>
+														{diff > 0 ? "+" : ""}
+														{fmtCurrency(diff)}
+													</span>
+												</div>
+												<div className="flex items-center gap-1.5">
+													<span className="text-xs font-bold uppercase tracking-wide text-(--cl-accent)">
+														Total
+													</span>
+													<span className="tabular-nums text-md font-bold">
+														₹{fmtCurrency(effectiveTotal)}
+													</span>
+													<button
+														className="ml-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-(--cl-surface-2) border border-(--cl-border) text-(--cl-text-muted) hover:bg-(--cl-accent) hover:text-white hover:border-(--cl-accent) cursor-pointer transition-all shadow-sm"
+														title="Round off to nearest rupee"
+														type="button"
+														onClick={() => {
+															const rounded = Math.round(effectiveTotal);
+															setBackCalcTarget(String(rounded));
+															applyBackCalc(rounded);
+														}}
+													>
+														<Radius className="h-3 w-3 text-muted-foreground" />
+													</button>
 												</div>
 											</div>
-											<div className="flex items-center justify-end gap-2">
-												<Button
-													className="h-7 shrink-0 text-xs"
-													disabled={!backCalcTarget}
-													size="sm"
-													variant="outline"
-													onClick={() => {
-														setBackCalcTarget("");
-														setBelowCostWarning(null);
-													}}
-												>
-													Clear
-												</Button>
-												<Button
-													className="h-8 shrink-0 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white border-transparent"
-													disabled={!backCalcTarget || isNaN(backCalcNum) || backCalcNum < 0}
-													size="sm"
-													variant="default"
-													onClick={() => applyBackCalc(backCalcNum)}
-												>
-													Apply
-												</Button>
-												<Input
-													className="h-8 w-36 text-right text-base font-bold border-(--cl-border) bg-white"
-													min="0"
-													step="0.01"
-													type="number"
-													placeholder="Target amount"
-													value={backCalcTarget}
-													onChange={(e) => setBackCalcTarget(e.target.value)}
-													onFocus={(e) => e.target.select()}
-												/>
-											</div>
-											{/* Locks are session-only, so a reopened job starts fully unlocked and
+										</div>
+										<div className="flex items-center justify-end gap-2">
+											<Button
+												className="h-7 shrink-0 text-xs"
+												disabled={!backCalcTarget}
+												size="sm"
+												variant="outline"
+												onClick={() => {
+													setBackCalcTarget("");
+													setBelowCostWarning(null);
+												}}
+											>
+												Clear
+											</Button>
+											<Button
+												className="h-8 shrink-0 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+												disabled={!backCalcTarget || isNaN(backCalcNum) || backCalcNum < 0}
+												size="sm"
+												variant="default"
+												onClick={() => applyBackCalc(backCalcNum)}
+											>
+												Apply
+											</Button>
+											<Input
+												className="h-8 w-36 text-right text-base font-bold border-(--cl-border) bg-white"
+												min="0"
+												step="0.01"
+												type="number"
+												placeholder="Target amount"
+												value={backCalcTarget}
+												onChange={(e) => setBackCalcTarget(e.target.value)}
+												onFocus={(e) => e.target.select()}
+											/>
+										</div>
+										{/* Locks are session-only, so a reopened job starts fully unlocked and
                                             Apply will move a charge that was protected last time. The unticked
                                             column is the primary cue; this is the quiet backup. Not a toast —
                                             it should never need dismissing. */}
-											{selectedRow.is_final && backCalcTarget !== "" && (
-												<p className="text-right text-[11px] leading-tight text-(--cl-text-muted)">
-													Charge locks are not carried over between sessions — re-tick Lock on
-													any charge you want Apply to leave alone.
-												</p>
-											)}
-										</div>
-									);
-								})()
-							)}
+										{selectedRow.is_final && backCalcTarget !== "" && (
+											<p className="text-right text-[11px] leading-tight text-(--cl-text-muted)">
+												Charge locks are not carried over between sessions — re-tick Lock on any
+												charge you want Apply to leave alone.
+											</p>
+										)}
+									</div>
+								);
+							})()}
 						</div>
 					</div>
 				</div>

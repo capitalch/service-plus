@@ -39,6 +39,7 @@ import {
 	type JobInvoiceFullRow,
 } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
+import { buildJobInvoicePayload, type ShowPartsInInvoiceSettingType } from "./job-invoice-builder";
 import { isValidGstin, normalizeGstin, saveCustomerGstin } from "@/lib/gstin";
 import { MESSAGES } from "@/constants/messages";
 import { buildInvoicePdf, buildPackedInvoicePdf, buildReceiptPdf, buildDeliveryNotePdf } from "./deliver-job-pdf";
@@ -57,8 +58,6 @@ type DeliveryMannerRow = { id: number; name: string };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-type ShowPartsInInvoiceSetting = { show: boolean; text: string; hsn: number; gst_rate: number };
-
 type FlowStep = "idle" | "receipts" | "delivering" | "alert" | "invoicing" | "done";
 
 type Props = {
@@ -70,134 +69,10 @@ type Props = {
 	currentUser: UserInstanceType | null;
 	dbName: string | null;
 	schema: string | null;
-	showPartsInInvoiceSetting: ShowPartsInInvoiceSetting | null;
+	showPartsInInvoiceSetting: ShowPartsInInvoiceSettingType | null;
 	onClose: () => void;
 	onDelivered: () => void;
 };
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-type InvoiceLine = {
-	description: string;
-	part_code: string | null;
-	hsn_code: string | null;
-	qty: number;
-	price: number;
-	aggregate: number;
-	gst_rate: number;
-	cgst_amount: number;
-	sgst_amount: number;
-	igst_amount: number;
-	amount: number;
-};
-
-function buildInvoiceLines(
-	job: JobDeliveryFullDetail,
-	isGst: boolean,
-	forceIgst: boolean,
-	showPartsSetting: ShowPartsInInvoiceSetting | null,
-): InvoiceLine[] {
-	function computeTax(taxable: number, gstRate: number) {
-		if (!isGst || gstRate === 0) return { cgst: 0, sgst: 0, igst: 0 };
-		if (forceIgst) return { cgst: 0, sgst: 0, igst: Math.round(taxable * gstRate) / 100 };
-		const half = Math.round((taxable * gstRate) / 2) / 100;
-		return { cgst: half, sgst: half, igst: 0 };
-	}
-
-	const showDetail = job.to_show_parts_in_job_invoice ?? true;
-
-	if (!showDetail && showPartsSetting) {
-		const combinedTaxable =
-			Math.round(
-				((job.parts ?? []).reduce((s, p) => s + p.selling_price * p.qty, 0) +
-					(job.charges ?? []).reduce((s, c) => s + c.selling_price * c.qty, 0)) *
-					100,
-			) / 100;
-		const rate = isGst ? showPartsSetting.gst_rate : 0;
-		const { cgst, sgst, igst } = computeTax(combinedTaxable, rate);
-		return [
-			{
-				description: showPartsSetting.text,
-				part_code: null,
-				hsn_code: isGst ? String(showPartsSetting.hsn) : null,
-				qty: 1,
-				price: combinedTaxable,
-				aggregate: combinedTaxable,
-				gst_rate: rate,
-				cgst_amount: cgst,
-				sgst_amount: sgst,
-				igst_amount: igst,
-				amount: Math.round((combinedTaxable + cgst + sgst + igst) * 100) / 100,
-			},
-		];
-	}
-
-	const partLines: InvoiceLine[] = (job.parts ?? []).map((p) => {
-		const taxable = Math.round(p.selling_price * p.qty * 100) / 100;
-		const rate = isGst ? p.gst_rate : 0;
-		const { cgst, sgst, igst } = computeTax(taxable, rate);
-		return {
-			description: p.part_name,
-			part_code: p.part_code || null,
-			hsn_code: p.hsn_code || null,
-			qty: p.qty,
-			price: p.selling_price,
-			aggregate: taxable,
-			gst_rate: rate,
-			cgst_amount: cgst,
-			sgst_amount: sgst,
-			igst_amount: igst,
-			amount: Math.round((taxable + cgst + sgst + igst) * 100) / 100,
-		};
-	});
-
-	const chargeLines: InvoiceLine[] = (job.charges ?? []).map((c) => {
-		const taxable = Math.round(c.selling_price * c.qty * 100) / 100;
-		const rate = isGst ? c.gst_rate : 0;
-		const { cgst, sgst, igst } = computeTax(taxable, rate);
-		// Ref no / description ride along on the same "show detail" checkbox
-		// that gates itemized vs. combined lines — gated on showDetail
-		// directly (not just "we're in the itemized branch") since that
-		// branch can still be reached with showDetail false when
-		// showPartsSetting is unset.
-		const extras = [c.ref_no?.trim() ? `Ref: ${c.ref_no.trim()}` : null, c.description?.trim() || null]
-			.filter((v): v is string => !!v)
-			.join(", ");
-		const description = showDetail && extras ? `${c.charge_name} (${extras})` : c.charge_name;
-		return {
-			description,
-			part_code: null,
-			hsn_code: c.hsn_code || null,
-			qty: c.qty,
-			price: c.selling_price,
-			aggregate: taxable,
-			gst_rate: rate,
-			cgst_amount: cgst,
-			sgst_amount: sgst,
-			igst_amount: igst,
-			amount: Math.round((taxable + cgst + sgst + igst) * 100) / 100,
-		};
-	});
-
-	return [...partLines, ...chargeLines];
-}
-
-// Nudge line amounts so they sum EXACTLY to the invoice header amount. The
-// header comes from the finalized job.amount, while the lines sum to
-// aggregate + gst; a paisa-level rounding residual between the two makes the
-// trace-plus edit form (which re-derives the total from the line values) differ
-// from the grid. Absorb the residual into the last line as taxable so that
-// Σ line.amount === targetAmount while keeping amount = aggregate + gst per line.
-function reconcileLineAmounts(lines: InvoiceLine[], targetAmount: number): InvoiceLine[] {
-	if (lines.length === 0) return lines;
-	const sum = Math.round(lines.reduce((s, l) => s + l.amount, 0) * 100) / 100;
-	const residual = Math.round((targetAmount - sum) * 100) / 100;
-	if (residual === 0) return lines;
-	const last = lines[lines.length - 1];
-	last.amount = Math.round((last.amount + residual) * 100) / 100;
-	last.aggregate = Math.round((last.aggregate + residual) * 100) / 100;
-	return lines;
-}
 
 // ── Step section wrapper ──────────────────────────────────────────────────────
 
@@ -515,7 +390,7 @@ export function DeliveryModal({
 		let skipped = 0;
 		try {
 			for (const job of jobs) {
-				if (!isJobInvoiceable(job.job_type_code, job.job_status_code)) {
+				if (!isJobInvoiceable(job.job_status_code, job.amount)) {
 					skipped++;
 					continue;
 				}
@@ -535,27 +410,17 @@ export function DeliveryModal({
 					continue;
 				}
 
-				const lines = buildInvoiceLines(job, isGst, job.is_igst ?? false, showPartsInInvoiceSetting);
-				if (lines.length === 0) {
-					toast.warning(`Job #${job.job_no}: ${MESSAGES.WARN_JOB_INVOICE_NO_LINES}`);
+				const built = buildJobInvoicePayload(job, isGst, job.is_igst ?? false, showPartsInInvoiceSetting);
+				if (!built.ok) {
+					const warning =
+						built.reason === "NO_LINES"
+							? MESSAGES.WARN_JOB_INVOICE_NO_LINES
+							: MESSAGES.WARN_JOB_INVOICE_LINES_ZERO;
+					toast.warning(`Job #${job.job_no}: ${warning}`);
 					skipped++;
 					continue;
 				}
-				const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
-				const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
-				const igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
-				// Use the finalized job.amount when it is a valid positive number
-				// (set during "Final a Job", may include a user-adjusted total).
-				// Fall back to the sum of invoice lines when job.amount is null or 0
-				// (job never finalised, or finalised before parts were added).
-				const preAggregate = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
-				const lineTotal = Math.round((preAggregate + cgst_amount + sgst_amount + igst_amount) * 100) / 100;
-				const jobAmt = Number(job.amount ?? 0);
-				const amount = jobAmt > 0 ? Math.round(jobAmt * 100) / 100 : lineTotal;
-				// Reconcile lines so Σ line.amount === header amount, then derive
-				// the header aggregate from the reconciled lines.
-				reconcileLineAmounts(lines, amount);
-				const aggregate = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
+				const { aggregate, amount, cgst_amount, igst_amount, lines, sgst_amount } = built.payload;
 
 				await apolloClient.mutate({
 					mutation: GRAPHQL_MAP.createJobInvoice,
@@ -575,16 +440,7 @@ export function DeliveryModal({
 								sgst_amount,
 								igst_amount,
 								amount,
-								xDetails:
-									lines.length > 0
-										? [
-												{
-													tableName: "job_invoice_line",
-													fkeyName: "job_invoice_id",
-													xData: lines,
-												},
-											]
-										: undefined,
+								xDetails: [{ tableName: "job_invoice_line", fkeyName: "job_invoice_id", xData: lines }],
 							},
 						}),
 					},
@@ -649,22 +505,16 @@ export function DeliveryModal({
 		try {
 			const division = availableDivisions.find((d) => d.id === job.division_id) ?? null;
 			const isGst = isGstDivision(division);
-			const lines = buildInvoiceLines(job, isGst, job.is_igst ?? false, showPartsInInvoiceSetting);
-			if (lines.length === 0) {
-				toast.error(MESSAGES.ERROR_JOB_INVOICE_REGEN_NO_LINES);
+			const built = buildJobInvoicePayload(job, isGst, job.is_igst ?? false, showPartsInInvoiceSetting);
+			if (!built.ok) {
+				toast.error(
+					built.reason === "NO_LINES"
+						? MESSAGES.ERROR_JOB_INVOICE_REGEN_NO_LINES
+						: `Job #${job.job_no}: ${MESSAGES.WARN_JOB_INVOICE_LINES_ZERO}`,
+				);
 				return;
 			}
-			const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
-			const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
-			const igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
-			const preAggregate = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
-			const lineTotal = Math.round((preAggregate + cgst_amount + sgst_amount + igst_amount) * 100) / 100;
-			const jobAmt = Number(job.amount ?? 0);
-			const amount = jobAmt > 0 ? Math.round(jobAmt * 100) / 100 : lineTotal;
-			// Reconcile lines so Σ line.amount === header amount, then derive the
-			// header aggregate from the reconciled lines.
-			reconcileLineAmounts(lines, amount);
-			const aggregate = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
+			const { aggregate, amount, cgst_amount, igst_amount, lines, sgst_amount } = built.payload;
 
 			await apolloClient.mutate({
 				mutation: GRAPHQL_MAP.regenerateJobInvoice,

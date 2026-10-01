@@ -1874,6 +1874,116 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
+		id: "dev-warranty-pricing-invoicing",
+		category: "Jobs",
+		title: "Warranty Pricing, ₹0 No-Invoice Rule and Invoice Backfill — Implementation",
+		summary:
+			"Warranty is only a ₹0 starting price, not a lock; no job of any type is invoiced at amount 0; the shared job-invoice builder; and the one-time W-series backfill (GET_WARRANTY_JOBS_MISSING_INVOICE, createBackfillJobInvoice).",
+		tags: [
+			"UNDER_WARRANTY",
+			"warranty",
+			"computePartPricesOnSelect",
+			"isJobInvoiceable",
+			"buildJobInvoicePayload",
+			"job-invoice-builder",
+			"GET_WARRANTY_JOBS_MISSING_INVOICE",
+			"createBackfillJobInvoice",
+			"GET_JOB_CLOSED_AND_AMOUNT",
+			"GET_NEXT_W_SERIES_NUMBER",
+			"W series",
+			"backfill",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Until plans/plan-fix-warranty-charges.md, UNDER_WARRANTY was a hard ₹0 lock in most screens but not in Job Control, and isJobInvoiceable() refused every warranty job. A real charge that reached the database therefore put cost into the profit reports with no matching job_invoice revenue. The rule now: a warranty job is priced, saved, receipted and invoiced exactly like any other job, except that a line with no price yet starts at ₹0 instead of the markup price.",
+			},
+			{ type: "heading", text: "Warranty pricing — where the rule lives" },
+			{
+				type: "table",
+				headers: ["Piece", "Behaviour"],
+				rows: [
+					[
+						"computePartPricesOnSelect() — two copies, final-a-job-section.tsx and job-control/final-job-dialog.tsx",
+						"Takes isWarranty after markupPct. Keeps a selling price > 0 already on the line; otherwise ₹0 for warranty, markup price for anything else. All three callers in each file pass it: part select, division change, Reset Prices. Keep the two copies in step.",
+					],
+					[
+						"finalize-job-save.ts",
+						"No warranty condition on selling_price, gst_rate, hsn_code or job.amount, and the target-must-match-lines check applies to warranty too. The one exception: in a GST division the HSN/GST-rate check skips warranty lines whose selling price is 0 (needsTax()). Other job types still need HSN and GST rate on every line.",
+					],
+					[
+						"final-job-form.tsx / job-charges-readonly-modal.tsx",
+						"Same grid, totals and Tallied/Calculated/Diff/Total panel for every job type. isWarranty only drives the INFO_WARRANTY_JOB_PRICING banner (form) and the Warranty badge (read-only view).",
+					],
+					[
+						"job-control/final-job-dialog.tsx loadJobData()",
+						"Fills job_type_code/job_type_name from GET_JOB_DETAIL. They used to be hard-coded empty strings, which is why the old lock never engaged in Job Control.",
+					],
+					[
+						"job-pipeline/job-charges-modal.tsx, part-used/*",
+						"Selling price editable and saved as entered; ₹0 start on part pick; a cost edit on a warranty line leaves the selling price alone (non-warranty still re-applies markup). Job Charges keeps its exemption letting a named warranty charge stay at ₹0.",
+					],
+					["receipts/job-lookup-combobox.tsx", "receiptJobRestrictionReason() no longer mentions warranty."],
+					[
+						"Batch Warranty (sql_jobs.py GET_WARRANTY_JOBS_BY_CUSTOMER, GET_WARRANTY_CUSTOMERS_BY_BRANCH)",
+						"Also require NOT EXISTS a job_additional_charge with selling_price > 0. Batch Warranty finalizes at amount 0, so listing a priced job would wipe its charge.",
+					],
+				],
+			},
+			{ type: "heading", text: "No invoice for a ₹0 job — any job type" },
+			{
+				type: "para",
+				text: "deliver-job-helpers.ts isJobInvoiceable(jobStatusCode, amount) refuses amount <= 0 first, then RETURN/CANCELLED and anything not DELIVERED_OK/DELIVERED_NOT_OK. It no longer takes the job type. The server enforces the same rule: resolve_create_job_invoice_helper (jobs/invoicing.py) reads GET_JOB_CLOSED_AND_AMOUNT (sql_bu_admin.py, formerly GET_JOB_IS_CLOSED) and raises when amount <= 0. delivery-modal-invoices-section.tsx treats a job that already has an invoice as invoiceable, so ₹0 invoices issued before the rule keep their print/delete/regenerate controls; a skipped ₹0 job is labelled 'Skipped — No charge'.",
+			},
+			{ type: "heading", text: "Shared invoice builder" },
+			{
+				type: "para",
+				text: "deliver-job/job-invoice-builder.ts holds buildInvoiceLines(), reconcileLineAmounts() and buildJobInvoicePayload(job, isGst, forceIgst, showPartsSetting), which returns { ok: true, payload: { aggregate, amount, cgst_amount, igst_amount, lines, sgst_amount } } or { ok: false, reason: 'NO_LINES' | 'LINES_ZERO' }. LINES_ZERO = job.amount > 0 but the lines total 0 — reconciling would push the whole amount into the last line as untaxed value, so it is refused (WARN_JOB_INVOICE_LINES_ZERO). Delivery create, Regenerate Invoice and the backfill screen all use it; never re-inline the calculation.",
+			},
+			{ type: "heading", text: "One-time backfill — W series" },
+			{
+				type: "table",
+				headers: ["Piece", "Detail"],
+				rows: [
+					[
+						"GET_WARRANTY_JOBS_MISSING_INVOICE (sql_jobs.py, SQL_MAP)",
+						"Warranty + DELIVERED_OK/NOT_OK + amount > 0 + no job_invoice, all branches, no params. Returns id, job_no, customer_name, delivery_date, amount, branch_id/name, division_id/name, line_count, lines_selling_total; ordered by delivery_date.",
+					],
+					[
+						"createBackfillJobInvoice (schema.graphql, mutation.py, GRAPHQL_MAP)",
+						"require_user_type({'S','A'}) + require_own_tenant — not an access right, so nothing to seed. Helper: resolve_create_backfill_job_invoice_helper in jobs/invoicing.py.",
+					],
+					[
+						"What the server decides",
+						"Drops any branch_id/division_id/invoice_date/invoice_no in the payload. Returns the existing invoice if there is one; refuses unless warranty, closed, delivered status, amount > 0, delivery_date and division present (GET_JOB_FOR_BACKFILL_INVOICE); invoice_date = job.delivery_date.",
+					],
+					[
+						"Numbering",
+						"LOCK_SERVICE_INVOICE_SEQUENCE takes the branch + division SERVICE_INVOICE row FOR UPDATE and reads only prefix/separator/padding; GET_NEXT_W_SERIES_NUMBER = MAX of <prefix><separator>W<digits> + 1 (matched with LEFT/SUBSTRING, not LIKE). next_number is never touched, and normal numbers never have W after the separator, so the two series cannot collide.",
+					],
+					[
+						"Screen",
+						"jobs/warranty-invoice-backfill/warranty-invoice-backfill-section.tsx, Jobs sidebar item 'Warranty Invoice Backfill' shown only to userType A/S (client-explorer-panel.tsx), case in client-jobs-page.tsx. Loads lines with GET_DELIVERABLE_JOBS_DETAIL_MULTI and builds with buildJobInvoicePayload, exactly like Deliver Job.",
+					],
+				],
+			},
+			{
+				type: "warning",
+				text: "The backfill screen is temporary. Once every tenant has run it, delete the warranty-invoice-backfill folder, its sidebar item and page case, its INFO/ERROR_WARRANTY_BACKFILL_* messages, this table and the client 'warranty-invoice-backfill' help article. The server mutation and SQL can stay or go in the same change.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why does the HSN/GST check skip ₹0 lines only on warranty jobs?",
+				a: "A free warranty line goes on no invoice, so it needs no tax data; demanding HSN and GST rate on every free repair would block ordinary warranty work. Other job types keep the stricter rule unchanged.",
+			},
+			{
+				q: "Why can't a ₹0 job get an invoice even from a direct API call?",
+				a: "createJobInvoice checks job.amount on the server (GET_JOB_CLOSED_AND_AMOUNT) as well as isJobInvoiceable on the client, so the rule holds whichever screen calls it.",
+			},
+		],
+	},
+	{
 		id: "dev-charge-lock-back-calc",
 		category: "Jobs",
 		title: "Charge Lock on Apply (Back-Calculation) — Implementation",
@@ -1893,7 +2003,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "A Lock checkbox on each Additional Charge row in the finalize form excludes that row from Apply (target-amount back-calculation), in both directions and at every step. Parts have no equivalent — the cost-price floor is their protection. The column is hidden on warranty jobs, where selling prices are hidden and the amount is always ₹0.",
+				text: "A Lock checkbox on each Additional Charge row in the finalize form excludes that row from Apply (target-amount back-calculation), in both directions and at every step. Parts have no equivalent — the cost-price floor is their protection. The column shows on every job type — warranty jobs included since the warranty pricing change (see 'Warranty Pricing, ₹0 No-Invoice Rule and Invoice Backfill — Implementation').",
 			},
 			{ type: "heading", text: "Where it lives" },
 			{
