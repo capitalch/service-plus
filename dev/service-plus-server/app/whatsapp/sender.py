@@ -1032,7 +1032,7 @@ async def verify_job_delivery_otp(
         )
         await pubsub.publish(
             "whatsapp_delivery_status",
-            {"db_name": db_name_arg, "job_id": job_id, "status": "CONFIRMED", "error": None},
+            {"db_name": db_name_arg, "error": None, "job_id": job_id, "schema": schema_name, "status": "CONFIRMED"},
         )
 
     logger.info("verifyJobDeliveryOtp: %d job(s) confirmed by staff_id=%s", len(job_ids), staff_id)
@@ -1110,7 +1110,7 @@ async def set_job_delivery_manual_confirmation(
         )
         await pubsub.publish(
             "whatsapp_delivery_status",
-            {"db_name": db_name_arg, "job_id": job_id, "status": "CONFIRMED", "error": None},
+            {"db_name": db_name_arg, "error": None, "job_id": job_id, "schema": schema_name, "status": "CONFIRMED"},
         )
 
     logger.info(

@@ -1,7 +1,9 @@
 """
 Shared GraphQL resolver guards for access-right enforcement.
 """
+import json
 import re
+from urllib.parse import unquote
 
 from app.core.exceptions import AppMessages, AuthorizationException
 from app.db.sql.sql_base import SqlStore
@@ -41,6 +43,49 @@ NON_ADMIN_SECURITY_SQL_IDS: frozenset[str] = frozenset({
     "GET_JOB_TRANSACTIONS_BY_JOB",
     "GET_JOB_TRANSACTION_DETAIL",
 })
+
+
+# Schemas that span a whole tenant rather than one BU. A non-admin may not name
+# them at all (plans/plan.md Step 6): `search_path` is set to exactly this schema,
+# so `security` would reach every user of the tenant and `public` the control plane.
+TENANT_WIDE_SCHEMAS = frozenset({"", "public", "security"})
+
+# security-schema tables only an Admin / Super Admin may write through genericUpdate.
+# A non-admin is refused the security schema outright; this list is the second wall
+# and names what that wall protects.
+SECURITY_ADMIN_ONLY_TABLES = frozenset({
+    "access_right",
+    "bu",
+    "bu_payment",
+    "role",
+    "role_access_right",
+    "sales_enquiry",
+    "user",
+    "user_bu_role",
+})
+
+# Tables nobody writes through genericUpdate, Super Admin included: they change only
+# through their own mutations (sign-up approval, payments). Checked in any schema —
+# `public.sales_enquiry` (Enterprise) is server-only as well, and no BU table shares
+# either name.
+SECURITY_SERVER_ONLY_TABLES = frozenset({"bu_payment", "sales_enquiry"})
+
+# security.bu billing columns: set only by approval, plan change and payment
+# mutations, never by genericUpdate (edit / activate / deactivate BU write none of them).
+BU_BILLING_COLUMNS = frozenset({
+    "billing_hold",
+    "billing_required",
+    "branch_limit",
+    "last_reminder_kind",
+    "last_reminder_on",
+    "monthly_fee_paise",
+    "paid_through",
+    "plan_code",
+})
+
+# The one security write a business user makes: the BU/branch switcher saving their
+# own last-used BU and branch (use-bu-branch-division-actions.ts).
+OWN_LAST_USED_COLUMNS = frozenset({"id", "last_used_branch_id", "last_used_bu_id"})
 
 
 def require_authenticated(info) -> None:
@@ -191,7 +236,9 @@ def require_bu_access(info, schema: str | None) -> None:
     Raise AuthorizationException unless `schema` is one of the caller's
     assigned BU codes (or the caller is Super Admin/Business Admin, who
     bypass — Admin owns every BU in their own tenant). `security`/`public`/
-    falsy schemas are tenant-wide, not BU schemas, and always pass.
+    falsy schemas are tenant-wide, not BU schemas, and are refused to everyone
+    else (plans/plan.md Step 6); the only exception, a user saving their own
+    last-used BU/branch, is decided by require_generic_update_access.
 
     A token minted before this guard existed carries no `bu_codes` claim at
     all; `context.get("bu_codes") or []` turns that into an empty list, so a
@@ -203,10 +250,113 @@ def require_bu_access(info, schema: str | None) -> None:
     if context.get("user_type") in BYPASS_USER_TYPES:
         return
     normalized = (schema or "").lower()
-    if not normalized or normalized in {"security", "public"}:
-        return
+    if normalized in TENANT_WIDE_SCHEMAS:
+        raise AuthorizationException(
+            message=AppMessages.FORBIDDEN,
+            extensions={"reason": "tenant_wide_schema"},
+        )
     if normalized not in (context.get("bu_codes") or []):
         raise AuthorizationException(
             message=AppMessages.FORBIDDEN,
             extensions={"reason": "bu_mismatch"},
         )
+
+
+def _sql_object_nodes(node):
+    """Every sql_object in a genericUpdate payload: the root and each nested
+    xDetails child, whether xData / xDetails hold a dict or a list."""
+    if isinstance(node, list):
+        for item in node:
+            yield from _sql_object_nodes(item)
+        return
+    if not isinstance(node, dict):
+        return
+    yield node
+    x_data = node.get("xData")
+    for row in x_data if isinstance(x_data, list) else [x_data]:
+        if isinstance(row, dict) and "xDetails" in row:
+            yield from _sql_object_nodes(row["xDetails"])
+
+
+def _node_rows(node: dict) -> list[dict]:
+    x_data = node.get("xData")
+    rows = x_data if isinstance(x_data, list) else [x_data]
+    return [r for r in rows if isinstance(r, dict)]
+
+
+def _is_own_last_used_update(context: dict, payload: dict) -> bool:
+    """True only for {tableName: "user", xData: {id: <own id>, last_used_bu_id,
+    last_used_branch_id}} — one row, the caller's own, nothing nested or deleted."""
+    x_data = payload.get("xData")
+    if payload.get("tableName") != "user" or "deletedIds" in payload or not isinstance(x_data, dict):
+        return False
+    if not set(x_data) <= OWN_LAST_USED_COLUMNS or "id" not in x_data:
+        return False
+    try:
+        return int(x_data["id"]) == int(context.get("user_id"))
+    except (TypeError, ValueError):
+        return False
+
+
+def require_generic_update_access(info, schema: str | None, value: str) -> None:
+    """
+    Schema and table checks for genericUpdate (plans/plan.md Step 6), replacing a
+    bare require_bu_access there:
+
+    - server-only tables (SECURITY_SERVER_ONLY_TABLES) and the billing columns of
+      `bu` are refused to everyone, at any nesting depth;
+    - a non-admin may write only their BU schemas, plus the single own-row
+      last-used BU/branch update on `security`;
+    - on `security`, every table in SECURITY_ADMIN_ONLY_TABLES needs `A` or `S`.
+    """
+    context = info.context or {}
+    _reject_bad_token(context)
+    try:
+        payload = json.loads(unquote(value or ""))
+    except (ValueError, TypeError):
+        payload = None
+    nodes = list(_sql_object_nodes(payload)) if isinstance(payload, (dict, list)) else []
+
+    for node in nodes:
+        table = node.get("tableName")
+        if table in SECURITY_SERVER_ONLY_TABLES:
+            raise AuthorizationException(
+                message=AppMessages.FORBIDDEN,
+                extensions={"reason": "server_only_table", "table": table},
+            )
+        if table == "bu" and any(set(row) & BU_BILLING_COLUMNS for row in _node_rows(node)):
+            raise AuthorizationException(
+                message=AppMessages.FORBIDDEN,
+                extensions={"reason": "billing_columns"},
+            )
+
+    normalized = (schema or "").lower()
+    is_admin = context.get("user_type") in BYPASS_USER_TYPES
+    if normalized == "security" and not is_admin:
+        if isinstance(payload, dict) and _is_own_last_used_update(context, payload):
+            return
+        tables = sorted({n.get("tableName") for n in nodes} & SECURITY_ADMIN_ONLY_TABLES)
+        raise AuthorizationException(
+            message=AppMessages.FORBIDDEN,
+            extensions={"reason": "admin_only_table", "tables": tables},
+        )
+    require_bu_access(info, schema)
+
+
+def subscriber_may_receive(context: dict, data: dict) -> bool:
+    """
+    Whether a subscription event may reach this socket's user (plans/plan.md Step 6).
+    Super Admin gets everything; anyone else only their own database's events; an
+    Admin all of that database; a business user only events naming one of their BU
+    codes. An event without a `schema` reaches admins only (fails closed).
+    """
+    user_type = context.get("user_type")
+    if not user_type or context.get("auth_error"):
+        return False
+    if user_type == "S":
+        return True
+    if not data.get("db_name") or data.get("db_name") != context.get("db_name"):
+        return False
+    if user_type in BYPASS_USER_TYPES:
+        return True
+    return (data.get("schema") or "").lower() in (context.get("bu_codes") or [])

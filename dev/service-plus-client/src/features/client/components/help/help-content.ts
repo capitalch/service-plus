@@ -4041,7 +4041,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "A screen I could use before now says 'Access forbidden' — why?",
-				a: "The server now checks every request against your login: your own company, your assigned Business Units, and, for user and company management, whether you are an admin. Staff never see other users' details, and only admins can run admin-only actions. If a normal screen for your role shows 'Access forbidden', note the screen and what you clicked, and tell your platform administrator. Logging out and back in also refreshes your access after your Business Units change.",
+				a: "The server now checks every request against your login: your own company, your assigned Business Units, and, for user and company management, whether you are an admin. Staff never see other users' details, and only admins can run admin-only actions. Adding or deleting job and catalogue photos is checked the same way: only within a Business Unit you are assigned to. If a normal screen for your role shows 'Access forbidden', note the screen and what you clicked, and tell your platform administrator. Logging out and back in also refreshes your access after your Business Units change.",
+			},
+			{
+				q: "Why don't live updates from another Business Unit reach my screen?",
+				a: "Live updates — WhatsApp delivery ticks on Customer Connect, Extended Warranty changes and the accounts-posting progress bar — reach only users assigned to the Business Unit they happened in. An admin sees every Business Unit of the company. If a live update you expect never arrives, use Refresh; if your Business Units were changed recently, log out and back in.",
 			},
 			{
 				q: "Why can a Receptionist see Masters but not Configurations?",

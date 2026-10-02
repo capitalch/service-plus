@@ -130,8 +130,9 @@ pubsub = PubSub()
 # of its own so the client keeps a SINGLE subscription; `kind` tells the two apart, and a
 # client that predates this kind simply ignores it.
 #
-# whatsapp_delivery_status_generator filters by db_name alone, so a tenant's every open BU
-# receives this — `schema` is carried for the client to match on and skip a needless read.
+# The whatsappDeliveryStatus subscription delivers it only to callers of this database who
+# may see `schema` (subscriber_may_receive, plans/plan.md Step 6): admins get every BU, a
+# business user only their own. Every event on this channel must carry `schema`.
 EW_LEAD_CHANGED_KIND = "EW_LEAD"
 
 
@@ -157,3 +158,18 @@ async def publish_ew_lead_changed(
         )
     except Exception as e:  # pylint: disable=broad-except
         logger.error("publish_ew_lead_changed failed (schema=%s reason=%s): %s", schema, reason, e)
+
+
+# Sign-up enquiries (plans/plan.md Steps 6, 9, 10). The pending count behind the
+# approvers' notification bell: lt sign-ups publish with the default customer
+# database's name, Enterprise enquiries with the control-plane database's name.
+SALES_ENQUIRY_COUNT_EVENT = "sales_enquiry_count"
+
+
+async def publish_sales_enquiry_count(db_name: str, kind: str, pending: int) -> None:
+    """Push a new pending-enquiry count to that database's open admin screens.
+    `kind` is "LT" or "ENT". Never raises: a sign-up must not fail because the push did."""
+    try:
+        await pubsub.publish(SALES_ENQUIRY_COUNT_EVENT, {"db_name": db_name, "kind": kind, "pending": pending})
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("publish_sales_enquiry_count failed (db_name=%s kind=%s): %s", db_name, kind, e)

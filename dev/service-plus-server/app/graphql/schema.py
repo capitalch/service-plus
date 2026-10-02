@@ -7,7 +7,7 @@ from ariadne import make_executable_schema, load_schema_from_path
 from ariadne.asgi import GraphQL
 from ariadne.asgi.handlers import GraphQLTransportWSHandler
 from app.logger import logger
-from app.core.exceptions import format_graphql_error, AuthorizationException
+from app.core.exceptions import AppMessages, format_graphql_error, AuthorizationException
 from app.config import settings
 from app.core.security import decode_token
 from app.graphql.resolvers.query import query
@@ -37,6 +37,13 @@ async def get_graphql_context(request: Any, _data: Any) -> dict:
         "auth_error": None,
     }
 
+    # A subscription socket: on_ws_connect verified its token once, at connect, and
+    # left the claims in the connection scope. Browsers cannot set headers on a
+    # WebSocket, so the token travels in connection_init's payload, not a header.
+    scope = getattr(request, "scope", None) or {}
+    if WS_CLAIMS_SCOPE_KEY in scope:
+        return _apply_claims(context, scope[WS_CLAIMS_SCOPE_KEY])
+
     auth_header = request.headers.get("authorization") if hasattr(request, "headers") else None
     if not auth_header or not auth_header.lower().startswith("bearer "):
         return context
@@ -52,6 +59,11 @@ async def get_graphql_context(request: Any, _data: Any) -> dict:
         context["auth_error"] = exc.message
         return context
 
+    return _apply_claims(context, payload)
+
+
+def _apply_claims(context: dict, payload: dict) -> dict:
+    """Copy the token claims the guards read into the GraphQL context."""
     context.update({
         "user_id": payload.get("sub"),
         "user_type": payload.get("user_type"),
@@ -62,6 +74,28 @@ async def get_graphql_context(request: Any, _data: Any) -> dict:
         "bu_codes": payload.get("bu_codes") or [],
     })
     return context
+
+
+# Where on_ws_connect leaves a socket's verified token claims (the ASGI scope dict
+# lives as long as the connection; the context is rebuilt for every subscribe).
+WS_CLAIMS_SCOPE_KEY = "service_plus_claims"
+
+
+def on_ws_connect(websocket: Any, payload: Any) -> None:
+    """
+    graphql-transport-ws `connection_init` hook (plans/plan.md Step 6). The client
+    sends `{Authorization: "Bearer <token>"}` as connectionParams. A missing,
+    expired or invalid token raises, and Ariadne then closes the socket without an
+    ack; graphql-ws reconnects, re-reading the (by then refreshed) token.
+    """
+    params = payload if isinstance(payload, dict) else {}
+    auth = params.get("Authorization") or params.get("authorization") or ""
+    if not isinstance(auth, str) or not auth.lower().startswith("bearer "):
+        raise AuthorizationException(AppMessages.UNAUTHORIZED)
+    claims = decode_token(auth.split(" ", 1)[1].strip())
+    if not claims.get("user_type"):
+        raise AuthorizationException(AppMessages.TOKEN_INVALID)
+    websocket.scope[WS_CLAIMS_SCOPE_KEY] = claims
 
 
 # Get the path to the schema file
@@ -116,7 +150,7 @@ def create_graphql_app() -> GraphQL:
             schema,
             context_value=get_graphql_context,
             debug=settings.debug,
-            websocket_handler=GraphQLTransportWSHandler(),
+            websocket_handler=GraphQLTransportWSHandler(on_connect=on_ws_connect),
             error_formatter=lambda error, debug: format_graphql_error(error, debug)
         )
 

@@ -60,8 +60,17 @@ def test_require_bu_access_fails_closed_on_missing_claim():
 
 
 @pytest.mark.parametrize("schema", [None, "", "public", "PUBLIC", "security", "Security"])
-def test_require_bu_access_allows_tenant_wide_schemas_even_with_empty_bu_codes(schema):
-    require_bu_access(_info(user_type="B", bu_codes=[]), schema)
+def test_require_bu_access_refuses_tenant_wide_schemas_to_business_users(schema):
+    # plans/plan.md Step 6: security/public/empty reach the whole tenant.
+    with pytest.raises(AuthorizationException) as exc:
+        require_bu_access(_info(user_type="B", bu_codes=["demo1"]), schema)
+    assert exc.value.extensions.get("reason") == "tenant_wide_schema"
+
+
+@pytest.mark.parametrize("schema", [None, "", "public", "security"])
+@pytest.mark.parametrize("user_type", ["S", "A"])
+def test_require_bu_access_lets_admins_use_tenant_wide_schemas(user_type, schema):
+    require_bu_access(_info(user_type=user_type, bu_codes=[]), schema)
 
 
 @pytest.mark.parametrize("user_type", ["S", "A"])
@@ -99,6 +108,7 @@ def test_require_user_type_rejects_on_bad_token():
 
 
 # ── Step 1 (plans/plan.md): every resolver guarded, sqlId allowlists ─────────
+import asyncio
 import inspect
 import json
 import re
@@ -268,3 +278,226 @@ def test_non_admin_client_screens_use_no_unlisted_security_ids():
                 used.add(a or b)
     blocked = (used & ADMIN_ONLY_SQL_IDS) - NON_ADMIN_SECURITY_SQL_IDS
     assert not blocked, f"Non-admin client code uses admin-only sqlIds: {sorted(blocked)}"
+
+
+
+# ── Step 6 (plans/plan.md): shared-database security fixes ───────────────────
+from fastapi import HTTPException
+
+from app.core.security import create_access_token
+from app.graphql.resolvers import subscription as subscription_module
+from app.graphql.resolvers.auth_guards import (
+    BU_BILLING_COLUMNS,
+    SECURITY_SERVER_ONLY_TABLES,
+    require_generic_update_access,
+    subscriber_may_receive,
+)
+from app.graphql.schema import WS_CLAIMS_SCOPE_KEY, get_graphql_context, on_ws_connect
+from app.routers.media.image_router import _require_media_scope
+
+_BU_USER_7 = {**_BU_USER, "user_id": "7"}
+_ADMIN = {"user_type": "A", "db_name": "service_plus_demo", "bu_codes": [], "access_rights": [], "user_id": "1"}
+
+
+def _update(table: str, x_data, **extra) -> str:
+    return _value({"tableName": table, "xData": x_data, **extra})
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        _update("user", {"id": 7, "is_admin": True}),
+        _update("user_bu_role", {"user_id": 7, "bu_id": 2, "role_id": 1}),
+        _update("user", {"id": 1, "last_used_bu_id": 2}),  # someone else's row
+        _update("user", {"id": 7, "last_used_bu_id": 2, "is_admin": True}),  # extra column
+        _update("user", {"id": 7, "last_used_bu_id": 2}, deletedIds=[1]),
+        _update("user", [{"id": 7, "last_used_bu_id": 2}]),  # list form
+    ],
+)
+def test_business_user_cannot_write_security_tables(value):
+    with pytest.raises(AuthorizationException):
+        require_generic_update_access(_info(**_BU_USER_7), "security", value)
+
+
+def test_business_user_may_save_own_last_used_bu_and_branch():
+    value = _update("user", {"id": 7, "last_used_branch_id": 3, "last_used_bu_id": 2})
+    require_generic_update_access(_info(**_BU_USER_7), "security", value)
+
+
+@pytest.mark.parametrize("table", sorted(SECURITY_SERVER_ONLY_TABLES))
+@pytest.mark.parametrize("ctx", [_BU_USER_7, _ADMIN, {"user_type": "S"}], ids=["B", "A", "S"])
+@pytest.mark.parametrize("schema", ["security", "public", "demo1"])
+def test_server_only_tables_refused_to_everyone(table, ctx, schema):
+    with pytest.raises(AuthorizationException) as exc:
+        require_generic_update_access(_info(**ctx), schema, _update(table, {"id": 1, "status": "approved"}))
+    assert exc.value.extensions.get("reason") == "server_only_table"
+
+
+def test_server_only_table_refused_when_nested():
+    value = _update("job", {"id": 1, "xDetails": [{"tableName": "x", "xData": {"xDetails": {"tableName": "sales_enquiry", "xData": {"id": 1}}}}]})
+    with pytest.raises(AuthorizationException):
+        require_generic_update_access(_info(**_ADMIN), "demo1", value)
+
+
+@pytest.mark.parametrize("column", sorted(BU_BILLING_COLUMNS))
+def test_admin_cannot_write_bu_billing_columns(column):
+    with pytest.raises(AuthorizationException) as exc:
+        require_generic_update_access(_info(**_ADMIN), "security", _update("bu", {"id": 1, column: None}))
+    assert exc.value.extensions.get("reason") == "billing_columns"
+
+
+@pytest.mark.parametrize("x_data", [{"id": 1, "name": "Nav Technology"}, {"id": 1, "is_active": False}])
+def test_admin_bu_dialogs_still_write(x_data):
+    # edit / activate / deactivate BU dialogs send only these columns.
+    require_generic_update_access(_info(**_ADMIN), "security", _update("bu", x_data))
+    require_generic_update_access(_info(**_ADMIN), "security", _update("bu", {}, deletedIds=[1]))
+
+
+def test_business_user_bu_schema_writes_unchanged():
+    require_generic_update_access(_info(**_BU_USER_7), "demo1", _update("job", {"id": 1, "remarks": "x"}))
+    with pytest.raises(AuthorizationException):
+        require_generic_update_access(_info(**_BU_USER_7), "otherbu", _update("job", {"id": 1}))
+
+
+async def test_generic_update_resolver_refuses_is_admin_edit():
+    with pytest.raises(AuthorizationException):
+        await mutation_module.resolve_generic_update(
+            None, _info(**_BU_USER_7), db_name="service_plus_demo", schema="security", value=_update("user", {"id": 7, "is_admin": True})
+        )
+
+
+@pytest.mark.parametrize("schema", ["security", "public", "", "otherbu"])
+async def test_generic_query_refuses_tenant_wide_or_foreign_schema(schema):
+    with pytest.raises(AuthorizationException):
+        await query_module.resolve_generic_query(
+            None, _info(**_BU_USER), db_name="service_plus_demo", schema=schema, value=_value({"sqlId": "GET_BU_BRANCHES"})
+        )
+
+
+async def test_generic_update_script_refuses_security_schema_to_business_users():
+    with pytest.raises(AuthorizationException):
+        await mutation_module.resolve_generic_update_script(
+            None, _info(**_BU_USER), db_name="service_plus_demo", schema="security",
+            value=_value({"sql_id": "DELETE_PURCHASE_INVOICE", "sql_args": {}}),
+        )
+
+
+# Subscriptions ───────────────────────────────────────────────────────────────
+
+_EVENT = {"db_name": "service_plus_demo", "schema": "demo1"}
+
+
+@pytest.mark.parametrize(
+    "ctx,event,expected",
+    [
+        (_BU_USER, _EVENT, True),
+        (_BU_USER, {**_EVENT, "schema": "DEMO1"}, True),
+        (_BU_USER, {**_EVENT, "schema": "otherbu"}, False),
+        (_BU_USER, {"db_name": "service_plus_demo"}, False),  # no schema: fails closed
+        (_BU_USER, {**_EVENT, "db_name": "service_plus_other"}, False),
+        (_ADMIN, {**_EVENT, "schema": "otherbu"}, True),
+        (_ADMIN, {**_EVENT, "db_name": "service_plus_other"}, False),
+        ({"user_type": "S"}, {**_EVENT, "db_name": "service_plus_other"}, True),
+        ({}, _EVENT, False),
+        ({**_BU_USER, "auth_error": "expired"}, _EVENT, False),
+    ],
+)
+def test_subscriber_may_receive(ctx, event, expected):
+    assert subscriber_may_receive(ctx, event) is expected
+
+
+@pytest.mark.parametrize(
+    "source,kwargs",
+    [
+        (subscription_module.whatsapp_delivery_status_source, {"db_name": "service_plus_other"}),
+        (subscription_module.accounts_posting_progress_source, {"db_name": "service_plus_other", "branchId": "1"}),
+        (subscription_module.sales_enquiry_count_source, {"db_name": "service_plus_demo"}),  # business user
+    ],
+)
+async def test_subscription_sources_refuse_foreign_or_non_admin_callers(source, kwargs):
+    with pytest.raises(AuthorizationException):
+        await source(None, _info(**_BU_USER), **kwargs)
+
+
+@pytest.mark.parametrize(
+    "source,kwargs",
+    [
+        (subscription_module.whatsapp_delivery_status_source, {"db_name": "service_plus_demo"}),
+        (subscription_module.accounts_posting_progress_source, {"db_name": "service_plus_demo", "branchId": "1"}),
+        (subscription_module.sales_enquiry_count_source, {"db_name": "service_plus_demo"}),
+    ],
+)
+async def test_subscription_sources_refuse_a_socket_without_token(source, kwargs):
+    with pytest.raises(AuthorizationException):
+        await source(None, _info(), **kwargs)
+
+
+async def test_business_user_gets_no_other_bu_events():
+    stream = await subscription_module.whatsapp_delivery_status_source(None, _info(**_BU_USER), db_name="service_plus_demo")
+    received = []
+
+    async def consume():
+        async for data in stream:
+            received.append(data)
+            break
+
+    task = asyncio.ensure_future(consume())
+    await asyncio.sleep(0)
+    await subscription_module.pubsub.publish("whatsapp_delivery_status", {**_EVENT, "schema": "otherbu", "job_id": 1})
+    await subscription_module.pubsub.publish("whatsapp_delivery_status", {**_EVENT, "job_id": 2})
+    await asyncio.wait_for(task, 1)
+    assert [d["job_id"] for d in received] == [2]
+
+
+def test_subscription_sources_are_guarded():
+    sources = [subscription_module.whatsapp_delivery_status_source, subscription_module.accounts_posting_progress_source,
+               subscription_module.sales_enquiry_count_source]
+    for fn in sources:
+        assert _GUARD_CALL.search(inspect.getsource(fn)), fn.__name__
+
+
+class _FakeSocket:
+    def __init__(self):
+        self.scope: dict = {}
+
+
+@pytest.mark.parametrize("payload", [None, {}, {"Authorization": "Bearer not-a-jwt"}, {"Authorization": "Basic x"}])
+def test_ws_connect_rejects_missing_or_bad_token(payload):
+    with pytest.raises(AuthorizationException):
+        on_ws_connect(_FakeSocket(), payload)
+
+
+async def test_ws_connect_keeps_claims_for_the_socket_context():
+    token = create_access_token({"sub": "7", "user_type": "B", "db_name": "service_plus_demo", "bu_codes": ["demo1"]})
+    socket = _FakeSocket()
+    on_ws_connect(socket, {"Authorization": f"Bearer {token}"})
+    assert socket.scope[WS_CLAIMS_SCOPE_KEY]["db_name"] == "service_plus_demo"
+    context = await get_graphql_context(socket, None)
+    assert context["user_type"] == "B" and context["bu_codes"] == ["demo1"]
+
+
+# Media ───────────────────────────────────────────────────────────────────────
+
+_BU_CLAIMS = {"user_type": "B", "db_name": "service_plus_demo", "bu_codes": ["demo1"], "client_id": 1}
+
+
+@pytest.mark.parametrize(
+    "db_name,schema,bu_code",
+    [
+        ("service_plus_demo", "otherbu", None),
+        ("service_plus_other", "demo1", None),
+        ("service_plus_demo", "security", None),
+        ("service_plus_demo", "demo1", "otherbu"),
+    ],
+    ids=["other-bu", "other-tenant", "security", "bu-code-mismatch"],
+)
+async def test_media_writes_refused_outside_own_bu(db_name, schema, bu_code):
+    with pytest.raises(HTTPException) as exc:
+        await _require_media_scope(_BU_CLAIMS, db_name, schema, bu_code=bu_code)
+    assert exc.value.status_code == 403
+
+
+async def test_media_writes_allowed_in_own_bu():
+    await _require_media_scope(_BU_CLAIMS, "service_plus_demo", "demo1", bu_code="DEMO1")
+    await _require_media_scope({**_BU_CLAIMS, "user_type": "A", "bu_codes": []}, "service_plus_demo", "otherbu")
+    await _require_media_scope({"user_type": "S"}, "service_plus_other", "x", client_code="y", bu_code="z")

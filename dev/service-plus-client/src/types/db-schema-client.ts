@@ -93,6 +93,25 @@ export interface SalesEnquiry {
   status: string;
   ip: string | null;
   created_at: Date;
+  reference: string | null;
+  client_id: number | null;
+  bu_id: number | null;
+  bu_schema_ready_at: Date | null;
+  user_id: number | null;
+  login_email_sent: boolean;
+  processing_started_at: Date | null;
+  reviewed_by: string | null;
+  reviewed_at: Date | null;
+  rejection_reason: string | null;
+  setup_fee_paise: number;
+  payment_status: string;
+  payment_amount_paise: number | null;
+  payment_mode: string | null;
+  payment_reference: string | null;
+  payment_received_on: Date | null;
+  payment_recorded_by: string | null;
+  payment_recorded_at: Date | null;
+  payment_note: string | null;
 }
 export interface SalesEnquiryInput {
   id: number;
@@ -108,6 +127,25 @@ export interface SalesEnquiryInput {
   status?: string;
   ip?: string | null;
   created_at?: Date;
+  reference?: string | null;
+  client_id?: number | null;
+  bu_id?: number | null;
+  bu_schema_ready_at?: Date | null;
+  user_id?: number | null;
+  login_email_sent?: boolean;
+  processing_started_at?: Date | null;
+  reviewed_by?: string | null;
+  reviewed_at?: Date | null;
+  rejection_reason?: string | null;
+  setup_fee_paise?: number;
+  payment_status?: string;
+  payment_amount_paise?: number | null;
+  payment_mode?: string | null;
+  payment_reference?: string | null;
+  payment_received_on?: Date | null;
+  payment_recorded_by?: string | null;
+  payment_recorded_at?: Date | null;
+  payment_note?: string | null;
 }
 const sales_enquiry = {
   tableName: "sales_enquiry",
@@ -125,6 +163,25 @@ const sales_enquiry = {
   "status",
   "ip",
   "created_at",
+  "reference",
+  "client_id",
+  "bu_id",
+  "bu_schema_ready_at",
+  "user_id",
+  "login_email_sent",
+  "processing_started_at",
+  "reviewed_by",
+  "reviewed_at",
+  "rejection_reason",
+  "setup_fee_paise",
+  "payment_status",
+  "payment_amount_paise",
+  "payment_mode",
+  "payment_reference",
+  "payment_received_on",
+  "payment_recorded_by",
+  "payment_recorded_at",
+  "payment_note",
   ],
   requiredForInsert: [
   "id",
@@ -136,7 +193,13 @@ const sales_enquiry = {
   "city",
   ],
   primaryKey: "id",
-  foreignKeys: {},
+  foreignKeys: {
+  client_id: {
+    table: "client",
+    column: "id",
+    $type: null as unknown as Client,
+  },
+  },
   $type: null as unknown as SalesEnquiry,
   $input: null as unknown as SalesEnquiryInput,
 } as const;

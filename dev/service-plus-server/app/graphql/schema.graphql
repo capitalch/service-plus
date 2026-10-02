@@ -57,8 +57,8 @@ type Mutation {
 }
 
 type Subscription {
-    genericSubscription(db_name: String!):Generic
     accountsPostingProgress(db_name: String!, branchId: String!): Generic
+    salesEnquiryCount(db_name: String!): Generic
     whatsappDeliveryStatus(db_name: String!): Generic
 }
 

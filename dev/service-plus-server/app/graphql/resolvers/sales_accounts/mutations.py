@@ -570,6 +570,8 @@ async def resolve_accounts_posting_helper(
         """Emit a progress event for live UI updates (best-effort, never fatal)."""
         try:
             await pubsub.publish("accounts_posting_progress", {
+                "db_name":         db_name,
+                "schema":          schema,
                 "branchId":        str(branch_id_arg),
                 "total":           total,
                 "posted":          posted_money_receipts + posted_purchase_invoices + posted_job_invoices + posted_sales_invoices,

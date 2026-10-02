@@ -8,10 +8,10 @@ from fastapi.responses import StreamingResponse
 
 
 from app.config import settings
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_token_claims
 from app.db.connection.psycopg_driver import exec_sql, exec_sql_object
 from app.db.sql.sql_base import SqlStore
-from app.core.exceptions import DatabaseException
+from app.core.exceptions import AppMessages, DatabaseException
 from app.logger import logger
 from app.services.file_client import FileClient
 
@@ -19,6 +19,46 @@ router = APIRouter(prefix="/api/images", tags=["images"])
 
 _file_server_url = settings.file_server_url
 _file_client = FileClient(_file_server_url, settings.file_server_api_key)
+
+_TENANT_WIDE_SCHEMAS = {"", "public", "security"}
+
+
+def _forbidden(reason: str) -> HTTPException:
+    logger.warning("Media request refused: %s", reason)
+    return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=AppMessages.FORBIDDEN)
+
+
+async def _require_media_scope(
+    claims: dict[str, Any],
+    db_name: str,
+    schema: str,
+    client_code: str | None = None,
+    bu_code: str | None = None,
+) -> None:
+    """
+    Upload / delete may touch only the caller's own tenant and BU (plans/plan.md
+    Step 6), the same rule require_own_tenant + require_bu_access apply to GraphQL:
+    `db_name` must be the token's, `schema` one of its BU codes (an Admin owns every
+    BU of their tenant), and the file-server path parts `bu_code` / `client_code`
+    must name that same BU and the token's own client. Super Admin passes. Reading
+    files stays open (decided): their paths are unguessable.
+    """
+    if claims.get("user_type") == "S":
+        return
+    if not db_name or db_name != claims.get("db_name"):
+        raise _forbidden("tenant_mismatch")
+    normalized = (schema or "").lower()
+    if normalized in _TENANT_WIDE_SCHEMAS:
+        raise _forbidden("tenant_wide_schema")
+    if claims.get("user_type") != "A" and normalized not in (claims.get("bu_codes") or []):
+        raise _forbidden("bu_mismatch")
+    if bu_code is not None and bu_code.lower() != normalized:
+        raise _forbidden("bu_code_mismatch")
+    if client_code is not None:
+        rows = await exec_sql(db_name=None, sql=SqlStore.GET_CLIENT_DB_NAME, sql_args={"client_id": claims.get("client_id")})
+        own_code = (rows[0].get("code") or "") if rows else ""
+        if not own_code or own_code.lower() != client_code.lower():
+            raise _forbidden("client_code_mismatch")
 
 
 def _file_server_error(e: Exception, operation: str) -> HTTPException:
@@ -98,8 +138,10 @@ async def upload_images(
     about: str = Form(...),
     files: list[UploadFile] | None = File(None),
     _current_user: dict[str, Any] = Depends(get_current_user),
+    claims: dict[str, Any] = Depends(get_token_claims),
 ) -> list[dict[str, Any]]:
     """Upload files via file server, then store DB records."""
+    await _require_media_scope(claims, db_name, schema, client_code, bu_code)
     if not about.strip():
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -150,8 +192,10 @@ async def delete_image(
     schema: str,
     image_id: int,
     _current_user: dict[str, Any] = Depends(get_current_user),
+    claims: dict[str, Any] = Depends(get_token_claims),
 ) -> dict[str, Any]:
     """Delete a single image: remove from file server, then from DB."""
+    await _require_media_scope(claims, db_name, schema)
     rows = await exec_sql(
         db_name=db_name,
         schema=schema,
@@ -203,8 +247,10 @@ async def upload_spare_part_web_images(
     bu_code: str = Form(...),
     files: list[UploadFile] | None = File(None),
     _current_user: dict[str, Any] = Depends(get_current_user),
+    claims: dict[str, Any] = Depends(get_token_claims),
 ) -> dict[str, Any]:
     """Upload photos for a web-catalogue part, appending to image_urls (§3c/§4)."""
+    await _require_media_scope(claims, db_name, schema, client_code, bu_code)
     if not files:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -250,8 +296,10 @@ async def delete_spare_part_web_image(
     spare_part_web_id: int,
     body: dict,
     _current_user: dict[str, Any] = Depends(get_current_user),
+    claims: dict[str, Any] = Depends(get_token_claims),
 ) -> dict[str, Any]:
     """Delete a single web-catalogue part image, keyed by url (§3c/§4)."""
+    await _require_media_scope(claims, db_name, schema)
     url = body.get("url", "")
     if not url:
         raise HTTPException(
@@ -287,9 +335,11 @@ async def reorder_spare_part_web_images(
     spare_part_web_id: int,
     body: dict,
     _current_user: dict[str, Any] = Depends(get_current_user),
+    claims: dict[str, Any] = Depends(get_token_claims),
 ) -> dict[str, Any]:
     """Persist a reordered gallery — a full-array write, validated as a permutation
     of the currently stored urls so a stale client can't inject or drop urls (§4)."""
+    await _require_media_scope(claims, db_name, schema)
     new_urls = body.get("image_urls")
     if not isinstance(new_urls, list):
         raise HTTPException(
@@ -323,10 +373,12 @@ async def delete_spare_part_web_part_images(
     client_code: str,
     bu_code: str,
     _current_user: dict[str, Any] = Depends(get_current_user),
+    claims: dict[str, Any] = Depends(get_token_claims),
 ) -> dict[str, Any]:
     """Delete all photos for one part: empty image_urls, then wipe its file-server
     folder — mirrors delete_job_images. Called before the GraphQL row delete (§6a)
     so a removed part never strands its folder on disk."""
+    await _require_media_scope(claims, db_name, schema, client_code, bu_code)
     context = await _resolve_spare_part_web_context(db_name, schema, spare_part_web_id)
     current_urls: list[str] = context["image_urls"] or []
 
@@ -362,8 +414,10 @@ async def delete_job_images(
     schema: str,
     job_id: int,
     _current_user: dict[str, Any] = Depends(get_current_user),
+    claims: dict[str, Any] = Depends(get_token_claims),
 ) -> dict[str, Any]:
     """Delete all image/document files and DB records for a job."""
+    await _require_media_scope(claims, db_name, schema)
     deleted_rows = await exec_sql(
         db_name=db_name,
         schema=schema,

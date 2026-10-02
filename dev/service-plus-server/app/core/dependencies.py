@@ -18,6 +18,22 @@ from app.logger import logger
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
+async def get_token_claims(token: str = Depends(oauth2_scheme)) -> dict:
+    """
+    FastAPI dependency returning the verified JWT claims (user_type, db_name,
+    client_id, bu_codes, …) for routes that must check WHERE the caller may act,
+    not only that they are logged in. 401 on a missing, expired or invalid token.
+    """
+    try:
+        return decode_token(token)
+    except AuthorizationException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
+
+
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     """
     FastAPI dependency that extracts and validates the JWT from the

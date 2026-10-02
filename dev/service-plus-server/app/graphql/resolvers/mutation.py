@@ -12,6 +12,7 @@ from app.graphql.resolvers.auth_guards import (
     require_access_right,
     require_any_access_right,
     require_bu_access,
+    require_generic_update_access,
     require_own_tenant,
     require_user_type,
 )
@@ -295,7 +296,7 @@ async def resolve_drop_database(
 async def resolve_generic_update(_, info, db_name="", schema="public", value="") -> Any:
     """Execute a generic table upsert/delete operation."""
     require_own_tenant(info, db_name)
-    require_bu_access(info, schema)
+    require_generic_update_access(info, schema, value)
     _require_generic_update_table_right(info, value)
     result = await resolve_generic_update_helper(db_name, schema, value)
     # A lead entered, edited or deleted is the one Extended Warranty change with no

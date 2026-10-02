@@ -178,4 +178,5 @@ out/
 **/.claude/workflows
 dev/.claude/skills
 dev/service-plus-client/.claude/skills
+dev/service-plus-client/src/.claude/
 dev/service-plus-client/.gitmodules

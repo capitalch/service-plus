@@ -6,7 +6,8 @@ Runs, each script in its own transaction (all are safe to run twice):
 2. SignupServerSql.SALES_ENQUIRY_ENT_ALTER on service_plus_client (the control plane)
 3. BillingServerSql.BU_BILLING_DDL         on every client database listed in public.client,
                                            plus service_plus_service (the template the
-                                           schema dump and generated client types come from)
+                                           schema dump and generated client types come from),
+                                           when that database exists on this server
 
 Nothing here creates a trigger. Existing BUs get billing_required = false and
 branch_limit = null, so existing customers behave exactly as before.
@@ -40,6 +41,10 @@ TEMPLATE_DB = "service_plus_service"
 
 LIST_CLIENT_DBS = """
     SELECT DISTINCT db_name FROM public.client WHERE db_name IS NOT NULL AND db_name <> '' ORDER BY db_name
+"""
+
+TEMPLATE_DB_EXISTS = """
+    SELECT 1 AS found FROM pg_database WHERE datname = %(db_name)s
 """
 
 
@@ -77,7 +82,10 @@ async def main(dry_run: bool) -> int:
 
     rows = await exec_sql(db_name=None, schema="public", sql=LIST_CLIENT_DBS)
     tenant_dbs = [r["db_name"] for r in rows]
-    if TEMPLATE_DB not in tenant_dbs:
+    template_found = await exec_sql(
+        db_name=None, schema="public", sql=TEMPLATE_DB_EXISTS, sql_args={"db_name": TEMPLATE_DB}
+    )
+    if template_found and TEMPLATE_DB not in tenant_dbs:
         tenant_dbs.append(TEMPLATE_DB)
 
     print(f"1. SALES_ENQUIRY_DDL       -> {default_db}")
@@ -85,6 +93,8 @@ async def main(dry_run: bool) -> int:
     print(f"3. BU_BILLING_DDL          -> {', '.join(tenant_dbs)}")
     if default_db not in tenant_dbs:
         print(f"   warning: {default_db} is not any client's database")
+    if not template_found:
+        print(f"   note: template {TEMPLATE_DB} is not on this server; skipped")
     if dry_run:
         print("Dry run: nothing changed.")
         return 0

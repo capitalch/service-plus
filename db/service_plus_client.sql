@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Kl2Lfgy6vrZPyUj1ULfW4cefWsRCt2N4GwMI8dihid0jF6RzlLTCJQH9K81zkxu
+\restrict Wk8sMKgaiFxxjPuOWdn0QXgp643fu6KR7LPkfdYKEKKisg38iEA22aj4HMxDEhZ
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
@@ -114,6 +114,25 @@ CREATE TABLE public.sales_enquiry (
     status text DEFAULT 'new'::text NOT NULL,
     ip text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    reference text,
+    client_id bigint,
+    bu_id bigint,
+    bu_schema_ready_at timestamp with time zone,
+    user_id bigint,
+    login_email_sent boolean DEFAULT false NOT NULL,
+    processing_started_at timestamp with time zone,
+    reviewed_by text,
+    reviewed_at timestamp with time zone,
+    rejection_reason text,
+    setup_fee_paise bigint DEFAULT 0 NOT NULL,
+    payment_status text DEFAULT 'pending'::text NOT NULL,
+    payment_amount_paise bigint,
+    payment_mode text,
+    payment_reference text,
+    payment_received_on date,
+    payment_recorded_by text,
+    payment_recorded_at timestamp with time zone,
+    payment_note text,
     CONSTRAINT sales_enquiry_branches_check CHECK (((branches >= 1) AND (branches <= 50))),
     CONSTRAINT sales_enquiry_plan_code_check CHECK ((plan_code = ANY (ARRAY['lite'::text, 'basic'::text, 'standard'::text, 'enterprise'::text]))),
     CONSTRAINT sales_enquiry_status_check CHECK ((status = ANY (ARRAY['new'::text, 'contacted'::text, 'converted'::text, 'rejected'::text])))
@@ -177,11 +196,67 @@ ALTER TABLE ONLY public.client
 
 
 --
+-- Name: sales_enquiry sales_enquiry_converted_paid_check; Type: CHECK CONSTRAINT; Schema: public; Owner: webadmin
+--
+
+ALTER TABLE public.sales_enquiry
+    ADD CONSTRAINT sales_enquiry_converted_paid_check CHECK (((status <> 'converted'::text) OR (payment_status = 'received'::text))) NOT VALID;
+
+
+--
+-- Name: sales_enquiry sales_enquiry_failed_note_check; Type: CHECK CONSTRAINT; Schema: public; Owner: webadmin
+--
+
+ALTER TABLE public.sales_enquiry
+    ADD CONSTRAINT sales_enquiry_failed_note_check CHECK (((payment_status <> 'failed'::text) OR (payment_note IS NOT NULL))) NOT VALID;
+
+
+--
+-- Name: sales_enquiry sales_enquiry_not_required_check; Type: CHECK CONSTRAINT; Schema: public; Owner: webadmin
+--
+
+ALTER TABLE public.sales_enquiry
+    ADD CONSTRAINT sales_enquiry_not_required_check CHECK (((payment_status <> 'not_required'::text) OR (setup_fee_paise = 0))) NOT VALID;
+
+
+--
+-- Name: sales_enquiry sales_enquiry_payment_mode_check; Type: CHECK CONSTRAINT; Schema: public; Owner: webadmin
+--
+
+ALTER TABLE public.sales_enquiry
+    ADD CONSTRAINT sales_enquiry_payment_mode_check CHECK (((payment_mode IS NULL) OR (payment_mode = ANY (ARRAY['bank_transfer'::text, 'upi'::text, 'cash'::text, 'other'::text])))) NOT VALID;
+
+
+--
+-- Name: sales_enquiry sales_enquiry_payment_status_check; Type: CHECK CONSTRAINT; Schema: public; Owner: webadmin
+--
+
+ALTER TABLE public.sales_enquiry
+    ADD CONSTRAINT sales_enquiry_payment_status_check CHECK ((payment_status = ANY (ARRAY['not_required'::text, 'pending'::text, 'received'::text, 'failed'::text]))) NOT VALID;
+
+
+--
 -- Name: sales_enquiry sales_enquiry_pkey; Type: CONSTRAINT; Schema: public; Owner: webadmin
 --
 
 ALTER TABLE ONLY public.sales_enquiry
     ADD CONSTRAINT sales_enquiry_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sales_enquiry sales_enquiry_received_check; Type: CHECK CONSTRAINT; Schema: public; Owner: webadmin
+--
+
+ALTER TABLE public.sales_enquiry
+    ADD CONSTRAINT sales_enquiry_received_check CHECK (((payment_status <> 'received'::text) OR ((payment_mode IS NOT NULL) AND (payment_reference IS NOT NULL) AND (payment_received_on IS NOT NULL) AND (payment_amount_paise IS NOT NULL) AND (payment_amount_paise >= setup_fee_paise)))) NOT VALID;
+
+
+--
+-- Name: sales_enquiry sales_enquiry_setup_fee_check; Type: CHECK CONSTRAINT; Schema: public; Owner: webadmin
+--
+
+ALTER TABLE public.sales_enquiry
+    ADD CONSTRAINT sales_enquiry_setup_fee_check CHECK ((setup_fee_paise >= 0)) NOT VALID;
 
 
 --
@@ -220,6 +295,13 @@ CREATE INDEX sales_enquiry_created_at_idx ON public.sales_enquiry USING btree (c
 
 
 --
+-- Name: sales_enquiry_reference_key; Type: INDEX; Schema: public; Owner: webadmin
+--
+
+CREATE UNIQUE INDEX sales_enquiry_reference_key ON public.sales_enquiry USING btree (reference);
+
+
+--
 -- Name: sales_enquiry_status_idx; Type: INDEX; Schema: public; Owner: webadmin
 --
 
@@ -234,6 +316,14 @@ CREATE TRIGGER trg_client_updated BEFORE UPDATE ON public.client FOR EACH ROW EX
 
 
 --
+-- Name: sales_enquiry sales_enquiry_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: webadmin
+--
+
+ALTER TABLE ONLY public.sales_enquiry
+    ADD CONSTRAINT sales_enquiry_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.client(id) NOT VALID;
+
+
+--
 -- Name: SCHEMA public; Type: ACL; Schema: -; Owner: postgres
 --
 
@@ -245,5 +335,5 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Kl2Lfgy6vrZPyUj1ULfW4cefWsRCt2N4GwMI8dihid0jF6RzlLTCJQH9K81zkxu
+\unrestrict Wk8sMKgaiFxxjPuOWdn0QXgp643fu6KR7LPkfdYKEKKisg38iEA22aj4HMxDEhZ
 

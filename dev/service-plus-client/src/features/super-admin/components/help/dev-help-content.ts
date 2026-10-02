@@ -183,7 +183,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		faqs: [
 			{
 				q: "Do subscriptions go through the same auth context as queries/mutations?",
-				a: "They go through the same Ariadne GraphQL app and context_value wiring described in 'GraphQL Layer' — verify current behavior in schema.py before assuming parity, since subscriptions are a separate transport (WebSocket) from queries/mutations.",
+				a: "Yes, since plans/plan.md Step 6. Browsers cannot send headers on a WebSocket, so the client passes {Authorization: 'Bearer <token>'} as graphql-ws connectionParams; on_ws_connect (app/graphql/schema.py, wired as GraphQLTransportWSHandler(on_connect=…)) verifies it once at connection_init, refuses the socket without a valid token, and leaves the claims in websocket.scope, which get_graphql_context reads for every subscribe on that socket. Each source then runs require_* guards before streaming, and filters each event with subscriber_may_receive — see 'Shared-Database Isolation'. The HTTP error/auth links do not apply to the socket; graphql-ws reconnects with a fresh token after a refused connect.",
 			},
 			{
 				q: "What breaks subscriptions in production if misconfigured?",
@@ -804,7 +804,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 						"POST /api/auth/login, refresh token, password reset — the one place login actually happens",
 					],
 					["base_router.py", "Shared/base route setup"],
-					["media/image_router.py", "Image upload/serving, auth via Depends(get_current_user)"],
+					[
+						"media/image_router.py",
+						"Image upload/serving; writes need Depends(get_current_user) and _require_media_scope(get_token_claims, …) — own tenant, own BU, own client code",
+					],
 				],
 			},
 			{
@@ -819,7 +822,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Where do I add a new authenticated REST endpoint?",
-				a: "Follow image_router.py's pattern: a FastAPI Router with Depends(get_current_user) from app/core/dependencies.py. But default to GraphQL first — REST is the exception here, reserved for binary/multipart payloads, not the rule.",
+				a: "Follow image_router.py's pattern: a FastAPI Router with Depends(get_current_user) from app/core/dependencies.py, plus Depends(get_token_claims) and a scope check like image_router's _require_media_scope when the route takes a db_name or schema (login alone does not limit WHERE a caller may write). But default to GraphQL first — REST is the exception here, reserved for binary/multipart payloads, not the rule.",
 			},
 		],
 	},
@@ -1528,7 +1531,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				items: [
 					"login_helper and refresh_token_helper now add a bu_codes: string[] claim to the JWT (lowercased security.bu.code values), derived from the same GET_USER_BUS query already run at login for the 'select business unit' screen — refresh_token_helper didn't run that query at all before this fix.",
 					"get_graphql_context (app/graphql/schema.py) decodes bu_codes into context alongside the existing user_id/user_type/access_rights/db_name — an old token with no bu_codes claim decodes to an empty list, not 'unrestricted'.",
-					"Two new guards in auth_guards.py: require_own_tenant(info, db_name) rejects unless the request's db_name matches context.db_name (Super Admin, whose token always carries db_name=None, bypasses); require_bu_access(info, schema) rejects unless schema is in context.bu_codes, short-circuiting to allow for schema in {'security','public'} (tenant-wide, not BU-specific) and bypassing entirely for Super Admin/Business Admin (user_type in {'S','A'}) — Admin already owns every BU in their own tenant everywhere else in this codebase.",
+					"Two new guards in auth_guards.py: require_own_tenant(info, db_name) rejects unless the request's db_name matches context.db_name (Super Admin, whose token always carries db_name=None, bypasses); require_bu_access(info, schema) rejects unless schema is in context.bu_codes, refusing schema in {'security','public',''} (tenant-wide, not BU-specific; refused since plans/plan.md Step 6 — before that they were let through) and bypassing entirely for Super Admin/Business Admin (user_type in {'S','A'}) — Admin already owns every BU in their own tenant everywhere else in this codebase.",
 					"Both guards are called first, before any existing right-check, in all four generic dispatchers (query.py's resolve_generic_query/resolve_generic_batch_query, mutation.py's resolve_generic_update/resolve_generic_update_script).",
 					"genericBatchQuery is the one wrinkle: each item in its items list carries its own schema, so resolve_generic_batch_query_helper (shared/generic_query.py) now takes info as its first argument and calls require_bu_access per item, inside the loop, before that item is appended to the batch — one bad schema rejects the whole call before exec_sql_batch_query ever runs, so there's no partial-batch leak.",
 				],
@@ -1623,7 +1626,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "Known and not fixed here: auditLogs / auditLogStats read one audit store shared by every tenant, so a tenant Admin's audit page can show other tenants' entries. require_bu_access still lets security, public and empty schemas through for business users, and genericUpdate on security is still open to them; both are Step 6 of the same plan.",
+				text: "Known and not fixed here: auditLogs / auditLogStats read one audit store shared by every tenant, so a tenant Admin's audit page can show other tenants' entries. The security / public / empty schemas and genericUpdate on security were closed to business users by Step 6 of the same plan — see 'Shared-Database Isolation'.",
 			},
 		],
 		faqs: [
@@ -1638,6 +1641,94 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "I added a new query or mutation and test_every_resolver_calls_a_guard fails.",
 				a: "Call the right guard first in the resolver: require_user_type for identity-gated resolvers, or require_own_tenant + require_bu_access for anything taking db_name and schema. Only add it to PUBLIC_ON_PURPOSE if it really must work without a token.",
+			},
+		],
+	},
+
+	{
+		id: "dev-shared-db-isolation",
+		category: "Access Control & Security",
+		title: "Shared-Database Isolation — security schema, subscriptions, media",
+		summary:
+			"Business users are kept to their own BU schemas for every query, write, live event and file upload (plans/plan.md Step 6).",
+		tags: [
+			"require_generic_update_access",
+			"TENANT_WIDE_SCHEMAS",
+			"SECURITY_ADMIN_ONLY_TABLES",
+			"SECURITY_SERVER_ONLY_TABLES",
+			"BU_BILLING_COLUMNS",
+			"subscriber_may_receive",
+			"on_ws_connect",
+			"salesEnquiryCount",
+			"_require_media_scope",
+			"get_token_claims",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Added 2026-10-02 (plans/plan.md, Step 6 of the sign-up and billing plan), for every tenant. Lite, Basic and Standard customers share one tenant database as separate BUs, so anything that reaches past a caller's own BU reaches another customer. Step 1 guarded every resolver and sqlId; this step closes the remaining doors: the tenant-wide schemas, genericUpdate on security, subscriptions and media writes.",
+			},
+			{ type: "heading", text: "Tenant-wide schemas" },
+			{
+				type: "steps",
+				items: [
+					"require_bu_access now refuses TENANT_WIDE_SCHEMAS ('', 'public', 'security') to anyone but A and S (reason tenant_wide_schema). search_path is set to exactly the schema sent, so 'security' reaches every user of the tenant. This covers genericQuery, genericBatchQuery (per item), genericUpdateScript and every resolver taking a schema.",
+					"No read exception is needed: business users get their BU list at login, and the NON_ADMIN_SECURITY_SQL_IDS reads run with the caller's BU schema.",
+					"The one security write a business user makes: genericUpdate on security.user with only id, last_used_bu_id and last_used_branch_id, where id is the token's own user (the BU/branch switcher, use-bu-branch-division-actions.ts). Anything more — another id, another column, a list, deletedIds — is refused.",
+				],
+			},
+			{ type: "heading", text: "genericUpdate table rules (require_generic_update_access)" },
+			{
+				type: "table",
+				headers: ["List", "Who may write it through genericUpdate"],
+				rows: [
+					[
+						"SECURITY_SERVER_ONLY_TABLES: sales_enquiry, bu_payment",
+						"Nobody, Super Admin included, in any schema and at any xDetails depth. Changed only by the sign-up and payment mutations (Steps 9, 10, 13).",
+					],
+					[
+						"BU_BILLING_COLUMNS of security.bu: plan_code, billing_required, monthly_fee_paise, paid_through, billing_hold, branch_limit, last_reminder_on, last_reminder_kind",
+						"Nobody. The edit / activate / deactivate / delete BU dialogs write only name, is_active or deletedIds, and still work.",
+					],
+					[
+						"SECURITY_ADMIN_ONLY_TABLES: user, user_bu_role, bu, role, role_access_right, access_right, sales_enquiry, bu_payment",
+						"A or S only (plus the own last-used row above).",
+					],
+				],
+			},
+			{
+				type: "para",
+				text: "Table names never collide between a BU schema and security, and every table name is a psycopg Identifier, so a BU-schema request cannot name a security table. The checks walk the whole payload (xData dict or list, nested xDetails).",
+			},
+			{ type: "heading", text: "Subscriptions" },
+			{
+				type: "steps",
+				items: [
+					"on_ws_connect (app/graphql/schema.py) verifies the connectionParams token at connection_init and refuses the socket otherwise; the claims verified there serve every subscribe on that socket (WS_CLAIMS_SCOPE_KEY in the ASGI scope).",
+					"Each source is an async function that runs its guards (require_authenticated, require_own_tenant; require_user_type for salesEnquiryCount) and then returns the stream, so a refused caller gets an error rather than a silent socket.",
+					"subscriber_may_receive(context, event): S gets everything; others only their own db_name; A every BU of it; a business user only events whose schema is in bu_codes. An event without schema reaches admins only — every publisher must include db_name and schema.",
+					"accountsPostingProgress matches db_name, BU and branchId (branch ids repeat across BU schemas). whatsappDeliveryStatus matches db_name and BU.",
+					"genericSubscription (unused) is removed. salesEnquiryCount(db_name) is new for the approvers' bell: A of that database or S; publish_sales_enquiry_count(db_name, kind, pending) in pubsub.py, kind LT (default customer database) or ENT (control plane). Steps 9 and 10 publish it.",
+				],
+			},
+			{ type: "heading", text: "Media (app/routers/media/image_router.py)" },
+			{
+				type: "para",
+				text: "Every upload, delete and reorder route takes Depends(get_token_claims) (app/core/dependencies.py) and calls _require_media_scope first: db_name must be the token's, schema not tenant-wide and in bu_codes (A owns every BU of the tenant), bu_code must equal the schema, and client_code must be the token client's code (GET_CLIENT_DB_NAME by client_id). S passes. Reading files (GET /api/images/uploads/…) stays open by decision.",
+			},
+			{
+				type: "note",
+				text: "Release gate: Your Part E in plans/plan.md — every screen checked as a business user and as an admin before release. Tests: tests/test_auth_guards.py (Step 6 section).",
+			},
+		],
+		faqs: [
+			{
+				q: "A business-user screen now gets 'Access forbidden' with reason tenant_wide_schema — what do I do?",
+				a: "It sends schema 'security', 'public' or an empty schema. Send the current BU schema (selectSchema) instead; if it truly needs tenant-wide data, move it to Admin mode or add a dedicated, narrowly-guarded resolver. Do not add a general exception to require_bu_access.",
+			},
+			{
+				q: "I added a pubsub.publish and business users never receive it — why?",
+				a: "The event has no schema (or the wrong db_name). subscriber_may_receive fails closed for business users; include both.",
 			},
 		],
 	},
@@ -1864,7 +1955,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "Built in steps from plans/plan.md. Lite, Basic and Standard customers ('lt') are each one BU inside one shared tenant, the default customer database; Enterprise customers get their own client and database. Steps 2–5 (2 Oct 2026) add the settings, the login flag, the wider BU name rule, the enquiry and billing tables, the price list and the date rules. Nothing yet reads the new tables: the screens and mutations come in Steps 7–14.",
+				text: "Built in steps from plans/plan.md. Lite, Basic and Standard customers ('lt') are each one BU inside one shared tenant, the default customer database; Enterprise customers get their own client and database. Steps 2–5 (2 Oct 2026) add the settings, the login flag, the wider BU name rule, the enquiry and billing tables, the price list and the date rules; Step 6 closes the holes a shared tenant would expose (see 'Shared-Database Isolation'). Nothing yet reads the new tables: the screens and mutations come in Steps 7–14.",
 			},
 			{ type: "heading", text: "Settings (all optional except where noted)" },
 			{
@@ -1908,7 +1999,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				type: "para",
 				text: "BU_NAME_PATTERN in bu_admin/provisioning.py and BU_NAME_REGEX in src/lib/bu-name.ts are the same pattern: ^[A-Za-z0-9][A-Za-z0-9 .&'()/,-]{2,99}$ (3–100 characters, starting with a letter or digit). The message is AppMessages.BU_NAME_FORMAT / MESSAGES.ERROR_BU_NAME_FORMAT. The code rule ^[a-z0-9_]{3,30}$ is unchanged. The portal's form must use the same pattern (Step 8).",
 			},
-			{ type: "heading", text: "Tables (created by Your Part D, not yet in the generated types)" },
+			{ type: "heading", text: "Tables (created by Your Part D on 2 Oct 2026)" },
 			{
 				type: "table",
 				headers: ["Script", "Runs on", "Creates"],
@@ -1934,7 +2025,8 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				type: "steps",
 				items: [
 					"Payment rules are CHECK constraints, not just disabled buttons: lt approved needs received or not_required; ent converted needs received; received needs mode, reference, date and amount ≥ setup_fee_paise; not_required only with a zero fee; failed needs a note. A ledger 'payment' row needs months 1–60 and amount ≥ monthly_fee_paise × months; any other kind needs a note.",
-					"All three scripts are safe to run twice: CREATE … IF NOT EXISTS, ADD COLUMN IF NOT EXISTS, and each constraint dropped and re-added.",
+					"All three scripts are safe to run twice: CREATE … IF NOT EXISTS, ADD COLUMN IF NOT EXISTS, and each constraint dropped and re-added. scripts/run_signup_billing_ddl.py runs them everywhere and skips the template service_plus_service when it is not on the Postgres server the server's settings point to (run BU_BILLING_DDL there by hand before pnpm gen-types-all).",
+					"Generated types: db-schema-security.ts has the security.bu billing columns and bu_payment; db-schema-client.ts has the public.sales_enquiry payment columns. security.sales_enquiry exists only in the default customer database, not in the service_plus_service template, so it is not generated — Step 9 types it by hand.",
 					'*_by columns (payment_recorded_by, reviewed_by, recorded_by) hold a username as text, because an Enterprise action is taken by the Super Admin, who has no security."user" row.',
 					"New client databases get BU_BILLING_DDL straight after SECURITY_SCHEMA_DDL in resolve_create_service_db_helper. It is not folded into SECURITY_SCHEMA_DDL because sql_bu_admin_ddl.py is regenerated by app/db/tools/extract_schema.py.",
 					"No database triggers, by decision. The branch limit will be enforced by an addBranch mutation that locks the BU's security.bu row (BillingServerSql.LOCK_BU_FOR_BRANCH), counts (COUNT_BRANCHES) and inserts in one transaction (Step 12).",
@@ -2868,7 +2960,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Live push to the client: whatsappDeliveryStatus subscription" },
 			{
 				type: "para",
-				text: "Neither Customer Connect nor any job-creation screen polls for delivery outcomes — the webhook handler publishes to app/graphql/pubsub.py's in-memory PubSub (the same one accountsPostingProgress already used) right after a status update actually applies. The whatsappDeliveryStatus(db_name: String!) subscription (app/graphql/resolvers/subscription.py) filters server-side by db_name and yields {db_name, job_id, kind, status, error} for job events — event-agnostic apart from kind ('JOB'); the client tells JOB_COMPLETION and JOB_CREATION apart by which jobIds it's currently tracking, not by a field on the payload. Extended Warranty publishes on the same channel with kind 'EW', {ew_lead_id, ew_message_id, target: 'CUSTOMER' | 'STAFF'} instead of job_id; a missing kind must be read as 'JOB'. Client-side, WhatsappStatusCell (jobs/whatsapp-status-cell.tsx) was generalized off an eventKey prop rather than forked, so the same pill component reads either event's status wherever it's rendered (Customer Connect's grid, job creation call sites).",
+				text: "Neither Customer Connect nor any job-creation screen polls for delivery outcomes — the webhook handler publishes to app/graphql/pubsub.py's in-memory PubSub (the same one accountsPostingProgress already used) right after a status update actually applies. The whatsappDeliveryStatus(db_name: String!) subscription (app/graphql/resolvers/subscription.py) refuses a db_name other than the caller's, and delivers an event only to callers who may see its BU (subscriber_may_receive: admins every BU of their database, business users only their bu_codes — see 'Shared-Database Isolation'). It yields {db_name, schema, job_id, kind, status, error} for job events; every publisher on this channel must include schema, or business users never receive the event — event-agnostic apart from kind ('JOB'); the client tells JOB_COMPLETION and JOB_CREATION apart by which jobIds it's currently tracking, not by a field on the payload. Extended Warranty publishes on the same channel with kind 'EW', {ew_lead_id, ew_message_id, target: 'CUSTOMER' | 'STAFF'} instead of job_id; a missing kind must be read as 'JOB'. Client-side, WhatsappStatusCell (jobs/whatsapp-status-cell.tsx) was generalized off an eventKey prop rather than forked, so the same pill component reads either event's status wherever it's rendered (Customer Connect's grid, job creation call sites).",
 			},
 			{ type: "heading", text: "Status ladder — never moves backwards, and gated on wamid" },
 			{
@@ -3435,7 +3527,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"isCompleteMobile, not lib/mobile's isValidMobile (which accepts '' for optional fields), is used wherever a reminder depends on the mobile.",
 					"EwColorType / EW_COLOR_CLASSES carry an 'amber' entry, and the non-error categories were moved onto it — EW_BANDS.OVERDUE, EW_STATE_META.LOST, and the Overdue / Lost / Cancelled pipeline and summary rows. Red is left only where something genuinely failed (EW_DELIVERY_STATUS_META.FAILED, EW_MESSAGE_GROUPS.FAILED, the Fail card and msg_failed rows, an unusable mobile, form errors), per the global rule that red means error. Adding a colour to EwColorType means adding it to EW_COLOR_CLASSES AND to NODE_CLASSES in ew-state-flow-diagram.tsx — both are Record<EwColorType, …>, so tsc catches a miss.",
 					"Deep link /client/custom/ew/:ref (digits only) → pages/client-custom-ew-ref-page.tsx → router state {ewLeadId, subItem}; the section opens the follow-up dialog for an In Progress lead, the detail dialog otherwise. The bell item navigates with {ewDrill: 'INTERESTED'}; its count (COUNT_EW_OPEN_INTEREST) is queried only when the add-on is on and the user has the right.",
-					"The section refreshes on any EW mutation and on every whatsappDeliveryStatus event with kind 'EW' or 'EW_LEAD'; grids and the dashboard refetch in place rather than remounting. A pushed event is coalesced behind a PUSH_COALESCE_MS (350 ms) timer and skipped when its `schema` names another BU, since the subscription is scoped to db_name alone. Manual refresh is components/shared/refresh-button.tsx, the app-wide control — in the Lead Pipeline ChartCard's `actions` slot (one GET_EW_DASHBOARD call backs both cards, so it re-reads the summary too) and at the right of EwLeadGrid's toolbar, which puts it on drill-down lists as well as Details. Both drive the local useGenericQuery refetch and pass its `loading` for the spin; neither bumps the section's refreshKey, so a refresh never re-reads the other tab.",
+					"The section refreshes on any EW mutation and on every whatsappDeliveryStatus event with kind 'EW' or 'EW_LEAD'; grids and the dashboard refetch in place rather than remounting. A pushed event is coalesced behind a PUSH_COALESCE_MS (350 ms) timer and skipped when its `schema` names another BU. The server already withholds other BUs' events from business users, but an admin receives every BU of the database, so the client-side check stays. Manual refresh is components/shared/refresh-button.tsx, the app-wide control — in the Lead Pipeline ChartCard's `actions` slot (one GET_EW_DASHBOARD call backs both cards, so it re-reads the summary too) and at the right of EwLeadGrid's toolbar, which puts it on drill-down lists as well as Details. Both drive the local useGenericQuery refetch and pass its `loading` for the spin; neither bumps the section's refreshKey, so a refresh never re-reads the other tab.",
 					"EW_PIPELINE_GROUPS' 0–7 D, Interested, Stage 3 and Cancelled cards (2026-09-23) moved off orange/amber — indigo, teal, violet and blue respectively — at the user's request to get them away from red-adjacent hues on the Dashboard specifically; INTERESTED's own GROUP_LAYOUT tint in ew-pipeline-section.tsx moved from orange to teal to match its one card. This is intentionally Dashboard-only: EW_PIPELINE_GROUPS has exactly one consumer (ew-pipeline-section.tsx — grep confirms it), so it doesn't touch EW_STATE_META.INTERESTED/CANCELLED or EW_BANDS.D0_7, which still drive the Details-grid badges, the state filter, and ew-lead-actions-menu.tsx's TRANSITION_VISUALS (line above: 'Interested orange', 'Cancelled rose'). So the Dashboard's Interested/Cancelled cards now deliberately differ in colour from the same states' badges elsewhere — not a bug, a scoped ask. EW_STAGES[3].color was left alone too; grep confirms it was already dead — nothing reads `.color` off EW_STAGES anywhere, only `.label` (ew-state-badge.tsx, ew-follow-up-dialog.tsx, ew-lead-detail-dialog.tsx, ew-transition-dialog.tsx) — so Stage 3's badge colour was never orange to begin with; only its EW_PIPELINE_GROUPS card literal was, and that's what changed.",
 					"Immediate follow-up, same session (2026-09-23): Overdue (amber) and Fail (red) moved TO orange, at the user's explicit request — not a reversal of the bullet above, a separate, deliberate ask for these two specific cards. Fail (sent_failed, in the Message Sent group) is the one EW_PIPELINE_GROUPS card that named a genuine failure — a WhatsApp delivery failure, not a lead outcome — so moving it off red is a real product call, not a slip; EW_DELIVERY_STATUS_META.FAILED and EW_MESSAGE_GROUPS.FAILED (the delivery-status chip and the message filter elsewhere) are untouched and still red, so a failed reminder still reads as red everywhere except this one Dashboard card.",
 					"Then 'more light' (same session): EwPipelineCardType gained two optional fields, lightBorderClassName/lightTextClassName, read by ew-pipeline-section.tsx as `card.lightBorderClassName ?? colors.border` / `card.lightTextClassName ?? colors.text` — an explicit per-card override that wins over EW_COLOR_CLASSES[card.color] when present, every other card falls through to the shared token unchanged. Overdue and Fail are the only two cards that set them (border-orange-200/text-orange-500, vs. the shared orange token's border-orange-500/text-orange-700), because EW_COLOR_CLASSES.orange is still shared with EW_STATE_META.INTERESTED and ew-lead-actions-menu.tsx's TRANSITION_VISUALS.INTERESTED elsewhere — lightening the token itself would have paled the Interested badge/menu colour too, which nobody asked for. Reach for this same pair of fields, not a new EwColorType member, the next time one specific pipeline card needs a shade its shared token doesn't have — adding an EwColorType member instead means updating every Record<EwColorType, …> in the file (EW_COLOR_CLASSES, and ew-state-flow-diagram.tsx's NODE_CLASSES) for one card's sake.",

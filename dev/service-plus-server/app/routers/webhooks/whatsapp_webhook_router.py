@@ -287,7 +287,7 @@ async def _apply_status_callback(msg_status: dict) -> None:
             if rows:
                 logger.info("WhatsApp outcome applied: job_id=%s status=%s wamid=%s", job_id, raw_status, wamid)
                 # Real-time push to Customer Connect — the subscription resolver
-                # filters by db_name; the client filters further by whether job_id is
+                # filters by db_name and the caller's BUs; the client filters further by whether job_id is
                 # one it's currently tracking.
                 await pubsub.publish(
                     "whatsapp_delivery_status",
@@ -295,6 +295,7 @@ async def _apply_status_callback(msg_status: dict) -> None:
                         "db_name": db_name,
                         "job_id": job_id,
                         "kind": "JOB",
+                        "schema": schema,
                         "status": raw_status,
                         "error": error_message,
                     },

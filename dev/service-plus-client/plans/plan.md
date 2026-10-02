@@ -106,8 +106,8 @@ Only work you can do **today, before any build step**, is here. Everything you d
 | A | Decisions | here | ✅ done |
 | B | Set up the default customer database | here | ✅ done |
 | C | Check and release Step 1 | after Step 1 | ✅ done, deployed |
-| D | Back up and run the database scripts | after Step 5 | **now** (Steps 4 and 5 are built) |
-| E | Security check | after Step 6 | when Step 6 is on your dev server |
+| D | Back up and run the database scripts | after Step 5 | ✅ done |
+| E | Security check | after Step 6 | **now** (Step 6 is built; restart the dev server) |
 | F | Release | after Step 15 | when Steps 1–15 and parts C, D, E are done |
 | G | Put existing paying customers on billing | after Step 15 | after F |
 | H | Daily routine | after Step 15 | after F, ongoing |
@@ -185,7 +185,7 @@ Only work you can do **today, before any build step**, is here. Everything you d
 
 **Done when:** "Nav Technology Pvt Ltd." passes in the server and both dialogs; "...", "-abc" and names under 3 characters fail; "Demo Unit" still passes.
 
-### ✅ Step 4 — Enquiry tables and price list — built 2 Oct 2026 (types and schema dump after Your Part D)
+### ✅ Step 4 — Enquiry tables and price list — built 2 Oct 2026
 **As built:** `*_by` columns (`reviewed_by`, `payment_recorded_by`) are **text usernames**, not user ids: Enterprise actions are taken by the Super Admin, who has no `security."user"` row. Each constraint is dropped and re-added so the scripts stay safe to run twice. `plan_prices.py` reads `.env` through its own `PlanPriceSettings`. Both scripts were run twice and every constraint checked inside one rolled-back transaction on `service_plus_customers` (Enterprise against a throwaway copy of the tables); nothing persisted. `pnpm gen-types-all` and the schema dump wait for Your Part D. Note for Step 9: the generated security types come from `service_plus_service`, which will not hold `security.sales_enquiry`; decide there how the client types it.
 
 **Needs:** Step 2.
@@ -230,8 +230,10 @@ Only work you can do **today, before any build step**, is here. Everything you d
 
 **Done when:** the DDL runs twice; it creates no trigger; unit tests pass for billing off, hold, null `paid_through`, the day before/of/after `paid_through`, the 5-day window, and the dates: paid 15 Jan → 14 Feb; paid again 10 Feb → 14 Mar; paid late 20 Mar after lapsing 14 Mar → 19 Apr; 31 Jan + 1 month → end of February; multi-year: paid 15 Jan 2027 for 24 months → 14 Jan 2029; paid through 14 Jan 2029, another 12 months → 14 Jan 2030; 29 Feb 2028 + 12 months → 28 Feb 2029; 61 months refused. Rebase: 100 days left at ₹2,999 moving to ₹5,999 → 49 days; at ₹5,999 moving to ₹2,999 → 200 days; paid through yesterday → unchanged.
 
-### 🧑 Your Part D — Back up and run the database scripts
-**Needs:** Steps 4 and 5 built (✅). Step 7 waits for this. **Ready to do now.**
+### ✅ 🧑 Your Part D — Back up and run the database scripts — done 2 Oct 2026
+**As done:** the script ended "Done: 5 ran, 0 failed" (it now skips `service_plus_service` when that database is not on the server). `BU_BILLING_DDL` was run on the template `service_plus_service` by hand; `pnpm gen-types-all` and both schema dumps were refreshed; `tsc -b --noEmit` passes.
+
+**Needs:** Steps 4 and 5 built (✅). Step 7 waits for this. 
 1. Back up `service_plus_client` and every tenant database (today: `service_plus_capitalgroup`, `service_plus_customers`, `service_plus_demo`, plus the template `service_plus_service`).
 2. From `service-plus-server/`, inside the venv, run `python scripts/run_signup_billing_ddl.py --dry-run` and check the list of targets.
 3. Run `python scripts/run_signup_billing_ddl.py`. It runs `SALES_ENQUIRY_DDL` on the default database, `SALES_ENQUIRY_ENT_ALTER` on `service_plus_client`, and `BU_BILLING_DDL` on every client database plus `service_plus_service`, each in its own transaction, and ends with "Done: N ran, 0 failed." It is safe to run again.
@@ -239,7 +241,9 @@ Only work you can do **today, before any build step**, is here. Everything you d
 
 **Done when:** the script reports 0 failed; existing customers log in and work as before.
 
-### Step 6 — Shared-database security fixes
+### ✅ Step 6 — Shared-database security fixes — built 2 Oct 2026 (awaiting Your Part E)
+**As built:** no read exception was needed: `require_bu_access` refuses `security`, `public` and empty schemas to every non-admin (`TENANT_WIDE_SCHEMAS`). `genericUpdate` now calls `require_generic_update_access` (in `auth_guards.py`) instead of a bare `require_bu_access`. It walks the whole payload and refuses `SECURITY_SERVER_ONLY_TABLES` and the `bu` billing columns (`BU_BILLING_COLUMNS`) to everyone, `S` included, in any schema. On `security`, a non-admin gets only their own `last_used_bu_id`/`last_used_branch_id` row. The client sweep found that row is the only `security`/`public` call outside Admin and Super Admin screens. All four BU dialogs write only `name`, `is_active` or `deletedIds`. Subscriptions: Ariadne 1.0.1's `on_connect` (`on_ws_connect` in `schema.py`) verifies the `connectionParams` token once and keeps the claims in the socket's scope; each source runs its guards, then returns the stream; `subscriber_may_receive` filters each event; every publisher now sends `db_name` and `schema`; `genericSubscription` is removed; `salesEnquiryCount(db_name)` plus `publish_sales_enquiry_count` are ready for Steps 9 and 10. Media: `get_token_claims` (`dependencies.py`) and `_require_media_scope` on all seven write routes; `client_code` is checked against `GET_CLIENT_DB_NAME`. No client code change. `pytest` (with dummy settings, since the sandbox cannot read the server's settings file): 181 passed, 4 skipped, 1 failed; the failure is `test_admin_dashboard_stats`, which needs a live database and fails the same way without these changes.
+
 **Needs:** Steps 1, 4, 5. Applies to every tenant.
 
 **Where:** server `auth_guards.py`, `mutation.py`, `query.py`, `shared/generic_query.py`, `app/graphql/schema.py`, `resolvers/subscription.py`, `pubsub.py`, `app/whatsapp/sender.py`, `app/routers/webhooks/whatsapp_webhook_router.py`, `resolvers/sales_accounts/mutations.py`, `app/routers/media/image_router.py`, `tests/test_auth_guards.py`.

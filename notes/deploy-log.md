@@ -3,6 +3,17 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-02 19:53 (main)
+Security: isolate BUs in shared databases; plan single-division BUs
+
+- auth_guards / genericUpdate: business users can no longer send the security, public or empty schema (only their own last-used BU/branch row); sales_enquiry, bu_payment and the bu billing columns are refused to everyone
+- Subscriptions: socket token checked at connect; each event reaches only its tenant and, for business users, its BU; genericSubscription removed, salesEnquiryCount added
+- Media: upload, delete and reorder check tenant, BU and client code against the token
+- Sign-up billing tables applied (Your Part D): regenerated client types and schema dumps; DDL script skips a missing template database
+- Help: new "Shared-Database Isolation" developer article, stale articles fixed, staff FAQ on access and live updates
+- Plans: Step 6 marked built in plan.md; new plan2.md for one fixed "Main" division per branch on sign-up BUs
+Files: 26 changed (+1501 / -107) — Base: 85cc99e
+
 ## 2026-10-02 15:40 (main)
 Security: guard every resolver; sign-up and billing foundations
 
