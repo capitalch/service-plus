@@ -12,6 +12,7 @@ from app.db.connection.psycopg_driver import exec_sql, exec_sql_dml, exec_sql_ob
 from app.db.seeds.seed_bu_data import SeedBuData
 from app.db.seeds.seed_security_data import SeedSecurityData
 from app.db.sql.sql_base import SqlStore
+from app.db.sql.sql_billing import BillingServerSql
 from app.core.exceptions import AppMessages, ValidationException
 from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
@@ -19,6 +20,12 @@ from app.logger import logger
 # genericUpdate access rights for tables owned by the bu-admin/Configurations
 # menu. Merged into mutation.py's GENERIC_UPDATE_TABLE_RIGHTS — see
 # plans/plan.md Step 4.6 / item 13.
+# Business-unit name rule (plans/plan.md Step 3): starts with a letter or digit, 3–100
+# characters, letters / digits / spaces and . & ' ( ) / , - — so real business names
+# such as "Nav Technology Pvt Ltd." pass. The client dialogs and the portal use the same
+# pattern; the code rule (^[a-z0-9_]{3,30}$) is unchanged.
+BU_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .&'()/,-]{2,99}$")
+
 BU_ADMIN_GENERIC_UPDATE_TABLE_RIGHTS: dict[str, str] = {
     "division": "CONFIG_MENU",
     "app_setting": "CONFIG_MENU",
@@ -58,12 +65,12 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
             },
         )
 
-    # 3. Validate name format: alphanumeric + spaces, min 3 chars
-    if not re.match(r"^[a-zA-Z0-9 ]{3,}$", name):
+    # 3. Validate name format (BU_NAME_PATTERN)
+    if not BU_NAME_PATTERN.match(name):
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={
-                "detail": "Name must be at least 3 alphanumeric characters",
+                "detail": AppMessages.BU_NAME_FORMAT,
                 "field": "name",
             },
         )
@@ -281,6 +288,15 @@ async def resolve_create_service_db_helper(
         db_name=new_db_name,
         schema="security",
         sql=SqlStore.SECURITY_SCHEMA_DDL,
+    )
+    # Billing columns and payment ledger (plans/plan.md Step 5). Run explicitly rather
+    # than folded into SECURITY_SCHEMA_DDL, which extract_schema.py regenerates from the
+    # template dump; the script is safe to run twice, so a later regeneration that
+    # already contains these columns does no harm.
+    await exec_sql(
+        db_name=new_db_name,
+        schema="security",
+        sql=BillingServerSql.BU_BILLING_DDL,
     )
 
     # 4a. Seed baseline security data (default roles, etc.) — folds what used to be a

@@ -3241,7 +3241,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				rows: [
 					[
 						"Event Tracking",
-						"Counts of Received / Status Change / Finalize / Deliver events, across fixed periods (Today/This Week/.../YTD)",
+						"Counts of Received / Status Change / Finalize / Deliver events, across fixed periods (Today/This Week/.../YTD). Columns are grouped under Day, Week, Month, Quarter and Year: Today (or This) is the current period, and -1, -2, -3 are that many whole periods back — e.g. Month -2 is the full calendar month before last. Quarters and years follow your financial year. Hover a column heading to see its exact dates. Excel and PDF exports name the columns in full, like Week -1 or This Quarter",
 						"Monitor job-lifecycle activity volume over time",
 					],
 					[
@@ -4040,6 +4040,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				a: "Your role doesn't include that specific access right. Hover over the dimmed item for a tooltip naming what's required, or see the role/feature table above. A Business Admin or Manager can check your assigned role under Admin → Business Users → Associate BU / Role.",
 			},
 			{
+				q: "A screen I could use before now says 'Access forbidden' — why?",
+				a: "The server now checks every request against your login: your own company, your assigned Business Units, and, for user and company management, whether you are an admin. Staff never see other users' details, and only admins can run admin-only actions. If a normal screen for your role shows 'Access forbidden', note the screen and what you clicked, and tell your platform administrator. Logging out and back in also refreshes your access after your Business Units change.",
+			},
+			{
 				q: "Why can a Receptionist see Masters but not Configurations?",
 				a: "That split is intentional: Masters holds day-to-day reference data (customers, parts, technicians) that front-desk staff maintain, while Configurations controls system-wide behavior (divisions, numbering, app settings) reserved for Managers.",
 			},
@@ -4067,13 +4071,17 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "para",
 				text: "Admin → Business Units lists every client company on the platform. Each row shows an Active/Inactive badge and a Schema Exists/Missing badge — a new Business Unit starts with both a missing schema and no seed data, and is unusable until provisioned.",
 			},
+			{
+				type: "note",
+				text: "First login on a new account: there are no Business Units yet, so the app shows 'No business unit has been created yet' instead of the Business Unit / Branch picker. As an admin, click 'Go to Admin Mode' — it opens this page so you can create the first one. Then switch back to Client Mode and pick it. A non-admin user in the same situation sees 'Contact your administrator' and can only log out.",
+			},
 			{ type: "heading", text: "1. Create the Business Unit" },
 			{
 				type: "steps",
 				items: [
 					"Click 'Add Business Unit'.",
 					"Enter a Code: 3–30 characters, letters/numbers/underscores only (no spaces or hyphens), automatically lowercased.",
-					"Enter a Name: at least 3 characters, letters/numbers/spaces only.",
+					"Enter a Name: 3 to 100 characters, starting with a letter or digit. Letters, digits, spaces and . & ' ( ) / , - are allowed, so a full business name such as 'Nav Technology Pvt Ltd.' works.",
 					"Save. The new row shows 'Schema: Missing' — it cannot be used yet.",
 				],
 			},

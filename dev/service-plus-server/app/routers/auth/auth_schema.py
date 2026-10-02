@@ -76,6 +76,11 @@ class LoginResponse(BaseModel):
     available_bus: list[dict] = Field(default_factory=list, alias="availableBus", description="BUs available to the user")
     client_code: str | None = Field(default=None, alias="clientCode", description="Client code for file hierarchy")
     db_name: str | None = Field(default=None, alias="dbName", description="Tenant database name")
+    is_default_customer_db: bool = Field(
+        default=False,
+        alias="isDefaultCustomerDb",
+        description="True when this login's database is the default customer database; only shows or hides screens",
+    )
     last_used_branch_id: int | None = Field(default=None, alias="lastUsedBranchId", description="Last used branch ID")
     last_used_bu_id: int | None = Field(default=None, alias="lastUsedBuId", description="Last used BU ID")
     mobile: str = Field(description="User's mobile number")

@@ -16,6 +16,8 @@ export type RangeKeyType =
 	| "yesterday"
 	| "ytd";
 
+export type PeriodUnitType = "day" | "month" | "quarter" | "week" | "year";
+
 export type DateRangeType = {
 	from: Date;
 	key: RangeKeyType;
@@ -70,7 +72,7 @@ export function formatRangeLabel(from: Date, to: Date): string {
 	return `${formatShortDate(from)} – ${formatShortDate(to)}`;
 }
 
-function formatShortDate(d: Date): string {
+export function formatShortDate(d: Date): string {
 	const dd = String(d.getDate()).padStart(2, "0");
 	return `${dd} ${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`;
 }
@@ -129,6 +131,50 @@ function getRelativeFiscalQuarterBounds(
 		},
 		thisQuarter: { ...quarterBoundsFromOffset(thisQOffset), key: "thisQuarter", label: RANGE_LABELS.thisQuarter },
 	};
+}
+
+// The whole period `offset` units before the one containing `today` (offset 1 = the
+// previous one). Quarters and years are fiscal, rolling back across fiscal years the
+// same way lastQuarter / lastYear do. Used by Event Tracking's -2 and -3 columns,
+// which have no RangeKeyType of their own.
+export function getPeriodsAgoRange(offset: number, today: Date, fyStart: number, unit: PeriodUnitType): DateRangeType {
+	const dayMs = 86_400_000;
+	switch (unit) {
+		case "day": {
+			const d = new Date(today.getTime() - offset * dayMs);
+			return { from: startOfDay(d), key: "custom", label: "", to: endOfDay(d) };
+		}
+		case "month": {
+			const d = new Date(today.getFullYear(), today.getMonth() - offset, 1);
+			return { from: startOfDay(d), key: "custom", label: "", to: endOfMonth(d.getFullYear(), d.getMonth()) };
+		}
+		case "quarter": {
+			const fyStartIdx = clampMonth(fyStart - 1);
+			const fyBeginYear = today.getMonth() >= fyStartIdx ? today.getFullYear() : today.getFullYear() - 1;
+			const thisQOffset = Math.floor(clampMonth(today.getMonth() - fyStartIdx) / 3) * 3;
+			const start = new Date(fyBeginYear, fyStartIdx + thisQOffset - offset * 3, 1);
+			return {
+				from: startOfDay(start),
+				key: "custom",
+				label: "",
+				to: endOfMonth(start.getFullYear(), start.getMonth() + 2),
+			};
+		}
+		case "week": {
+			const start = new Date(startOfWeek(today).getTime() - offset * 7 * dayMs);
+			return { from: start, key: "custom", label: "", to: endOfDay(new Date(start.getTime() + 6 * dayMs)) };
+		}
+		case "year": {
+			const fromYear = getCurrentFiscalYearBounds(today, fyStart).from.getFullYear() - offset;
+			const fyStartIdx = clampMonth(fyStart - 1);
+			return {
+				from: startOfDay(new Date(fromYear, fyStartIdx, 1)),
+				key: "custom",
+				label: `FY ${fromYear}-${(fromYear + 1) % 100}`,
+				to: endOfMonth(fromYear + 1, clampMonth(fyStartIdx - 1)),
+			};
+		}
+	}
 }
 
 function getPreviousFiscalYearBounds(today: Date, fyStart: number): DateRangeType {

@@ -6,10 +6,12 @@ below so every existing `SqlStore.CONST_NAME` call site keeps working
 unmodified — only the constant *definitions* moved out of the old
 app/db/sql_store.py into domain-specific files.
 
-ExtendedWarrantyServerSql (sql_extended_warranty.py) is deliberately NOT a base:
-genericQuery runs any SqlStore constant by sqlId, so server-only writes stay out.
+ExtendedWarrantyServerSql (sql_extended_warranty.py), SignupServerSql (sql_signups.py)
+and BillingServerSql (sql_billing.py) are deliberately NOT bases: genericQuery runs any
+SqlStore constant by sqlId, so server-only DDL and writes stay out.
 """
 
+from app.db.sql.sql_billing import BillingSql
 from app.db.sql.sql_bu_admin import BuAdminSql
 from app.db.sql.sql_extended_warranty import ExtendedWarrantySql
 from app.db.sql.sql_inventory import InventorySql
@@ -17,6 +19,7 @@ from app.db.sql.sql_jobs import JobsSql
 from app.db.sql.sql_reports_audit import ReportsAuditSql
 from app.db.sql.sql_sales_accounts import SalesAccountsSql
 from app.db.sql.sql_shared import SharedSql
+from app.db.sql.sql_signups import SignupSql
 
 
 class SqlStore(
@@ -27,5 +30,7 @@ class SqlStore(
     ReportsAuditSql,
     ExtendedWarrantySql,
     SharedSql,
+    SignupSql,
+    BillingSql,
 ):
     """Single source of truth for every SQL query and builder in the server."""

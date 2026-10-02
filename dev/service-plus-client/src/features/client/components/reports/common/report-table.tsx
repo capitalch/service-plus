@@ -11,7 +11,12 @@ export type ReportColumnType<T> = {
 	align?: ColumnAlignType;
 	cell?: (row: T) => ReactNode;
 	footer?: (rows: T[]) => ReactNode;
+	/** Next-door columns with the same group share one merged cell in an extra
+	 * header row above the normal one. Only drawn when some column sets it. */
+	group?: string;
 	header: string;
+	/** Native hover tooltip on the column header. */
+	headerTitle?: string;
 	id: string;
 	sortable?: boolean;
 	sortValue?: (row: T) => number | string;
@@ -20,6 +25,8 @@ export type ReportColumnType<T> = {
 };
 
 type Props<T> = {
+	/** Full grid: a border between every column, and row lines in the border colour. */
+	cellBorders?: boolean;
 	className?: string;
 	columns: ReportColumnType<T>[];
 	emptyMessage?: string;
@@ -45,6 +52,7 @@ const ALIGN_CLASS: Record<ColumnAlignType, string> = {
 };
 
 export function ReportTable<T>({
+	cellBorders = false,
 	className,
 	columns,
 	emptyMessage = "No data.",
@@ -79,6 +87,27 @@ export function ReportTable<T>({
 		return sorted;
 	}, [rows, sortId, sortAsc, columns]);
 
+	// Runs of next-door columns sharing a group, for the merged top header row.
+	const groupSpans = useMemo<{ group?: string; id: string; span: number }[] | null>(() => {
+		if (!columns.some((c) => c.group)) return null;
+		const spans: { group?: string; id: string; span: number }[] = [];
+		columns.forEach((col) => {
+			const last = spans[spans.length - 1];
+			if (last && col.group && last.group === col.group) {
+				last.span += 1;
+				return;
+			}
+			spans.push({ group: col.group, id: col.id, span: 1 });
+		});
+		return spans;
+	}, [columns]);
+
+	// First column of each group gets a left border in both header rows.
+	const groupStartIds = new Set(groupSpans?.filter((s) => s.group).map((s) => s.id) ?? []);
+
+	// Vertical line after every cell but the last (the wrapper already draws the outer edge).
+	const cellBorderClass = cellBorders && "border-r border-(--cl-border) last:border-r-0";
+
 	function toggleSort(id: string) {
 		if (sortId === id) {
 			setSortAsc((s) => !s);
@@ -95,10 +124,31 @@ export function ReportTable<T>({
 		>
 			<Table className="text-xs">
 				<TableHeader className={cn(stickyHeader && "sticky top-0 z-10 bg-(--cl-surface-3)")}>
+					{groupSpans && (
+						<TableRow className="border-b border-(--cl-border)">
+							{showRowIndex && <TableHead className={cn("px-3 py-2", cellBorderClass)} />}
+							{groupSpans.map((s) => (
+								<TableHead
+									key={s.id}
+									className={cn(
+										"px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-(--cl-text-muted)",
+										s.group && "border-l border-(--cl-border)",
+										cellBorderClass,
+									)}
+									colSpan={s.span}
+								>
+									{s.group ?? ""}
+								</TableHead>
+							))}
+						</TableRow>
+					)}
 					<TableRow className="border-b border-(--cl-border)">
 						{showRowIndex && (
 							<TableHead
-								className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-(--cl-text-muted)"
+								className={cn(
+									"px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-(--cl-text-muted)",
+									cellBorderClass,
+								)}
 								style={{ width: "40px" }}
 							>
 								#
@@ -112,10 +162,13 @@ export function ReportTable<T>({
 									className={cn(
 										"px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-(--cl-text-muted)",
 										ALIGN_CLASS[col.align ?? "left"],
+										groupStartIds.has(col.id) && "border-l border-(--cl-border)",
+										cellBorderClass,
 										sortable && "cursor-pointer select-none hover:text-(--cl-text)",
 									)}
 									onClick={sortable ? () => toggleSort(col.id) : undefined}
 									style={col.width ? { width: col.width } : undefined}
+									title={col.headerTitle}
 								>
 									<span className="inline-flex items-center gap-1">
 										{col.header}
@@ -132,7 +185,7 @@ export function ReportTable<T>({
 						})}
 					</TableRow>
 				</TableHeader>
-				<TableBody className="divide-y divide-(--cl-divider)">
+				<TableBody className={cn("divide-y divide-(--cl-divider)", cellBorders && "divide-(--cl-border)")}>
 					{sortedRows.length === 0 && (
 						<TableRow>
 							<TableCell
@@ -148,18 +201,25 @@ export function ReportTable<T>({
 							key={rowKey(row)}
 							className={cn(
 								"border-b border-(--cl-divider)",
+								cellBorders && "border-(--cl-border)",
 								onRowClick && "cursor-pointer transition-colors hover:bg-(--cl-hover)",
 								rowClassName?.(row),
 							)}
 							onClick={onRowClick ? () => onRowClick(row) : undefined}
 						>
 							{showRowIndex && (
-								<TableCell className="px-3 py-2 text-(--cl-text-muted)">{index + 1}</TableCell>
+								<TableCell className={cn("px-3 py-2 text-(--cl-text-muted)", cellBorderClass)}>
+									{index + 1}
+								</TableCell>
 							)}
 							{columns.map((col) => (
 								<TableCell
 									key={col.id}
-									className={cn("px-3 py-2 text-(--cl-text)", ALIGN_CLASS[col.align ?? "left"])}
+									className={cn(
+										"px-3 py-2 text-(--cl-text)",
+										ALIGN_CLASS[col.align ?? "left"],
+										cellBorderClass,
+									)}
 								>
 									{col.cell ? col.cell(row) : (col.value?.(row) ?? "")}
 								</TableCell>
@@ -170,13 +230,16 @@ export function ReportTable<T>({
 				{showFooter && sortedRows.length > 0 && (
 					<TableFooter className="bg-(--cl-surface-3)">
 						<TableRow>
-							{showRowIndex && <TableCell className="border-t border-(--cl-border) px-3 py-2" />}
+							{showRowIndex && (
+								<TableCell className={cn("border-t border-(--cl-border) px-3 py-2", cellBorderClass)} />
+							)}
 							{columns.map((col) => (
 								<TableCell
 									key={col.id}
 									className={cn(
 										"border-t border-(--cl-border) px-3 py-2 text-xs font-bold text-(--cl-text)",
 										ALIGN_CLASS[col.align ?? "left"],
+										cellBorderClass,
 									)}
 								>
 									{col.footer ? col.footer(sortedRows) : ""}

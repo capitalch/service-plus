@@ -15,19 +15,27 @@ from app.logger import logger
 
 
 def _build_reset_link(request: Any, token: str) -> str:
-    """Build the password-reset link from the incoming request's host/proto so it
-    matches whatever domain the caller used (localhost in dev, the real domain in
-    production). nginx forwards `Host` and `X-Forwarded-Proto`. Falls back to
-    settings.frontend_url when no request is available."""
+    """Build the password-reset link so it points at the client the caller is using.
+
+    The browser's `Origin` header is preferred, accepted only when it is one of
+    settings.cors_origins: in local dev the client (localhost:3000) calls the API
+    on another port (localhost:8000), so `Host` would name the API server, whose
+    /reset-password is a 404. Otherwise the request's host/proto is used (nginx
+    forwards `Host` and `X-Forwarded-Proto`; client and API share a domain in
+    production). Falls back to settings.frontend_url when no request is available."""
     base = None
     if request is not None:
-        host = request.headers.get("host")
-        if host:
-            proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "http"
-            base = f"{proto}://{host}"
+        origin = request.headers.get("origin")
+        if origin and origin in settings.cors_origins:
+            base = origin
+        else:
+            host = request.headers.get("host")
+            if host:
+                proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "http"
+                base = f"{proto}://{host}"
     if not base:
         base = settings.frontend_url  # dev / no-request fallback (localhost:3000)
-    return f"{base}/reset-password?token={token}"
+    return f"{base.rstrip('/')}/reset-password?token={token}"
 
 async def resolve_mail_business_user_credentials_helper(
     db_name: str, schema: str, value: str, request: Any = None

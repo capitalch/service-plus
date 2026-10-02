@@ -3,7 +3,12 @@ GraphQL Query resolvers.
 """
 from typing import Any
 from ariadne import QueryType
-from app.graphql.resolvers.auth_guards import require_bu_access, require_own_tenant
+from app.graphql.resolvers.auth_guards import (
+    require_bu_access,
+    require_own_tenant,
+    require_sql_id_access,
+    require_user_type,
+)
 from app.graphql.resolvers.error_handling import handle_query_errors
 from app.graphql.resolvers.reports_audit.queries import (
     resolve_admin_dashboard_stats_helper,
@@ -16,6 +21,7 @@ from app.graphql.resolvers.reports_audit.queries import (
 )
 from app.graphql.resolvers.shared.generic_query import (
     resolve_generic_batch_query_helper,
+    peek_sql_id,
     resolve_generic_query_helper,
 )
 from app.whatsapp.sender import get_job_delivery_otp_pending
@@ -28,6 +34,8 @@ query = QueryType()
 @query.field("adminDashboardStats")
 @handle_query_errors("Unexpected admin dashboard stats failure")
 async def resolve_admin_dashboard_stats(_, info, db_name: str = "") -> Any:
+    require_own_tenant(info, db_name)
+    require_user_type(info, {"S", "A"})
     return await resolve_admin_dashboard_stats_helper(db_name)
 
 
@@ -44,6 +52,8 @@ async def resolve_audit_logs(
     search: str | None = None,
     to_date: str | None = None,
 ) -> Any:
+    # No db_name argument: serves both the Super Admin and the tenant Admin audit pages.
+    require_user_type(info, {"S", "A"})
     return await resolve_audit_logs_helper(
         action=action, actor=actor, from_date=from_date,
         outcome=outcome, page=page, page_size=page_size,
@@ -58,6 +68,7 @@ async def resolve_audit_log_stats(
     from_date: str | None = None,
     to_date: str | None = None,
 ) -> Any:
+    require_user_type(info, {"S", "A"})
     return await resolve_audit_log_stats_helper(from_date=from_date, to_date=to_date)
 
 
@@ -79,6 +90,7 @@ async def resolve_generic_query(_, info, db_name="", schema="public", value="") 
     """
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    require_sql_id_access(info, peek_sql_id(value))
     return await resolve_generic_query_helper(db_name, schema, value)
 
 
@@ -89,6 +101,8 @@ async def resolve_get_job_delivery_otp_pending(_, info, db_name="", schema="publ
     this exact job set — feeds the "Verify Code" affordance (plans/plan.md,
     Step 4) so a staff member who loses the OTP dialog can resume verification
     without a fresh (and first-code-invalidating) resend."""
+    require_own_tenant(info, db_name)
+    require_bu_access(info, schema)
     return await get_job_delivery_otp_pending(db_name, schema, value)
 
 
@@ -101,18 +115,21 @@ async def resolve_super_admin_clients_data(_, info) -> Any:
     Returns:
         Client rows with per-client admin counts and client-level stats
     """
+    require_user_type(info, {"S"})
     return await resolve_super_admin_clients_data_helper()
 
 
 @query.field("usageHealth")
 @handle_query_errors("Unexpected usage health failure")
 async def resolve_usage_health(_, info) -> Any:
+    require_user_type(info, {"S"})
     return await resolve_usage_health_helper()
 
 
 @query.field("systemSettings")
 @handle_query_errors("Unexpected system settings failure")
 async def resolve_system_settings(_, info) -> Any:
+    require_user_type(info, {"S"})
     return await resolve_system_settings_helper()
 
 
@@ -125,4 +142,5 @@ async def resolve_super_admin_dashboard_stats(_, info) -> Any:
     Returns:
         Aggregated stats across all clients, BUs and admin users
     """
+    require_user_type(info, {"S"})
     return await resolve_super_admin_dashboard_stats_helper()

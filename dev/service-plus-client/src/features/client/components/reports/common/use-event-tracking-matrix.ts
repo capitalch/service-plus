@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
-import { formatIsoDate, getRange } from "./fiscal";
-import type { RangeKeyType } from "./fiscal";
+import { formatIsoDate, formatRangeLabel, formatShortDate, getPeriodsAgoRange, getRange } from "./fiscal";
+import type { DateRangeType, PeriodUnitType, RangeKeyType } from "./fiscal";
 import { useGenericQuery } from "./use-generic-query";
 
 export type EventTrackingRowType = {
@@ -15,7 +15,16 @@ export type EventTrackingRowType = {
 	thisQuarter: number;
 	thisWeek: number;
 	thisYear: number;
+	threeDaysAgo: number;
+	threeMonthsAgo: number;
+	threeQuartersAgo: number;
+	threeWeeksAgo: number;
+	threeYearsAgo: number;
 	today: number;
+	twoMonthsAgo: number;
+	twoQuartersAgo: number;
+	twoWeeksAgo: number;
+	twoYearsAgo: number;
 	yesterday: number;
 };
 
@@ -23,32 +32,53 @@ type EventCountRowType = { count: number; event_name: string };
 export type BucketFieldType = keyof Omit<EventTrackingRowType, "eventName">;
 export type BucketRangeType = { from: string; to: string };
 
+type BucketDefType = { field: BucketFieldType; range: (today: Date, fyStart: number) => DateRangeType };
+
 // Fixed row order — Return/Cancel/Disposed are intentionally not tracked as events
 // (see plans/plan.md §2), so they never appear here.
 const EVENT_ORDER = ["Received", "Status Change", "Finalize", "Deliver"];
 
-const BUCKETS: { field: BucketFieldType; key: RangeKeyType }[] = [
-	{ field: "today", key: "today" },
-	{ field: "yesterday", key: "yesterday" },
-	{ field: "dayBeforeYesterday", key: "dayBeforeYesterday" },
-	{ field: "thisWeek", key: "thisWeek" },
-	{ field: "lastWeek", key: "prevWeek" },
-	{ field: "thisMonth", key: "thisMonth" },
-	{ field: "lastMonth", key: "lastMonth" },
-	{ field: "thisQuarter", key: "thisQuarter" },
-	{ field: "lastQuarter", key: "lastQuarter" },
-	{ field: "thisYear", key: "ytd" },
-	{ field: "lastYear", key: "lastYear" },
+function byKey(key: RangeKeyType) {
+	return (today: Date, fyStart: number) => getRange(key, today, fyStart);
+}
+
+function periodsAgo(unit: PeriodUnitType, offset: number) {
+	return (today: Date, fyStart: number) => getPeriodsAgoRange(offset, today, fyStart, unit);
+}
+
+// Same order as the report's columns. The -2 and -3 buckets (other than -2 days) have no
+// RangeKeyType, so they come from getPeriodsAgoRange instead of getRange.
+const BUCKETS: BucketDefType[] = [
+	{ field: "today", range: byKey("today") },
+	{ field: "yesterday", range: byKey("yesterday") },
+	{ field: "dayBeforeYesterday", range: byKey("dayBeforeYesterday") },
+	{ field: "threeDaysAgo", range: periodsAgo("day", 3) },
+	{ field: "thisWeek", range: byKey("thisWeek") },
+	{ field: "lastWeek", range: byKey("prevWeek") },
+	{ field: "twoWeeksAgo", range: periodsAgo("week", 2) },
+	{ field: "threeWeeksAgo", range: periodsAgo("week", 3) },
+	{ field: "thisMonth", range: byKey("thisMonth") },
+	{ field: "lastMonth", range: byKey("lastMonth") },
+	{ field: "twoMonthsAgo", range: periodsAgo("month", 2) },
+	{ field: "threeMonthsAgo", range: periodsAgo("month", 3) },
+	{ field: "thisQuarter", range: byKey("thisQuarter") },
+	{ field: "lastQuarter", range: byKey("lastQuarter") },
+	{ field: "twoQuartersAgo", range: periodsAgo("quarter", 2) },
+	{ field: "threeQuartersAgo", range: periodsAgo("quarter", 3) },
+	{ field: "thisYear", range: byKey("ytd") },
+	{ field: "lastYear", range: byKey("lastYear") },
+	{ field: "twoYearsAgo", range: periodsAgo("year", 2) },
+	{ field: "threeYearsAgo", range: periodsAgo("year", 3) },
 ];
 
 export function useEventTrackingMatrix(sqlId: string, fyStartMonth: number, enabled: boolean) {
 	const ranges = useMemo(
-		() => BUCKETS.map((b) => ({ ...b, range: getRange(b.key, new Date(), fyStartMonth) })),
+		() => BUCKETS.map((b) => ({ field: b.field, range: b.range(new Date(), fyStartMonth) })),
 		[fyStartMonth],
 	);
 
 	// React hooks can't be called in a loop — same constraint use-range-matrix.ts
-	// works around, just 11 buckets here instead of 12.
+	// works around, 20 buckets here instead of 12.
 	const q0 = useGenericQuery<EventCountRowType>({
 		enabled,
 		sqlArgs: { from: formatIsoDate(ranges[0].range.from), to: formatIsoDate(ranges[0].range.to) },
@@ -104,11 +134,56 @@ export function useEventTrackingMatrix(sqlId: string, fyStartMonth: number, enab
 		sqlArgs: { from: formatIsoDate(ranges[10].range.from), to: formatIsoDate(ranges[10].range.to) },
 		sqlId,
 	});
+	const q11 = useGenericQuery<EventCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[11].range.from), to: formatIsoDate(ranges[11].range.to) },
+		sqlId,
+	});
+	const q12 = useGenericQuery<EventCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[12].range.from), to: formatIsoDate(ranges[12].range.to) },
+		sqlId,
+	});
+	const q13 = useGenericQuery<EventCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[13].range.from), to: formatIsoDate(ranges[13].range.to) },
+		sqlId,
+	});
+	const q14 = useGenericQuery<EventCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[14].range.from), to: formatIsoDate(ranges[14].range.to) },
+		sqlId,
+	});
+	const q15 = useGenericQuery<EventCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[15].range.from), to: formatIsoDate(ranges[15].range.to) },
+		sqlId,
+	});
+	const q16 = useGenericQuery<EventCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[16].range.from), to: formatIsoDate(ranges[16].range.to) },
+		sqlId,
+	});
+	const q17 = useGenericQuery<EventCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[17].range.from), to: formatIsoDate(ranges[17].range.to) },
+		sqlId,
+	});
+	const q18 = useGenericQuery<EventCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[18].range.from), to: formatIsoDate(ranges[18].range.to) },
+		sqlId,
+	});
+	const q19 = useGenericQuery<EventCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[19].range.from), to: formatIsoDate(ranges[19].range.to) },
+		sqlId,
+	});
 
-	const queries = [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10];
+	const queries = [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13, q14, q15, q16, q17, q18, q19];
 
-	// Pivot: 11 per-bucket query results (each up to 4 event rows) → 4 event rows,
-	// each carrying all 11 bucket counts. Missing event/bucket combos default to 0.
+	// Pivot: 20 per-bucket query results (each up to 4 event rows) → 4 event rows,
+	// each carrying all 20 bucket counts. Missing event/bucket combos default to 0.
 	const rows: EventTrackingRowType[] = EVENT_ORDER.map((eventName) => {
 		const row = { eventName } as EventTrackingRowType;
 		BUCKETS.forEach((bucket, idx) => {
@@ -131,5 +206,15 @@ export function useEventTrackingMatrix(sqlId: string, fyStartMonth: number, enab
 		ranges.map((r) => [r.field, { from: formatIsoDate(r.range.from), to: formatIsoDate(r.range.to) }]),
 	) as Record<BucketFieldType, BucketRangeType>;
 
-	return { bucketRanges, error, loading, refetch, rows };
+	// Header tooltips: the exact dates behind each column, one date for a single day.
+	const bucketTitles = Object.fromEntries(
+		ranges.map((r) => [
+			r.field,
+			formatIsoDate(r.range.from) === formatIsoDate(r.range.to)
+				? formatShortDate(r.range.from)
+				: formatRangeLabel(r.range.from, r.range.to),
+		]),
+	) as Record<BucketFieldType, string>;
+
+	return { bucketRanges, bucketTitles, error, loading, refetch, rows };
 }

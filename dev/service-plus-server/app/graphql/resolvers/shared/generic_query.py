@@ -9,8 +9,17 @@ from urllib.parse import unquote
 from app.db.connection.psycopg_driver import SqlBatchItem, exec_sql_query, exec_sql_batch_query
 from app.db.sql.sql_base import SqlStore
 from app.core.exceptions import AppMessages, ValidationException
-from app.graphql.resolvers.auth_guards import require_bu_access
+from app.graphql.resolvers.auth_guards import require_bu_access, require_sql_id_access
 from app.logger import logger
+
+
+def peek_sql_id(value: str) -> str | None:
+    """`sqlId` out of a genericQuery payload for the guards; None when unreadable
+    (the helper then raises its own validation error)."""
+    try:
+        return json.loads(unquote(value)).get("sqlId")
+    except (ValueError, AttributeError, TypeError):
+        return None
 
 
 def _decode_value(value: str, context: str) -> dict:
@@ -76,8 +85,9 @@ async def resolve_generic_batch_query_helper(info, db_name: str, items: list[str
     """Execute multiple SQL queries in one DB connection, returning results in order.
 
     Each item names its own `schema` independently of the others, so each one is
-    checked against the caller's allowed BUs (require_bu_access) before it's added
-    to the batch — a bad schema on any item rejects the whole call before
+    checked against the caller's allowed BUs (require_bu_access) and its sqlId
+    against the admin-only list (require_sql_id_access) before it's added
+    to the batch — a bad schema or id on any item rejects the whole call before
     exec_sql_batch_query ever runs, rather than leaking the earlier items' data."""
     logger.debug("Generic batch query requested: %d items", len(items))
 
@@ -99,6 +109,7 @@ async def resolve_generic_batch_query_helper(info, db_name: str, items: list[str
             )
         item_schema = params.get("schema") or "public"
         require_bu_access(info, item_schema)
+        require_sql_id_access(info, sql_id)
         batch.append(SqlBatchItem(
             sql_id=sql_id,
             sql_args=params.get("sqlArgs") or {},

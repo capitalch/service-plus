@@ -30,3 +30,14 @@ class EmailSettings(BaseSettings):
             .env value can't crash Settings() at import time; the endpoint itself
             returns 503 when this is unset.""",
     )
+    enterprise_enquiry_notify_email: str | None = Field(
+        default=None,
+        description="""Extra recipient for Enterprise enquiry emails and extra-BU notices.
+            Optional; app.services.default_customer falls back to contact_notify_email,
+            then super_admin_email.""",
+    )
+    lite_basic_standard_enquiry_notify_email: str | None = Field(
+        default=None,
+        description="""Extra recipient, besides the default customer database's active
+            admins, for Lite / Basic / Standard sign-up emails. Optional.""",
+    )

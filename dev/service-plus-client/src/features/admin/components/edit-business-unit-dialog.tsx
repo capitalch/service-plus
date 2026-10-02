@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { apolloClient } from "@/lib/apollo-client";
+import { BU_NAME_REGEX } from "@/lib/bu-name";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -39,10 +40,7 @@ type EditBusinessUnitFormType = z.infer<typeof editBusinessUnitSchema>;
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const editBusinessUnitSchema = z.object({
-	name: z
-		.string()
-		.min(2, "Name must be at least 2 characters")
-		.regex(/^[a-zA-Z0-9 ]+$/, "Name can only contain letters, numbers and spaces."),
+	name: z.string().trim().regex(BU_NAME_REGEX, MESSAGES.ERROR_BU_NAME_FORMAT),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

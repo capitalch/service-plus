@@ -65,6 +65,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
 				email: result.email,
 				fullName: result.fullName,
 				id: result.id,
+				isDefaultCustomerDb: result.isDefaultCustomerDb ?? false,
 				lastUsedBranchId: result.lastUsedBranchId,
 				lastUsedBuId: result.lastUsedBuId,
 				mobile: result.mobile,

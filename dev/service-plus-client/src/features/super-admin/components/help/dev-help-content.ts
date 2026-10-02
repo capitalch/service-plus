@@ -1338,7 +1338,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "ReportTable's scroll container" },
 			{
 				type: "para",
-				text: 'src/features/client/components/reports/common/report-table.tsx renders exactly one scrolling div (overflow-auto, with an optional maxHeight prop) rather than nesting an overflow-hidden outer div around an overflow-x-auto inner one. The two-div version created a double scrollbar / clipped-sticky-header bug in dialogs that cap the table\'s height (e.g. drill-down job lists at maxHeight="60vh"). Pass maxHeight whenever ReportTable sits inside a fixed-height container like a Dialog; omit it when the table should grow with its page section.',
+				text: 'src/features/client/components/reports/common/report-table.tsx renders exactly one scrolling div (overflow-auto, with an optional maxHeight prop) rather than nesting an overflow-hidden outer div around an overflow-x-auto inner one. The two-div version created a double scrollbar / clipped-sticky-header bug in dialogs that cap the table\'s height (e.g. drill-down job lists at maxHeight="60vh"). Pass maxHeight whenever ReportTable sits inside a fixed-height container like a Dialog; omit it when the table should grow with its page section. Columns may also set group (next-door columns with the same group share one merged cell in an extra header row above the normal one, with a left border at each group start; the row is drawn only when some column sets a group) and headerTitle (native title tooltip on the header). The table-level cellBorders prop draws a full grid — a border-(--cl-border) line between columns (last:border-r-0, since the wrapper draws the outer edge) and row lines switched from --cl-divider to --cl-border. Only Event Tracking uses these three today.',
 			},
 			{ type: "heading", text: "The click-a-cell-to-drill-down pattern" },
 			{
@@ -1357,7 +1357,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					[
 						"EventTrackingCellDialog (reports/jobs/)",
 						"EventTrackingCellType",
-						"Event Tracking — Cost/Sale/Profit columns shown only for Finalize/Deliver events (COST_EVENTS set)",
+						'Event Tracking — Cost/Sale/Profit columns shown only for Finalize/Deliver events (COST_EVENTS set). 20 period buckets (Today/This plus -1, -2, -3 in each of Day, Week, Month, Quarter, Year). Column headers come from BUCKET_COLUMNS in event-tracking-section.tsx, not from RANGE_LABELS in fiscal.ts, so changing one does not change the other. Each entry has a group (Day/Week/Month/Quarter/Year, drawn as ReportTable\'s merged top header row) and a short header (Today/This, -1, -2, -3). exportHeader() turns that into the flat name ("Today", "This Week", "Week -1") used for the PDF/XLSX column names and passed as bucketLabel to the drill-down dialog title. Header tooltips (headerTitle) come from bucketTitles returned by useEventTrackingMatrix — formatRangeLabel / formatShortDate of each bucket\'s range. Date ranges come from BUCKETS in use-event-tracking-matrix.ts: buckets with a RangeKeyType use getRange, the nine older ones (threeDaysAgo and the two…/three… Weeks/Months/Quarters/YearsAgo fields) use getPeriodsAgoRange(offset, today, fyStart, unit) in fiscal.ts — whole periods, quarters and years fiscal. GET_EVENT_TRACKING_COUNTS just takes from/to, so no server change; one query per bucket (20 round trips, hand-unrolled q0–q19 because hooks can\'t run in a loop). Adding a bucket means the row type, BUCKETS, another qN line and BUCKET_COLUMNS; the PDF bucket width (12 mm) is sized so 20 columns fit A4 landscape',
 					],
 					[
 						"CategoryRangeCellDialog (reports/common/)",
@@ -1535,7 +1535,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "bu_admin/provisioning.py's Super-Admin-only resolvers (createClient, createBuSchema, dropDatabase, etc.) are untouched — they're cross-tenant by design and don't route through the four generic dispatchers.",
+				text: "bu_admin/provisioning.py's cross-tenant resolvers (createClient, dropDatabase, etc.) don't route through the four generic dispatchers and don't call require_own_tenant for the Super Admin. Since 2026-10-02 they do carry require_user_type(info, {'S'}), and every other resolver carries a guard too — see 'Every Resolver Guarded & sqlId Allowlists'.",
 			},
 		],
 		faqs: [
@@ -1550,6 +1550,94 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "Does this fix the 'genericUpdate table-writer hole' described in Known Gaps?",
 				a: "No — that's a different question (which table a caller may write to) from this one (which tenant/BU a caller may address at all). See 'Known Gaps' — Gap 1 is unaffected by this change.",
+			},
+		],
+	},
+
+	{
+		id: "dev-resolver-guards-sql-id-allowlists",
+		category: "Access Control & Security",
+		title: "Every Resolver Guarded & sqlId Allowlists",
+		summary:
+			"Every GraphQL query and mutation calls a require_* guard; non-admins cannot run tenant-wide SqlStore ids or unlisted scripts.",
+		tags: [
+			"require_authenticated",
+			"require_sql_id_access",
+			"ADMIN_ONLY_SQL_IDS",
+			"NON_ADMIN_SECURITY_SQL_IDS",
+			"NON_ADMIN_SCRIPT_SQL_IDS",
+			"admin_only_sql_id",
+			"script_not_allowed",
+			"security fix",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Added 2026-10-02 (plans/plan.md, Step 1 of the sign-up and billing plan). Before it, many resolvers had no guard at all and ran with no token — including dropDatabase, deleteClient and createClient — and others checked an access right but never the tenant or BU. Separately, genericQuery and genericUpdateScript ran any SqlStore id, and ids that name security.* tables read the whole tenant whatever schema the caller sent (search_path only resolves unqualified names). A business user sending their own BU code could list every user (GET_BUSINESS_USERS) or reset the admin's password (RESET_ADMIN_PASSWORD).",
+			},
+			{ type: "heading", text: "Who may call what" },
+			{
+				type: "table",
+				headers: ["Group", "Guard", "Resolvers"],
+				rows: [
+					[
+						"Super Admin only",
+						"require_user_type(info, {'S'})",
+						"createClient, createServiceDb, seedSecurityData, deleteClient, dropDatabase, mailAdminCredentials, createAdminUser; queries superAdminClientsData, usageHealth, systemSettings, superAdminDashboardStats",
+					],
+					[
+						"Own Admin or Super Admin",
+						"require_own_tenant + require_user_type(info, {'S','A'})",
+						"feedBuSeedData, deleteBuSchema, mailBusinessUserCredentials, createBuSchemaAndFeedSeedData, adminDashboardStats; auditLogs and auditLogStats take no db_name, so they check the user type only",
+					],
+					[
+						"Own Admin only",
+						"require_own_tenant + require_user_type(info, {'A'})",
+						"createBusinessUser, setUserBuRole",
+					],
+					[
+						"Anything taking a BU schema",
+						"require_own_tenant + require_bu_access, before any right check",
+						"the four generic dispatchers, every job / invoice / payment / inventory mutation, accountsPosting, the five sendWhatsapp… mutations, verifyJobDeliveryOtp, setJobDeliveryManualConfirmation, the four Extended Warranty mutations, getJobDeliveryOtpPending",
+					],
+				],
+			},
+			{ type: "heading", text: "sqlId allowlists (non-admins only; A and S unchanged)" },
+			{
+				type: "steps",
+				items: [
+					"auth_guards.py builds ADMIN_ONLY_SQL_IDS once at import: every SqlStore id whose text names security., public., pg_catalog., information_schema. or a pg_* catalog table. genericQuery and every genericBatchQuery item call require_sql_id_access, which refuses those ids to non-admins with extensions.reason = admin_only_sql_id.",
+					'NON_ADMIN_SECURITY_SQL_IDS (auth_guards.py) lets five back in: GET_EW_LEADS_PAGED, GET_EW_LEAD_DETAIL, GET_EW_LEAD_TIMELINE, GET_JOB_TRANSACTIONS_BY_JOB, GET_JOB_TRANSACTION_DETAIL. Each only joins security."user" to show who acted on a row of the caller\'s own BU, and selects id / full_name / username. Check a new entry the same way before adding it.',
+					"genericUpdateScript is deny-by-default for non-admins: the sql_id must be in GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS (its right still checked) or in NON_ADMIN_SCRIPT_SQL_IDS (mutation.py: DELETE_PURCHASE_INVOICE, SQL_GENERATE_STOCK_SNAPSHOT). Anything else gets reason = script_not_allowed.",
+					"require_authenticated(info) is new. It rejects a missing token with reason = unauthenticated, but keeps TOKEN_EXPIRED for an expired one so the client still refreshes and retries.",
+				],
+			},
+			{ type: "heading", text: "Tests that keep it closed (tests/test_auth_guards.py)" },
+			{
+				type: "steps",
+				items: [
+					"test_every_resolver_calls_a_guard walks every registered Query and Mutation resolver and fails if its source has no require_*(info…) call, unless the field is on PUBLIC_ON_PURPOSE (empty; anything unauthenticated belongs on REST).",
+					"test_non_admin_client_screens_use_no_unlisted_security_ids scans the client's features/client, components, lib and store folders for SQL_MAP ids and fails on any admin-only id that isn't allowlisted. It is skipped when the client checkout isn't next to the server.",
+					"RESET_ADMIN_PASSWORD, GET_BUSINESS_USERS and GET_ADMIN_USERS are refused for a business user sending their own BU code, through genericQuery, genericBatchQuery and genericUpdateScript.",
+				],
+			},
+			{
+				type: "note",
+				text: "Known and not fixed here: auditLogs / auditLogStats read one audit store shared by every tenant, so a tenant Admin's audit page can show other tenants' entries. require_bu_access still lets security, public and empty schemas through for business users, and genericUpdate on security is still open to them; both are Step 6 of the same plan.",
+			},
+		],
+		faqs: [
+			{
+				q: "A client screen used by staff (not admins) now fails with 'Access forbidden' and reason admin_only_sql_id. What do I do?",
+				a: "Its sqlId names a security.* (or other tenant-wide) table. If the query only reads data belonging to the caller's own BU (e.g. joins security.\"user\" for a name via a key from the BU's own rows), add it to NON_ADMIN_SECURITY_SQL_IDS. If it can read other users or BUs, move the screen to Admin mode or write a narrower query instead.",
+			},
+			{
+				q: "I added a new genericUpdateScript call on a staff screen and it fails with reason script_not_allowed.",
+				a: "Scripts are deny-by-default for non-admins. Gate it with an access right in the domain's *_GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS, or, if it needs none, add it to NON_ADMIN_SCRIPT_SQL_IDS in mutation.py.",
+			},
+			{
+				q: "I added a new query or mutation and test_every_resolver_calls_a_guard fails.",
+				a: "Call the right guard first in the resolver: require_user_type for identity-gated resolvers, or require_own_tenant + require_bu_access for anything taking db_name and schema. Only add it to PUBLIC_ON_PURPOSE if it really must work without a token.",
 			},
 		],
 	},
@@ -1753,6 +1841,143 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	// ── Category 6: Multi-Tenancy & Provisioning ─────────────────────────────
+
+	{
+		id: "dev-signup-billing",
+		category: "Multi-Tenancy & Provisioning",
+		title: "Sign-up & Monthly Billing — Implementation",
+		summary:
+			"Default customer database, isDefaultCustomerDb, BU name rule, enquiry tables, price list, billing columns and date rules (plans/plan.md).",
+		tags: [
+			"default_customer_db_name",
+			"isDefaultCustomerDb",
+			"require_default_customer_db",
+			"BU_NAME_PATTERN",
+			"sales_enquiry",
+			"plan_prices",
+			"BU_BILLING_DDL",
+			"bu_payment",
+			"paid_through",
+			"compute_billing_status",
+			"rebase_paid_through",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Built in steps from plans/plan.md. Lite, Basic and Standard customers ('lt') are each one BU inside one shared tenant, the default customer database; Enterprise customers get their own client and database. Steps 2–5 (2 Oct 2026) add the settings, the login flag, the wider BU name rule, the enquiry and billing tables, the price list and the date rules. Nothing yet reads the new tables: the screens and mutations come in Steps 7–14.",
+			},
+			{ type: "heading", text: "Settings (all optional except where noted)" },
+			{
+				type: "table",
+				headers: ["Key", "Where", "Meaning"],
+				rows: [
+					[
+						"DEFAULT_CUSTOMER_DB_NAME",
+						"api_settings.py",
+						"The default customer database (dev: service_plus_customers, client 'customers'). Empty disables lt sign-ups.",
+					],
+					["BILLING_REMINDER_HOUR", "api_settings.py", "IST hour for the daily reminder job (default 9)"],
+					[
+						"LITE_BASIC_STANDARD_ENQUIRY_NOTIFY_EMAIL",
+						"email_settings.py",
+						"Extra recipient for lt sign-up emails, besides the default database's admins",
+					],
+					[
+						"ENTERPRISE_ENQUIRY_NOTIFY_EMAIL",
+						"email_settings.py",
+						"Extra recipient for Enterprise mail; get_enterprise_enquiry_notify_email() falls back to CONTACT_NOTIFY_EMAIL, then SUPER_ADMIN_EMAIL",
+					],
+					[
+						"PRICE_BASIC_SETUP / _MONTHLY, PRICE_STANDARD_…, PRICE_ENTERPRISE_…, PRICE_EXTRA_BU_MONTHLY, ENTERPRISE_INCLUDED_BUS",
+						"app/core/plan_prices.py (its own PlanPriceSettings)",
+						"Whole rupees in .env, handed out in paise by get_price_list() / get_plan_price(). Defaults: Basic ₹2,000 + ₹2,999/month, Standard ₹2,000 + ₹5,999, Enterprise ₹5,000 + ₹10,999, extra BU ₹3,000/month, 5 BUs included. Lite is always 0. The only place prices live.",
+					],
+				],
+			},
+			{ type: "heading", text: "Default customer database and the login flag" },
+			{
+				type: "steps",
+				items: [
+					"app/services/default_customer.py: is_default_customer_db(db_name); get_default_customer_client() returns the active public.client row (SignupServerSql.GET_DEFAULT_CUSTOMER_CLIENT) or raises code DEFAULT_DB_NOT_CONFIGURED. Callers never fall back to the control-plane table.",
+					"LoginResponse.isDefaultCustomerDb is set once at login (refresh carries only tokens; the Super Admin always gets false). The client stores it on UserInstanceType inside the saved user, so it survives a reload; read it with selectIsDefaultCustomerDb.",
+					"The flag only shows or hides screens. Server actions re-check with require_default_customer_db(info, db_name) in auth_guards.py (reason not_default_customer_db), paired with require_own_tenant and require_user_type.",
+				],
+			},
+			{ type: "heading", text: "BU name rule" },
+			{
+				type: "para",
+				text: "BU_NAME_PATTERN in bu_admin/provisioning.py and BU_NAME_REGEX in src/lib/bu-name.ts are the same pattern: ^[A-Za-z0-9][A-Za-z0-9 .&'()/,-]{2,99}$ (3–100 characters, starting with a letter or digit). The message is AppMessages.BU_NAME_FORMAT / MESSAGES.ERROR_BU_NAME_FORMAT. The code rule ^[a-z0-9_]{3,30}$ is unchanged. The portal's form must use the same pattern (Step 8).",
+			},
+			{ type: "heading", text: "Tables (created by Your Part D, not yet in the generated types)" },
+			{
+				type: "table",
+				headers: ["Script", "Runs on", "Creates"],
+				rows: [
+					[
+						"SignupServerSql.SALES_ENQUIRY_DDL",
+						"default customer database",
+						"security.sales_enquiry (lt): reference, plan_code lite|basic|standard, contact fields, bu_name/bu_code, status pending|approved|rejected, progress columns (bu_id, bu_schema_ready_at, user_id, login_email_sent, processing_started_at), reviewer, and the payment columns. Unique: reference; email, mobile and bu_code while pending or approved.",
+					],
+					[
+						"SignupServerSql.SALES_ENQUIRY_ENT_ALTER",
+						"service_plus_client",
+						"Adds reference, client_id, the progress and payment columns to public.sales_enquiry (Enterprise). Rules old rows could break are NOT VALID.",
+					],
+					[
+						"BillingServerSql.BU_BILLING_DDL",
+						"every tenant database",
+						"security.bu: plan_code, billing_required (default false), monthly_fee_paise, paid_through, billing_hold, branch_limit (null = unlimited), last_reminder_on/kind. security.bu_payment: append-only ledger with entry_kind payment|fee_rebase|extension|correction, months 0–60, the fee it was priced at, period_from/to.",
+					],
+				],
+			},
+			{
+				type: "steps",
+				items: [
+					"Payment rules are CHECK constraints, not just disabled buttons: lt approved needs received or not_required; ent converted needs received; received needs mode, reference, date and amount ≥ setup_fee_paise; not_required only with a zero fee; failed needs a note. A ledger 'payment' row needs months 1–60 and amount ≥ monthly_fee_paise × months; any other kind needs a note.",
+					"All three scripts are safe to run twice: CREATE … IF NOT EXISTS, ADD COLUMN IF NOT EXISTS, and each constraint dropped and re-added.",
+					'*_by columns (payment_recorded_by, reviewed_by, recorded_by) hold a username as text, because an Enterprise action is taken by the Super Admin, who has no security."user" row.',
+					"New client databases get BU_BILLING_DDL straight after SECURITY_SCHEMA_DDL in resolve_create_service_db_helper. It is not folded into SECURITY_SCHEMA_DDL because sql_bu_admin_ddl.py is regenerated by app/db/tools/extract_schema.py.",
+					"No database triggers, by decision. The branch limit will be enforced by an addBranch mutation that locks the BU's security.bu row (BillingServerSql.LOCK_BU_FOR_BRANCH), counts (COUNT_BRANCHES) and inserts in one transaction (Step 12).",
+					"SignupServerSql and BillingServerSql are not composed into SqlStore, so genericQuery / genericUpdateScript can never run the DDL. SignupSql and BillingSql are composed but empty until Steps 9 and 13; their reads name security.* and are therefore admin-only under ADMIN_ONLY_SQL_IDS.",
+				],
+			},
+			{ type: "heading", text: "Billing rules (app/core/billing.py, pure functions)" },
+			{
+				type: "table",
+				headers: ["Function", "Rule"],
+				rows: [
+					["today_ist()", "Every billing decision uses the IST date, never the server's local date"],
+					[
+						"compute_billing_status(bu, today)",
+						"not_billed (billing off) / read_only (hold, never paid, or after paid_through) / due_soon (last DUE_SOON_DAYS = 5 days, paid_through included; warning only) / active",
+					],
+					[
+						"extend_paid_through(paid_through, today, months)",
+						"Counts calendar months (1 to MAX_PREPAID_MONTHS = 60; a year is 12) from the later of paid_through and yesterday, clamped to month end. Advance payments stack; a late one starts from the day paid.",
+					],
+					["exceeds_prepaid_limit(new_paid_through, today)", "True beyond 60 months from today"],
+					[
+						"rebase_paid_through(paid_through, today, old_fee, new_fee)",
+						"On a fee change while prepaid: today + remaining days × old fee ÷ new fee, rounded down. Upgrade moves the date earlier, downgrade later; unchanged when nothing is prepaid beyond today.",
+					],
+				],
+			},
+			{
+				type: "note",
+				text: "Deliberately not done yet: the billing columns are not added to GET_USER_BUS / GET_ALL_BUS_WITH_SCHEMA_STATUS. Login runs GET_USER_BUS, so adding columns before Your Part D creates them would break every login. That moves to Step 11, which first reads them. Tests: tests/core/test_billing.py, tests/core/test_plan_prices.py, tests/bu_admin/test_bu_name_and_default_db.py.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why is the price list not in the database?",
+				a: "Decided in plans/plan.md: prices live only in the server .env (plan_prices.py). They are stamped on the enquiry (setup fee) and on security.bu (monthly fee) at approval, so changing .env never re-prices an existing customer.",
+			},
+			{
+				q: "Sign-up endpoints answer DEFAULT_DB_NOT_CONFIGURED — why?",
+				a: "DEFAULT_CUSTOMER_DB_NAME is empty, or names no active client. Set it to the default customer database and restart the server.",
+			},
+		],
+	},
 
 	{
 		id: "dev-cost-correction",
@@ -3536,7 +3761,17 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		category: "Troubleshooting (Dev)",
 		title: "Common Dev-Time Issues",
 		summary: "Type regeneration, venv activation, resetting test data, and other everyday snags.",
-		tags: ["troubleshooting", "dev issues", "pg-to-ts", "venv", "truncate", "docker", "samba"],
+		tags: [
+			"troubleshooting",
+			"dev issues",
+			"pg-to-ts",
+			"venv",
+			"truncate",
+			"docker",
+			"samba",
+			"reset-password",
+			"set password link",
+		],
 		content: [
 			{
 				type: "table",
@@ -3569,6 +3804,14 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					[
 						"'Job Sheet document sequence is not configured or has no prefix' while testing",
 						"On the BU's original HO branch this shouldn't happen since 2026-09-18 (seed_bu_data.py pre-fills JOB_SHEET/PURCHASE_INVOICE/PURCHASE_RETURN_INVOICE) — on a later branch or division it's still a data-setup issue, not a code bug; see the end-user 'Document Sequences' article and add a prefix via Configurations → Numbering / Auto Series in the test tenant",
+					],
+					[
+						'A mailed set-password link opens {"detail":"Not Found"} (pointed at the API port, e.g. localhost:8000)',
+						"Fixed 2026-10-02 in _build_reset_link (app/graphql/resolvers/bu_admin/mailers.py, used by the admin- and business-user-creation emails in users_roles.py and by mailAdminCredentials / mailBusinessUserCredentials — Super Admin → Clients → admin row menu → 'Mail the Reset Password Link'): the link base is now the browser's Origin header when it is in settings.cors_origins, else the request's Host + X-Forwarded-Proto, else settings.frontend_url. In dev the client (localhost:3000) calls the API on VITE_API_BASE_URL, so Host alone names the API server, which has no /reset-password page. A link already mailed still works if you change the port to 3000 — the token isn't tied to the host and lasts 48 hours. A new client origin must be added to cors_origins or links fall back to the Host",
+					],
+					[
+						"A new tenant's admin logs in and gets 'No business unit…' with only Logout",
+						"Fixed 2026-10-02 in bu-branch-division-gate.tsx: every non-S login starts in Client mode, whose blocking BU/Branch/Division gate covers the activity bar's Admin switch, and ProtectedRoute bounces /admin URLs on sessionMode — so with zero BUs an admin had no way to create one. For userType A with an empty list (which comes from GET_ALL_BUS_WITH_SCHEMA_STATUS, i.e. the tenant really has no BU) the gate now shows MESSAGES.INFO_NO_BU_CREATED_ADMIN and 'Go to Admin Mode' (setSessionMode('admin') → ROUTES.admin.businessUnits); business users keep INFO_NO_BU_ASSIGNED_USER + Logout. Don't move this to the login redirect: login's availableBus comes from GET_USER_BUS (user_bu_role rows), which is normally empty for admins whether or not BUs exist",
 					],
 					[
 						"Adding a new shadcn component triggers an eslint error",

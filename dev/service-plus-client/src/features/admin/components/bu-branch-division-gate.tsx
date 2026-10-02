@@ -1,4 +1,4 @@
-import { LogOutIcon } from "lucide-react";
+import { LogOutIcon, ShieldCheckIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { logout } from "@/features/auth/store/auth-slice";
+import { MESSAGES } from "@/constants/messages";
+import { logout, selectCurrentUser, setSessionMode } from "@/features/auth/store/auth-slice";
 import { useBuBranchDivisionActions } from "@/features/admin/hooks/use-bu-branch-division-actions";
 import { ROUTES } from "@/router/routes";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -28,6 +29,7 @@ export const BuBranchDivisionGate = () => {
 	const navigate = useNavigate();
 	const isResolving = useAppSelector(selectIsResolvingContext);
 	const isComplete = useAppSelector(selectIsBuBranchDivisionComplete);
+	const user = useAppSelector(selectCurrentUser);
 	const {
 		availableBus,
 		availableBranches,
@@ -42,6 +44,15 @@ export const BuBranchDivisionGate = () => {
 
 	const open = !isResolving && !isComplete;
 	const hasNoBu = availableBus.length === 0;
+	// An admin's BU list is every BU in the tenant (GET_ALL_BUS_WITH_SCHEMA_STATUS), so an
+	// empty list means none exists yet — a fresh tenant. Admin mode is where the first one is
+	// created, and this dialog covers the activity bar's own switch, so offer it here.
+	const isAdmin = user?.userType === "A";
+
+	function handleGoToAdmin() {
+		dispatch(setSessionMode("admin"));
+		navigate(ROUTES.admin.businessUnits);
+	}
 
 	function handleLogout() {
 		dispatch(logout());
@@ -59,16 +70,26 @@ export const BuBranchDivisionGate = () => {
 					<AlertDialogTitle>Select Business Unit, Branch &amp; Division</AlertDialogTitle>
 					<AlertDialogDescription>
 						{hasNoBu
-							? "No business unit is assigned to your account. Contact your administrator."
-							: "Choose all three to continue — this can't be skipped or dismissed."}
+							? isAdmin
+								? MESSAGES.INFO_NO_BU_CREATED_ADMIN
+								: MESSAGES.INFO_NO_BU_ASSIGNED_USER
+							: MESSAGES.INFO_SELECT_BU_BRANCH_DIVISION}
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 
 				{hasNoBu ? (
-					<Button className="w-full gap-2" onClick={handleLogout} variant="outline">
-						<LogOutIcon className="h-4 w-4 text-muted-foreground" />
-						Logout
-					</Button>
+					<div className="flex flex-col gap-2">
+						{isAdmin && (
+							<Button className="gap-2 w-full" onClick={handleGoToAdmin}>
+								<ShieldCheckIcon className="h-4 w-4" />
+								Go to Admin Mode
+							</Button>
+						)}
+						<Button className="gap-2 w-full" onClick={handleLogout} variant="outline">
+							<LogOutIcon className="h-4 w-4 text-muted-foreground" />
+							Logout
+						</Button>
+					</div>
 				) : (
 					<div className="flex flex-col gap-3">
 						<div className="flex flex-col gap-1.5">

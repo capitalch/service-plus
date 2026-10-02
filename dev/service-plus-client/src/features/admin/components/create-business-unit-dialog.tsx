@@ -16,6 +16,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
+import { BU_NAME_REGEX } from "@/lib/bu-name";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -45,10 +46,7 @@ const createBusinessUnitSchema = z.object({
 		.max(30, "Code must be 30 characters or fewer")
 		.regex(/^[a-zA-Z0-9_]+$/, "Code can only contain letters, numbers and underscores. No spaces or hyphens.")
 		.transform((v) => v.toLowerCase()),
-	name: z
-		.string()
-		.min(3, "Name must be at least 3 characters")
-		.regex(/^[a-zA-Z0-9 ]+$/, "Name can only contain letters, numbers and spaces."),
+	name: z.string().trim().regex(BU_NAME_REGEX, MESSAGES.ERROR_BU_NAME_FORMAT),
 });
 
 // ─── Step indicator ───────────────────────────────────────────────────────────

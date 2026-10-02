@@ -84,6 +84,8 @@ export const MESSAGES = {
 	ERROR_BU_CREATE_FAILED: "Failed to create business unit. Please try again.",
 	ERROR_BU_CREATE_SCHEMA_FAILED: "Failed to create business unit. Please try again.",
 	ERROR_BU_NAME_EXISTS: "This name is already in use.",
+	ERROR_BU_NAME_FORMAT:
+		"Name must be 3 to 100 characters, start with a letter or digit, and use only letters, digits, spaces and . & ' ( ) / , -",
 	ERROR_BU_NAME_EXISTS_EDIT: "This name is already used by another business unit.",
 	ERROR_BU_DEACTIVATE_FAILED: "Failed to deactivate business unit. Please try again.",
 	ERROR_BU_DELETE_FAILED: "Failed to delete business unit. Please try again.",
@@ -319,6 +321,10 @@ export const MESSAGES = {
 	ERROR_BU_SWITCH_FAILED: "Failed to switch business unit. Please try again.",
 	ERROR_BRANCH_SWITCH_FAILED: "Failed to switch branch. Please try again.",
 	ERROR_BRANCHES_LOAD_FAILED: "Failed to load branches. Please try again.",
+	INFO_NO_BU_ASSIGNED_USER: "No business unit is assigned to your account. Contact your administrator.",
+	INFO_NO_BU_CREATED_ADMIN:
+		"No business unit has been created yet. Go to Admin mode and create one under Business Units.",
+	INFO_SELECT_BU_BRANCH_DIVISION: "Choose all three to continue — this can't be skipped or dismissed.",
 
 	// Network Errors
 	ERROR_CLIENTS_LOAD: "Failed to load clients data.",

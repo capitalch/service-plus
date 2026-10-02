@@ -24,21 +24,39 @@ import type { EventTrackingCellType } from "./event-tracking-cell-dialog";
 const TITLE = "Event Tracking";
 const DESCRIPTION = "Job lifecycle event counts across standard fiscal date ranges.";
 
-type BucketColumnDefType = { field: keyof Omit<EventTrackingRowType, "eventName">; header: string };
+type BucketColumnDefType = { field: keyof Omit<EventTrackingRowType, "eventName">; group: string; header: string };
 
+// Grid shows a Day / Week / Month / Quarter / Year group row over these short headers.
 const BUCKET_COLUMNS: BucketColumnDefType[] = [
-	{ field: "today", header: "Today" },
-	{ field: "yesterday", header: "Yesterday" },
-	{ field: "dayBeforeYesterday", header: "Day Before" },
-	{ field: "thisWeek", header: "This Week" },
-	{ field: "lastWeek", header: "Last Week" },
-	{ field: "thisMonth", header: "This Month" },
-	{ field: "lastMonth", header: "Last Month" },
-	{ field: "thisQuarter", header: "This Quarter" },
-	{ field: "lastQuarter", header: "Last Quarter" },
-	{ field: "thisYear", header: "This Year" },
-	{ field: "lastYear", header: "Last Year" },
+	{ field: "today", group: "Day", header: "Today" },
+	{ field: "yesterday", group: "Day", header: "-1" },
+	{ field: "dayBeforeYesterday", group: "Day", header: "-2" },
+	{ field: "threeDaysAgo", group: "Day", header: "-3" },
+	{ field: "thisWeek", group: "Week", header: "This" },
+	{ field: "lastWeek", group: "Week", header: "-1" },
+	{ field: "twoWeeksAgo", group: "Week", header: "-2" },
+	{ field: "threeWeeksAgo", group: "Week", header: "-3" },
+	{ field: "thisMonth", group: "Month", header: "This" },
+	{ field: "lastMonth", group: "Month", header: "-1" },
+	{ field: "twoMonthsAgo", group: "Month", header: "-2" },
+	{ field: "threeMonthsAgo", group: "Month", header: "-3" },
+	{ field: "thisQuarter", group: "Quarter", header: "This" },
+	{ field: "lastQuarter", group: "Quarter", header: "-1" },
+	{ field: "twoQuartersAgo", group: "Quarter", header: "-2" },
+	{ field: "threeQuartersAgo", group: "Quarter", header: "-3" },
+	{ field: "thisYear", group: "Year", header: "This" },
+	{ field: "lastYear", group: "Year", header: "-1" },
+	{ field: "twoYearsAgo", group: "Year", header: "-2" },
+	{ field: "threeYearsAgo", group: "Year", header: "-3" },
 ];
+
+// Flat name for places with a single header row (PDF, Excel, drill-down title):
+// "Today", "This Week", "Week -1".
+function exportHeader(b: BucketColumnDefType): string {
+	if (b.header === "Today") return b.header;
+	if (b.header === "This") return `This ${b.group}`;
+	return `${b.group} ${b.header}`;
+}
 
 export const EventTrackingSection = () => {
 	const { fyStartMonth, isReady } = useFiscalSetting();
@@ -71,7 +89,7 @@ export const EventTrackingSection = () => {
 						onClick={() =>
 							range &&
 							setCell({
-								bucketLabel: b.header,
+								bucketLabel: exportHeader(b),
 								eventName: r.eventName,
 								from: range.from,
 								to: range.to,
@@ -83,7 +101,9 @@ export const EventTrackingSection = () => {
 				);
 			},
 			footer: (rows) => formatNumber(rows.reduce((s, r) => s + r[b.field], 0)),
+			group: b.group,
 			header: b.header,
+			headerTitle: matrix.bucketTitles[b.field],
 			id: b.field,
 			value: (r) => r[b.field],
 		})),
@@ -93,12 +113,13 @@ export const EventTrackingSection = () => {
 		try {
 			exportReportPdf({
 				columns: [
-					{ dataKey: "eventName", header: "Event", width: 32 },
+					{ dataKey: "eventName", header: "Event", width: 30 },
 					...BUCKET_COLUMNS.map((b) => ({
 						align: "right" as const,
 						dataKey: b.field,
-						header: b.header,
-						width: 18,
+						header: exportHeader(b),
+						// 20 buckets × 12 + 30 = 270 mm, inside A4 landscape's 273 mm print width.
+						width: 12,
 					})),
 				],
 				fileName: "event-tracking",
@@ -136,7 +157,7 @@ export const EventTrackingSection = () => {
 						rows: matrix.rows.map((r) => {
 							const row: Record<string, number | string> = { Event: r.eventName };
 							BUCKET_COLUMNS.forEach((b) => {
-								row[b.header] = r[b.field];
+								row[exportHeader(b)] = r[b.field];
 							});
 							return row;
 						}),
@@ -168,6 +189,7 @@ export const EventTrackingSection = () => {
 					<ReportLoading lines={4} />
 				) : (
 					<ReportTable
+						cellBorders
 						columns={columns}
 						rowKey={(r) => r.eventName}
 						rows={matrix.rows}

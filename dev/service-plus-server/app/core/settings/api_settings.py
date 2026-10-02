@@ -63,6 +63,16 @@ class ApiSettings(BaseSettings):
             sent as the X-Website-Key header. Must match service-plus-web's
             NEXT_PUBLIC_WEBSITE_KEY.""",
     )
+    # Customer settings (plans/plan.md, sign-up and monthly billing)
+    billing_reminder_hour: int = Field(
+        default=9, ge=0, le=23, description="IST hour of day the billing reminder job runs"
+    )
+    default_customer_db_name: str = Field(
+        default="",
+        description="""Database of the shared "default customer" client that holds every
+            Lite / Basic / Standard customer as one BU. Empty disables sign-ups.""",
+    )
+
     # GraphQL Settings
     graphql_path: str = Field(default="/graphql", description="GraphQL endpoint path")
     graphql_playground: bool = Field(

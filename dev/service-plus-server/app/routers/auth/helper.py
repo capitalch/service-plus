@@ -10,6 +10,7 @@ from app.db.connection.psycopg_driver import exec_sql
 from app.db.sql.sql_base import SqlStore
 from app.core.exceptions import AppMessages, AuthorizationException
 from app.logger import logger
+from app.services.default_customer import is_default_customer_db
 from app.routers.auth.auth_schema import (
     ClientResponse,
     LoginRequest,
@@ -195,6 +196,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         client_code=client_code,
         db_name=db_name,
         email=user["email"],
+        is_default_customer_db=is_default_customer_db(db_name),
         full_name=user["full_name"],
         id=user["id"],
         last_used_branch_id=user.get("last_used_branch_id"),

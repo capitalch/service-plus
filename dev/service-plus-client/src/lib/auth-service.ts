@@ -61,6 +61,7 @@ export type LoginResponseType = {
 	email: string;
 	fullName?: string;
 	id?: string;
+	isDefaultCustomerDb?: boolean;
 	lastUsedBranchId?: number | null;
 	lastUsedBuId?: number | null;
 	mobile?: string;
@@ -80,6 +81,8 @@ export type UserInstanceType = {
 	email: string;
 	fullName?: string;
 	id?: string;
+	// Only shows or hides the platform owner's screens; the server re-checks every action.
+	isDefaultCustomerDb?: boolean;
 	lastUsedBranchId?: number | null;
 	lastUsedBuId?: number | null;
 	mobile?: string;

@@ -39,6 +39,10 @@ class AppMessages:
     # Error messages - Validation
     BU_CODE_EXISTS          = "A business unit with this code already exists"
     BU_NAME_EXISTS          = "A business unit with this name already exists"
+    BU_NAME_FORMAT = (
+        "Name must be 3 to 100 characters, start with a letter or digit, and use only letters, "
+        "digits, spaces and . & ' ( ) / , -"
+    )
     BU_SCHEMA_CREATE_FAILED = "Failed to create business unit schema"
     BU_SEED_FEED_FAILED     = "Failed to seed business unit data"
     SECURITY_SEED_FEED_FAILED = "Failed to seed security data"
@@ -53,6 +57,11 @@ class AppMessages:
     INVALID_EMAIL_FORMAT = "Invalid email format"
     INVALID_PHONE_FORMAT = "Invalid phone number format"
     INVALID_DATE_FORMAT = "Invalid date format"
+
+    # Error messages - Sign-up and billing (plans/plan.md)
+    DEFAULT_DB_NOT_CONFIGURED = (
+        "Sign-ups are not available right now: the default customer database is not configured."
+    )
 
     # Error messages - Authorization / Authentication
     ADMIN_EMAIL_EXISTS = "This email is already registered for this client"

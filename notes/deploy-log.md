@@ -3,6 +3,18 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-02 15:40 (main)
+Security: guard every resolver; sign-up and billing foundations
+
+- server/auth_guards, mutation, query: every GraphQL resolver now checks the caller (Super Admin only, own admin, or own tenant + BU); non-admins can no longer run sqlIds that read security.* tables or unlisted update scripts; tests enforce both
+- server/sign-up and billing: default customer database setting, isDefaultCustomerDb login flag, enquiry and billing table scripts (no triggers), price list from .env, billing date rules with tests, and scripts/run_signup_billing_ddl.py for Part D
+- server/mailers: set-password links use the browser's allowed Origin, so they open the client instead of the API port in local dev
+- client/admin: a new tenant's admin with no business unit gets "Go to Admin Mode" instead of a logout-only dead end; BU names accept real business names like "Nav Technology Pvt Ltd."
+- client/reports: Event Tracking adds -2 and -3 periods for day, week, month, quarter and year, grouped headers with date tooltips, and full column names in exports
+- docs: plan.md Steps 1–5 marked built, advance-payment and no-trigger amendments; both help files updated; .env.example updated (contents not read)
+
+Files: 28 changed (+1362 / -331) — Base: a4f1173
+
 ## 2026-10-02 00:53 (main)
 Docs: review and shorten the sign-up and monthly-billing plan
 
