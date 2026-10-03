@@ -1,4 +1,30 @@
 # To Do
+- Subscription testing
+	- Creation of CRM for subscription for sales team
+	- Enhancement / Alteration of portal
+		- Live demo and practice in demo site which is fully functional for demo purposes. You can make entry and see the results
+		- Demo user name and password available on demand
+			- Automated mail
+			- A report on how many users requested for demo and which user entered what
+				- This will show how much sincere a customer is. 
+	- Super admin
+		- Remove customers client
+		- Create customers client
+			- Create admin user
+			- Login admin user
+			- Create dummy BU
+				- Check full cycle of job entry
+	- Enquiry for a lite version
+		- Create enquiry from dummy email
+			- Check thanks mail
+			- Check admin info mail
+			- Check notification to admin
+		- Admin creates a lite version
+		- Customer gets notification mail with credentials
+		- Customer checks full cycle
+	- Similar enquiry cycle for basic and standard and Ent version
+		- Check the options available as promised at site
+				
 - Bug fix
 									- Warranty parts show as loss, although charged to customers
 - Subscriptions

@@ -3,6 +3,16 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-03 15:05 (main)
+Docs: archive plan2 and add a subscription test checklist
+
+- plans: move the finished plan2.md (Main division per branch) to plans/history/
+- notes/todo.md: add an end-to-end subscription test checklist — demo site
+  access, Super Admin customers client, Lite enquiry-to-login cycle, and the
+  same cycle for Basic, Standard and Enterprise
+
+Files: 2 changed (+26 / -381) — Base: cfd7c6d
+
 ## 2026-10-03 11:25 (main)
 Billing: sign-up approval, monthly payments, view-only guard, Main division
 
