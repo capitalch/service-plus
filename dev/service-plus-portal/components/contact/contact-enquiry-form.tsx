@@ -5,7 +5,8 @@ import { useState } from "react";
 
 import { SalesEnquiryForm } from "@/components/pricing/sales-enquiry-form";
 import { MESSAGES } from "@/constants/messages";
-import { formatInr, plans, type PlanCodeType } from "@/content/pricing";
+import { formatInr, type PlanCodeType } from "@/content/pricing";
+import { usePlanPrices } from "@/lib/plan-prices";
 import { cn } from "@/lib/utils";
 
 // /contact has no pricing table above it, so the plan the enquiry API requires is picked here as a
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 // One component owns the state so the chips and the form's own plan select stay in sync.
 export const ContactEnquiryForm = () => {
 	const [plan, setPlan] = useState<PlanCodeType>("standard");
+	const { plans } = usePlanPrices();
 
 	return (
 		<div>

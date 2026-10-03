@@ -1,5 +1,7 @@
-// The single source for plans, prices and limits. Plan cards, the comparison table, the enquiry
-// form and the JSON-LD all render from this file — edit a price here and nowhere else.
+// Plans and limits. The prices here are the fallback: lib/plan-prices.ts replaces them in the
+// browser with the live list from the server's .env (GET /api/public/plan-prices), so they are
+// shown first and kept if that call fails. The JSON-LD and the pre-built HTML always use these —
+// update them at the next release after a price change.
 
 export type PlanCodeType = "basic" | "enterprise" | "lite" | "standard";
 
@@ -86,6 +88,9 @@ export const plans: PlanType[] = [
 	},
 ];
 
+/** Monthly fee for each Enterprise business unit beyond the included five. INR. Fallback. */
+export const extraBuMonthlyFee = 3000;
+
 export const planCodes = plans.map((plan) => plan.code) as [PlanCodeType, ...PlanCodeType[]];
 
 export function findPlan(code: string | null | undefined): PlanType | undefined {
@@ -114,6 +119,8 @@ export function branchesLabel(plan: PlanType): string {
 	return plan.branches === null ? "Unlimited branches" : "1 branch (head office only)";
 }
 
-export function businessUnitsLabel(plan: PlanType): string {
-	return plan.businessUnits === 1 ? "1 business unit" : `${plan.businessUnits} business units`;
+export function businessUnitsLabel(plan: PlanType, extraFee: number = extraBuMonthlyFee): string {
+	return plan.businessUnits === 1
+		? "1 business unit"
+		: `${plan.businessUnits} business units, more at ${formatInr(extraFee)} / month each`;
 }

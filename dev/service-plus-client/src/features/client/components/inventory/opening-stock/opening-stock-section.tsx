@@ -28,6 +28,7 @@ import {
 	getInitialOpeningStockLine,
 } from "./opening-stock-schema";
 import { NewOpeningStock } from "./new-opening-stock";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,8 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const OpeningStockSection = () => {
+	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -385,6 +388,7 @@ export const OpeningStockSection = () => {
 							form.formState.isSubmitting ||
 							entryLoading
 						}
+						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{form.formState.isSubmitting ? (

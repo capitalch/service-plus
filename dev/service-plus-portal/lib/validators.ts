@@ -17,3 +17,8 @@ export function normalizeMobile(value: string | null | undefined): string {
 export function normalizeGstin(value: string | null | undefined): string {
 	return (value ?? "").trim().toUpperCase();
 }
+
+// Business name rule. Mirrors service-plus-client src/lib/bu-name.ts and the server's
+// BU_NAME_PATTERN (bu_admin/provisioning.py), because a sign-up's business name becomes the
+// name of its business unit: starts with a letter or digit, 3–100 characters.
+export const BU_NAME_REGEX = /^[A-Za-z0-9][A-Za-z0-9 .&'()/,-]{2,99}$/;

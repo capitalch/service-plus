@@ -15,7 +15,24 @@ export type BranchContextType = {
 	name: string;
 };
 
+/** A BU's billing summary, always computed by the server (plans/plan.md Steps 11, 14). */
+export type BuBillingType = {
+	branchLimit: number | null;
+	paidThrough: string | null;
+	planCode: string | null;
+	status: "active" | "due_soon" | "not_billed" | "read_only";
+};
+
+/** A write the server refused for billing reasons, shown in the read-only dialog. */
+export type BillingNoticeType = {
+	code: "BRANCH_LIMIT_REACHED" | "SUBSCRIPTION_READ_ONLY";
+	message: string;
+	paidThrough: string | null;
+};
+
 export type BuContextType = {
+	/** From login; may be stale — the live status is `billing` in this slice. */
+	billing?: BuBillingType;
 	code: string;
 	id: number;
 	is_active: boolean;
@@ -25,6 +42,11 @@ export type BuContextType = {
 
 type ContextStateType = {
 	availableBranches: BranchContextType[];
+	/** The current BU's billing, fetched with buBillingStatus; null until known. */
+	billing: BuBillingType | null;
+	billingNotice: BillingNoticeType | null;
+	/** Bumped to ask the billing sync to re-read the status (e.g. after a blocked write). */
+	billingRefreshTick: number;
 	availableBus: BuContextType[];
 	availableDivisions: DivisionContextType[];
 	buGstStateCode: string | null;
@@ -33,6 +55,7 @@ type ContextStateType = {
 	currentBranch: BranchContextType | null;
 	currentBu: BuContextType | null;
 	currentDivision: DivisionContextType | null;
+	// The current branch's default division (division.is_default); 0 until a branch with divisions is resolved.
 	defaultDivisionId: number;
 	defaultGstRate: number;
 	// App Settings → extended_warranty.enabled (strictly true) — shows Custom → Extended
@@ -55,6 +78,9 @@ type ContextStateType = {
 
 const initialState: ContextStateType = {
 	availableBranches: [],
+	billing: null,
+	billingNotice: null,
+	billingRefreshTick: 0,
 	availableBus: [],
 	availableDivisions: [],
 	buGstStateCode: null,
@@ -63,7 +89,7 @@ const initialState: ContextStateType = {
 	currentBranch: null,
 	currentBu: null,
 	currentDivision: null,
-	defaultDivisionId: 1,
+	defaultDivisionId: 0,
 	defaultGstRate: 0,
 	extendedWarrantyEnabled: false,
 	markupPercentOverCost: 20,
@@ -86,6 +112,22 @@ const contextSlice = createSlice({
 	initialState,
 	reducers: {
 		clearContext: () => initialState,
+
+		clearBillingNotice: (state) => {
+			state.billingNotice = null;
+		},
+
+		requestBillingRefresh: (state) => {
+			state.billingRefreshTick += 1;
+		},
+
+		setBilling: (state, action: PayloadAction<BuBillingType | null>) => {
+			state.billing = action.payload;
+		},
+
+		showBillingNotice: (state, action: PayloadAction<BillingNoticeType>) => {
+			state.billingNotice = action.payload;
+		},
 
 		setAvailableBranches: (state, action: PayloadAction<BranchContextType[]>) => {
 			state.availableBranches = action.payload;
@@ -177,7 +219,11 @@ const contextSlice = createSlice({
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
 export const {
+	clearBillingNotice,
 	clearContext,
+	requestBillingRefresh,
+	setBilling,
+	showBillingNotice,
 	setAvailableBranches,
 	setAvailableBus,
 	setAvailableDivisions,
@@ -204,6 +250,10 @@ export const {
 type ContextRootState = { context: ContextStateType };
 
 export const selectAvailableBranches = (state: ContextRootState) => state.context.availableBranches;
+export const selectBilling = (state: ContextRootState) => state.context.billing;
+export const selectBillingNotice = (state: ContextRootState) => state.context.billingNotice;
+export const selectBillingRefreshTick = (state: ContextRootState) => state.context.billingRefreshTick;
+export const selectIsReadOnly = (state: ContextRootState) => state.context.billing?.status === "read_only";
 export const selectAvailableBus = (state: ContextRootState) => state.context.availableBus;
 export const selectAvailableDivisions = (state: ContextRootState) => state.context.availableDivisions;
 export const selectCompanyName = (state: ContextRootState) => state.context.companyName;

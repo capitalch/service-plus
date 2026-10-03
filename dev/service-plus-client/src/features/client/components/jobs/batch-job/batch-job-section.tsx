@@ -77,6 +77,7 @@ import { getBatchJobSheetBlobUrl } from "../job-sheet-pdf";
 import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { deleteJobFiles } from "@/lib/image-service";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -113,6 +114,8 @@ export const BatchJobSection = ({
 	onEditBatchNoApplied?: () => void;
 	onReturnToSingleJob?: () => void;
 }) => {
+	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -800,7 +803,8 @@ export const BatchJobSection = ({
 					</Button>
 					<Button
 						className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-						disabled={!form.formState.isValid || submitting}
+						disabled={isReadOnly || !form.formState.isValid || submitting}
+						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{submitting ? (

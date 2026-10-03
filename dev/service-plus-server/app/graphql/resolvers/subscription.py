@@ -4,6 +4,7 @@ GraphQL Subscription resolvers.
 from typing import Any, AsyncGenerator
 from ariadne import SubscriptionType
 from app.logger import logger
+from app.config import settings
 from app.graphql.pubsub import SALES_ENQUIRY_COUNT_EVENT, pubsub
 from app.graphql.resolvers.auth_guards import (
     require_authenticated,
@@ -135,7 +136,10 @@ async def sales_enquiry_count_source(
     """
     require_user_type(info, {"A", "S"})
     require_own_tenant(info, db_name)
-    return _sales_enquiry_count_stream(db_name)
+    # The Super Admin has no database of their own; an empty db_name means the control
+    # plane, where Enterprise enquiries are published (require_own_tenant already refuses
+    # an empty db_name for an Admin).
+    return _sales_enquiry_count_stream(db_name or settings.client_db_name)
 
 
 async def _sales_enquiry_count_stream(db_name: str) -> AsyncGenerator:

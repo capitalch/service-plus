@@ -131,7 +131,7 @@ export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: 
 			pincode: division.pincode ?? "",
 			state_id: division.state_id,
 			web_site: division.web_site ?? "",
-			account_setting: buildAccountSetting(division),
+			account_setting: postDataToAccounts ? buildAccountSetting(division) : null,
 		},
 		mode: "onChange",
 		resolver: zodResolver(divisionSchema) as any,
@@ -162,7 +162,7 @@ export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: 
 			pincode: division.pincode ?? "",
 			state_id: division.state_id,
 			web_site: division.web_site ?? "",
-			account_setting: buildAccountSetting(division),
+			account_setting: postDataToAccounts ? buildAccountSetting(division) : null,
 		});
 		setNameTaken(null);
 		setCodeTaken(null);
@@ -301,7 +301,10 @@ export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: 
 							pincode: data.pincode || null,
 							state_id: data.state_id,
 							web_site: data.web_site || null,
-							account_setting: accountSettingValue ? JSON.stringify(accountSettingValue) : null,
+							// With Trace+ posting off the Accounts tab is hidden; leave the stored setting untouched.
+							...(postDataToAccounts
+								? { account_setting: accountSettingValue ? JSON.stringify(accountSettingValue) : null }
+								: {}),
 						},
 					}),
 				},
@@ -315,7 +318,7 @@ export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: 
 	}
 
 	function onInvalid(formErrors: typeof errors) {
-		setActiveTab(formErrors.account_setting ? "accounts" : "details");
+		setActiveTab(postDataToAccounts && formErrors.account_setting ? "accounts" : "details");
 		toast.error(MESSAGES.ERROR_DIVISION_FORM_INVALID);
 	}
 

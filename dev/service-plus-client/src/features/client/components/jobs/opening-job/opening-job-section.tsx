@@ -56,6 +56,7 @@ import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { STATUS_FLAGS } from "../job-pipeline/status-transitions";
 import { OpeningJobForm } from "./opening-job-form";
 import { openingJobFormSchema, type OpeningJobFormValues, getOpeningJobDefaultValues } from "./opening-job-schema";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,8 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const OpeningJobSection = () => {
+	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -570,7 +573,8 @@ export const OpeningJobSection = () => {
 					</Button>
 					<Button
 						className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-						disabled={!form.formState.isValid || form.formState.isSubmitting}
+						disabled={isReadOnly || !form.formState.isValid || form.formState.isSubmitting}
+						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{form.formState.isSubmitting ? (

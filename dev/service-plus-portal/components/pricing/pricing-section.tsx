@@ -8,7 +8,8 @@ import { PlanCard } from "@/components/pricing/plan-card";
 import { PlanRecommender } from "@/components/pricing/plan-recommender";
 import { SalesEnquiryForm } from "@/components/pricing/sales-enquiry-form";
 import { MESSAGES } from "@/constants/messages";
-import { findPlan, plans, type PlanCodeType } from "@/content/pricing";
+import { findPlan, type PlanCodeType } from "@/content/pricing";
+import { usePlanPrices } from "@/lib/plan-prices";
 
 // Owns the selected plan shared by the recommender, the cards and the enquiry form. Picking a
 // plan anywhere preselects it and scrolls to the form; an incoming /pricing?plan=basic link does
@@ -16,6 +17,7 @@ import { findPlan, plans, type PlanCodeType } from "@/content/pricing";
 export const PricingSection = () => {
 	const [selectedPlan, setSelectedPlan] = useState<PlanCodeType>("standard");
 	const formRef = useRef<HTMLDivElement>(null);
+	const { extraBuMonthlyFee, plans } = usePlanPrices();
 
 	useEffect(() => {
 		const fromUrl = findPlan(new URLSearchParams(window.location.search).get("plan"));
@@ -39,7 +41,12 @@ export const PricingSection = () => {
 			<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
 				{plans.map((plan, index) => (
 					<Reveal delay={index * 0.06} key={plan.code}>
-						<PlanCard onSelect={handleSelect} plan={plan} selected={plan.code === selectedPlan} />
+						<PlanCard
+							extraBuMonthlyFee={extraBuMonthlyFee}
+							onSelect={handleSelect}
+							plan={plan}
+							selected={plan.code === selectedPlan}
+						/>
 					</Reveal>
 				))}
 			</div>

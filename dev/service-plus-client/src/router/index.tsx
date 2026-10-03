@@ -9,10 +9,13 @@ import { ClientsPage } from "@/features/super-admin/pages/clients-page";
 import { UsageHealthPage } from "@/features/super-admin/pages/usage-health-page";
 import { AuditLogsPage } from "@/features/super-admin/pages/audit-logs-page";
 import { SystemSettingsPage } from "@/features/super-admin/pages/system-settings-page";
+import { EnterpriseEnquiriesPage } from "@/features/super-admin/pages/enterprise-enquiries-page";
 import { AdminDashboardPage } from "@/features/admin/pages/admin-dashboard-page";
 import { AdminAuditLogsPage } from "@/features/admin/pages/admin-audit-logs-page";
 import { BusinessUnitsPage } from "@/features/admin/pages/business-units-page";
 import { BusinessUsersPage } from "@/features/admin/pages/business-users-page";
+import { EnquiriesPage } from "@/features/admin/pages/enquiries-page";
+import { SubscriptionsPage } from "@/features/admin/pages/subscriptions-page";
 import { RolesPage } from "@/features/admin/pages/roles-page";
 import { ClientConfigurationsPage } from "@/features/client/pages/client-configurations-page";
 import { ClientCustomEwRefPage } from "@/features/client/pages/client-custom-ew-ref-page";
@@ -72,6 +75,7 @@ export const router = createBrowserRouter([
 		children: [
 			{ element: <SuperAdminDashboard />, index: true },
 			{ element: <ClientsPage />, path: "clients" },
+			{ element: <EnterpriseEnquiriesPage />, path: "enquiries" },
 			{ element: <UsageHealthPage />, path: "usage" },
 			{ element: <AuditLogsPage />, path: "audit" },
 			{ element: <SystemSettingsPage />, path: "settings" },
@@ -87,6 +91,8 @@ export const router = createBrowserRouter([
 			{ element: <AdminAuditLogsPage />, path: "audit" },
 			{ element: <BusinessUnitsPage />, path: "business-units" },
 			{ element: <BusinessUsersPage />, path: "users" },
+			{ element: <EnquiriesPage />, path: "enquiries" },
+			{ element: <SubscriptionsPage />, path: "subscriptions" },
 			{ element: <RolesPage />, path: "roles" },
 		],
 	},

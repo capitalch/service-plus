@@ -26,6 +26,9 @@ import {
 	setTrackJobUrl,
 	setJobTermsAndConditions,
 } from "@/store/context-slice";
+import { BillingBanner } from "@/components/shared/billing/billing-banner";
+import { ReadOnlyDialog } from "@/components/shared/billing/read-only-dialog";
+import { useBillingSync } from "@/components/shared/billing/use-billing-sync";
 import { HelpPanel } from "@/components/shared/help/help-panel";
 import { HelpFab } from "@/components/shared/help/help-fab";
 import { BuBranchDivisionGate } from "@/features/admin/components/bu-branch-division-gate";
@@ -122,6 +125,8 @@ const SECTION_DEFAULT_GROUPS: Record<Section, string> = {
 type ClientLayoutProps = { children: ReactNode };
 
 export const ClientLayout = ({ children }: ClientLayoutProps) => {
+	// Billing status of the current BU (plans/plan.md Step 14): banner, read-only dialog, disabled buttons.
+	useBillingSync();
 	const location = useLocation();
 	const { pathname } = location;
 	const activeSection = sectionFromPath(pathname);
@@ -379,6 +384,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 								data-theme={isDark ? "dark" : "light"}
 							>
 								<BuBranchDivisionGate />
+								<ReadOnlyDialog />
 								<ClientTopNav activeSection={activeSection} />
 								<ClientActivityBar activeSection={activeSection} />
 								<ClientExplorerPanel activeSection={activeSection} />
@@ -394,6 +400,9 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 								<main
 									className={`absolute bottom-6 right-0 top-9.5 flex flex-col p-4 pt-3 sm:p-6 sm:pt-4 transition-[left] duration-200 ${mainLeft}`}
 								>
+									<div className="-mx-4 -mt-3 mb-2 sm:-mx-6 sm:-mt-4">
+										<BillingBanner />
+									</div>
 									<div className="mb-3 flex items-center justify-between sm:mb-2 gap-4">
 										<p className="text-xs font-bold text-(--cl-accent-text) tracking-wider">
 											{displayTitle}

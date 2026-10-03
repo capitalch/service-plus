@@ -10,6 +10,8 @@ from app.db.connection.psycopg_driver import exec_sql
 from app.db.sql.sql_base import SqlStore
 from app.core.exceptions import AppMessages, AuthorizationException
 from app.logger import logger
+from app.core.billing import today_ist
+from app.services.bu_billing import billing_summary
 from app.services.default_customer import is_default_customer_db
 from app.routers.auth.auth_schema import (
     ClientResponse,
@@ -160,7 +162,13 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
             sql=SqlStore.GET_USER_BUS,
             sql_args={"user_id": user["id"]},
         )
-        available_bus = [dict(row) for row in (user_bus_rows or [])]
+        # Each BU carries its billing summary (plans/plan.md Step 11) for the client's banner.
+        today = today_ist()
+        for row in user_bus_rows or []:
+            bu = dict(row)
+            bu["billing"] = billing_summary(bu, today)
+            bu["paid_through"] = bu["billing"]["paidThrough"]  # ISO text, JSON-safe
+            available_bus.append(bu)
     bu_codes = [row["code"].lower() for row in available_bus if row.get("code")]
 
     # [7] Create JWT

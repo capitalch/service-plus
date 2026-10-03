@@ -46,6 +46,7 @@ import type { StockAdjustmentType } from "@/features/client/types/stock-adjustme
 import { stockAdjFormSchema, type StockAdjFormValues, getStockAdjDefaultValues } from "./stock-adjustment-schema";
 import { NewStockAdjustment } from "./new-stock-adjustment";
 import { Save } from "lucide-react";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,8 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const StockAdjustmentSection = () => {
+	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -456,6 +459,7 @@ export const StockAdjustmentSection = () => {
 						disabled={
 							!form.formState.isValid || !linesValid || !selectedBrandId || form.formState.isSubmitting
 						}
+						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{form.formState.isSubmitting ? (

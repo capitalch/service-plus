@@ -40,6 +40,7 @@ import { DeleteVendorDialog } from "./delete-vendor-dialog";
 import { EditVendorDialog } from "./edit-vendor-dialog";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { StateOption } from "@/features/client/types/customer";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,8 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const VendorSection = () => {
+	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 
@@ -218,6 +221,8 @@ export const VendorSection = () => {
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700"
 							size="sm"
+							disabled={isReadOnly}
+							title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 							onClick={() => setAddOpen(true)}
 						>
 							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />

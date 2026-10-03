@@ -15,7 +15,8 @@ export const MESSAGES = {
 	errBranches: "Enter a number between 1 and 50",
 	errBranchesPlan:
 		"Lite and Basic include the head office branch only. Choose Standard or Enterprise for more branches",
-	errBusinessName: "Enter your business name (2 to 200 characters)",
+	errBusinessName:
+		"Use 3 to 100 characters, starting with a letter or digit: letters, digits, spaces and . & ' ( ) / , -",
 	errCity: "Enter your city and state",
 	errEmail: "Enter a valid email address",
 	errGstin: "Enter a valid 15-character GSTIN, or leave it blank",
@@ -33,6 +34,9 @@ export const MESSAGES = {
 	heroBody:
 		"Service+ handles job intake, technician assignment, spare parts, invoicing, WhatsApp updates and reports for electronics repair shops and authorised service centres.",
 	heroTitle: "Run your repair workshop end to end",
+	liteConfirmBody:
+		"Your free Lite account is created after we approve your request. We email you when it is ready, usually within one business day.",
+	liteConfirmTitle: "Confirm your Lite signup",
 	limitsNote: "Plan limits apply per business unit, per calendar month.",
 	notFoundBody: "The page you are looking for does not exist or has moved.",
 	notFoundTitle: "Page not found",
@@ -60,11 +64,25 @@ export const MESSAGES = {
 	serviceCentreHighlightTitle: "The must-go solution for authorised service centres",
 	setupFeeNote:
 		"A one-time setup fee covers database setup, data import and onboarding. The Lite plan has no setup fee.",
-	successBody: "Thank you. We have your enquiry and will contact you within one business day.",
+	signupServerError: "We could not accept this request",
+	statusApproved: "Your request is approved. Log in with the details we emailed you.",
+	statusClientHint: "At login, pick this client:",
+	statusFailed: "We could not check your request. Please try again or call us.",
+	statusIntro: "Enter the mobile number and email you signed up with to see where your request stands.",
+	statusLinkText: "Check your request status",
+	statusLoginEmailHint: "Your login details were sent to",
+	statusNotFound: "No request found for this mobile number and email.",
+	statusPending: "Your request is pending approval. We email you as soon as it is decided.",
+	statusRejected: "Your request was not approved.",
+	statusTitle: "Sign-up status",
+	successLitePending: "Your request is pending approval. We have emailed you.",
 	successNextBu: "We create a business unit for you and send your login details.",
 	successNextEnterprise: "We set up a dedicated database for your company and send your login details.",
 	successNextLite: "We create your free business unit and send your login details.",
-	successPayment: "Payment is by bank transfer. Pay the setup fee and first month after we confirm your account.",
+	successPayment:
+		"Payment is by bank transfer. Pay the one-time setup fee first; your account is created once it is received. Then pay the monthly fee each month, in advance. If a month goes unpaid, a paid plan becomes view-only until it is paid.",
+	successReference: "Your reference",
+	successSales: "Thank you. Our sales team will be in contact with you shortly. We have emailed you.",
 	successSignIn: "You sign in and start taking jobs — our team stays on call for setup help.",
 	successTitle: "Enquiry received",
 	testimonialsIntro: "Repair workshops and authorised service centres on what changed after they moved to Service+.",

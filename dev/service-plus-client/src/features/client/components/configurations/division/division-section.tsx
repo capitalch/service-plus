@@ -39,6 +39,7 @@ import { AddDivisionDialog } from "./add-division-dialog";
 import { DeleteDivisionDialog } from "./delete-division-dialog";
 import { EditDivisionDialog } from "./edit-division-dialog";
 import type { DivisionType } from "@/features/client/types/division";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,8 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const DivisionSection = () => {
+	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -206,6 +209,8 @@ export const DivisionSection = () => {
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700"
 							size="sm"
+							disabled={isReadOnly}
+							title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 							onClick={() => setAddOpen(true)}
 						>
 							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -306,6 +311,14 @@ export const DivisionSection = () => {
 												</TableCell>
 												<TableCell className="font-medium text-(--cl-text)">
 													{division.name}
+													{division.is_default && (
+														<Badge
+															className="ml-2 border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-50"
+															variant="outline"
+														>
+															Default
+														</Badge>
+													)}
 												</TableCell>
 												<TableCell className="text-sm text-(--cl-text-muted)">
 													{division.city ?? "—"}
@@ -357,8 +370,9 @@ export const DivisionSection = () => {
 																<PencilIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
 																Edit
 															</DropdownMenuItem>
-															<DropdownMenuSeparator />
-															{division.is_active ? (
+															{/* A branch's default division cannot be deactivated or deleted (server-enforced too). */}
+															{!division.is_default && <DropdownMenuSeparator />}
+															{division.is_default ? null : division.is_active ? (
 																<DropdownMenuItem
 																	className="cursor-pointer text-amber-600 focus:text-amber-600"
 																	onClick={() => handleToggleActive(division)}
@@ -375,14 +389,18 @@ export const DivisionSection = () => {
 																	Activate
 																</DropdownMenuItem>
 															)}
-															<DropdownMenuSeparator />
-															<DropdownMenuItem
-																className="cursor-pointer text-red-600 focus:text-red-600"
-																onClick={() => setDeleteDivision(division)}
-															>
-																<Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />
-																Delete
-															</DropdownMenuItem>
+															{!division.is_default && (
+																<>
+																	<DropdownMenuSeparator />
+																	<DropdownMenuItem
+																		className="cursor-pointer text-red-600 focus:text-red-600"
+																		onClick={() => setDeleteDivision(division)}
+																	>
+																		<Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />
+																		Delete
+																	</DropdownMenuItem>
+																</>
+															)}
 														</DropdownMenuContent>
 													</DropdownMenu>
 												</TableCell>

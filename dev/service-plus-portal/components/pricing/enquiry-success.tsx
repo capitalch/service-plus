@@ -1,4 +1,5 @@
-import { Check, CheckCircle2, ClipboardCopy, Landmark } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, ClipboardCopy, Landmark } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,8 @@ import { siteConfig } from "@/content/site-config";
 type EnquirySuccessPropsType = {
 	onReset: () => void;
 	plan: PlanType;
+	/** The server's random reference; empty only for the honeypot's fake success. */
+	reference: string;
 	// Echoed back so the visitor can confirm what was actually sent before they close the tab.
 	values: {
 		branches: number;
@@ -101,7 +104,8 @@ const CopyMobile = ({ mobile }: { mobile: string }) => {
 	);
 };
 
-export const EnquirySuccess = ({ onReset, plan, values }: EnquirySuccessPropsType) => {
+export const EnquirySuccess = ({ onReset, plan, reference, values }: EnquirySuccessPropsType) => {
+	const isLite = plan.code === "lite";
 	const recap: { label: string; value: string }[] = [
 		{ label: "Name", value: values.name },
 		{ label: "Business", value: values.businessName },
@@ -113,7 +117,12 @@ export const EnquirySuccess = ({ onReset, plan, values }: EnquirySuccessPropsTyp
 	];
 	if (values.gstin) recap.push({ label: "GSTIN", value: values.gstin });
 
-	const steps = [MESSAGES.successBody, nextStep(plan), MESSAGES.successSignIn];
+	// Lite waits for approval; every other plan hears from the sales team first.
+	const steps = [
+		isLite ? MESSAGES.successLitePending : MESSAGES.successSales,
+		nextStep(plan),
+		MESSAGES.successSignIn,
+	];
 
 	return (
 		<div className="space-y-6 text-left" role="status">
@@ -124,6 +133,22 @@ export const EnquirySuccess = ({ onReset, plan, values }: EnquirySuccessPropsTyp
 					<p className="text-sm text-muted-foreground">Keep this page — you can check what you sent below.</p>
 				</div>
 			</div>
+
+			{reference && (
+				<div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+					<p className="text-muted-foreground">{MESSAGES.successReference}</p>
+					<p className="mt-1 font-mono text-lg font-semibold tracking-wide">{reference}</p>
+					{isLite && (
+						<Link
+							className="mt-2 inline-flex items-center gap-1 font-medium text-primary underline underline-offset-4"
+							href="/signup-status"
+						>
+							{MESSAGES.statusLinkText}
+							<ArrowRight aria-hidden className="size-3.5" />
+						</Link>
+					)}
+				</div>
+			)}
 
 			<div>
 				<p className="text-sm font-semibold">{MESSAGES.whatNext}</p>

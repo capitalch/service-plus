@@ -72,6 +72,11 @@ class ApiSettings(BaseSettings):
         description="""Database of the shared "default customer" client that holds every
             Lite / Basic / Standard customer as one BU. Empty disables sign-ups.""",
     )
+    portal_url_production: str = Field(
+        default="https://myserviceplus.in",
+        description="""service-plus-portal base URL used in sign-up email links when debug is
+            off (no trailing slash). In debug the portal's local dev server is used.""",
+    )
 
     # GraphQL Settings
     graphql_path: str = Field(default="/graphql", description="GraphQL endpoint path")
@@ -119,6 +124,15 @@ class ApiSettings(BaseSettings):
         if self.debug:
             return "http://localhost:3000"
         return f"https://{self.host}"
+
+    @computed_field
+    @property
+    def portal_url(self) -> str:
+        """service-plus-portal base URL for email links (no trailing slash): its
+        `pnpm dev` server in debug, portal_url_production otherwise."""
+        if self.debug:
+            return "http://localhost:3005"
+        return self.portal_url_production.rstrip("/")
 
     @computed_field
     @property

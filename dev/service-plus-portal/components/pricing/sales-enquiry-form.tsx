@@ -9,16 +9,18 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { EnquirySuccess } from "@/components/pricing/enquiry-success";
+import { LiteConfirmDialog } from "@/components/pricing/lite-confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { MESSAGES } from "@/constants/messages";
-import { findPlan, formatInr, planCodes, plans, type PlanCodeType } from "@/content/pricing";
-import { ApiError, submitSalesEnquiry } from "@/lib/api";
+import { findPlan, formatInr, planCodes, type PlanCodeType } from "@/content/pricing";
+import { ApiError, submitSalesEnquiry, submitSignup } from "@/lib/api";
+import { findLivePlan, usePlanPrices } from "@/lib/plan-prices";
 import { cn } from "@/lib/utils";
-import { GSTIN_REGEX, MOBILE_REGEX, normalizeGstin, normalizeMobile } from "@/lib/validators";
+import { BU_NAME_REGEX, GSTIN_REGEX, MOBILE_REGEX, normalizeGstin, normalizeMobile } from "@/lib/validators";
 
 const MESSAGE_LIMIT = 2000;
 
@@ -29,7 +31,8 @@ const enquirySchema = z
 			.int(MESSAGES.errBranches)
 			.min(1, MESSAGES.errBranches)
 			.max(50, MESSAGES.errBranches),
-		businessName: z.string().trim().min(2, MESSAGES.errBusinessName).max(200, MESSAGES.errBusinessName),
+		// The business name becomes the business unit's name, so it follows the BU name rule.
+		businessName: z.string().trim().regex(BU_NAME_REGEX, MESSAGES.errBusinessName),
 		city: z.string().trim().min(2, MESSAGES.errCity).max(100, MESSAGES.errCity),
 		email: z.email(MESSAGES.errEmail).max(200, MESSAGES.errEmail),
 		gstin: z.string().refine((v) => v === "" || GSTIN_REGEX.test(v), MESSAGES.errGstin),
@@ -116,17 +119,26 @@ const Field = ({ children, error, htmlFor, label, required }: FieldPropsType) =>
 type ErrorSummaryPropsType = {
 	errors: { id: string; label: string; message: string }[];
 	ref?: React.Ref<HTMLDivElement>;
+	/** A refusal from the server (duplicate request, sign-ups not configured, …). */
+	serverMessage?: string | null;
 };
 
 // Announced on submit failure and focusable, so a keyboard or screen-reader user lands on the
 // list of problems first and can jump to any field from it. Collapses away once everything passes.
-const ErrorSummary = ({ errors, ref }: ErrorSummaryPropsType) => (
-	<div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4" ref={ref} role="alert" tabIndex={-1}>
+const ErrorSummary = ({ errors, ref, serverMessage }: ErrorSummaryPropsType) => (
+	<div
+		className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 sm:col-span-2"
+		ref={ref}
+		role="alert"
+		tabIndex={-1}
+	>
 		<p className="flex items-center gap-2 text-sm font-semibold text-destructive">
 			<AlertCircle aria-hidden className="size-4 shrink-0" />
-			{errors.length === 1 ? "Please fix this field" : `Please fix these ${errors.length} fields`} to send your
-			enquiry
+			{serverMessage
+				? MESSAGES.signupServerError
+				: `${errors.length === 1 ? "Please fix this field" : `Please fix these ${errors.length} fields`} to send your enquiry`}
 		</p>
+		{serverMessage && <p className="mt-2 pl-6 text-sm">{serverMessage}</p>}
 		<ul className="mt-2 space-y-1 pl-6 text-sm">
 			{errors.map((error) => (
 				<li className="list-disc" key={error.id}>
@@ -139,13 +151,19 @@ const ErrorSummary = ({ errors, ref }: ErrorSummaryPropsType) => (
 	</div>
 );
 
+type SubmittedType = { reference: string; values: EnquiryFormType };
+
 export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) => {
-	const [submitted, setSubmitted] = useState<EnquiryFormType | null>(null);
+	const [confirmValues, setConfirmValues] = useState<EnquiryFormType | null>(null);
+	const [confirming, setConfirming] = useState(false);
+	const [serverError, setServerError] = useState<string | null>(null);
+	const [submitted, setSubmitted] = useState<SubmittedType | null>(null);
 	const summaryRef = useRef<HTMLDivElement>(null);
+	const { plans } = usePlanPrices();
 
 	const {
 		control,
-		formState: { errors, isSubmitted, isSubmitting, submitCount },
+		formState: { errors, isSubmitted, isSubmitting, isValid, submitCount },
 		handleSubmit,
 		register,
 		reset,
@@ -164,8 +182,9 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 			plan: selectedPlan,
 			website: "",
 		},
-		// Errors appear on blur rather than on every keystroke, then re-check as the visitor types.
-		mode: "onTouched",
+		// Validate as the visitor types: errors show at once and the submit button stays disabled
+		// while anything is invalid.
+		mode: "onChange",
 		reValidateMode: "onChange",
 		resolver: zodResolver(enquirySchema),
 	});
@@ -179,10 +198,10 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 	// submitCount is a dep so a second failed attempt re-focuses it even though isSubmitted stays
 	// true. On a valid submit no summary is rendered and summaryRef.current is null, so this no-ops.
 	useEffect(() => {
-		if (!isSubmitted) return;
+		if (!isSubmitted && !serverError) return;
 		summaryRef.current?.focus();
 		summaryRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-	}, [isSubmitted, submitCount]);
+	}, [isSubmitted, serverError, submitCount]);
 
 	const errorList = useMemo(
 		() =>
@@ -193,39 +212,69 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 		[errors],
 	);
 
-	const plan = findPlan(watch("plan"));
+	const plan = findLivePlan(plans, watch("plan"));
+	const isLite = plan?.code === "lite";
 	const messageLength = watch("message")?.length ?? 0;
+
+	// Enterprise is an enquiry for the sales team; Lite, Basic and Standard are sign-ups that land
+	// in the approvers' queue. Both answer with a reference for the success screen.
+	async function send(values: EnquiryFormType) {
+		setServerError(null);
+		try {
+			const reference =
+				values.plan === "enterprise" ? await submitSalesEnquiry(values) : await submitSignup(values);
+			setSubmitted({ reference, values });
+		} catch (error) {
+			if (error instanceof ApiError && error.status === 429) toast.error(MESSAGES.enquiryRateLimited);
+			// A refusal the visitor can act on (duplicate request, sign-ups not configured, …).
+			else if (error instanceof ApiError && error.code) setServerError(error.message);
+			else toast.error(MESSAGES.enquiryFailed);
+		}
+	}
 
 	async function onSubmit(values: EnquiryFormType) {
 		// A bot filled the honeypot: pretend it worked, send nothing.
 		if (values.website) {
-			setSubmitted(values);
+			setSubmitted({ reference: "", values });
 			return;
 		}
-		try {
-			await submitSalesEnquiry(values);
-			setSubmitted(values);
-		} catch (error) {
-			toast.error(
-				error instanceof ApiError && error.status === 429
-					? MESSAGES.enquiryRateLimited
-					: MESSAGES.enquiryFailed,
-			);
+		if (values.plan === "lite") {
+			setConfirmValues(values);
+			return;
 		}
+		await send(values);
+	}
+
+	async function handleConfirmLite() {
+		if (!confirmValues) return;
+		setConfirming(true);
+		await send(confirmValues);
+		setConfirming(false);
+		setConfirmValues(null);
 	}
 
 	function handleReset() {
 		reset({ ...watch(), businessName: "", city: "", email: "", gstin: "", message: "", mobile: "", name: "" });
+		setServerError(null);
 		setSubmitted(null);
 	}
 
-	const submittedPlan = findPlan(submitted?.plan);
+	const submittedPlan = findLivePlan(plans, submitted?.values.plan);
 	if (submittedPlan && submitted)
-		return <EnquirySuccess onReset={handleReset} plan={submittedPlan} values={submitted} />;
+		return (
+			<EnquirySuccess
+				onReset={handleReset}
+				plan={submittedPlan}
+				reference={submitted.reference}
+				values={submitted.values}
+			/>
+		);
 
 	return (
 		<form className="grid gap-5 sm:grid-cols-2" noValidate onSubmit={handleSubmit(onSubmit)}>
-			{isSubmitted && errorList.length > 0 && <ErrorSummary errors={errorList} ref={summaryRef} />}
+			{(serverError || (isSubmitted && errorList.length > 0)) && (
+				<ErrorSummary errors={errorList} ref={summaryRef} serverMessage={serverError} />
+			)}
 
 			<div className="sm:col-span-2">
 				<Field error={errors.plan?.message} htmlFor="plan" label="Plan" required>
@@ -368,9 +417,9 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 					) : (
 						<span />
 					)}
-					<Button disabled={isSubmitting} size="lg" type="submit">
+					<Button disabled={isSubmitting || !isValid} size="lg" type="submit">
 						{isSubmitting ? <Loader2 className="animate-spin" /> : <Send />}
-						{isSubmitting ? "Sending…" : "Send enquiry"}
+						{isSubmitting ? "Sending…" : isLite ? "Confirm Lite signup" : "Send enquiry"}
 					</Button>
 				</div>
 				<p className="flex items-start gap-1.5 text-xs text-muted-foreground">
@@ -384,6 +433,14 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 					</span>
 				</p>
 			</div>
+			<LiteConfirmDialog
+				businessName={confirmValues?.businessName ?? ""}
+				email={confirmValues?.email ?? ""}
+				onCancel={() => setConfirmValues(null)}
+				onConfirm={handleConfirmLite}
+				open={confirmValues !== null}
+				submitting={confirming}
+			/>
 		</form>
 	);
 };

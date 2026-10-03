@@ -36,6 +36,7 @@ import { AddFinancialYearDialog } from "./add-financial-year-dialog";
 import { DeleteFinancialYearDialog } from "./delete-financial-year-dialog";
 import { EditFinancialYearDialog } from "./edit-financial-year-dialog";
 import type { FinancialYearType } from "@/features/client/types/financial-year";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,8 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const FinancialYearSection = () => {
+	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 
@@ -187,6 +190,8 @@ export const FinancialYearSection = () => {
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700"
 							size="sm"
+							disabled={isReadOnly}
+							title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 							onClick={() => setAddOpen(true)}
 						>
 							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />

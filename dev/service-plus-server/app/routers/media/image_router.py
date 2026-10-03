@@ -13,6 +13,7 @@ from app.db.connection.psycopg_driver import exec_sql, exec_sql_object
 from app.db.sql.sql_base import SqlStore
 from app.core.exceptions import AppMessages, DatabaseException
 from app.logger import logger
+from app.services.bu_billing import get_bu_billing
 from app.services.file_client import FileClient
 
 router = APIRouter(prefix="/api/images", tags=["images"])
@@ -59,6 +60,18 @@ async def _require_media_scope(
         own_code = (rows[0].get("code") or "") if rows else ""
         if not own_code or own_code.lower() != client_code.lower():
             raise _forbidden("client_code_mismatch")
+    # Every route that calls this one writes, so a view-only BU (an unpaid month,
+    # plans/plan.md Step 11) may not upload or delete media either.
+    billing = await get_bu_billing(db_name, normalized)
+    if billing["status"] == "read_only":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "SUBSCRIPTION_READ_ONLY",
+                "message": AppMessages.SUBSCRIPTION_READ_ONLY,
+                "paidThrough": billing["paidThrough"],
+            },
+        )
 
 
 def _file_server_error(e: Exception, operation: str) -> HTTPException:

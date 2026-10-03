@@ -24,6 +24,7 @@ from app.graphql.resolvers.shared.generic_query import (
     peek_sql_id,
     resolve_generic_query_helper,
 )
+from app.services.bu_billing import get_bu_billing
 from app.whatsapp.sender import get_job_delivery_otp_pending
 
 
@@ -77,6 +78,15 @@ async def resolve_audit_log_stats(
 async def resolve_generic_batch_query(_, info, db_name="", items=None) -> Any:
     require_own_tenant(info, db_name)
     return await resolve_generic_batch_query_helper(info, db_name, items or [])
+
+
+@query.field("buBillingStatus")
+@handle_query_errors("Unexpected billing status failure")
+async def resolve_bu_billing_status(_, info, db_name="", schema="") -> Any:
+    """{status, paidThrough, planCode, branchLimit} of one BU (plans/plan.md Step 11)."""
+    require_own_tenant(info, db_name)
+    require_bu_access(info, schema)
+    return await get_bu_billing(db_name, schema)
 
 
 @query.field("genericQuery")

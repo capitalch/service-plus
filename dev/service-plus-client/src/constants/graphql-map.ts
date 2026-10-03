@@ -1,6 +1,11 @@
 import { gql } from "@apollo/client";
 
 export const GRAPHQL_MAP = {
+	addBranch: gql`
+		mutation AddBranch($db_name: String!, $schema: String, $value: String!) {
+			addBranch(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
 	adminDashboardStats: gql`
 		query AdminDashboardStats($db_name: String!) {
 			adminDashboardStats(db_name: $db_name)
@@ -288,6 +293,103 @@ export const GRAPHQL_MAP = {
 	usageHealth: gql`
 		query UsageHealth {
 			usageHealth
+		}
+	`,
+	// Plans and monthly billing (plans/plan.md Steps 12–14).
+	buBillingStatus: gql`
+		query BuBillingStatus($db_name: String!, $schema: String!) {
+			buBillingStatus(db_name: $db_name, schema: $schema)
+		}
+	`,
+	changeBuPlan: gql`
+		mutation ChangeBuPlan($db_name: String!, $schema: String, $value: String!) {
+			changeBuPlan(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	extendClientPaidThrough: gql`
+		mutation ExtendClientPaidThrough($db_name: String!, $schema: String, $value: String!) {
+			extendClientPaidThrough(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	recordBuSubscriptionPayment: gql`
+		mutation RecordBuSubscriptionPayment($db_name: String!, $schema: String, $value: String!) {
+			recordBuSubscriptionPayment(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	recordClientSubscriptionPayment: gql`
+		mutation RecordClientSubscriptionPayment($db_name: String!, $schema: String, $value: String!) {
+			recordClientSubscriptionPayment(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	setClientBillingHold: gql`
+		mutation SetClientBillingHold($db_name: String!, $schema: String, $value: String!) {
+			setClientBillingHold(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	setClientMonthlyFee: gql`
+		mutation SetClientMonthlyFee($db_name: String!, $schema: String, $value: String!) {
+			setClientMonthlyFee(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	startClientBilling: gql`
+		mutation StartClientBilling($db_name: String!, $schema: String, $value: String!) {
+			startClientBilling(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	// Sign-up enquiries (plans/plan.md Steps 9, 10).
+	approveSalesEnquiry: gql`
+		mutation ApproveSalesEnquiry($db_name: String!, $schema: String, $value: String!) {
+			approveSalesEnquiry(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	markEnterpriseEnquiryContacted: gql`
+		mutation MarkEnterpriseEnquiryContacted($db_name: String!, $schema: String, $value: String!) {
+			markEnterpriseEnquiryContacted(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	markEnterpriseEnquiryPaymentFailed: gql`
+		mutation MarkEnterpriseEnquiryPaymentFailed($db_name: String!, $schema: String, $value: String!) {
+			markEnterpriseEnquiryPaymentFailed(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	markSalesEnquiryPaymentFailed: gql`
+		mutation MarkSalesEnquiryPaymentFailed($db_name: String!, $schema: String, $value: String!) {
+			markSalesEnquiryPaymentFailed(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	provisionEnterpriseEnquiry: gql`
+		mutation ProvisionEnterpriseEnquiry($db_name: String!, $schema: String, $value: String!) {
+			provisionEnterpriseEnquiry(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	recordEnterpriseEnquiryPayment: gql`
+		mutation RecordEnterpriseEnquiryPayment($db_name: String!, $schema: String, $value: String!) {
+			recordEnterpriseEnquiryPayment(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	recordSalesEnquiryPayment: gql`
+		mutation RecordSalesEnquiryPayment($db_name: String!, $schema: String, $value: String!) {
+			recordSalesEnquiryPayment(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	rejectEnterpriseEnquiry: gql`
+		mutation RejectEnterpriseEnquiry($db_name: String!, $schema: String, $value: String!) {
+			rejectEnterpriseEnquiry(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	rejectSalesEnquiry: gql`
+		mutation RejectSalesEnquiry($db_name: String!, $schema: String, $value: String!) {
+			rejectSalesEnquiry(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	setEnterpriseEnquiryFee: gql`
+		mutation SetEnterpriseEnquiryFee($db_name: String!, $schema: String, $value: String!) {
+			setEnterpriseEnquiryFee(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	salesEnquiryCount: gql`
+		subscription SalesEnquiryCount($db_name: String!) {
+			salesEnquiryCount(db_name: $db_name)
 		}
 	`,
 };

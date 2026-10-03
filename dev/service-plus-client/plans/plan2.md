@@ -1,238 +1,381 @@
-# Plan 2 — One fixed "Main" division for sign-up customers (lt and ent)
+# Plan 2 — A fixed "Main" division for every branch; Trace+ off by default
 
-Source: `plans/prompt2.md`. Design only; nothing implemented. Written 2 Oct 2026. Builds on `plans/plan.md` (sign-up and billing). Steps 1–6 there are built; this plan amends its Steps 9, 10 and 12, which are not built yet.
-
-Terms (as in `plan.md`): **lt** = Lite, Basic, Standard (one BU each in the shared default customer database). **ent** = Enterprise (own client and database). **Existing** = every BU that exists today, and every BU not created through sign-up approval or Enterprise provisioning.
+Source: `plans/prompt2.md`. Design only; nothing implemented. Written 2 Oct 2026. Revised 2 Oct 2026: the default division is marked by a new column `division.is_default`, one per branch. Must be built **before** continuing with `plans/plan.md` (Steps 7 onward); it changes plan.md Steps 9, 10 and 12, and Step 9 below updates their wording.
 
 ## Goal
 
-- A BU created for an lt or ent customer gets one division named **"Main"** automatically, with the same mandatory values as its branch (address line 1, state, pincode, plus city/GSTIN/phone/email when the branch has them).
-- The customer can **edit** that division but can **not add** another, **delete** it or **deactivate** it.
-- These customers do **not post to Trace+**: the division's Trace+ (Accounts) tab, the Accounts Posting screen, Post / Unpost and the `post_data_to_accounts` setting are hidden, and the server refuses them.
-- The server enforces all of it; the client only hides and explains.
-- **Existing setups are not touched:** existing BUs keep any number of divisions, Trace+ configuration and posting.
+- Every branch always has at least one division.
+- Creating a branch also creates a division named **Main** (code `MAIN`) in the same save. Main copies the branch's address, city, state, pincode, phone, email and GSTIN.
+- Main is the branch's **default division** (`is_default = true`). It cannot be deleted or deactivated. Its name, address and other details stay editable.
+- A new BU's Head Office also gets its Main division, with **id 1**.
+- `post_data_to_accounts` is **false** for new BUs. While it is false the division Trace+ (accounts) settings are hidden, and a division can be added or edited and saved without them.
+- Existing customers keep working: their divisions and their Trace+ setting stay as they are.
+- Decided: new column `division.is_default` marks the default division of each branch (2 Oct 2026).
 
 ## Present context and current design
 
-**Divisions (every BU today):**
-- `division` lives in each BU schema and belongs to a **branch** (`branch_id NOT NULL`, unique `(branch_id, code)` and `(branch_id, name)`, code `^[A-Z0-9_]+$`). `account_setting jsonb` holds the Trace+ mapping (client code, BU code, branch id, account ids per document type).
-- `division.id` has **no default**: the add dialog reads `GET_NEXT_DIVISION_ID` (`MAX(id)+1`) and inserts with `isIdInsert`.
-- `job.division_id`, `sales_invoice.division_id` and `purchase_invoice.division_id` are `NOT NULL`, so nothing can be billed without a division. That is the "at least one division is mandatory" rule.
-- Per-division document sequences: `SERVICE_INVOICE`, `MONEY_RECEIPT`, `SALES_INVOICE`, `SALES_RETURN_INVOICE`, `SERVICE_RETURN_INVOICE` (`GET_DOCUMENT_SEQUENCES_BY_DIVISION`). A sales invoice fails with "SALES_INVOICE sequence not configured for this division" without one. Today the user sets them up in Configurations → Document Sequences.
-- BU creation (`resolve_create_bu_schema_and_feed_seed_data_helper` → `SeedBuData.BU_SEED_SQL`) seeds the `HO` branch with placeholders (`'123 Main St'`, state 29, pincode `700001`), **no division**, app setting `default_division_id = '1'`, and `post_data_to_accounts = true`.
+**Divisions today**
+- `division` table in each BU schema. `id` is a plain `bigint` primary key with no auto-number. The Add Division form asks for the id and suggests `MAX(id) + 1` (`GET_NEXT_DIVISION_ID`).
+- Code and name are unique within a branch.
+- `division_branch_id_fkey` has no `ON DELETE` action, so a branch that still has divisions cannot be deleted.
+- Nothing creates a division automatically, and nothing marks one division of a branch as its default.
 
-**Client:**
-- Configurations → Divisions (`division-section.tsx`): Add, Edit, Activate/Deactivate, Delete (with an in-use check). Add and edit dialogs have a Details tab and an **Accounts** (Trace+) tab; the edit dialog shows the Accounts tab only when `postDataToAccounts` is true.
-- `postDataToAccounts` comes from app setting `post_data_to_accounts` (`client-layout.tsx` → `setPostDataToAccounts`); it shows Jobs → Accounts Posting and the posted-status columns on Purchase/Sales Entry. Admin → Post / Unpost is always shown.
-- App Settings lists every setting, including `post_data_to_accounts` and `default_division_id`.
-- `BuContextType` (`store/context-slice.ts`) holds `code, id, is_active, name, schema_exists`, from `GET_USER_BUS` (login, business users) or `GET_ALL_BUS_WITH_SCHEMA_STATUS` (admins). The login model's `available_bus` is `list[dict]`, so new columns pass through untouched.
+**Branches today**
+- New BU: `SeedBuData.BU_SEED_SQL` (`seed_bu_data.py`) inserts the `HO` branch with a placeholder address and **no division**.
+- Add Branch (`masters/branch/add-branch-dialog.tsx`) inserts a `branch` row through `genericUpdate`; no division is created.
+- Delete Branch checks `CHECK_BRANCH_IN_USE` and then deletes the row. The check ignores divisions, so deleting a branch that has divisions fails with a general error.
 
-**Server:**
-- Divisions are written only through `genericUpdate` (table `division`); no script or custom resolver inserts one.
-- `accountsPosting` posts every division of a branch that has a valid `account_setting`.
-- `security.bu.plan_code` (plan.md Step 5) is null for existing BUs. **But** `startClientBilling` (plan.md Step 13) will set `plan_code = 'enterprise'` on existing paying customers.
+**Default division today**
+- App setting `default_division_id` (id 4, value `1`), one value for the whole BU. The client reads it into Redux `defaultDivisionId` (`use-bu-branch-division-actions.ts`).
+- It is used to pick the current division when a branch has more than one, and to pre-fill `division_id` on new jobs, batch jobs, opening jobs, and purchase and sales invoices.
+- On any branch other than the one owning division 1, it points at another branch's division.
+- App Settings warns when the value matches no active division.
+
+**Trace+ setting today**
+- The seed sets `post_data_to_accounts` = `true` (id 9). A missing row is treated as false by the client.
+- Add Division and Edit Division already hide the **Accounts** tab when the setting is false.
+- Edit Division has two bugs while it is false:
+    - It still loads the stored `account_setting` and validates it. An incomplete stored value makes the save fail, and `onInvalid` switches to the hidden tab, so the user is stuck with no visible reason.
+    - A successful save writes `account_setting = null`, silently erasing the division's Trace+ setup.
+
+**Live data (read-only check, 2 Oct 2026)**
+
+| Database / BU | Branches | Divisions |
+|---|---|---|
+| capitalgroup / capitalelectronics | HO | 1 CAPITAL, 2 SANJEEVANI |
+| capitalgroup / navtechnology | HO | 1 NAV |
+| demo / demo1 | 10 | 1 and 2 on HO (branch 2); **9 branches have none** |
+| demo / demo2 | HO | **none** |
+| customers / dummy | HO | **none** |
+
+Every BU has `default_division_id = 1`, `post_data_to_accounts = true`, and `app_setting` ids 1–16 with no gaps.
 
 ## New design brief
 
-- A `security.bu.single_division` flag marks the BUs this applies to; it is false for every existing BU. (Steps 1, 4)
-- One idempotent server helper creates the "Main" division and its document sequences for a branch, and switches posting off. (Step 2)
-- Server guards on `genericUpdate` (division) and `accountsPosting`. (Step 3)
-- Sign-up approval, Enterprise provisioning and `addBranch` call the helper. (Step 5)
-- The client reads the flag and hides add/delete/deactivate, the Trace+ tab and the posting screens. (Steps 6, 7)
-- Help files. (Step 8)
-- Manual work: confirm the decisions, then run the DDL. (Step 0)
+- New column `division.is_default`, at most one per branch; deleting a branch also deletes its divisions. (Step 1)
+- BU seed creates Head Office's Main with id 1 and `is_default`; `post_data_to_accounts` defaults to false. (Step 1)
+- A one-off script marks a default in every existing branch, adds Main where a branch has none, and retires `default_division_id`. (Step 1, Your Part B)
+- A new `addBranch` mutation inserts the branch and its Main in one transaction. `genericUpdate` refuses branch inserts and any change that would delete, deactivate or move the default. (Step 2)
+- Division queries return `is_default`. (Step 3)
+- Add Branch screen uses `addBranch`. (Step 4)
+- Divisions screen shows a **Default** badge and offers no Delete or Deactivate for it. (Step 5)
+- The default division comes from the current branch, not from an app setting. (Step 6)
+- Edit Division saves without Trace+ settings and keeps any stored ones. (Step 7)
+- Help files and plan.md updated. (Steps 8, 9)
 
 ## Key constraints
 
-1. **`plan_code` cannot be the switch.** `startClientBilling` gives existing Enterprise customers `plan_code = 'enterprise'`; keying on it would strip their extra divisions and Trace+ posting. **Resolution:** a separate `security.bu.single_division boolean NOT NULL DEFAULT false`. Only sign-up approval (plan.md Step 9) and Enterprise provisioning (Step 10) set it; later BUs of a single-division Enterprise client copy it; `startClientBilling` never touches it. Existing BUs stay false (Steps 1, 5).
-2. **Divisions belong to branches, not BUs.** Standard and Enterprise allow many branches, and a job needs a division in its own branch. **Resolution:** "one Main division" means one per **branch**. The helper runs for `HO` at approval and for every branch `addBranch` creates (Steps 2, 5). Lite and Basic have only `HO`, so they get exactly one.
-3. **The flag must not be writable by customers.** **Resolution:** add `single_division` to `BU_BILLING_COLUMNS` (plan.md Step 6), which `genericUpdate` refuses to everyone (Step 1).
-4. **Division ids have no default.** **Resolution:** the helper locks `division` (`LOCK TABLE division IN SHARE ROW EXCLUSIVE MODE`) and inserts `COALESCE(MAX(id), 0) + 1` in one transaction. In a fresh schema, `HO`'s Main division gets id 1, matching the seeded `default_division_id = '1'` (Step 2).
-5. **Without document sequences, the first invoice fails.** **Resolution:** the helper also seeds the five per-division sequences, using `document_type.prefix`, next number 1, padding 5, separator `/`, the same as the branch seed (Step 2). Decision A3.
-6. **Hiding is not enforcement.** **Resolution:** `genericUpdate` refuses, for a single-division BU, a division insert (nested too), `deletedIds`, `is_active = false`, a changed `code`, and a non-null `account_setting`. `accountsPosting` is refused outright (Step 3). App setting `post_data_to_accounts` is set false at creation and hidden; even if someone sets it true, nothing can post.
-7. **Existing setups must not change.** **Resolution:** every rule checks `single_division`; existing BUs are false; `BU_SEED_SQL` is not changed (it still seeds no division and posting on); nothing is backfilled.
-8. **Login breaks if the BU lists name a column that does not exist yet.** **Resolution:** the `GET_USER_BUS` / `GET_ALL_BUS_WITH_SCHEMA_STATUS` change (Step 4) waits for Your Part B, which creates the column everywhere.
+1. **Only one division in a BU can have id 1.** `division.id` is the primary key of the whole BU schema, and jobs, invoices and document sequences refer to it.
+   **Resolution:** Head Office's Main in a new BU gets id 1; every other Main gets the next free id. The default is marked by `is_default`, not by the id. A unique partial index allows at most one default per branch (Steps 1, 2).
+2. **`default_division_id` duplicates `is_default`,** and as one BU-wide value it is already wrong on every branch except one. Keeping both would give two sources of truth.
+   **Resolution:** retire the setting. The default division is the current branch's `is_default` division. The row is deleted and the rows after it move down by one (ids 5–16 become 4–15), so App Settings shows no gap. Nothing reads `app_setting.id`; every reader uses `setting_key` (Steps 1, 6).
+3. **"Whenever a branch is created" needs one entry point,** or a `genericUpdate` insert could still make a branch without a division. No database triggers (decided in plan.md).
+   **Resolution:** server mutation `addBranch` creates the branch and Main in one transaction. `genericUpdate` refuses any `branch` insert, including inserts nested inside `xDetails`. plan.md Step 12 later only adds its lock and branch limit to this mutation (Steps 2, 9).
+4. **Division ids are not auto-numbered,** so two branches added at the same moment could both pick `MAX(id) + 1`.
+   **Resolution:** inside the `addBranch` transaction, lock the `division` table (`LOCK TABLE division IN SHARE ROW EXCLUSIVE MODE`) before reading `MAX(id)`. The lock lasts only for that short transaction (Step 2).
+5. **"Cannot be deleted" must hold on the server, not only on screen.**
+   **Resolution:** `genericUpdate` refuses, for a default division: `deletedIds`, `is_active = false`, and a change of `branch_id`. It refuses any payload that sets `is_default` at all, so the flag is written only by `addBranch`, the seed and the script. Deactivation is blocked too, so the branch always has an active division to pick (Step 2).
+6. **Every branch now has a division, so Delete Branch would always fail** on the foreign key.
+   **Resolution:** change `division_branch_id_fkey` to `ON DELETE CASCADE`. `CHECK_BRANCH_IN_USE` already refuses a branch with jobs or invoices, and the foreign keys from job, sales invoice and purchase invoice to division still block the delete if any division has history. Head Office still cannot be deleted (Step 1).
+7. **Existing branches: some have no division, others have divisions with other names.**
+   **Resolution:** existing divisions are not renamed. The script marks one existing division per branch as default, in this order:
+    - the division named by `default_division_id`, if it belongs to that branch;
+    - otherwise the lowest-id active division;
+    - otherwise the lowest-id division.
+
+   A branch with no division gets a new Main, copied from the branch, with `is_default`. In the live data CAPITAL and NAV become defaults, and Main is added to 9 demo1 branches and to HO in demo2 and dummy (Step 1).
+8. **The copy from the branch is made once.** Later branch edits do not change Main.
+   **Resolution:** accepted. Sign-up approval (plan.md Steps 9, 10) sets HO's city and GSTIN after seeding, so it must update Main the same way (Step 9).
+9. **Turning Trace+ off must not erase Trace+ data.**
+   **Resolution:** while the setting is off, Edit Division neither validates nor sends `account_setting`, so the stored value stays. Add Division saves `null` as today. Existing BUs keep `true`; only the seed default changes (Step 7).
 
 ## Steps
 
-How to read: Step 0 holds your part. Build steps run in order. Each has **Needs**, **Path**, **Build** (with the old and new code where it is small) and **Done when**. House rules as in `plan.md`: tabs, double quotes, `pnpm format`; text longer than two words goes in `constants/messages.ts` (client) or `AppMessages` (server); red only for errors; both help files in the same change.
+How to read: Step 0 holds what you can do now; the database run sits right after Step 1 and the final check after Step 9. Inside a step, build the server first, then the client. House rules: tabs, `pnpm format`; text longer than two words in `messages.ts` / `AppMessages`; red only for errors; both help files updated (Step 8).
 
-### Step 0 — Your Part
+### Step 0 — Your Part: what you can do now
 
-**A — Confirm the decisions (before Step 1).** Each one is assumed below; say if you disagree:
-1. **One Main division per branch** (constraint 2). Standard and Enterprise customers get one for every branch they add.
-2. **What "edit" covers:** name, address, city, state, pincode, phone, email, website and **GSTIN** are editable; code stays `MAIN`; it can't be deactivated. GSTIN must stay editable, or a customer can't switch on GST billing on their division.
-3. **Document sequences are seeded** for the Main division (constraint 5), so the first service invoice, receipt and sales invoice work without visiting Document Sequences. The customer can still change prefixes there.
-4. **Admin → Post / Unpost is hidden too.** It only marks rows as posted to Trace+, which these customers never use.
-5. **The flag is `single_division` on `security.bu`, not `plan_code`** (constraint 1).
+| Part | What | Where | When |
+|---|---|---|---|
+| A | Confirm the remaining decisions | here | ✅ done |
+| B | Back up and run the division script | after Step 1 | ✅ done |
+| C | Check in the app | after Step 9 | ✅ done |
 
-**B — Run the database script again (after Step 1).** From `service-plus-server/`, in the venv:
-1. `python scripts/run_signup_billing_ddl.py --dry-run`, then `python scripts/run_signup_billing_ddl.py`. It adds `single_division` everywhere and is safe to run again. Expect "Done: 5 ran, 0 failed".
-2. Run `BillingServerSql.BU_BILLING_DDL` on the template `service_plus_service` by hand (as in Part D), then `pnpm gen-types-all` in the client.
-3. Tell Claude. Step 4 waits for this.
+**✅ A — Confirm the remaining decisions — agreed 2 Oct 2026.**
+1. ✅ `is_default` column marks the default; id 1 only for HO's Main in a new BU (decided 2 Oct 2026).
+2. `default_division_id` is retired and app_setting ids 5–16 become 4–15 (constraint 2).
+3. A default division can be edited but not deleted or deactivated (constraint 5).
+4. Deleting a branch also deletes its unused divisions (constraint 6).
+5. Existing divisions keep their names; Main is added only to branches with no division (constraint 7).
+- **Done when:** you reply "agreed" or say what to change.
 
-**C — Check (after Step 7, on the dev server).** Set `single_division = true` by hand (SQL) on a scratch BU, for example `dummy` in `service_plus_customers`, and run `ensure_main_division` for its `HO`, or wait for plan.md Step 9 to create one. Then check the screens listed under Step 7's "Done when". Also open an existing BU and confirm nothing changed.
-
-### Step 1 — `single_division` column (server)
+### ✅ Step 1 — Database: column, seed and the script for existing BUs — built 2 Oct 2026
 **Needs:** Your Part A.
 
-- **Explanation:** the flag that marks a BU as single-division; false for everyone today; not writable through `genericUpdate`.
-- **Path:** `service-plus-server/app/db/sql/sql_billing.py` (`BillingServerSql.BU_BILLING_DDL`), `app/graphql/resolvers/auth_guards.py`, `tests/test_auth_guards.py`.
-- **Code:**
-    - `BU_BILLING_DDL`, in the existing `ALTER TABLE security.bu` block, add:
+**Where:**
+- `service-plus-server/app/db/sql/sql_bu_admin_ddl.py` (`BU_SCHEMA_DDL`)
+- `service-plus-server/app/db/seeds/seed_bu_data.py`
+- new `service-plus-server/app/db/sql/sql_divisions.py`
+- new `service-plus-server/scripts/run_default_division_ddl.py`
+
+**Build:**
+- **`BU_SCHEMA_DDL`:**
+    - In `CREATE TABLE division`, add `is_default boolean DEFAULT false NOT NULL`.
+    - Add `CREATE UNIQUE INDEX division_one_default_per_branch ON division USING btree (branch_id) WHERE is_default;`.
+    - Foreign key, old: `FOREIGN KEY (branch_id) REFERENCES branch(id);` new: `FOREIGN KEY (branch_id) REFERENCES branch(id) ON DELETE CASCADE;`
+- **Seed (`BU_SEED_SQL`):**
+    - Right after the `HO` insert, add Main:
       ```sql
-      ADD COLUMN IF NOT EXISTS single_division boolean NOT NULL DEFAULT false
-      ```
-    - `auth_guards.py`, old:
-      ```python
-      BU_BILLING_COLUMNS = frozenset({
-          "billing_hold",
-          ...
-          "plan_code",
-      })
-      ```
-      new: the same set plus `"single_division"` (alphabetical).
-- `scripts/run_signup_billing_ddl.py` needs no change: it already runs `BU_BILLING_DDL` everywhere.
-- Test: the existing `test_admin_cannot_write_bu_billing_columns` picks the new column up automatically.
-
-**Done when:** `pytest` passes; the DDL runs twice on a scratch database.
-
-### Step 2 — `ensure_main_division` helper (server)
-**Needs:** Step 1.
-
-- **Explanation:** the one place that creates a Main division for a branch, seeds its document sequences, and (for the BU) switches Trace+ posting off. Idempotent: it does nothing for a branch that already has a division.
-- **Path:** new `service-plus-server/app/db/sql/sql_divisions.py` (`DivisionServerSql`, **not** in `SqlStore`); new `app/services/single_division.py`; `tests/services/test_single_division.py`.
-- **Code (`DivisionServerSql`):**
-    - `GET_BU_SINGLE_DIVISION`: `SELECT single_division FROM security.bu WHERE LOWER(code) = %(schema)s`.
-    - `INSERT_MAIN_DIVISION` (runs with `search_path` = the BU schema, after `LOCK TABLE division IN SHARE ROW EXCLUSIVE MODE`):
-      ```sql
-      INSERT INTO division (id, code, name, branch_id, address_line1, address_line2, city, state_id,
-                            country, pincode, phone, email, gstin, is_active)
-      SELECT (SELECT COALESCE(MAX(id), 0) + 1 FROM division), 'MAIN', 'Main', b.id, b.address_line1,
-             b.address_line2, b.city, b.state_id, 'IN', b.pincode, b.phone, b.email, b.gstin, true
+      INSERT INTO division (id, branch_id, code, name, address_line1, address_line2, city, state_id,
+                            pincode, phone, email, gstin, is_default)
+      SELECT 1, b.id, 'MAIN', 'Main', b.address_line1, b.address_line2, b.city, b.state_id,
+             b.pincode, b.phone, b.email, b.gstin, true
       FROM branch b
-      WHERE b.id = %(branch_id)s
-        AND NOT EXISTS (SELECT 1 FROM division d WHERE d.branch_id = b.id)
-      RETURNING id
+      WHERE b.code = 'HO' AND NOT EXISTS (SELECT 1 FROM division d WHERE d.branch_id = b.id);
       ```
-      (`branch` has no `country` column, hence the literal `'IN'`, which is also the division column's default.)
-    - `SEED_DIVISION_DOCUMENT_SEQUENCES`: for the five per-division types, `INSERT INTO document_sequence (document_type_id, branch_id, division_id, prefix, next_number, padding, separator) SELECT dt.id, %(branch_id)s, %(division_id)s, dt.prefix, 1, 5, '/' FROM document_type dt WHERE dt.code IN (...) AND NOT EXISTS (...)`.
-    - `SET_POST_DATA_TO_ACCOUNTS_OFF`: `UPDATE app_setting SET setting_value = 'false' WHERE setting_key = 'post_data_to_accounts'`.
-    - `SET_BU_SINGLE_DIVISION`: `UPDATE security.bu SET single_division = true WHERE id = %(bu_id)s`.
-- **Code (`single_division.py`):**
-    - `async def is_single_division_bu(db_name, schema) -> bool`: false for `security`, `public`, empty, or a missing row.
-    - `async def ensure_main_division(cur, branch_id) -> int | None`: takes an open cursor (search_path already set to the BU), so `addBranch` can call it inside its own transaction; locks, inserts and seeds; returns the new id, or None when the branch already had a division.
-    - `async def enable_single_division(db_name, bu_id, schema) -> None`: one transaction on the tenant database: set the flag, switch posting off, and `ensure_main_division` for every branch of the BU (only `HO` at creation).
-- **Tests:** the SQL texts name only the BU-schema tables plus `security.bu`; `is_single_division_bu` returns false for tenant-wide schemas without a database call.
+    - In `app_setting`: remove `(4, 'default_division_id', …)` and renumber the rows after it as 4–15.
+    - `post_data_to_accounts`: old `'true'`, new `'false'`.
+- **Script SQL** (`DivisionSql.DEFAULT_DIVISION_DDL`), run once per BU schema, safe to run twice, in order:
+    1. `ALTER TABLE division ADD COLUMN IF NOT EXISTS is_default boolean DEFAULT false NOT NULL;`
+    2. Create the unique partial index `IF NOT EXISTS`.
+    3. Drop `division_branch_id_fkey` `IF EXISTS` and add it again with `ON DELETE CASCADE`.
+    4. Mark one default in each branch that has none, by the order in constraint 7, in one `UPDATE … FROM (SELECT DISTINCT ON (branch_id) …)`. `default_division_id` is read here, before step 6 deletes it.
+    5. For each branch with no division, insert Main copied from the branch with `is_default` true and `id = MAX(id) + row_number()` (ids start at 1 when the BU has no divisions).
+    6. Delete the `default_division_id` row; then, in id order, move each row with `id > 4` down by one, guarded by `NOT EXISTS` on the target id (memory "no id gaps"). A `DO` block loop, not a trigger.
+- **Runner** (`run_default_division_ddl.py`, modelled on `run_signup_billing_ddl.py`):
+    - Covers every database in `public.client`, plus `service_plus_service` when it exists.
+    - In each database, covers every schema that has a `division` table.
+    - Each schema runs in its own transaction with `SET LOCAL search_path TO <schema>`.
+    - `--dry-run` only lists targets.
+    - Prints one line per schema, the default chosen per branch and each Main added, and ends with "Done: N ran, M failed".
 
-**Done when:** on a scratch BU, `enable_single_division` twice leaves one `MAIN` division per branch (id 1 for `HO` in a fresh schema), five sequences for it, `post_data_to_accounts = false`, and the flag true.
+**As built:** the dry run lists exactly those five schemas (`service_plus_service` is not on this server, so it is skipped). The script SQL was exercised twice on throw-away temp tables in a rolled-back transaction. The results: the setting's division was picked, an active division was preferred over a lower-id inactive one, Main copied city and GSTIN, a second run changed nothing, app_setting ended at 1–15, deleting a branch cascaded to its Main, and a second default in a branch was refused. Help: a new developer article `dev-default-division`; `extended_warranty` is now id 15; the client help covers the Main division and the Trace+ default. `tsc -b` passes.
 
-### Step 3 — Server guards
-**Needs:** Step 2.
+**Done when:** the dry run lists capitalelectronics, navtechnology, demo1, demo2 and dummy. A new BU created on a dev database has `HO` with Main as id 1 and `is_default` true, `post_data_to_accounts` false, and app_setting ids 1–15.
 
-- **Explanation:** refuse what the client hides, for single-division BUs only. The rule applies to every user type, because it is a product rule, not a permission.
-- **Path:** `service-plus-server/app/graphql/resolvers/mutation.py` (`resolve_generic_update`), `app/graphql/resolvers/sales_accounts/mutations.py` (`resolve_accounts_posting_helper`) or its resolver, `app/core/exceptions.py`, `tests/test_auth_guards.py`.
-- **Code:**
-    - New `AppMessages.SINGLE_DIVISION_LOCKED` ("Your plan has one division per branch. It can be edited, but not added, deleted or deactivated") and `AppMessages.ACCOUNTS_POSTING_NOT_IN_PLAN`.
-    - New `async def require_division_write_allowed(db_name, schema, value)` in `single_division.py`. It reuses `_sql_object_nodes` from `auth_guards.py` (make it public as `sql_object_nodes`) and returns at once when no node has `tableName == "division"`. Otherwise, if `is_single_division_bu`, it refuses with `SINGLE_DIVISION_LOCKED` and a `reason` of:
-        - `add`: a division row without `id`, or `isIdInsert`;
-        - `delete`: `deletedIds` on a division node;
-        - `deactivate`: `is_active` false;
-        - `code`: `code` other than `MAIN`;
-        - `accounts`: `account_setting` not null.
-    - `resolve_generic_update`, old:
-      ```python
-      require_own_tenant(info, db_name)
-      require_generic_update_access(info, schema, value)
-      _require_generic_update_table_right(info, value)
-      result = await resolve_generic_update_helper(db_name, schema, value)
-      ```
-      new: add `await require_division_write_allowed(db_name, schema, value)` after the table-right check.
-    - `accountsPosting` resolver: after its guards, `if await is_single_division_bu(db_name, schema): raise ValidationException(ACCOUNTS_POSTING_NOT_IN_PLAN)`.
-- **Tests** (patch `is_single_division_bu`): each refusal reason; editing name and GSTIN passes; a non-division payload never queries the flag; with the flag false every division write passes as today; `accountsPosting` is refused only with the flag.
+### ✅ 🧑 Your Part B — Back up and run the division script — done 3 Oct 2026
+**As done:** the script ran successfully. A read-only check of all five BUs found exactly one default per branch, no branch without a division, app_setting ids 1–15 with no `default_division_id`, and the cascading foreign key. capitalelectronics → 1 CAPITAL, navtechnology → 1 NAV, demo2 and dummy → 1 MAIN; demo1's 10 branches each have one default. The client types were regenerated (`division.is_default`). The template dump was re-taken from `service_plus_demo` (demo1 + security), and `sql_bu_admin_ddl.py` was regenerated from it. That also brought in the plan.md Step 5 billing columns, which had never been regenerated into it. `tsc -b` passes.
 
-**Done when:** the tests pass; an existing BU's Add, Delete, Deactivate and Trace+ settings still work.
+**Needs:** Step 1.
+1. Back up `service_plus_capitalgroup`, `service_plus_demo`, `service_plus_customers`, and `service_plus_service` if you have it.
+2. From `service-plus-server/`, inside the venv, run `python scripts/run_default_division_ddl.py --dry-run` and check the targets.
+3. Run `python scripts/run_default_division_ddl.py`.
+4. Tell Claude. Claude regenerates the client types (`pnpm gen-types-all`), refreshes the schema dump, and checks every BU read-only: exactly one default per branch, no branch without a division, app_setting ids 1–15.
 
-### Step 4 — BU lists carry the flag (server)
+**Done when:** the script ends with 0 failed and existing users can still create a job.
+
+### ✅ Step 2 — Server: `addBranch` and the `genericUpdate` guards — built 3 Oct 2026
+**As built:**
+- `addBranch` also requires `MASTERS_MENU`, the same right `genericUpdate` already demands for the `branch` table.
+- The payload walk skips an empty `xData` (`{}` beside `deletedIds`), because `process_details` writes nothing for it. Without this, Delete Branch would have been mistaken for an insert.
+- The guards and SQL live in `resolvers/masters/branches.py` and `sql_divisions.py` (`LOCK_DIVISION_TABLE`, `INSERT_MAIN_DIVISION_FOR_BRANCH`, `GET_DEFAULT_DIVISION_IDS`).
+- Tests: the new `tests/test_branches.py` has 15 tests. The payload guards are tested directly, and the default-division lookup with a stubbed database. All 196 server tests pass, and `addBranch` is in the built schema.
+- The addBranch SQL was exercised on temp tables in a rolled-back transaction: Main copied city, phone and GSTIN with `is_default`, the lookup found only the default ids, and deleting the branch removed its Main.
+- Not tested: two simultaneous adds. That needs two sessions on a shared table, so it relies on the standard table lock.
+- **Until Step 4 is built, the Add Branch dialog is refused** (its `genericUpdate` insert hits `BRANCH_INSERT_VIA_ADD_BRANCH`).
+- Help: the developer article gained the three server pieces; the client Divisions article says the default cannot be deleted or deactivated.
+
 **Needs:** Step 1, Your Part B.
 
-- **Explanation:** the client needs the flag for the current BU without an extra query.
-- **Path:** `service-plus-server/app/db/sql/sql_bu_admin.py`.
-- **Code:** in `GET_USER_BUS`, old `SELECT b.id, b.code, b.is_active, b.name,`, new `SELECT b.id, b.code, b.is_active, b.name, b.single_division,`. In `GET_ALL_BUS_WITH_SCHEMA_STATUS`, old `b.id, b.code, b.name, b.is_active, b.created_at, b.updated_at,`, new: the same plus `b.single_division,`.
-- plan.md Step 11 later adds the billing columns to the same two queries; it keeps this column.
+**Where:**
+- new `service-plus-server/app/graphql/resolvers/masters/branches.py` (with `__init__.py`)
+- `service-plus-server/app/graphql/schema.graphql`
+- `service-plus-server/app/graphql/resolvers/mutation.py`
+- `service-plus-server/app/db/sql/sql_divisions.py`
+- `service-plus-server/app/exceptions.py` (`AppMessages`)
+- `service-plus-server/tests/test_auth_guards.py`
 
-**Done when:** login returns `single_division` on each BU (false for every existing BU); the admin BU list returns it.
+**Build:**
+- **`addBranch(db_name, schema, value): Generic`.**
+    - `value` carries the fields the Add Branch dialog sends today: `code`, `name`, `address_line1`, `address_line2`, `city`, `state_id`, `pincode`, `phone`, `email`, `gstin`.
+    - Guards: `require_own_tenant`, then `require_bu_access`.
+    - One transaction on one connection:
+        1. Insert the branch (`get_insert_sql` from `psycopg_driver.py`) and return its id.
+        2. Lock the division table (constraint 4).
+        3. `INSERT_MAIN_DIVISION_FOR_BRANCH`: the same select-from-branch insert as the seed, with `id = COALESCE(MAX(id), 0) + 1`, code `MAIN`, name `Main`, `is_default` true.
+        4. Commit and return `{branchId, divisionId}`.
+    - A duplicate branch code or name returns the existing friendly message.
+- **Guards in `resolve_generic_update`**, run before the helper:
+    - `_refuse_branch_insert(value)`: walks the payload, nested `xDetails` dicts and lists included. Any `branch` row without `id` → `BRANCH_INSERT_VIA_ADD_BRANCH`.
+    - `_refuse_default_division_change(db_name, schema, value)`:
+        - Any `division` row carrying `is_default` → refused at once.
+        - Ids in `deletedIds`, or in rows setting `is_active` false or changing `branch_id`, are checked with `GET_DEFAULT_DIVISION_IDS` (`SELECT id FROM division WHERE id = ANY(%(ids)s) AND is_default`); any match → `DEFAULT_DIVISION_LOCKED`.
+    - Both apply to every user type, so there is one door.
+- **`AppMessages`:**
+    - `BRANCH_INSERT_VIA_ADD_BRANCH`: "Branches are added through Add Branch only."
+    - `DEFAULT_DIVISION_LOCKED`: "The default division of a branch cannot be deleted or deactivated."
+- **Tests:**
+    - `addBranch` creates one branch and one default Main.
+    - A `genericUpdate` inserting a branch, top-level or nested, is refused; a branch edit passes.
+    - Deleting or deactivating a default division is refused; a non-default division passes; a payload setting `is_default` is refused.
+    - Deleting a branch just made by `addBranch` (`genericUpdate` with `deletedIds` on `branch`) passes and removes its Main through the cascade; the division guard does not fire, because the payload names only the branch.
+    - The Step 1 guard walk (plan.md) covers `addBranch`.
 
-### Step 5 — Call the helper from approval, provisioning and `addBranch` (amend `plan.md`)
+**Done when:** all of the above pass, and two simultaneous `addBranch` calls get different division ids.
+
+### ✅ Step 3 — Server: division queries return `is_default` — built 3 Oct 2026
+**As built:** checked read-only on capitalelectronics: both branch lists return CAPITAL (default) first, then SANJEEVANI; `GET_DIVISION_BY_ID` returns `is_default`.
+
+**Needs:** Your Part B.
+
+**Where:** `service-plus-server/app/db/sql/sql_bu_admin.py`.
+
+**Build:**
+- Add `d.is_default` to `GET_DIVISIONS_BY_BRANCH`, `GET_ACTIVE_DIVISIONS_BY_BRANCH` and `GET_DIVISION_BY_ID`.
+- Order both branch lists by `d.is_default DESC, d.name`, so the default is listed first.
+- `accountsPosting` reads `GET_DIVISIONS_BY_BRANCH`; it only gains a column it ignores.
+
+**Done when:** every division query returns `is_default`.
+
+### ✅ Step 4 — Client: Add Branch uses `addBranch` — built 3 Oct 2026
+**As built:** `value` is built with `encodeObj` from `lib/graphql-utils.ts`. The now-unused `SUCCESS_BRANCH_CREATED` message was removed.
+
 **Needs:** Step 2.
 
-- **Explanation:** the helper exists before the flows that need it. This step edits the text of `plans/plan.md` so those steps call it when they are built. Code only lands with them.
-- **Path:** `plans/plan.md`, Steps 9, 10, 12 and 13.
-- **Amendments:**
-    - **Step 9** (`approveSalesEnquiry`), after part 6 (Head office): "7a. **Main division:** `enable_single_division(db_name, bu_id, bu_code)`, after the `HO` city and GSTIN are set, so the division copies them. Resumable: it is idempotent." Its "Done when" adds: "the BU has one `MAIN` division with sequences, posting off".
-    - **Step 10** (`provisionEnterpriseEnquiry`), part 5: the same call for the first BU. "Later BUs": when the client's existing BUs are `single_division`, the new BU copies the flag and gets `enable_single_division` at the end of `resolve_create_bu_schema_and_feed_seed_data_helper`.
-    - **Step 12** (`addBranch`): after the insert, inside the same transaction, `if single_division: await ensure_main_division(cur, new_branch_id)`. `LOCK_BU_FOR_BRANCH` also selects `single_division`.
-    - **Step 13** (`startClientBilling`): add "Never sets `single_division`; existing customers keep their divisions and Trace+ posting."
-    - **Step 15:** the dev help article names `single_division`.
+**Where:**
+- `src/constants/graphql-map.ts`
+- `src/features/client/components/masters/branch/add-branch-dialog.tsx`
+- `src/constants/messages.ts`
 
-**Done when:** `plan.md` Steps 9, 10, 12, 13 and 15 contain these bullets.
+**Build:**
+- New `GRAPHQL_MAP.addBranch` with the usual `($db_name, $schema, $value)` signature.
+- `onSubmit` calls it with the same fields, `value` built as other custom mutations build it (`encodeURIComponent(JSON.stringify(...))`).
+- Success toast `SUCCESS_BRANCH_CREATED_WITH_MAIN` ("Branch created with its Main division").
+- Edit and delete dialogs do not change; deleting now also removes the branch's unused divisions (constraint 6).
 
-### Step 6 — Client state (flag and posting)
-**Needs:** Step 4.
+**Done when:** an added branch appears in the list, and switching to it selects Main without asking.
 
-- **Explanation:** one selector for the flag; posting reads it in one place, so every posting screen follows without being edited.
-- **Path:** `src/store/context-slice.ts`.
-- **Code:**
-    - `BuContextType`: add `single_division?: boolean;` (optional: a BU list cached from before the change has no field, which reads as false).
-    - New selector:
-      ```ts
-      export const selectIsSingleDivisionBu = (state: ContextRootState): boolean =>
-      	state.context.currentBu?.single_division === true;
-      ```
-    - `selectPostDataToAccounts`, old:
-      ```ts
-      export const selectPostDataToAccounts = (state: ContextRootState) => state.context.postDataToAccounts;
-      ```
-      new:
-      ```ts
-      export const selectPostDataToAccounts = (state: ContextRootState) =>
-      	state.context.postDataToAccounts && state.context.currentBu?.single_division !== true;
-      ```
-- This alone hides Jobs → Accounts Posting, the posted-status columns on Purchase/Sales Entry, and the edit dialog's Accounts tab for single-division BUs.
+### ✅ Step 5 — Client: Divisions screen protects the default — built 3 Oct 2026
+**As built:** the actions menu hides Deactivate and Delete (and their separators) for the default division. The delete dialog skips the in-use check and shows `ERROR_DIVISION_DELETE_DEFAULT`. The server-message toast was not added, because the screen never offers the refused actions. A direct call still gets `DEFAULT_DIVISION_LOCKED` from the server.
 
-**Done when:** `pnpm exec tsc -b --noEmit` passes; an existing BU behaves as before.
+**Needs:** Step 3.
 
-### Step 7 — Client screens
-**Needs:** Step 6.
+**Where:**
+- `src/features/client/types/division.ts`
+- `src/features/client/components/configurations/division/division-section.tsx`
+- `src/features/client/components/configurations/division/delete-division-dialog.tsx`
+- `src/constants/messages.ts`
 
-- **Path:** `src/features/client/components/configurations/division/division-section.tsx`, `edit-division-dialog.tsx`, `src/features/client/components/layout/client-explorer-panel.tsx`, `src/features/client/components/configurations/app-settings/app-settings-section.tsx`, `src/constants/messages.ts`.
-- **Build:**
-    - `division-section.tsx`: with `selectIsSingleDivisionBu`, hide **Add**, **Delete** and **Activate/Deactivate**; show a short info line under the toolbar from `MESSAGES.INFO_SINGLE_DIVISION` ("Your plan includes one division per branch. You can edit its details.").
-    - `edit-division-dialog.tsx`: when single-division, make **code** read-only. The Accounts tab already hides through `selectPostDataToAccounts`, and `account_setting` is then sent as null.
-    - `client-explorer-panel.tsx` (`AdminExplorer`): hide **Post / Unpost** when single-division.
-    - `app-settings-section.tsx`: when single-division, leave the `post_data_to_accounts` row out of the list.
-    - `messages.ts`: `INFO_SINGLE_DIVISION`; `ERROR_SINGLE_DIVISION_LOCKED` for the server answer (shown through the existing error toast).
-- `add-division-dialog.tsx` and `delete-division-dialog.tsx` are unchanged, because their buttons are hidden.
+**Build:**
+- Add `is_default: boolean` to `DivisionType` and to the `DivisionContextType` pick.
+- Grid: a **Default** badge (teal outline) beside the name. For the default division the actions menu shows only **Edit**, with no Deactivate and no Delete.
+- `DeleteDivisionDialog`: `blockedMessage={division.is_default ? MESSAGES.ERROR_DIVISION_DELETE_DEFAULT : null}`, as a second guard.
+- A server refusal (`DEFAULT_DIVISION_LOCKED`) shows the server message in the toast.
 
-**Done when:** on a single-division BU, Divisions shows one row with Edit only, the edit dialog has no Accounts tab and a fixed code, and Accounts Posting, Post / Unpost and the posting setting are gone. On an existing BU every one of these is unchanged. `pnpm exec tsc -b --noEmit` and `pnpm build` pass.
+**Done when:** the default division has no Delete or Deactivate; other divisions keep both.
 
-### Step 8 — Help files
+### ✅ Step 6 — Client: the default division comes from the branch — built 3 Oct 2026
+**As built:**
+- `pickDefaultDivision(divisions)`: the `is_default` division, else the first. It sets both the current division and `defaultDivisionId`, on BU load and on branch change. A branch with several divisions now opens on its default instead of asking.
+- `defaultDivisionId` stays a `number` and starts at **0** (not `null`), meaning "no division". This matches the purchase and sales form convention (`divisionId = 0`) and leaves the 14 form call sites unchanged. Job forms reject 0 (`min(1)`), so a branch without a division can no longer silently save on division 1.
+- The unused `overrideDefaultDivisionId` parameter of `applyContext` was removed.
+
+**Needs:** Steps 3, 5.
+
+**Where:**
+- `src/features/admin/hooks/use-bu-branch-division-actions.ts`
+- `src/store/context-slice.ts`
+- `src/features/client/components/configurations/app-settings/app-settings-section.tsx`
+
+**Build:**
+- `parseAppSettings` stops reading `default_division_id`.
+- Wherever a branch's division list is loaded (`applyContext` and the branch-change handler):
+    - `defaultDivisionId` = id of the active division with `is_default`, else the first division.
+    - Current division: the only one if there is one, otherwise the default one.
+    - Old: `divisions.find((d) => d.id === effectiveDefaultId) ?? null`
+    - New: `divisions.find((d) => d.id === effectiveDefaultId) ?? divisions.find((d) => d.is_default) ?? null`, with `effectiveDefaultId` = the override if given, else the branch's default.
+- `context-slice`: `defaultDivisionId` stays, its starting value changes from `1` to `null`. The job and invoice forms need no change; they already read `selectDefaultDivisionId`, which now holds the current branch's default.
+- App Settings: remove the "default_division_id … does not match any active division" warning and the `isWarnRow` highlight.
+
+**Done when:** on a branch other than HO, new jobs and invoices start on that branch's default; capitalelectronics still starts on CAPITAL; App Settings lists 15 rows with no warning.
+
+### ✅ Step 7 — Client: Edit Division saves without Trace+ settings — built 3 Oct 2026
+**As built:** as planned; Add Division's `onInvalid` got the same "only when the tab is shown" fix.
+
+**Needs:** none (can be built any time).
+
+**Where:**
+- `src/features/client/components/configurations/division/edit-division-dialog.tsx`
+- `src/features/client/components/configurations/division/add-division-dialog.tsx` (check only)
+
+**Build:**
+- In `defaultValues` and in the `form.reset` on open:
+    - Old: `account_setting: buildAccountSetting(division),`
+    - New: `account_setting: postDataToAccounts ? buildAccountSetting(division) : null,`
+- In `onSubmit`, put `account_setting` in `xData` only when `postDataToAccounts` is true, so the stored value is left untouched while it is off.
+- `onInvalid` switches to the **Accounts** tab only when that tab is shown.
+- Add Division already saves `null` and hides the tab; confirm a save works with the setting off.
+
+**Done when:** with `post_data_to_accounts` false there is no Accounts tab, Add and Edit both save, and a division that had Trace+ settings still has them after an edit (checked read-only in the database).
+
+### ✅ Step 8 — Help files — built 3 Oct 2026
+**As built:**
+- Client help: the `divisions` article covers the default badge, Main for every new branch, auto-selection, no Delete or Deactivate, and Trace+ settings being kept. `vendors-branches` covers Main on add and divisions removed on delete.
+- Developer help: `dev-default-division` has a client-side section and no "still to come" note. `dev-division-account-setting` covers keeping the stored value.
+- A search finds no remaining reference to `default_division_id` as a live setting.
+
 **Needs:** Steps 1–7.
 
-- `help-content.ts`: in the Divisions article (`divisions`), a section for sign-up plans: one Main division per branch, created for you, which fields can be edited, why there is no Add or Delete, and that Trace+ posting is not part of these plans. Update the Accounts Posting and Post / Unpost articles to say they don't appear on these plans.
-- `dev-help-content.ts`: **one new article**, "Single-Division BUs": the `single_division` flag and why it is not `plan_code`; `ensure_main_division` / `enable_single_division` (id rule, copied branch fields, seeded sequences, posting off); the `genericUpdate` refusals and their `reason`s; the `accountsPosting` refusal; where it is called (Steps 9, 10, 12); and that existing BUs are untouched. Re-check `dev-signup-billing` and `dev-shared-db-isolation` (the `BU_BILLING_COLUMNS` list now includes `single_division`) and the accounts-posting article.
+**Where:**
+- `src/features/client/components/help/help-content.ts`
+- `src/features/super-admin/components/help/dev-help-content.ts`
 
-**Done when:** a grep for `BU_BILLING_COLUMNS` and "division" in both help files finds no stale statement; `tsc` passes.
+**Build — client help (staff):**
+- `divisions`:
+    - Every branch has a **Main** default division, created with the branch from its address.
+    - The default division can be edited but not deleted or deactivated.
+    - The Accounts tab appears only when Post to Accounts is on.
+- `vendors-branches`: adding a branch also creates its Main; deleting an unused branch also removes its divisions.
+- App Settings table: `post_data_to_accounts` is off for new BUs; `default_division_id` no longer listed.
 
-## Testing (end to end, once plan.md Steps 9–12 are built)
+**Build — developer help:** one new article `dev-default-division`:
+- The `is_default` column, its unique partial index, and the cascade foreign key.
+- `addBranch`, its lock, and `INSERT_MAIN_DIVISION_FOR_BRANCH`.
+- The two `genericUpdate` refusals and their message keys.
+- The seed's Main with id 1; the script and its order of choice.
+- How `defaultDivisionId` is now derived per branch; the retired `default_division_id` and the renumbered ids.
 
-1. Lite approval → BU with `HO` and one `MAIN` division (id 1), sequences seeded, posting off; first job, service invoice and money receipt save without visiting Document Sequences.
-2. A Standard customer adds a second branch → it gets its own `MAIN` division.
-3. As the customer: Divisions shows Edit only. Changing name and GSTIN works. A direct `genericUpdate` insert, delete, deactivate or `account_setting` is refused, and so is `accountsPosting`.
-4. Enterprise: first BU and a later BU both single-division; `startClientBilling` on an existing customer leaves the flag false and their divisions and Trace+ posting working.
-5. Regression on an existing BU (e.g. `service_plus_capitalgroup`): add, edit, deactivate and delete divisions, Trace+ tab, Accounts Posting and Post / Unpost all as before.
+**Re-check stale facts:**
+- `dev-division-account-setting`: Edit keeps the stored value while the setting is off.
+- App-settings developer article: `extended_warranty (id 16)` becomes **id 15**; seed default of `post_data_to_accounts` is false.
+- Search both files for `default_division_id`, "Head Office", "Add Branch" and "id 16".
+
+**Done when:** no stale reference remains.
+
+### ✅ Step 9 — Amend `plans/plan.md` — done 3 Oct 2026
+**As done:** dated notes were added under Present context (business user), Step 9 part 6, Step 10 part 5, and Step 12 "Build — limit".
+
+**Needs:** Steps 2, 4.
+
+**Where:** `plans/plan.md`.
+
+**Build:** append a short dated note to each step below, keeping the existing text:
+- **Step 9 part 6** and **Step 10 part 5:** set city and GSTIN on `HO` **and on its Main division**.
+- **Step 12:** `addBranch` and the `genericUpdate` branch-insert refusal already exist (plan2 Step 2). Step 12 adds the `security.bu` lock and the branch-limit count before the branch insert; the Add Branch client change is already done.
+- **Present context:** branches are added through `addBranch`, which also creates Main.
+
+**Done when:** plan.md matches what is built.
+
+### ✅ 🧑 Your Part C — Check in the app — done 3 Oct 2026
+**As done:** all four checks behaved as expected.
+
+**Needs:** Your Part B and Steps 2–9.
+1. In demo1, add a branch. It has Main with the branch's address and a Default badge, is selected by default, and has no Delete or Deactivate.
+2. Delete that new branch; it goes, together with its Main.
+3. Set `post_data_to_accounts` to false in a demo BU and reload. Add a division, edit one with Trace+ settings, and save both.
+4. In capitalelectronics, create a job: CAPITAL is pre-selected and Trace+ posting still works.
+
+**Done when:** all four behave as described.
+
+## Files touched
+
+- **Server:** `sql_bu_admin_ddl.py`, `seed_bu_data.py`, new `sql_divisions.py`, `sql_bu_admin.py`, new `resolvers/masters/branches.py`, `mutation.py`, `schema.graphql`, `exceptions.py`, `tests/test_auth_guards.py`, new `scripts/run_default_division_ddl.py`, schema dump.
+- **Client:** `graphql-map.ts`, `messages.ts`, `types/division.ts`, `add-branch-dialog.tsx`, `division-section.tsx`, `delete-division-dialog.tsx`, `edit-division-dialog.tsx`, `use-bu-branch-division-actions.ts`, `context-slice.ts`, `app-settings-section.tsx`, both help files, generated `db-schema-service.ts`.
+- **Plans:** `plans/plan.md`.
 
 ## Flags
 
-- A branch inserted by hand in SQL on a single-division BU gets no Main division; run `ensure_main_division` for it.
-- If a single-division customer later needs Trace+ or more divisions, that is a support action: set `single_division = false` in SQL (there is deliberately no screen for it).
+- The script changes live customer databases (new column, default flags, Main rows, app_setting renumbering). Back up first (Your Part B).
+- `ON DELETE CASCADE` relies on the foreign keys from job, sales invoice and purchase invoice to stop used divisions being lost. `purchase_invoice_division_id_fkey` is `NOT VALID` but is still enforced for new deletes.
+- Division ids stay user-entered in Add Division; only Main is numbered automatically.
+- If you would rather keep `default_division_id` alongside `is_default`, say so in Part A: Step 1's step 6, Step 6's settings changes and the renumbering in Step 8 then drop out, and the setting only seeds the script's choice.

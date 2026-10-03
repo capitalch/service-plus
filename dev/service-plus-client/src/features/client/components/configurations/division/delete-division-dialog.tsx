@@ -68,8 +68,9 @@ export const DeleteDivisionDialog = ({ division, onOpenChange, onSuccess, open }
 			title="Delete Division"
 			entityName={division.name}
 			confirmKey={division.name}
+			blockedMessage={division.is_default ? MESSAGES.ERROR_DIVISION_DELETE_DEFAULT : null}
 			inUseMessage={MESSAGES.ERROR_DIVISION_DELETE_IN_USE}
-			onCheckInUse={checkInUse}
+			onCheckInUse={division.is_default ? undefined : checkInUse}
 			onDelete={handleDelete}
 			toastMessages={{
 				success: MESSAGES.SUCCESS_DIVISION_DELETED,

@@ -13,6 +13,7 @@ import { getAuthItem, setAuthItem } from "./auth-storage";
 import { refreshIfNeeded } from "./token-refresh";
 import { store } from "@/store";
 import { logout } from "@/features/auth/store/auth-slice";
+import { requestBillingRefresh, showBillingNotice } from "@/store/context-slice";
 import { ROUTES } from "@/router/routes";
 import { MESSAGES } from "@/constants/messages";
 
@@ -92,6 +93,22 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
 	}
 
 	if (CombinedGraphQLErrors.is(error)) {
+		// A write refused for billing (plans/plan.md Step 14): explain it in the read-only dialog
+		// rather than a toast, and re-read the BU's status so the banner and buttons follow.
+		const billingError = error.errors.find(
+			(err) =>
+				err.extensions?.code === "SUBSCRIPTION_READ_ONLY" || err.extensions?.code === "BRANCH_LIMIT_REACHED",
+		);
+		if (billingError) {
+			store.dispatch(
+				showBillingNotice({
+					code: billingError.extensions?.code as "BRANCH_LIMIT_REACHED" | "SUBSCRIPTION_READ_ONLY",
+					message: billingError.message,
+					paidThrough: (billingError.extensions?.paidThrough as string | null | undefined) ?? null,
+				}),
+			);
+			store.dispatch(requestBillingRefresh());
+		}
 		for (const err of error.errors) {
 			console.error(`[GraphQL error]: message: ${err.message}`);
 		}

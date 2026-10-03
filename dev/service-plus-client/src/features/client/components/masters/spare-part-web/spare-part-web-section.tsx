@@ -41,6 +41,7 @@ import { DeleteSparePartWebDialog } from "./delete-spare-part-web-dialog";
 import { SparePartWebDialog } from "./spare-part-web-dialog";
 import { SparePartWebPhotosDialog } from "./spare-part-web-photos-dialog";
 import type { SparePartWebType } from "@/features/client/types/spare-part-web";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,8 @@ const thClass = "text-xs font-semibold uppercase tracking-wide text-(--cl-text-m
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SparePartWebSection = () => {
+	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -192,6 +195,8 @@ export const SparePartWebSection = () => {
 					<Button
 						className="bg-teal-600 text-white hover:bg-teal-700"
 						size="sm"
+						disabled={isReadOnly}
+						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 						onClick={() => setAddOpen(true)}
 					>
 						<PlusIcon className="mr-1.5 h-3.5 w-3.5" />

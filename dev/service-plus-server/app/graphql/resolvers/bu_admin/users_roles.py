@@ -108,10 +108,13 @@ async def resolve_create_business_user_helper(
     in the specified client database, atomically assign the given BU/role associations,
     and email credentials.
 
-    Value payload (URL-encoded JSON): { email, full_name, mobile, username, bu_ids, role_id }
+    Value payload (URL-encoded JSON): { email, full_name, mobile, username, bu_ids, role_id,
+    signup_client_name? }. signup_client_name (set by sign-up approval, plans/plan.md Step 9)
+    switches to the sign-up login email, which names the client to pick at login.
     """
     # pylint: disable=too-many-locals
     payload = _decode_value(value, "createBusinessUser")
+    signup_client_name = payload.get("signup_client_name")
 
     email = payload.get("email", "")
     full_name = payload.get("full_name", "")
@@ -205,15 +208,22 @@ async def resolve_create_business_user_helper(
 
     email_sent = False
     try:
-        await send_email(
-            to=email,
-            subject=AppMessages.EMAIL_NEW_BU_USER_LINK_SUBJECT,
-            body=AppMessages.EMAIL_NEW_BU_USER_LINK_BODY.format(
+        if signup_client_name:
+            subject = AppMessages.EMAIL_SIGNUP_USER_LINK_SUBJECT
+            body = AppMessages.EMAIL_SIGNUP_USER_LINK_BODY.format(
+                client_name=signup_client_name,
                 full_name=full_name,
                 reset_link=reset_link,
                 username=username,
-            ),
-        )
+            )
+        else:
+            subject = AppMessages.EMAIL_NEW_BU_USER_LINK_SUBJECT
+            body = AppMessages.EMAIL_NEW_BU_USER_LINK_BODY.format(
+                full_name=full_name,
+                reset_link=reset_link,
+                username=username,
+            )
+        await send_email(to=email, subject=subject, body=body)
         email_sent = True
     except Exception as mail_err:  # pylint: disable=broad-except
         logger.warning("Failed to send setup link email to %s: %s", email, mail_err)

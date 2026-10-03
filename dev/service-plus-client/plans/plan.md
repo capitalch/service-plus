@@ -36,6 +36,7 @@ Terms: **lt** = Lite, Basic, Standard (each customer is one BU in the shared *de
 **Business user:**
 - Login returns the user, rights and BU list; business users keep `availableBus` from login. Refresh returns only tokens.
 - Branches are added through `genericUpdate` on the `branch` table; nothing limits them. The `MANAGER` role (id 1) is seeded with every right.
+- *Update 3 Oct 2026 (plans/plan2.md):* branches are now added only through the `addBranch` mutation, which also creates the branch's default division Main (`division.is_default`). `genericUpdate` refuses branch inserts. A new BU's `HO` gets Main as division id 1.
 
 **Platform-wide:**
 - Every tenant database uses one shared credential pair (`service_db_user` / `service_db_password`); the control plane uses `client_db_*`.
@@ -107,8 +108,8 @@ Only work you can do **today, before any build step**, is here. Everything you d
 | B | Set up the default customer database | here | ✅ done |
 | C | Check and release Step 1 | after Step 1 | ✅ done, deployed |
 | D | Back up and run the database scripts | after Step 5 | ✅ done |
-| E | Security check | after Step 6 | **now** (Step 6 is built; restart the dev server) |
-| F | Release | after Step 15 | when Steps 1–15 and parts C, D, E are done |
+| E | Security check | after Step 6 | ✅ done |
+| F | Release | after Step 15 | **now** (Steps 1–15 and parts C, D, E are done) |
 | G | Put existing paying customers on billing | after Step 15 | after F |
 | H | Daily routine | after Step 15 | after F, ongoing |
 
@@ -241,7 +242,7 @@ Only work you can do **today, before any build step**, is here. Everything you d
 
 **Done when:** the script reports 0 failed; existing customers log in and work as before.
 
-### ✅ Step 6 — Shared-database security fixes — built 2 Oct 2026 (awaiting Your Part E)
+### ✅ Step 6 — Shared-database security fixes — built 2 Oct 2026
 **As built:** no read exception was needed: `require_bu_access` refuses `security`, `public` and empty schemas to every non-admin (`TENANT_WIDE_SCHEMAS`). `genericUpdate` now calls `require_generic_update_access` (in `auth_guards.py`) instead of a bare `require_bu_access`. It walks the whole payload and refuses `SECURITY_SERVER_ONLY_TABLES` and the `bu` billing columns (`BU_BILLING_COLUMNS`) to everyone, `S` included, in any schema. On `security`, a non-admin gets only their own `last_used_bu_id`/`last_used_branch_id` row. The client sweep found that row is the only `security`/`public` call outside Admin and Super Admin screens. All four BU dialogs write only `name`, `is_active` or `deletedIds`. Subscriptions: Ariadne 1.0.1's `on_connect` (`on_ws_connect` in `schema.py`) verifies the `connectionParams` token once and keeps the claims in the socket's scope; each source runs its guards, then returns the stream; `subscriber_may_receive` filters each event; every publisher now sends `db_name` and `schema`; `genericSubscription` is removed; `salesEnquiryCount(db_name)` plus `publish_sales_enquiry_count` are ready for Steps 9 and 10. Media: `get_token_claims` (`dependencies.py`) and `_require_media_scope` on all seven write routes; `client_code` is checked against `GET_CLIENT_DB_NAME`. No client code change. `pytest` (with dummy settings, since the sandbox cannot read the server's settings file): 181 passed, 4 skipped, 1 failed; the failure is `test_admin_dashboard_stats`, which needs a live database and fails the same way without these changes.
 
 **Needs:** Steps 1, 4, 5. Applies to every tenant.
@@ -263,13 +264,30 @@ Only work you can do **today, before any build step**, is here. Everything you d
 
 **Done when:** as a business user, `genericUpdate` on `security.user` (`is_admin`), `user_bu_role` or `sales_enquiry` is forbidden and saving their own last-used BU still works; as an admin, writing `security.bu.paid_through` is forbidden; `genericQuery` on `security` as a business user, or with another customer's BU code, is forbidden; a socket with no token is rejected and user A gets no BU B events; uploading or deleting a BU B file as a BU A user is forbidden.
 
-### 🧑 Your Part E — Security check (release gate)
+### ✅ 🧑 Your Part E — Security check (release gate) — done 3 Oct 2026
+**As done:** every screen was opened as a business user and as an admin; there was no "Access forbidden". Steps 1–6 and plans/plan2.md may now be released.
+
 **Needs:** Step 6 on your development server. Nothing from Step 6 onwards is released before this.
 1. As a non-admin business user and as an admin, open every screen: login, BU/branch switch, jobs, masters, inventory, reports, the admin BU and user screens, the Super Admin client screens, WhatsApp status updates.
 
 **Done when:** everything works for both; tell Claude about any "Access forbidden".
 
-### Step 7 — Public endpoints and emails (server)
+### ✅ Step 7 — Public endpoints and emails (server) — built 3 Oct 2026
+**As built:**
+- Logic is in `app/services/signups.py`, and the emails are in `app/services/signup_emails.py`. The routes in `website_router.py` stay thin. The SQL is in `SignupServerSql`; the old `PublicSql.INSERT_SALES_ENQUIRY` was removed.
+- Refusals come back as `{detail: {code, message}}`:
+    - `DEFAULT_DB_NOT_CONFIGURED`: 503.
+    - `SIGNUP_DUPLICATE`: 409.
+    - `SIGNUP_WRONG_ENDPOINT` and validation errors: 422.
+    - `SIGNUP_NOT_FOUND`: 404.
+- References look like `SP-XXXXXXXX` (no O, I, 0 or 1). Emails are stored lower-case, so the open-request unique index catches case variants.
+- `derive_bu_code(name, is_taken)` takes the clash check as a callback, so Steps 9 and 10 can reuse it.
+- Email wording lives in `AppMessages.SIGNUP_EMAIL_*`, as plain-text templates; the HTML is built from the same text. The Enterprise team notice still uses the existing table layout, now showing the reference instead of the id.
+- The status page answers, for an approved request, with the **login email** and the client name. There is no app URL, because the server has no reliable production app address. The approver email links to `<frontend_url>/admin/enquiries`, the same base the password-reset emails fall back to.
+- Tests: the new `tests/core/test_signups.py` has 21 tests (stubbed database and mail). All 217 server tests pass. Every new read query was run read-only against the live schemas, and both inserts were checked with `EXPLAIN`.
+- **Not done here:** the commented `PORTAL_URL_PRODUCTION` line in `.env.example`. `.env*` files are off-limits to Claude, so add it by hand if you want it. It is optional; the default is `https://myserviceplus.in`.
+- **Not run:** a real sign-up end to end. It would write a row in the default database and send real emails, so it is left for the portal work (Step 8) or for you.
+
 **Needs:** Steps 2, 3, 4, 6; Your Part D (tables exist).
 
 **Where:** server `website_router.py`, `sql_signups.py`, `app/core/exceptions.py`, `plan_prices.py`, `app/core/settings/api_settings.py`.
@@ -300,7 +318,14 @@ Only work you can do **today, before any build step**, is here. Everything you d
 
 **Done when:** each plan lands only in its table; all four get a thank-you; duplicates are refused; two sign-ups with one business name get different codes; with the setting unset an lt sign-up writes nothing; `lite` sent to `/sales-enquiry` is refused; with `debug` on and no portal setting in `.env`, the Lite thank-you email links to `http://localhost:3005/signup-status/`, and with `debug` off to `https://myserviceplus.in/signup-status/`.
 
-### Step 8 — Portal
+### ✅ Step 8 — Portal — built 3 Oct 2026
+**As built:**
+- Live prices: `lib/plan-prices.ts` (`usePlanPrices`, one shared fetch per page load, falling back to `content/pricing.ts`). It is used by plan cards, the comparison table, the recommender, the contact chips, the form and the success screen.
+- The Enterprise card and table show "5 business units, more at ₹… / month each" using the live extra-unit fee.
+- The form is `onChange` with submit disabled while invalid, and the business name follows `BU_NAME_REGEX`. Lite gets **Confirm Lite signup** and `lite-confirm-dialog.tsx`; the other plans submit directly. Server refusals (`SIGNUP_DUPLICATE`, `DEFAULT_DB_NOT_CONFIGURED`, …) appear in the error summary, and the honeypot stays.
+- `/signup-status` is a static page and is in the sitemap. The FAQ answers "How do I pay?" and "Can I pay in advance?". "What is a business unit?" mentions the extra fee without a fixed amount, because the live fee can differ from ₹3,000.
+- Checks: `pnpm build` and `pnpm typecheck` pass. `pnpm lint` cannot run (typescript-eslint rejects TS 7, the same problem as the client). Not clicked through in a browser.
+
 **Needs:** Step 7.
 
 **Where:** portal `components/pricing/sales-enquiry-form.tsx`, `enquiry-success.tsx`, new `lite-confirm-dialog.tsx`, new `app/signup-status/page.tsx`, new `components/signup/signup-status-form.tsx`, new `lib/plan-prices.ts`, `lib/api.ts`, `lib/validators.ts`, `constants/messages.ts`, `content/faq.ts`, `content/pricing.ts`, `app/sitemap.ts`, and the price-showing components.
@@ -322,7 +347,16 @@ Only work you can do **today, before any build step**, is here. Everything you d
 
 **Done when:** only Lite shows the dialog and "pending approval"; every success screen shows a reference; the status page shows all three states; `pnpm build` passes.
 
-### Step 9 — Admin: setup payment, approval, rejection (lt)
+### ✅ Step 9 — Admin: setup payment, approval, rejection (lt) — built 3 Oct 2026
+**As built:**
+- Server: `resolvers/bu_admin/signups.py`, with SQL in `SignupServerSql` and `SignupSql`. Refusal codes are sent with the new `CodedValidationException`, because `format_graphql_error` overwrites `extensions.code` with `VALIDATION_ERROR`.
+- A username is letters and digits, at least 5 characters, numbered if taken (the client's rule). BU name and code edits apply only while no BU exists.
+- The sign-up login email (`EMAIL_SIGNUP_USER_LINK_*`) names the client to pick at login.
+- Client: shared `components/shared/enquiries/` (grid, record-payment dialog, note dialog for reject and payment-failed, chip, `use-enquiry-count`), `features/admin/pages/enquiries-page.tsx` and `approve-enquiry-dialog.tsx`. `useGenericQuery` gained `dbName` and `schema` overrides.
+- After approving a Basic or Standard request, the "record the first monthly payment" note is a toast. There is no link yet, because the Subscriptions page comes in Step 14.
+- Tests: `tests/bu_admin/test_signups_approval.py`. Every new SQL statement was checked against the live schemas read-only (`EXPLAIN` for writes).
+- Not run end to end: a real approval would create a BU, a schema and a user, and send emails.
+
 **Needs:** Steps 2, 4, 5, 6, 7.
 
 **Where:** server new `resolvers/bu_admin/signups.py`, `schema.graphql`, `mutation.py`, `sql_signups.py`, `audit_log.py`, `exceptions.py`, `users_roles.py`; client `src/features/admin/`, `src/components/shared/`, `src/router/`, `src/constants/`.
@@ -339,7 +373,7 @@ Every action checks `require_own_tenant`, `require_user_type {"A"}`, `require_de
     3. **BU row** (if `bu_id` empty): run the code and name uniqueness checks, then insert the `security.bu` row and store `bu_id` on the enquiry **in one transaction** (same database).
     4. **Schema** (if `bu_schema_ready_at` empty): if a schema with this code exists, it is a half-built leftover (no user yet), so drop it with `CASCADE`, only after confirming the name equals the enquiry's `bu_code` and row `bu_id` has that code. Call `resolve_create_bu_schema_and_feed_seed_data_helper` with the stored `id` (its repair path), then set `bu_schema_ready_at`. If already set, never touch the schema.
     5. **Plan:** `plan_code`, `branch_limit` (1 Lite/Basic, null Standard), `billing_required` (false Lite, true otherwise), `monthly_fee_paise` from the price list; `paid_through` empty.
-    6. **Head office:** set `HO`'s `city`, and `gstin` if given.
+    6. **Head office:** set `HO`'s `city`, and `gstin` if given. *(plan2, 3 Oct 2026: set the same `city` and `gstin` on HO's default division Main, `division.is_default`.)*
     7. **User** (if `user_id` empty): `resolve_create_business_user_helper` with email, name, mobile, username, the BU id and `MANAGER` (looked up by code); store `user_id` and `login_email_sent`.
     8. **Finish:** `approved`, reviewer and time; clear the claim; audit; publish the count. On any failure clear the claim, keep stored ids, return the error; the next click resumes.
 - `rejectSalesEnquiry` (id, reason): only while `pending` and before any BU exists; emails the applicant; publishes the count.
@@ -360,7 +394,18 @@ Every action checks `require_own_tenant`, `require_user_type {"A"}`, `require_de
 
 **Done when:** Lite approval creates the BU, schema, seed, `HO` city and a Manager seeing only that BU; Basic/Standard approval is refused by a direct call until paid, creating nothing; after payment the BU starts view-only; a failed user step resumes with one BU and the schema untouched; a failed seed step resumes by rebuilding the schema, still one BU row; two simultaneous clicks provision once; reject works and shows on the status page; another tenant's admin cannot call any of it.
 
-### Step 10 — Super Admin: Enterprise enquiries
+### ✅ Step 10 — Super Admin: Enterprise enquiries — built 3 Oct 2026
+**As built:**
+- Server: `resolvers/bu_admin/enterprise_enquiries.py` and `app/services/enterprise_billing.py`.
+- The database step stores the new name on the client before creating the database, so a half-built database is recognised on resume. A database name that exists but is not this client's is refused, never dropped.
+- The first BU is found by code on resume.
+- Extra BUs: `EXTRA_BU_CONFIRM_REQUIRED` carries the new `paid_through`, and `create-business-unit-dialog.tsx` shows it and re-sends with `confirm_extra_bu`. A rebase writes a `fee_rebase` ledger row.
+- The fee comes from the `.env` price list. This environment's extra-BU fee is not ₹3,000, so the server message shows the configured amount.
+- The Super Admin bell subscribes with `db_name ""`, which the subscription maps to the control plane.
+- The new-enquiry counts only count Enterprise rows.
+- Client: `enterprise-enquiries-page.tsx`, `provision-enquiry-dialog.tsx` (with live client code, name and database checks) and `set-enquiry-fee-dialog.tsx`, plus a sidebar entry and a bell item.
+- Not run end to end: it would create a client, a database and emails.
+
 **Needs:** Steps 4, 5, 6, 7, and Step 9's shared pieces.
 
 **Where:** server new `resolvers/bu_admin/enterprise_enquiries.py`, `schema.graphql`, `mutation.py`, `query.py`, `sql_signups.py`, `provisioning.py`; client `src/features/super-admin/`.
@@ -375,7 +420,7 @@ Every action requires `require_user_type {"S"}`.
     2. client: insert and store `client_id` in one transaction (both in the control plane);
     3. database: skip if the client has a `db_name` and that database has a `security` schema; if it exists without one, drop and recreate;
     4. first BU: as Step 9 parts 3–4; with no stored `bu_id`, look it up by code in the new database (it holds only this BU). Set `plan_code = 'enterprise'`, `billing_required`, `monthly_fee_paise`, `branch_limit` null, `paid_through` empty;
-    5. `HO` city and GSTIN; admin user via `resolve_create_admin_user_helper`, store `user_id`;
+    5. `HO` city and GSTIN, and the same on HO's default division Main (plan2, 3 Oct 2026); admin user via `resolve_create_admin_user_helper`, store `user_id`;
     6. `converted`; audit; release the claim.
 - **Later BUs** (in `resolve_create_bu_schema_and_feed_seed_data_helper`, database not the default one, an existing BU billed): copy `plan_code`, `billing_required`, `paid_through`, `billing_hold`, `branch_limit`, so the client's BUs share dates.
 - **5 BUs included, extras ₹3,000/month:** BU 1 carries the Enterprise fee, BUs 2–5 carry 0, each later BU the extra fee; the client's fee is the sum. Creating a 6th or later BU first returns `EXTRA_BU_CONFIRM_REQUIRED` unless a confirm flag is sent (dialog: "This business unit is outside the 5 included in your plan and adds ₹3,000 to your monthly fee. Continue?"); then email `enterprise_enquiry_notify_email` and audit. Deleting an extra BU lowers later fees only. Inactive BUs count. If the client is prepaid beyond today when a 6th or later BU is added, the client's shared `paid_through` is rebased from the old total fee to the new total (constraint 8) for every BU, and the confirm dialog shows the new date ("Your prepaid period will now end on <date>").
@@ -386,7 +431,15 @@ Every action requires `require_user_type {"S"}`.
 
 **Done when:** Create customer is refused until paid; success leaves `client_id`, `bu_id`, `user_id`, `converted`; a failure after the database step resumes with no second client or database; a later BU shares plan and `paid_through`; a 6th BU needs confirmation and adds the fee.
 
-### Step 11 — View-only guard (server)
+### ✅ Step 11 — View-only guard (server) — built 3 Oct 2026
+**As built:**
+- `require_bu_writable` (auth_guards.py, async) and the cache in `app/services/bu_billing.py`. The guard is on 30 mutations.
+- `tests/test_view_only_guard.py` holds the classification lists and the guard tests.
+- Media upload and delete are refused through `_require_media_scope`; `/part-orders` answers 409.
+- Login's `availableBus` entries carry `billing`. `buBillingStatus` was added.
+- The Extended Warranty public interest and opt-out posts are **not** blocked: they record the customer's own answer, and the plan names only the job pages.
+- All 247 server tests pass.
+
 **Needs:** Steps 5, 6.
 
 **Where:** server `auth_guards.py`, `billing.py`, `mutation.py`, `query.py`, `schema.graphql`, `image_router.py`, `website_router.py`, `app/routers/auth/helper.py`, `exceptions.py`.
@@ -404,10 +457,21 @@ Every action requires `require_user_type {"S"}`.
 
 **Done when:** with a BU `read_only`, every listed mutation, a media upload and a part order are refused; reads, prints and user management work; other BUs, Lite and existing BUs are unaffected; the classification test passes.
 
-### Step 12 — Branch limit and plan change
+### ✅ Step 12 — Branch limit and plan change — built 3 Oct 2026
+**As built:**
+- Limit: `addBranch` locks the BU's `security.bu` row (`LOCK_BU_FOR_BRANCH`) and counts (`COUNT_BRANCHES`) before the insert. At the limit it refuses with `BRANCH_LIMIT_REACHED` (`CodedValidationException`, `extensions.branchLimit`).
+- `changeBuPlan` is in `resolvers/bu_admin/billing.py`.
+    - It takes `preview: true`, which returns the fee, the paid-through before and after, and the blocking branches without writing.
+    - Blocking branches are counted per table from the schema's foreign keys to `branch`. `division` is left out, because it is deleted with its branch.
+    - A move to Lite turns billing off. A move from Lite to Basic or Standard leaves `paid_through` empty, so the BU is view-only until its first payment.
+- Client: Add Branch is disabled at `billing.branchLimit` with the plan message. A refused add opens the read-only dialog. Change plan is on Admin → Subscriptions.
+- Not tested: two simultaneous adds and a downgrade racing an insert. Both rely on the row lock.
+
 **Needs:** Steps 5, 9, 11.
 
 **Where:** server `auth_guards.py`, `mutation.py`, new `resolvers/masters/branches.py`, new `resolvers/bu_admin/billing.py`, `sql_billing.py`, `exceptions.py`, `schema.graphql`, `tests/test_auth_guards.py`; client `src/features/client/components/masters/branch/add-branch-dialog.tsx`, `branch-section.tsx`, `src/constants/graphql-map.ts`.
+
+*Update 3 Oct 2026 (plans/plan2.md Steps 2 and 4): `addBranch` (`resolvers/masters/branches.py`) and the `genericUpdate` branch-insert refusal (`refuse_branch_insert`) already exist. Add Branch in the client already calls `addBranch`. Its guards include `MASTERS_MENU`. Each branch also gets its Main division in the same transaction. This step only adds the `security.bu` lock and the limit count before the branch insert. Below, "new mutation", "refuses branch inserts" and the client change are already done.*
 
 **Build — limit (server only, no trigger):**
 - **`addBranch(db_name, schema, value)`** (new mutation): `value` carries the same fields the add-branch dialog sends today (`code`, `name`, `address_line1`, `address_line2`, `city`, `state_id`, `pincode`, `phone`, `email`, `gstin`). Guards, in order: `require_own_tenant`, `require_bu_access`, `require_bu_writable` (Step 11), `require_access_right` for the branch master right if the branch screen has one (check `ACCESS_RIGHTS`; none today, so none added). Then **one transaction on one connection**:
@@ -432,7 +496,16 @@ Every action requires `require_user_type {"S"}`.
 
 **Done when:** Lite/Basic cannot get a second branch through the screen, a direct `addBranch` call, two simultaneous `addBranch` calls, or a `genericUpdate` insert (refused for every BU); no trigger exists on any `branch` table; Standard/Enterprise add several; `HO` edits work; existing BUs unaffected; a multi-branch downgrade is refused with the list, then succeeds after cleanup; a downgrade racing an insert never leaves two branches.
 
-### Step 13 — Monthly payments, Super Admin controls, reminders (server)
+### ✅ Step 13 — Monthly payments, Super Admin controls, reminders (server) — built 3 Oct 2026
+**As built:**
+- The reads are `BillingSql.GET_BU_SUBSCRIPTIONS`, whose status is computed in SQL on the IST date to mirror `compute_billing_status`, and `GET_BU_PAYMENTS`. Super Admin uses the same two reads with the client's `db_name`.
+- `setClientMonthlyFee` sets the oldest billed BU's fee, which is the base Enterprise fee; extra BUs keep their own fee.
+- Hold, release and `startClientBilling` each write a `correction` ledger row with the note. Extensions write an `extension` row.
+- Each payment emails a receipt to the BU's Managers and the database's admins.
+- Reminders: `app/services/billing_reminders.py` (`reminder_kind`), run daily at `billing_reminder_hour` IST. The monthly snapshot is now also wrapped in `pg_try_advisory_xact_lock`.
+- Tests: `tests/core/test_billing_payments.py`. All 270 server tests pass. Every new SQL statement was run against `service_plus_demo` in a rolled-back transaction (`EXPLAIN` for writes).
+- Not run end to end: a real payment or a reminder run would write ledger rows and send emails.
+
 **Needs:** Steps 5, 6, 11.
 
 **Where:** server `resolvers/bu_admin/billing.py`, `schema.graphql`, `mutation.py`, `query.py`, `sql_billing.py`, `app/scheduler.py`, `exceptions.py`, `audit_log.py`.
@@ -458,7 +531,19 @@ Every action requires `require_user_type {"S"}`.
 
 **Done when:** the next write after a payment succeeds without re-login; two simultaneous payments cover two months; a 3-year payment moves `paid_through` 36 months and sends no reminder until 5 days before; an amount below fee × months is refused; a payment that would put `paid_through` beyond 60 months ahead is refused; an upgrade or fee rise while prepaid moves the date earlier, a downgrade later, each with a `fee_rebase` row; an Enterprise payment moves all BUs; `startClientBilling` leaves the customer `active`; hold, release and extension are audited; each reminder goes once, also with two processes.
 
-### Step 14 — Billing screens (client)
+### ✅ Step 14 — Billing screens (client) — built 3 Oct 2026
+**As built:**
+- The context slice holds `billing`, `billingNotice` and `billingRefreshTick`, with `selectBilling` and `selectIsReadOnly`. `use-billing-sync.ts` is mounted in `client-layout.tsx`.
+- The Apollo error link shows `read-only-dialog.tsx` for `SUBSCRIPTION_READ_ONLY` and `BRANCH_LIMIT_REACHED`. The screen's own error toast still appears as well.
+- `useIsReadOnly` is applied to:
+    - the 12 Masters Add buttons and the Division Add button (by script);
+    - Save on single job, batch job, opening job, receipts, sales, stock adjustment, branch transfer, loan and opening stock;
+    - `DeleteConfirmDialog`.
+- **Not yet disabled:** purchase entry's Save, which is wired differently, and secondary in-form buttons. The server still refuses those writes and the dialog explains why.
+- Admin → Subscriptions with the shared payment dialog, `change-plan-dialog.tsx` and `payment-history-dialog.tsx`. The history dialog sits in `features/admin`, because `GET_BU_PAYMENTS` is admin-only and the server test forbids it in `components/shared`.
+- Super Admin → Clients → **Subscription** (`client-subscription-dialog.tsx`): Start billing, Record payment, Set fee (with a rebase preview), Extend, Hold/Release, and History.
+- Checks: `pnpm build` passes. Not clicked through in a browser.
+
 **Needs:** Steps 11, 12, 13.
 
 **Where:** client `src/store/context-slice.ts`, `src/lib/apollo-client.ts`, `src/features/client/components/layout/`, new `src/components/shared/billing/`, `src/features/admin/pages/`, `src/features/super-admin/`, `src/constants/`.
@@ -476,7 +561,19 @@ Every action requires `require_user_type {"S"}`.
 
 **Done when:** Lite and existing BUs show nothing and never block; a new paid BU shows the first-payment banner; amber in the last 5 days, error from the day after; a blocked write shows the dialog; a payment clears the banner without re-login; choosing Years = 2 prefills 24 months' amount and a lower amount keeps Save disabled; `pnpm build` passes.
 
-### Step 15 — Help files (final check)
+### ✅ Step 15 — Help files (final check) — done 3 Oct 2026
+**As done:**
+- Developer help: a new article `dev-signup-billing-map` ("Sign-up & Billing — End-to-end Map") covers the tables, the claim/resume columns, billing columns and date rules, every guard, settings, emails and jobs. It points to the detailed per-step articles.
+- Stale articles fixed:
+    - Operating modes: Admin and Super Admin menus.
+    - The guard table: the Step 9–13 mutations, `addBranch`, `buBillingStatus` and `require_bu_writable`.
+    - Shared-database isolation: media is refused for view-only BUs.
+    - The settings table: `PORTAL_URL_PRODUCTION`.
+    - The portal article's "Not built yet" became "Status and open items", now saying which plan limits are enforced.
+    - Notes in the sign-up endpoints article that pointed to future steps.
+- Client help: Access Management now lists Enquiries and Subscriptions. Plan limits, view-only, Enquiries, Subscriptions and plan changes were written in Steps 8–14.
+- A search finds every new `sqlId`, mutation, guard and setting in the developer help, and no "comes in Step …" leftovers. `pnpm exec tsc -b --noEmit` passes.
+
 **Needs:** Steps 1–14.
 
 **Build:**

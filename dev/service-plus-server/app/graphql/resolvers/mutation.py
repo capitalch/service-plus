@@ -12,6 +12,8 @@ from app.graphql.resolvers.auth_guards import (
     require_access_right,
     require_any_access_right,
     require_bu_access,
+    require_bu_writable,
+    require_default_customer_db,
     require_generic_update_access,
     require_own_tenant,
     require_user_type,
@@ -32,6 +34,29 @@ from app.graphql.resolvers.bu_admin.provisioning import (
     resolve_drop_database_helper,
     resolve_feed_bu_seed_data_helper,
     resolve_seed_security_data_helper,
+)
+from app.graphql.resolvers.bu_admin.billing import (
+    resolve_change_bu_plan_helper,
+    resolve_extend_client_paid_through_helper,
+    resolve_record_bu_subscription_payment_helper,
+    resolve_record_client_subscription_payment_helper,
+    resolve_set_client_billing_hold_helper,
+    resolve_set_client_monthly_fee_helper,
+    resolve_start_client_billing_helper,
+)
+from app.graphql.resolvers.bu_admin.enterprise_enquiries import (
+    resolve_mark_enterprise_enquiry_contacted_helper,
+    resolve_mark_enterprise_enquiry_payment_failed_helper,
+    resolve_provision_enterprise_enquiry_helper,
+    resolve_record_enterprise_enquiry_payment_helper,
+    resolve_reject_enterprise_enquiry_helper,
+    resolve_set_enterprise_enquiry_fee_helper,
+)
+from app.graphql.resolvers.bu_admin.signups import (
+    resolve_approve_sales_enquiry_helper,
+    resolve_mark_sales_enquiry_payment_failed_helper,
+    resolve_record_sales_enquiry_payment_helper,
+    resolve_reject_sales_enquiry_helper,
 )
 from app.graphql.resolvers.bu_admin.users_roles import (
     resolve_create_admin_user_helper,
@@ -79,6 +104,11 @@ from app.whatsapp.sender import (
     send_whatsapp_money_receipt,
     set_job_delivery_manual_confirmation,
     verify_job_delivery_otp,
+)
+from app.graphql.resolvers.masters.branches import (
+    refuse_branch_insert,
+    refuse_default_division_change,
+    resolve_add_branch_helper,
 )
 from app.graphql.resolvers.sales_accounts.mutations import (
     resolve_accounts_posting_helper,
@@ -147,6 +177,15 @@ def _generic_update_table(value: str) -> str | None:
     try:
         return json.loads(unquote(value)).get("tableName")
     except (ValueError, AttributeError):
+        return None
+
+
+def _generic_update_payload(value: str) -> Any:
+    """The decoded genericUpdate payload; None when it cannot be read (the helper then
+    raises its own validation error)."""
+    try:
+        return json.loads(unquote(value))
+    except ValueError:
         return None
 
 
@@ -297,7 +336,14 @@ async def resolve_generic_update(_, info, db_name="", schema="public", value="")
     """Execute a generic table upsert/delete operation."""
     require_own_tenant(info, db_name)
     require_generic_update_access(info, schema, value)
+    await require_bu_writable(info, db_name, schema)
     _require_generic_update_table_right(info, value)
+    # Every branch keeps exactly one default division (plans/plan2.md Step 2): branches
+    # are created only through addBranch, and a default division cannot be deleted,
+    # deactivated, moved or re-flagged here. Applies to every user type.
+    payload = _generic_update_payload(value)
+    refuse_branch_insert(payload)
+    await refuse_default_division_change(db_name, schema, payload)
     result = await resolve_generic_update_helper(db_name, schema, value)
     # A lead entered, edited or deleted is the one Extended Warranty change with no
     # mutation of its own, so it would otherwise reach other sessions only on a refresh.
@@ -306,12 +352,198 @@ async def resolve_generic_update(_, info, db_name="", schema="public", value="")
     return result
 
 
+@mutation.field("addBranch")
+@handle_graphql_errors("Error adding branch", AppMessages.BRANCH_CREATE_FAILED)
+async def resolve_add_branch(_, info, db_name="", schema="", value="") -> Any:
+    """Create a branch and its default Main division (plans/plan2.md Step 2). The only
+    way to add a branch; genericUpdate refuses branch inserts."""
+    require_own_tenant(info, db_name)
+    require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
+    # The same right genericUpdate demands for the branch table.
+    require_access_right(info, GENERIC_UPDATE_TABLE_RIGHTS["branch"])
+    return await resolve_add_branch_helper(db_name, schema, value)
+
+
+# Sign-up approval (plans/plan.md Step 9): the default customer database's own admin only.
+
+
+@mutation.field("recordSalesEnquiryPayment")
+@handle_graphql_errors("Error recording the setup payment")
+async def resolve_record_sales_enquiry_payment(_, info, db_name="", schema="", value="") -> Any:
+    """Record a pending Basic / Standard sign-up's setup payment."""
+    # pylint: disable=unused-argument
+    require_own_tenant(info, db_name)
+    require_user_type(info, {"A"})
+    require_default_customer_db(info, db_name)
+    return await resolve_record_sales_enquiry_payment_helper(info, db_name, value)
+
+
+@mutation.field("markSalesEnquiryPaymentFailed")
+@handle_graphql_errors("Error marking the setup payment failed")
+async def resolve_mark_sales_enquiry_payment_failed(_, info, db_name="", schema="", value="") -> Any:
+    """Mark a pending Basic / Standard sign-up's setup payment as failed."""
+    # pylint: disable=unused-argument
+    require_own_tenant(info, db_name)
+    require_user_type(info, {"A"})
+    require_default_customer_db(info, db_name)
+    return await resolve_mark_sales_enquiry_payment_failed_helper(info, db_name, value)
+
+
+@mutation.field("approveSalesEnquiry")
+@handle_graphql_errors("Error approving the sign-up")
+async def resolve_approve_sales_enquiry(_, info, db_name="", schema="", value="") -> Any:
+    """Create the BU and Manager for a sign-up; claimed, payment-gated and resumable."""
+    # pylint: disable=unused-argument
+    require_own_tenant(info, db_name)
+    require_user_type(info, {"A"})
+    require_default_customer_db(info, db_name)
+    return await resolve_approve_sales_enquiry_helper(info, db_name, value)
+
+
+@mutation.field("rejectSalesEnquiry")
+@handle_graphql_errors("Error rejecting the sign-up")
+async def resolve_reject_sales_enquiry(_, info, db_name="", schema="", value="") -> Any:
+    """Reject a pending sign-up that has no BU yet; emails the applicant."""
+    # pylint: disable=unused-argument
+    require_own_tenant(info, db_name)
+    require_user_type(info, {"A"})
+    require_default_customer_db(info, db_name)
+    return await resolve_reject_sales_enquiry_helper(info, db_name, value)
+
+
+@mutation.field("markEnterpriseEnquiryContacted")
+@handle_graphql_errors("Error in markEnterpriseEnquiryContacted")
+async def resolve_mark_enterprise_enquiry_contacted(_, info, db_name="", schema="", value="") -> Any:
+    """Mark an Enterprise enquiry contacted (new → contacted). Super Admin only (plans/plan.md Step 10)."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_mark_enterprise_enquiry_contacted_helper(value)
+
+
+@mutation.field("setEnterpriseEnquiryFee")
+@handle_graphql_errors("Error in setEnterpriseEnquiryFee")
+async def resolve_set_enterprise_enquiry_fee(_, info, db_name="", schema="", value="") -> Any:
+    """Set an Enterprise enquiry's setup fee while the payment is outstanding. Super Admin only (plans/plan.md Step 10)."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_set_enterprise_enquiry_fee_helper(value)
+
+
+@mutation.field("recordEnterpriseEnquiryPayment")
+@handle_graphql_errors("Error in recordEnterpriseEnquiryPayment")
+async def resolve_record_enterprise_enquiry_payment(_, info, db_name="", schema="", value="") -> Any:
+    """Record an Enterprise enquiry's setup payment. Super Admin only (plans/plan.md Step 10)."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_record_enterprise_enquiry_payment_helper(value)
+
+
+@mutation.field("markEnterpriseEnquiryPaymentFailed")
+@handle_graphql_errors("Error in markEnterpriseEnquiryPaymentFailed")
+async def resolve_mark_enterprise_enquiry_payment_failed(_, info, db_name="", schema="", value="") -> Any:
+    """Mark an Enterprise enquiry's setup payment failed. Super Admin only (plans/plan.md Step 10)."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_mark_enterprise_enquiry_payment_failed_helper(value)
+
+
+@mutation.field("rejectEnterpriseEnquiry")
+@handle_graphql_errors("Error in rejectEnterpriseEnquiry")
+async def resolve_reject_enterprise_enquiry(_, info, db_name="", schema="", value="") -> Any:
+    """Reject an Enterprise enquiry that has no client yet; emails the applicant. Super Admin only (plans/plan.md Step 10)."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_reject_enterprise_enquiry_helper(value)
+
+
+@mutation.field("provisionEnterpriseEnquiry")
+@handle_graphql_errors("Error in provisionEnterpriseEnquiry")
+async def resolve_provision_enterprise_enquiry(_, info, db_name="", schema="", value="") -> Any:
+    """Create the client, database, first BU and admin of a paid Enterprise enquiry; resumable. Super Admin only (plans/plan.md Step 10)."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_provision_enterprise_enquiry_helper(info, value)
+
+
+# Plans and monthly billing (plans/plan.md Steps 12, 13). lt: the default customer
+# database's admin; Enterprise: the Super Admin, acting in the client's own database.
+
+
+@mutation.field("changeBuPlan")
+@handle_graphql_errors("Error changing the plan")
+async def resolve_change_bu_plan(_, info, db_name="", schema="", value="") -> Any:
+    """Move a Lite / Basic / Standard BU to another of those plans (preview first)."""
+    # pylint: disable=unused-argument
+    require_own_tenant(info, db_name)
+    require_user_type(info, {"A"})
+    require_default_customer_db(info, db_name)
+    return await resolve_change_bu_plan_helper(info, db_name, value)
+
+
+@mutation.field("recordBuSubscriptionPayment")
+@handle_graphql_errors("Error recording the payment")
+async def resolve_record_bu_subscription_payment(_, info, db_name="", schema="", value="") -> Any:
+    """Record an lt BU's monthly payment (1–60 months)."""
+    # pylint: disable=unused-argument
+    require_own_tenant(info, db_name)
+    require_user_type(info, {"A"})
+    require_default_customer_db(info, db_name)
+    return await resolve_record_bu_subscription_payment_helper(info, db_name, value)
+
+
+@mutation.field("recordClientSubscriptionPayment")
+@handle_graphql_errors("Error in recordClientSubscriptionPayment")
+async def resolve_record_client_subscription_payment(_, info, db_name="", schema="", value="") -> Any:
+    """Record an Enterprise client's monthly payment for all its BUs. Super Admin only."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_record_client_subscription_payment_helper(db_name, value)
+
+
+@mutation.field("setClientMonthlyFee")
+@handle_graphql_errors("Error in setClientMonthlyFee")
+async def resolve_set_client_monthly_fee(_, info, db_name="", schema="", value="") -> Any:
+    """Set an Enterprise client's base monthly fee (preview first). Super Admin only."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_set_client_monthly_fee_helper(db_name, value)
+
+
+@mutation.field("extendClientPaidThrough")
+@handle_graphql_errors("Error in extendClientPaidThrough")
+async def resolve_extend_client_paid_through(_, info, db_name="", schema="", value="") -> Any:
+    """Move an Enterprise client's paid-through date, with a note. Super Admin only."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_extend_client_paid_through_helper(db_name, value)
+
+
+@mutation.field("setClientBillingHold")
+@handle_graphql_errors("Error in setClientBillingHold")
+async def resolve_set_client_billing_hold(_, info, db_name="", schema="", value="") -> Any:
+    """Put an Enterprise client on hold or release it, with a note. Super Admin only."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_set_client_billing_hold_helper(db_name, value)
+
+
+@mutation.field("startClientBilling")
+@handle_graphql_errors("Error in startClientBilling")
+async def resolve_start_client_billing(_, info, db_name="", schema="", value="") -> Any:
+    """Put an existing customer on Enterprise billing. Super Admin only."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_start_client_billing_helper(value)
+
+
 @mutation.field("genericUpdateScript")
 @handle_graphql_errors("Error executing script")
 async def resolve_generic_update_script(_, info, db_name="", schema="public", value="") -> Any:
     """Execute a raw SQL update script."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     _require_generic_update_script_right(info, value)
     return await resolve_generic_update_script_helper(db_name, schema, value)
 
@@ -324,6 +556,7 @@ async def resolve_delete_unused_parts_by_brand(
     """Delete spare parts that have no job usage for a given brand."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await resolve_delete_unused_parts_by_brand_helper(db_name, schema, value)
 
 
@@ -333,6 +566,7 @@ async def resolve_import_spare_parts(_, info, db_name="", schema="public", value
     """Bulk-import spare parts from an uploaded data payload."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await resolve_import_spare_parts_helper(db_name, schema, value)
 
 
@@ -381,6 +615,7 @@ async def resolve_create_single_job(
     """Create a single job record."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await resolve_create_single_job_helper(db_name, schema, value)
 
 
@@ -392,6 +627,7 @@ async def resolve_update_job(
     """Update an existing job record."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await resolve_update_job_helper(db_name, schema, value)
 
 
@@ -403,6 +639,7 @@ async def resolve_update_opening_job(
     """Update an Opening Job, recording a job_transaction row when its status changes."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await resolve_update_opening_job_helper(db_name, schema, value)
 
 
@@ -414,6 +651,7 @@ async def resolve_create_job_batch(
     """Create a batch of jobs."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await resolve_create_job_batch_helper(db_name, schema, value)
 
 
@@ -425,6 +663,7 @@ async def resolve_update_job_batch(
     """Update a job batch record."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await resolve_update_job_batch_helper(db_name, schema, value)
 
 
@@ -436,6 +675,7 @@ async def resolve_delete_job_batch(
     """Delete a job batch record."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await resolve_delete_job_batch_helper(db_name, schema, value)
 
 
@@ -447,6 +687,7 @@ async def resolve_deliver_job(
     """Mark a job as delivered."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     require_access_right(info, "JOBS_DELIVER_JOB")
     return await resolve_deliver_job_helper(db_name, schema, value)
 
@@ -459,6 +700,7 @@ async def resolve_undo_job_transaction(
     """Undo the last transaction on a job."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await resolve_undo_job_transaction_helper(db_name, schema, value)
 
 
@@ -470,6 +712,7 @@ async def resolve_undeliver_job(
     """Undeliver a job and restore its pre-delivery status."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     require_access_right(info, "JOBS_DELIVER_JOB")
     return await resolve_undeliver_job_helper(db_name, schema, value)
 
@@ -482,6 +725,7 @@ async def resolve_create_sales_invoice(
     """Create a sales invoice."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     require_access_right(info, "INVENTORY_SALES_ENTRY")
     return await resolve_create_sales_invoice_helper(db_name, schema, value)
 
@@ -494,6 +738,7 @@ async def resolve_create_job_invoice(
     """Create an invoice for a job."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     require_access_right(info, "JOBS_DELIVER_JOB")
     return await resolve_create_job_invoice_helper(db_name, schema, value)
 
@@ -506,6 +751,7 @@ async def resolve_regenerate_job_invoice(
     """Regenerate an existing job invoice."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     require_access_right(info, "JOBS_DELIVER_JOB")
     return await resolve_regenerate_job_invoice_helper(db_name, schema, value)
 
@@ -518,6 +764,7 @@ async def resolve_create_job_payment(
     """Record a payment against a job."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     # Called from both the Receipts screen and the Deliver Job payment
     # step, so either right suffices — see plans/plan.md's "Bonus" note.
     require_any_access_right(info, ["JOBS_RECEIPTS", "JOBS_DELIVER_JOB"])
@@ -532,6 +779,7 @@ async def resolve_accounts_posting(
     """Post unposted money receipts to trace-plus accounts."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     require_access_right(info, "JOBS_ACCOUNTS_POSTING")
     return await resolve_accounts_posting_helper(db_name, schema, value)
 
@@ -548,6 +796,7 @@ async def resolve_send_whatsapp_completion(
     this mutation via that screen's menu entry instead."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await resolve_send_whatsapp_completion_helper(db_name, schema, value)
 
 
@@ -563,6 +812,7 @@ async def resolve_send_whatsapp_job_intake(
     Step 5)."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await send_job_creation_notice(db_name, schema, value)
 
 
@@ -578,6 +828,7 @@ async def resolve_send_whatsapp_job_delivery(
     own JOBS_DELIVER_JOB right already gates the screen this is called from."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await send_job_delivery_notice(db_name, schema, value)
 
 
@@ -593,6 +844,7 @@ async def resolve_send_whatsapp_money_receipt(
     already gates the entry point that calls this."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await send_whatsapp_money_receipt(db_name, schema, value)
 
 
@@ -610,6 +862,7 @@ async def resolve_send_whatsapp_job_invoice(
     right already gates the entry point that calls this."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     return await send_whatsapp_job_invoice(db_name, schema, value)
 
 
@@ -624,6 +877,7 @@ async def resolve_verify_job_delivery_otp(
     client-supplied field, same precedent as setJobDeliveryManualConfirmation."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     staff_id = (info.context or {}).get("user_id")
     return await verify_job_delivery_otp(db_name, schema, value, staff_id)
 
@@ -642,6 +896,7 @@ async def resolve_set_job_delivery_manual_confirmation(
     session's own context, never a client-supplied field."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     staff_id = (info.context or {}).get("user_id")
     return await set_job_delivery_manual_confirmation(db_name, schema, value, staff_id)
 
@@ -660,6 +915,7 @@ async def resolve_add_ew_follow_up(
     """Record a follow-up on an In Progress lead — notes, next date/time, stage."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     require_access_right(info, EW_ACCESS_RIGHT)
     return await add_ew_follow_up(db_name, schema, value, (info.context or {}).get("user_id"))
 
@@ -672,6 +928,7 @@ async def resolve_resend_ew_lead_alert(
     """Re-send the staff WhatsApp alert for a lead whose first alert failed or never went."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     require_access_right(info, EW_ACCESS_RIGHT)
     return await resend_ew_lead_alert(db_name, schema, value)
 
@@ -684,6 +941,7 @@ async def resolve_send_ew_reminders(
     """Send Extended Warranty WhatsApp reminders to the selected leads (single or bulk)."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     require_access_right(info, EW_ACCESS_RIGHT)
     return await send_ew_reminders(db_name, schema, value, (info.context or {}).get("user_id"))
 
@@ -696,5 +954,6 @@ async def resolve_transition_ew_lead(
     """Move a lead along an allowed transition, or advance its In Progress stage."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
     require_access_right(info, EW_ACCESS_RIGHT)
     return await transition_ew_lead(db_name, schema, value, (info.context or {}).get("user_id"))

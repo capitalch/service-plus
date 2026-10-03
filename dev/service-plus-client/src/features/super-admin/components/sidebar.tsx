@@ -3,6 +3,7 @@ import {
 	ActivityIcon,
 	ChevronLeftIcon,
 	ClipboardListIcon,
+	InboxIcon,
 	LayoutDashboardIcon,
 	SettingsIcon,
 	ShieldIcon,
@@ -31,6 +32,7 @@ const navItems: NavItemType[] = [
 	{ color: "text-sky-400", href: ROUTES.superAdmin.root, icon: LayoutDashboardIcon, label: "Dashboard" },
 	{ color: "text-slate-400", href: ROUTES.superAdmin.audit, icon: ClipboardListIcon, label: "Audit Logs" },
 	{ color: "text-purple-400", href: ROUTES.superAdmin.clients, icon: UsersIcon, label: "Clients" },
+	{ color: "text-teal-400", href: ROUTES.superAdmin.enquiries, icon: InboxIcon, label: "Enquiries" },
 	{ color: "text-blue-400", href: ROUTES.superAdmin.settings, icon: SettingsIcon, label: "System Settings" },
 	{ color: "text-sky-400", href: ROUTES.superAdmin.usage, icon: ActivityIcon, label: "Usage & Health" },
 ];

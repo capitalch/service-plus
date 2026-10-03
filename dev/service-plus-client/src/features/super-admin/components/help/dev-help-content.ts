@@ -213,13 +213,13 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 						"Admin Mode",
 						"A only (Business Admin)",
 						"src/features/admin/",
-						"Business Units, Business Users, Roles CRUD for one client company",
+						"Business Units, Business Users, Roles CRUD for one client company; in the default customer database only, also Enquiries (sign-up approval) and Subscriptions (payments, plan changes)",
 					],
 					[
 						"Super Admin",
 						"S only (platform operator)",
 						"src/features/super-admin/",
-						"Client onboarding, DB/schema provisioning, platform-level seeding — this help center lives here",
+						"Client onboarding, DB/schema provisioning, platform-level seeding, Enterprise Enquiries and each client's Subscription panel — this help center lives here",
 					],
 				],
 			},
@@ -1586,7 +1586,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					[
 						"Super Admin only",
 						"require_user_type(info, {'S'})",
-						"createClient, createServiceDb, seedSecurityData, deleteClient, dropDatabase, mailAdminCredentials, createAdminUser; queries superAdminClientsData, usageHealth, systemSettings, superAdminDashboardStats",
+						"createClient, createServiceDb, seedSecurityData, deleteClient, dropDatabase, mailAdminCredentials, createAdminUser, the six Enterprise enquiry mutations (Step 10) and recordClientSubscriptionPayment, setClientMonthlyFee, extendClientPaidThrough, setClientBillingHold, startClientBilling (Step 13); queries superAdminClientsData, usageHealth, systemSettings, superAdminDashboardStats",
 					],
 					[
 						"Own Admin or Super Admin",
@@ -1596,12 +1596,12 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					[
 						"Own Admin only",
 						"require_own_tenant + require_user_type(info, {'A'})",
-						"createBusinessUser, setUserBuRole",
+						"createBusinessUser, setUserBuRole; plus require_default_customer_db for recordSalesEnquiryPayment, markSalesEnquiryPaymentFailed, approveSalesEnquiry, rejectSalesEnquiry (Step 9), changeBuPlan and recordBuSubscriptionPayment (Steps 12–13)",
 					],
 					[
 						"Anything taking a BU schema",
-						"require_own_tenant + require_bu_access, before any right check",
-						"the four generic dispatchers, every job / invoice / payment / inventory mutation, accountsPosting, the five sendWhatsapp… mutations, verifyJobDeliveryOtp, setJobDeliveryManualConfirmation, the four Extended Warranty mutations, getJobDeliveryOtpPending",
+						"require_own_tenant + require_bu_access, before any right check; writes then await require_bu_writable (Step 11, see 'View-only Guard (Unpaid Month)')",
+						"the four generic dispatchers, every job / invoice / payment / inventory mutation, accountsPosting, the five sendWhatsapp… mutations, verifyJobDeliveryOtp, setJobDeliveryManualConfirmation, the four Extended Warranty mutations, addBranch, getJobDeliveryOtpPending, buBillingStatus",
 					],
 				],
 			},
@@ -1708,10 +1708,14 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"Each source is an async function that runs its guards (require_authenticated, require_own_tenant; require_user_type for salesEnquiryCount) and then returns the stream, so a refused caller gets an error rather than a silent socket.",
 					"subscriber_may_receive(context, event): S gets everything; others only their own db_name; A every BU of it; a business user only events whose schema is in bu_codes. An event without schema reaches admins only — every publisher must include db_name and schema.",
 					"accountsPostingProgress matches db_name, BU and branchId (branch ids repeat across BU schemas). whatsappDeliveryStatus matches db_name and BU.",
-					"genericSubscription (unused) is removed. salesEnquiryCount(db_name) is new for the approvers' bell: A of that database or S; publish_sales_enquiry_count(db_name, kind, pending) in pubsub.py, kind LT (default customer database) or ENT (control plane). Steps 9 and 10 publish it.",
+					'genericSubscription (unused) is removed. salesEnquiryCount(db_name) is new for the approvers\' bell: A of that database or S; publish_sales_enquiry_count(db_name, kind, pending) in pubsub.py, kind LT (default customer database) or ENT (control plane). Steps 7, 9 and 10 publish it; the Super Admin subscribes with db_name "", which the source maps to settings.client_db_name.',
 				],
 			},
 			{ type: "heading", text: "Media (app/routers/media/image_router.py)" },
+			{
+				type: "note",
+				text: "Since Step 11, _require_media_scope also refuses a view-only BU (403, detail.code SUBSCRIPTION_READ_ONLY); every route that calls it writes.",
+			},
 			{
 				type: "para",
 				text: "Every upload, delete and reorder route takes Depends(get_token_claims) (app/core/dependencies.py) and calls _require_media_scope first: db_name must be the token's, schema not tenant-wide and in bu_codes (A owns every BU of the tenant), bu_code must equal the schema, and client_code must be the token client's code (GET_CLIENT_DB_NAME by client_id). S passes. Reading files (GET /api/images/uploads/…) stays open by decision.",
@@ -1955,7 +1959,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "Built in steps from plans/plan.md. Lite, Basic and Standard customers ('lt') are each one BU inside one shared tenant, the default customer database; Enterprise customers get their own client and database. Steps 2–5 (2 Oct 2026) add the settings, the login flag, the wider BU name rule, the enquiry and billing tables, the price list and the date rules; Step 6 closes the holes a shared tenant would expose (see 'Shared-Database Isolation'). Nothing yet reads the new tables: the screens and mutations come in Steps 7–14.",
+				text: "Built in steps from plans/plan.md. Lite, Basic and Standard customers ('lt') are each one BU inside one shared tenant, the default customer database; Enterprise customers get their own client and database. Steps 2–5 (2 Oct 2026) add the settings, the login flag, the wider BU name rule, the enquiry and billing tables, the price list and the date rules; Step 6 closes the holes a shared tenant would expose (see 'Shared-Database Isolation'). Step 7 (3 Oct 2026) adds the public sign-up, status and price endpoints and their emails (see 'Public Sign-up Endpoints & Emails'); Step 8 the portal side; Steps 9–10 the approval screens and mutations (see 'Sign-up Approval & Enterprise Provisioning'); Step 11 the view-only guard (see 'View-only Guard (Unpaid Month)'); Steps 12–14 the branch limit, plan change, monthly payments, reminders and billing screens (see 'Plans, Payments & Billing Screens').",
 			},
 			{ type: "heading", text: "Settings (all optional except where noted)" },
 			{
@@ -1968,6 +1972,11 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 						"The default customer database (dev: service_plus_customers, client 'customers'). Empty disables lt sign-ups.",
 					],
 					["BILLING_REMINDER_HOUR", "api_settings.py", "IST hour for the daily reminder job (default 9)"],
+					[
+						"PORTAL_URL_PRODUCTION",
+						"api_settings.py",
+						"Portal base for email links (default https://myserviceplus.in). The computed portal_url uses http://localhost:3005 while DEBUG is on and this value otherwise.",
+					],
 					[
 						"LITE_BASIC_STANDARD_ENQUIRY_NOTIFY_EMAIL",
 						"email_settings.py",
@@ -2029,7 +2038,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"Generated types: db-schema-security.ts has the security.bu billing columns and bu_payment; db-schema-client.ts has the public.sales_enquiry payment columns. security.sales_enquiry exists only in the default customer database, not in the service_plus_service template, so it is not generated — Step 9 types it by hand.",
 					'*_by columns (payment_recorded_by, reviewed_by, recorded_by) hold a username as text, because an Enterprise action is taken by the Super Admin, who has no security."user" row.',
 					"New client databases get BU_BILLING_DDL straight after SECURITY_SCHEMA_DDL in resolve_create_service_db_helper. It is not folded into SECURITY_SCHEMA_DDL because sql_bu_admin_ddl.py is regenerated by app/db/tools/extract_schema.py.",
-					"No database triggers, by decision. The branch limit will be enforced by an addBranch mutation that locks the BU's security.bu row (BillingServerSql.LOCK_BU_FOR_BRANCH), counts (COUNT_BRANCHES) and inserts in one transaction (Step 12).",
+					"No database triggers, by decision. The branch limit is enforced inside the addBranch mutation (see 'Default Division per Branch'): it locks the BU's security.bu row (BillingServerSql.LOCK_BU_FOR_BRANCH) and counts (COUNT_BRANCHES) before the insert, in the same transaction; at the limit → BRANCH_LIMIT_REACHED.",
 					"SignupServerSql and BillingServerSql are not composed into SqlStore, so genericQuery / genericUpdateScript can never run the DDL. SignupSql and BillingSql are composed but empty until Steps 9 and 13; their reads name security.* and are therefore admin-only under ADMIN_ONLY_SQL_IDS.",
 				],
 			},
@@ -2676,14 +2685,14 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					["markup_percent_over_cost", "Auto-markup for selling price = cost × (1 + markup%)"],
 					[
 						"post_data_to_accounts",
-						"Feature-flags the whole Trace Plus integration (Jobs → Accounts Posting) — read client-side in layout/client-layout.tsx and dispatched into Redux at app load",
+						"Feature-flags the whole Trace Plus integration (Jobs → Accounts Posting) — read client-side in layout/client-layout.tsx and dispatched into Redux at app load. Seeded false for new BUs (id 8 since default_division_id was retired); existing BUs keep their value",
 					],
 					[
 						"whatsapp_notifications",
 						"Per-event on/off switch for outbound WhatsApp sends ({JOB_CREATION, JOB_COMPLETION, JOB_DELIVERY, JOB_MONEY_RECEIPT, JOB_INVOICE, EXTENDED_WARRANTY} booleans, only JOB_COMPLETION seeded true) — read server-side, in app/whatsapp/sender.py's _is_event_enabled(), not by the client. See 'WhatsApp Integration — Implementation' for the fail-closed gating logic.",
 					],
 					[
-						"extended_warranty (id 16)",
+						"extended_warranty (id 15)",
 						"JSON {contact_phone, daily_send_cap, enabled, notify_email, staff_whatsapp_number, whatsapp_number}. enabled (strictly true) is read client-side in layout/client-layout.tsx into Redux (extendedWarrantyEnabled — shows Custom → Extended Warranty) and server-side by app/whatsapp/ew_sender.py; sending also needs whatsapp_notifications.EXTENDED_WARRANTY. Edited in its own dialog, edit-extended-warranty-dialog.tsx. See 'Extended Warranty — Lead State Machine'.",
 					],
 				],
@@ -2695,7 +2704,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "seed_bu_data.py's BU_SEED_SQL (reverted/updated 2026-09-18) pre-populates document_sequence for the auto-created 'HO' branch: JOB_SHEET→'J', PURCHASE_INVOICE→'P', PURCHASE_RETURN_INVOICE→'PR', all with next_number=1, padding=5, separator='/', division_id NULL — matching document-sequence-section.tsx's own client-side fallback defaults (next_number ?? 1, padding ?? 5, separator ?? '/') so the saved row and an unsaved/blank row render identically. Inserted via JOIN branch/document_type + WHERE NOT EXISTS (same idiom as the branch insert above it), so it's safe on re-seed and never overwrites a value an Admin already changed. SERVICE_INVOICE/MONEY_RECEIPT/SALES_INVOICE are NOT pre-seeded — they're per-division and no division exists yet at BU-creation time.",
+				text: "seed_bu_data.py's BU_SEED_SQL (reverted/updated 2026-09-18) pre-populates document_sequence for the auto-created 'HO' branch: JOB_SHEET→'J', PURCHASE_INVOICE→'P', PURCHASE_RETURN_INVOICE→'PR', all with next_number=1, padding=5, separator='/', division_id NULL — matching document-sequence-section.tsx's own client-side fallback defaults (next_number ?? 1, padding ?? 5, separator ?? '/') so the saved row and an unsaved/blank row render identically. Inserted via JOIN branch/document_type + WHERE NOT EXISTS (same idiom as the branch insert above it), so it's safe on re-seed and never overwrites a value an Admin already changed. SERVICE_INVOICE/MONEY_RECEIPT/SALES_INVOICE are NOT pre-seeded — they're per-division. Since plans/plan2.md Step 1 the seed also creates HO's default division Main (see 'Default Division per Branch'), but its per-division sequences are still left for the Admin to configure.",
 			},
 		],
 		faqs: [
@@ -2741,7 +2750,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "The Configurations → Divisions form in Client Mode only shows this JSON entry form when post_data_to_accounts is true — it's otherwise hidden, not just disabled, since it's meaningless without the integration turned on.",
+				text: "The Configurations → Divisions form in Client Mode only shows this JSON entry form when post_data_to_accounts is true — it's otherwise hidden, not just disabled, since it's meaningless without the integration turned on. While it is off, Edit Division neither validates nor sends account_setting, so a stored value survives the save (plans/plan2.md Step 7). New BUs seed post_data_to_accounts as false.",
 			},
 		],
 		faqs: [
@@ -2752,6 +2761,108 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "Where is this JSON actually consumed?",
 				a: "Server-side, in the accountsPosting mutation/resolver, which pulls clientCode/buCode/debitAccountId/creditAccountId etc. out of it to build the payload sent to Trace Plus — see 'Accounts Posting (Trace Plus) — Implementation'.",
+			},
+		],
+	},
+
+	{
+		id: "dev-default-division",
+		category: "Configuration",
+		title: "Default Division per Branch",
+		summary:
+			"division.is_default, the Main division created with a branch, and the retired default_division_id setting.",
+		tags: ["division", "is_default", "main", "default division", "branch", "default_division_id", "plan2"],
+		content: [
+			{
+				type: "para",
+				text: "Every branch has exactly one default division, marked by division.is_default. When the system creates it, it is named Main with code MAIN and copies the branch's address_line1/2, city, state_id, pincode, phone, email and gstin once; later branch edits do not flow to it. Built in stages from plans/plan2.md.",
+			},
+			{
+				type: "table",
+				headers: ["Piece", "Where", "What it does"],
+				rows: [
+					[
+						"is_default column",
+						"BU_SCHEMA_DDL (sql_bu_admin_ddl.py)",
+						"boolean NOT NULL DEFAULT false on division",
+					],
+					[
+						"division_one_default_per_branch",
+						"BU_SCHEMA_DDL",
+						"Unique partial index on (branch_id) WHERE is_default — at most one default per branch",
+					],
+					[
+						"division_branch_id_fkey ON DELETE CASCADE",
+						"BU_SCHEMA_DDL",
+						"Deleting a branch removes its divisions. CHECK_BRANCH_IN_USE plus the job/sales_invoice/purchase_invoice FKs to division still block a branch with history",
+					],
+					[
+						"HO's Main",
+						"BU_SEED_SQL (seed_bu_data.py)",
+						"Inserted right after the HO branch with id COALESCE(MAX(id),0)+1 — id 1 in a new BU — and is_default true; WHERE NOT EXISTS keeps re-seeding safe",
+					],
+					[
+						"DivisionServerSql.DEFAULT_DIVISION_DDL",
+						"app/db/sql/sql_divisions.py (not in SqlStore)",
+						"One-off, idempotent upgrade of an existing BU schema",
+					],
+					[
+						"run_default_division_ddl.py",
+						"service-plus-server/scripts/",
+						"Runs that script in every schema with a division table, in every client database plus service_plus_service; --dry-run lists targets",
+					],
+					[
+						"addBranch mutation",
+						"resolvers/masters/branches.py (resolve_add_branch_helper); schema.graphql",
+						"The only way to create a branch. Guards: require_own_tenant, require_bu_access, and MASTERS_MENU (the right genericUpdate demands for branch). One transaction: insert the branch (process_data), LOCK_DIVISION_TABLE, then INSERT_MAIN_DIVISION_FOR_BRANCH with id MAX(id)+1. Returns {branchId, divisionId}",
+					],
+					[
+						"refuse_branch_insert",
+						"resolvers/masters/branches.py, called in resolve_generic_update",
+						"Walks the payload (iter_sql_object_rows: top node and nested xDetails, dict or list) and refuses any branch row without id, or with isIdInsert → BRANCH_INSERT_VIA_ADD_BRANCH. Updates and deletedIds on branch pass",
+					],
+					[
+						"refuse_default_division_change",
+						"resolvers/masters/branches.py, called in resolve_generic_update",
+						"A division row carrying is_default is refused outright. Ids in deletedIds, or update rows with is_active false or a branch_id key, are looked up with GET_DEFAULT_DIVISION_IDS; a match → DEFAULT_DIVISION_LOCKED. Applies to every user type",
+					],
+				],
+			},
+			{ type: "heading", text: "Client side" },
+			{
+				type: "bullets",
+				items: [
+					"GET_DIVISIONS_BY_BRANCH, GET_ACTIVE_DIVISIONS_BY_BRANCH and GET_DIVISION_BY_ID return is_default; both branch lists order by is_default DESC, name. DivisionType and DivisionContextType carry is_default.",
+					"add-branch-dialog.tsx calls GRAPHQL_MAP.addBranch with encodeObj(fields) — not genericUpdate.",
+					"use-bu-branch-division-actions.ts: pickDefaultDivision(divisions) = the is_default division, else the first. applyContext and handleBranchChange dispatch it as currentDivision and its id as defaultDivisionId (0 when the branch has no division). The job and invoice forms read selectDefaultDivisionId unchanged.",
+					"division-section.tsx shows a Default badge and no Deactivate/Delete for is_default; delete-division-dialog.tsx blocks it with ERROR_DIVISION_DELETE_DEFAULT as a second guard.",
+					"App Settings no longer has the default_division_id mismatch warning.",
+					"edit-division-dialog.tsx: account_setting is loaded (and validated) only when post_data_to_accounts is on, and sent only then, so turning Trace+ off never erases a stored setting. Both dialogs switch to the Accounts tab on error only when it is shown.",
+				],
+			},
+			{ type: "heading", text: "How the upgrade script picks a default" },
+			{
+				type: "steps",
+				items: [
+					"Adds the column, the index and the cascading FK.",
+					"For each branch without a default: the division named by app setting default_division_id if it belongs to that branch, else the lowest-id active division, else the lowest-id division.",
+					"Each branch with no division gets Main, ids MAX(id)+row_number().",
+					"Deletes the default_division_id row and moves every later app_setting id down by one (5–16 → 4–15), each move guarded by NOT EXISTS so a re-run is a no-op.",
+				],
+			},
+			{
+				type: "note",
+				text: "default_division_id is retired: new BUs no longer seed it and the script deletes it, so app_setting ids are 1–15. Deleting a branch through genericUpdate deletedIds is not seen by the division guard (the payload names only the branch); the cascading FK removes its divisions. ",
+			},
+		],
+		faqs: [
+			{
+				q: "Why not give every branch's Main id 1?",
+				a: "division.id is the primary key of the whole BU schema and is referenced by job, sales_invoice, purchase_invoice and document_sequence, so only one division per BU can be id 1. The default is the is_default flag, not the id.",
+			},
+			{
+				q: "Who may set is_default?",
+				a: "Only the seed, the upgrade script and addBranch; genericUpdate refuses any payload carrying is_default. The partial unique index rejects a second default in a branch at the database level.",
 			},
 		],
 	},
@@ -3745,7 +3856,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		category: "Integrations",
 		title: "Public Marketing Portal & Plan Enquiries",
 		summary:
-			"service-plus-portal is the static Next.js marketing site (home, pricing, contact). Its pricing-page enquiry form posts to POST /api/public/sales-enquiry, which saves a row in service_plus_client.public.sales_enquiry and then emails the team.",
+			"service-plus-portal is the static Next.js marketing site (home, pricing, contact). Enterprise enquiries post to POST /api/public/sales-enquiry (saved in service_plus_client.public.sales_enquiry, then emailed); Lite / Basic / Standard sign up through POST /api/public/signup — see 'Public Sign-up Endpoints & Emails'.",
 		tags: [
 			"service-plus-portal",
 			"marketing site",
@@ -3788,7 +3899,19 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"lib/api.ts",
-						"submitSalesEnquiry → POST /api/public/sales-enquiry with the X-Website-Key header.",
+						"submitSalesEnquiry (Enterprise) → POST /api/public/sales-enquiry; submitSignup (Lite/Basic/Standard) → POST /api/public/signup; fetchSignupStatus → POST /api/public/signup/status; fetchPlanPrices → GET /api/public/plan-prices. All send X-Website-Key; refusals arrive as ApiError with the server's code (detail {code, message}).",
+					],
+					[
+						"lib/plan-prices.ts",
+						"usePlanPrices(): content/pricing.ts amounts first, then the live /plan-prices list, fetched once per page load and shared (module-level promise). Every price display reads it; the JSON-LD and pre-built HTML keep the fallback.",
+					],
+					[
+						"components/pricing/sales-enquiry-form.tsx + lite-confirm-dialog.tsx",
+						"Validates as you type, submit disabled while invalid; business name follows BU_NAME_REGEX (lib/validators.ts). Lite shows 'Confirm Lite signup' and a confirm dialog; Enterprise posts to /sales-enquiry, the rest to /signup. Server refusals (duplicate, not configured) show in the form's error summary. enquiry-success.tsx shows the reference; Lite links to /signup-status.",
+					],
+					[
+						"app/signup-status/page.tsx + components/signup/signup-status-form.tsx",
+						"Static page (in the sitemap) that looks a sign-up up in the browser by mobile + email: pending, approved (login email, client to pick, Log in button to siteConfig.appUrl) or not approved (reason).",
 					],
 				],
 			},
@@ -3796,16 +3919,16 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "bullets",
 				items: [
-					"Route: POST /api/public/sales-enquiry in app/routers/public/website_router.py. It uses the router-wide require_website_key guard and rate_limit('sales-enquiry', 5 per 60 s per IP).",
-					"Model: SalesEnquiryIn. plan_code must be lite|basic|standard|enterprise; mobile must be 10 digits starting 6-9; gstin is optional but, if given, must match the 15-character pattern; branches must be 1-50. These mirror the portal's zod schema and service-plus-client's lib/mobile.ts and lib/gstin.ts.",
-					"SQL: PublicSql.INSERT_SALES_ENQUIRY (app/db/sql/sql_public.py). It runs through exec_sql with db_name=None, i.e. against the service_plus_client registry DB, not a tenant DB.",
-					"The row is saved first, then contact_notify_email is emailed (HTML and text, reply-to set to the enquirer). An email failure is logged and swallowed, since the lead is already saved. The response is always {status: 'ok'} and never includes the row id.",
+					"Route: POST /api/public/sales-enquiry in app/routers/public/website_router.py. It uses the router-wide require_website_key guard and rate_limit('sales-enquiry', 5 per 60 s per IP). Since plans/plan.md Step 7 it accepts only plan_code 'enterprise'; any other plan gets 422 {code: SIGNUP_WRONG_ENDPOINT} and nothing is written.",
+					"Model: SalesEnquiryIn (shared with POST /signup). plan_code must be lite|basic|standard|enterprise; mobile must be 10 digits starting 6-9; gstin is optional but, if given, must match the 15-character pattern; branches must be 1-50. These mirror the portal's zod schema and service-plus-client's lib/mobile.ts and lib/gstin.ts.",
+					"Logic: app/services/signups.py submit_enterprise_enquiry. SQL: SignupServerSql.INSERT_ENT_ENQUIRY (app/db/sql/sql_signups.py; the old PublicSql.INSERT_SALES_ENQUIRY is gone) with db_name=None, i.e. the service_plus_client registry DB. It stores a random reference (SP-XXXXXXXX), the list Enterprise setup fee in paise and payment_status 'pending'.",
+					"The row is saved first; then the new-enquiry count is pushed (salesEnquiryCount, kind ENT, db_name = client_db_name); then the team notice goes to contact_notify_email and enterprise_enquiry_notify_email (deduplicated; reply-to the enquirer); then the applicant's thank-you. Email failures are logged and swallowed. The response is {status: 'ok', reference} — never the row id.",
 				],
 			},
 			{ type: "heading", text: "Table: service_plus_client.public.sales_enquiry" },
 			{
 				type: "para",
-				text: "Created by service-plus-server/scripts/sales_enquiry.sql (idempotent, run once per environment on the service_plus_client DB). Columns: id, plan_code, name, business_name, mobile, email, city, gstin, branches, message, status ('new' | 'contacted' | 'converted' | 'rejected', default 'new'), ip, created_at. No triggers and no updated_at column: whatever later updates rows (the future enquiries grid) adds updated_at and sets it explicitly. CHECK constraints enforce the plan_code, status and branches ranges.",
+				text: "Created by service-plus-server/scripts/sales_enquiry.sql (idempotent, run once per environment on the service_plus_client DB); SignupServerSql.SALES_ENQUIRY_ENT_ALTER later added reference, client_id, the payment and progress columns (see 'Sign-up & Billing — Foundations'). Original columns: id, plan_code, name, business_name, mobile, email, city, gstin, branches, message, status ('new' | 'contacted' | 'converted' | 'rejected', default 'new'), ip, created_at. No triggers and no updated_at column: whatever later updates rows (the future enquiries grid) adds updated_at and sets it explicitly. CHECK constraints enforce the plan_code, status and branches ranges.",
 			},
 			{
 				type: "warning",
@@ -3819,13 +3942,13 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"Server .env: the portal's origins in CORS_ORIGINS, plus CONTACT_NOTIFY_EMAIL.",
 				],
 			},
-			{ type: "heading", text: "Not built yet" },
+			{ type: "heading", text: "Status and open items" },
 			{
 				type: "bullets",
 				items: [
-					"There is no super-admin screen for enquiries yet. Read the table directly for now; the status column exists for that future grid.",
+					"Enquiries are handled in Super Admin → Enquiries (Enterprise) and Admin → Enquiries of the default customer database (Lite/Basic/Standard) — see 'Sign-up Approval & Enterprise Provisioning'.",
 					"The Role-based access /features section has no screenshotFiles and renders the placeholder — no roles/access-rights screen was reachable from the client workspace to capture. Branches & business units uses the header's branch switcher and Inventory > Branch Transfer instead of the Masters > Branch or Configurations > Divisions list pages, which were deliberately excluded from marketing screenshots.",
-					"Nothing in the app enforces plan limits (jobs per month, WhatsApp quota, user count, BU count). The pricing page describes the plans; it does not gate anything.",
+					"Enforced: the branch limit (Lite/Basic: head office only — addBranch), view-only for an unpaid month, and Enterprise's included BUs (extra BUs need confirmation and add a fee). Not enforced: jobs per month, WhatsApp quota and user count — the pricing page describes them; nothing gates them.",
 					"Payment is a manual bank transfer. The enquiry success card's payment block (components/pricing/enquiry-success.tsx) is the one place to swap for a Razorpay checkout later.",
 				],
 			},
@@ -3841,9 +3964,391 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Where do I change a price?",
-				a: "content/pricing.ts in service-plus-portal, then rebuild and redeploy the portal. The server does not know prices; it only validates plan_code.",
+				a: "In the server .env (PRICE_… keys, read by app/core/plan_prices.py; defaults are today's prices). GET /api/public/plan-prices serves them to the portal in whole rupees. Until plans/plan.md Step 8 wires the portal to that endpoint, content/pricing.ts must be kept in step by hand.",
 			},
 		],
+	},
+
+	{
+		id: "dev-public-signup",
+		category: "Integrations",
+		title: "Public Sign-up Endpoints & Emails",
+		summary:
+			"plans/plan.md Step 7: the portal's price list, the Lite / Basic / Standard sign-up and its status lookup, the Enterprise enquiry, and every email they send.",
+		tags: [
+			"signup",
+			"sign-up",
+			"plan-prices",
+			"sales_enquiry",
+			"portal_url",
+			"bu_code",
+			"reference",
+			"SIGNUP_DUPLICATE",
+		],
+		content: [
+			{
+				type: "para",
+				text: "All four routes are in app/routers/public/website_router.py behind the router-wide require_website_key guard; the logic is app/services/signups.py and the emails app/services/signup_emails.py. Refusals raise SignupException (or ServicePlusException DEFAULT_DB_NOT_CONFIGURED) and are mapped by _signup_http_error to {detail: {code, message}}: DEFAULT_DB_NOT_CONFIGURED 503, SIGNUP_DUPLICATE 409, SIGNUP_WRONG_ENDPOINT and VALIDATION_ERROR 422, NOT_FOUND 404.",
+			},
+			{
+				type: "table",
+				headers: ["Route", "Rate limit", "What it does"],
+				rows: [
+					[
+						"GET /api/public/plan-prices",
+						"60/min",
+						"get_price_list() in whole rupees: per plan setup_fee and monthly_fee, plus enterprise_included_bus and extra_bu_monthly_fee. Cache-Control max-age=300.",
+					],
+					[
+						"POST /api/public/signup",
+						"5/min",
+						"Lite / Basic / Standard only (submit_lt_signup). Saved in security.sales_enquiry of the default customer database — never the control plane.",
+					],
+					[
+						"POST /api/public/signup/status",
+						"10/min",
+						"{mobile, email} must match the same request (newest wins). Returns status and plan_code, plus rejection_reason when rejected, or login_email and client_name when approved. Otherwise 404 SIGNUP_NOT_FOUND.",
+					],
+					[
+						"POST /api/public/sales-enquiry",
+						"5/min",
+						"Enterprise only — see 'Public Marketing Portal & Plan Enquiries'.",
+					],
+				],
+			},
+			{ type: "heading", text: "submit_lt_signup, in order" },
+			{
+				type: "steps",
+				items: [
+					"Plan must be lite|basic|standard, else SIGNUP_WRONG_ENDPOINT.",
+					"get_default_customer_client(); if DEFAULT_CUSTOMER_DB_NAME is unset or matches no active client → DEFAULT_DB_NOT_CONFIGURED and nothing is written.",
+					"business_name must pass BU_NAME_PATTERN (the Step 3 rule); Lite and Basic must ask for exactly 1 branch (SIGNUP_BRANCHES_ONE).",
+					"CHECK_LT_SIGNUP_DUPLICATE: a pending/approved request with that mobile or email, or a security.user with that email → one SIGNUP_DUPLICATE message whatever matched, so the endpoint cannot reveal which emails have accounts. Emails are stored lower-case.",
+					"bu_name = business name, plus ' (city)' when CHECK_LT_BU_NAME_TAKEN finds a BU or open request with that name (kept only if it still passes the name rule).",
+					"bu_code via derive_bu_code(name, is_taken) — shared with Steps 9 and 10, which pass their own is_taken. bu_code_base: lower-case, other characters → '_', trimmed, cut to 26, short codes padded to bu_…, 'bu_' in front of 'pg_…' or a leading digit; then _2, _3 … while reserved (public, security, information_schema, demo1) or CHECK_LT_BU_CODE_TAKEN (BU, schema, open request).",
+					"INSERT_LT_ENQUIRY with a random reference (SP- + 8 of A–Z/2–9 without O/I/0/1), the plan's setup fee and payment_status 'not_required' when that fee is 0 (Lite), else 'pending'. A clash on the open email/mobile index → SIGNUP_DUPLICATE; on reference or bu_code → new values, up to 3 attempts.",
+					"Push GET_LT_PENDING_COUNT (salesEnquiryCount, kind LT, the default database's name); email the applicant's thank-you; email every GET_ACTIVE_ADMIN_EMAILS admin plus lite_basic_standard_enquiry_notify_email. Returns {status: 'pending', reference}.",
+				],
+			},
+			{ type: "heading", text: "Emails" },
+			{
+				type: "bullets",
+				items: [
+					"Wording: AppMessages.SIGNUP_EMAIL_* (subject + plain-text template each). signup_emails.build_html turns the same text into the HTML version (escaped, paragraphs kept, URLs linked). send_text_email never raises.",
+					"thank_you_email: Lite — pending approval, reference, status link; Basic/Standard — sales team will contact, reference, setup cost, account created once received, monthly fee separate; Enterprise — sales team will contact, reference.",
+					"rejection_email (used by rejectSalesEnquiry and rejectEnterpriseEnquiry): reason and the status link. approver_email: plan, applicant, setup status and a link to <frontend_url>/admin/enquiries (the page Step 9 builds).",
+					"The status link is <portal_url>/signup-status/. portal_url (api_settings.py, computed) is http://localhost:3005 while DEBUG is on, else PORTAL_URL_PRODUCTION (default https://myserviceplus.in, trailing slash stripped). Amounts are shown as ₹ with Indian grouping (rupees()).",
+				],
+			},
+			{
+				type: "note",
+				text: "Tests: tests/core/test_signups.py stubs exec_sql, the default-client lookup, the count push and the mailer, so it needs no database. The SQL was checked against the live schemas read-only.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why does /signup/status need both mobile and email?",
+				a: "Either alone could be guessed or known by someone else. Requiring both on the same request, and answering only 'no request found' otherwise, keeps the page from confirming who has applied.",
+			},
+			{
+				q: "Where is the Enquiries page the approver email links to?",
+				a: "Admin → Enquiries (features/admin/pages/enquiries-page.tsx). The link uses settings.frontend_url, the same base the password-reset emails fall back to.",
+			},
+		],
+	},
+
+	{
+		id: "dev-signup-approval",
+		category: "Integrations",
+		title: "Sign-up Approval & Enterprise Provisioning",
+		summary:
+			"plans/plan.md Steps 9–10: Admin → Enquiries (lt) and Super Admin → Enquiries (Enterprise) — setup payment, resumable approval/provisioning, rejection, extra Enterprise BUs.",
+		tags: [
+			"approveSalesEnquiry",
+			"provisionEnterpriseEnquiry",
+			"enquiries",
+			"claim",
+			"resumable",
+			"EXTRA_BU_CONFIRM_REQUIRED",
+			"PAYMENT_NOT_RECEIVED",
+			"salesEnquiryCount",
+		],
+		content: [
+			{
+				type: "table",
+				headers: ["Piece", "Where", "Notes"],
+				rows: [
+					[
+						"recordSalesEnquiryPayment, markSalesEnquiryPaymentFailed, approveSalesEnquiry, rejectSalesEnquiry",
+						"resolvers/bu_admin/signups.py",
+						"Guards: require_own_tenant + require_user_type {A} + require_default_customer_db. SQL in SignupServerSql (CLAIM_LT_ENQUIRY, SET_LT_BU, FINISH_LT_APPROVAL, …).",
+					],
+					[
+						"markEnterpriseEnquiryContacted, setEnterpriseEnquiryFee, recordEnterpriseEnquiryPayment, markEnterpriseEnquiryPaymentFailed, rejectEnterpriseEnquiry, provisionEnterpriseEnquiry",
+						"resolvers/bu_admin/enterprise_enquiries.py",
+						"Guard: require_user_type {S}. Control plane (db_name=None).",
+					],
+					[
+						"GET_SALES_ENQUIRIES, GET_SALES_ENQUIRY_PENDING_COUNT, GET_ENTERPRISE_ENQUIRIES, GET_ENTERPRISE_ENQUIRY_NEW_COUNT",
+						"SignupSql (in SqlStore, admin-only by the security./public. scan)",
+						'lt pair: genericQuery on schema security of the default database; Enterprise pair: db_name "", schema public (Super Admin only).',
+					],
+					[
+						"Bell counts",
+						"components/shared/enquiries/use-enquiry-count.ts",
+						"Reads the count on mount, then follows salesEnquiryCount. An empty db_name subscribes to the control plane (S only; the subscription maps it to client_db_name).",
+					],
+					[
+						"Screens",
+						"features/admin/pages/enquiries-page.tsx, features/super-admin/pages/enterprise-enquiries-page.tsx",
+						"Shared pieces in components/shared/enquiries/: enquiries-grid, record-payment-dialog (rupees in, paise stored), enquiry-note-dialog (reason / failed note), payment-status-chip. Admin → Enquiries and its bell show only when isDefaultCustomerDb.",
+					],
+				],
+			},
+			{ type: "heading", text: "approveSalesEnquiry, in order (resumable)" },
+			{
+				type: "steps",
+				items: [
+					"Claim: CLAIM_LT_ENQUIRY sets processing_started_at only if pending and not claimed in the last 10 minutes; else ENQUIRY_BUSY.",
+					"Payment gate: PAYMENT_NOT_RECEIVED (CodedValidationException) unless received or not_required — before any work.",
+					"BU row (if bu_id empty): check_new_bu (format, reserved, BU/schema exists), then INSERT_BU + SET_LT_BU on one connection; an edited name/code is used only here.",
+					"Schema (if bu_schema_ready_at empty): build_bu_schema drops a same-named half-built schema (CASCADE), then runs the BU helper's repair path with the stored id; SET_LT_SCHEMA_READY.",
+					"Plan: set_bu_plan — branch_limit 1 for Lite/Basic, billing_required except Lite, monthly fee from the price list, paid_through NULL; clears the billing cache.",
+					"Head office: SET_HEAD_OFFICE_CITY_GSTIN and SET_MAIN_DIVISION_CITY_GSTIN in the new schema (plans/plan2.md).",
+					"User (if user_id empty): free_username (letters/digits, ≥5, numbered), MANAGER role, resolve_create_business_user_helper with signup_client_name → the EMAIL_SIGNUP_USER_LINK template; stores user_id and login_email_sent.",
+					"Finish: FINISH_LT_APPROVAL, audit APPROVE_SALES_ENQUIRY, publish the count. Any failure: RELEASE_LT_CLAIM and re-raise, keeping every stored id.",
+				],
+			},
+			{ type: "heading", text: "provisionEnterpriseEnquiry" },
+			{
+				type: "bullets",
+				items: [
+					"Same claim/release pattern (CLAIM_ENT_ENQUIRY). Gate: payment_status 'received' only.",
+					"Client: INSERT_ENT_CLIENT + SET_ENT_CLIENT in one control-plane transaction (client code 4–20 alnum, name like Add Client).",
+					"Database: a new name is first stored on the client (UPDATE_CLIENT_DB_NAME), then resolve_create_service_db_helper; on a resumed run a database with the client's name and a security schema is kept, one without is dropped and recreated. A name that exists but is not this client's is refused, never dropped.",
+					"First BU: looked up by code in the new database (GET_BU_BY_CODE) before inserting, because the BU row and the enquiry live in different databases; then build_bu_schema, set_bu_plan('enterprise'), head office; admin via resolve_create_admin_user_helper. Status 'converted'.",
+				],
+			},
+			{ type: "heading", text: "Later Enterprise BUs" },
+			{
+				type: "para",
+				text: "app/services/enterprise_billing.py, called by resolve_create_bu_schema_and_feed_seed_data_helper on the new-BU path when the database is not the default one and already has a billed BU. BU number ≤ enterprise_included_bus: fee 0; beyond: price_extra_bu_monthly, and without confirm_extra_bu the call stops with EXTRA_BU_CONFIRM_REQUIRED (extensions paid_through, paid_through_changes) — create-business-unit-dialog.tsx shows it and re-sends with confirm_extra_bu. The new BU copies plan_code, billing_required, paid_through, billing_hold, branch_limit (COPY_CLIENT_BILLING_TO_BU). If prepaid, paid_through is rebased for every billed BU (rebase_paid_through, SET_CLIENT_PAID_THROUGH) and a 'fee_rebase' bu_payment row records both dates; enterprise_enquiry_notify_email is told and EXTRA_BU_ADDED audited.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why CodedValidationException instead of ValidationException with extensions.code?",
+				a: "format_graphql_error overwrites extensions.code with the exception's own code, so a 'code' key in a plain ValidationException's extensions arrives as VALIDATION_ERROR. CodedValidationException carries the code itself (PAYMENT_NOT_RECEIVED, EXTRA_BU_CONFIRM_REQUIRED, DEFAULT_DIVISION_LOCKED, BRANCH_INSERT_VIA_ADD_BRANCH).",
+			},
+		],
+	},
+
+	{
+		id: "dev-view-only-guard",
+		category: "Integrations",
+		title: "View-only Guard (Unpaid Month)",
+		summary:
+			"plans/plan.md Step 11: require_bu_writable, the billing cache, the classified mutation lists and the REST writers.",
+		tags: [
+			"require_bu_writable",
+			"SUBSCRIPTION_READ_ONLY",
+			"view-only",
+			"read_only",
+			"billing",
+			"buBillingStatus",
+			"get_bu_billing",
+		],
+		content: [
+			{
+				type: "bullets",
+				items: [
+					"require_bu_writable(info, db_name, schema) in auth_guards.py (async): skips S and the security/public/empty schemas; otherwise reads get_bu_billing and raises AuthorizationException code SUBSCRIPTION_READ_ONLY with extensions.paidThrough. It runs after require_own_tenant + require_bu_access, so a foreign BU still gets 'forbidden'. Admins are blocked like anyone.",
+					"app/services/bu_billing.py: get_bu_billing caches {status, paidThrough, planCode, branchLimit} per (database, BU) for 60 s (BillingServerSql.GET_BU_BILLING_BY_CODE + compute_billing_status). clear_bu_billing(db, schema=None) is called by set_bu_plan and the extra-BU billing; payment recording (Step 13) must call it too.",
+					"Guarded: genericUpdate, genericUpdateScript, addBranch and every BU-schema mutation (jobs, invoices, payments, inventory import/delete, accountsPosting, WhatsApp sends, delivery OTP/confirmation, the four EW mutations). Not guarded: provisioning, users/roles, mail credentials, Super Admin and enquiry/payment/plan mutations. tests/test_view_only_guard.py keeps every mutation in exactly one of the two lists — a new mutation fails the test until classified.",
+					"REST: image_router's _require_media_scope refuses uploads/deletes (403 detail.code SUBSCRIPTION_READ_ONLY); public /part-orders answers 409 PART_ORDER_UNAVAILABLE. Public job-intake/delivery/receipt pages are GET-only and stay readable; WhatsApp status callbacks and the stock snapshot are untouched.",
+					"Login: GET_USER_BUS returns the billing columns and each availableBus entry carries billing (the summary) with paid_through as ISO text. GET_ALL_BUS_WITH_SCHEMA_STATUS returns the billing columns too. New query buBillingStatus(db_name, schema) — guarded by tenant and BU access.",
+					"Client (Step 14): components/shared/billing/use-billing-sync.ts (mounted in client-layout.tsx) reads buBillingStatus on BU change, window focus and context.billingRefreshTick into context.billing; never computed in the browser. apollo-client.ts's error link turns SUBSCRIPTION_READ_ONLY / BRANCH_LIMIT_REACHED into showBillingNotice (read-only-dialog.tsx) + requestBillingRefresh. billing-banner.tsx shows due_soon (amber) / read_only. useIsReadOnly (selectIsReadOnly) disables the Masters Add buttons, Save on the job/receipt/sales/stock-adjustment/branch-transfer/loan/opening-stock screens, and DeleteConfirmDialog.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "A customer paid but still cannot save.",
+				a: "Another server process may hold a cached 'read_only' for up to 60 seconds. The process that recorded the payment clears its own cache at once.",
+			},
+		],
+	},
+
+	{
+		id: "dev-plans-billing",
+		category: "Integrations",
+		title: "Plans, Payments & Billing Screens",
+		summary:
+			"plans/plan.md Steps 12–14: branch limit, changeBuPlan, monthly payments, Enterprise controls, reminders, Subscriptions screens.",
+		tags: [
+			"changeBuPlan",
+			"recordBuSubscriptionPayment",
+			"recordClientSubscriptionPayment",
+			"startClientBilling",
+			"billing reminders",
+			"PREPAID_LIMIT_EXCEEDED",
+			"DOWNGRADE_BLOCKED_BRANCHES",
+			"Subscriptions",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Server: resolvers/bu_admin/billing.py; SQL in BillingSql (GET_BU_SUBSCRIPTIONS with the status computed in SQL on the IST date, GET_BU_PAYMENTS — both admin-only) and BillingServerSql. Every change runs in one transaction with the security.bu row(s) locked FOR UPDATE — the lock addBranch takes — reads fees from the locked rows, appends to security.bu_payment (never edited), then clear_bu_billing, audit and (payments) a receipt to the BU's Managers and the database's admins (GET_BU_BILLING_RECIPIENTS).",
+			},
+			{
+				type: "table",
+				headers: ["Mutation", "Who", "Rules"],
+				rows: [
+					[
+						"changeBuPlan {bu_id, plan_code, preview?}",
+						"A of the default database",
+						"Lite/Basic/Standard only. preview returns fee, paid_through before/after (rebase_paid_through when both plans are billed) and blocking_branches; a downgrade to one branch with other branches → DOWNGRADE_BLOCKED_BRANCHES listing each with row counts per table found from the schema's foreign keys to branch (division excluded). Writes SET_BU_PLAN_FIELDS and a fee_rebase row when the date moves; audit CHANGE_BU_PLAN.",
+					],
+					[
+						"recordBuSubscriptionPayment {bu_id, months, amount, mode, reference, received_on, note}",
+						"A of the default database",
+						"months 1–60 (years converted in the dialog); amount ≥ fee × months, above it only with a note; extend_paid_through; PREPAID_LIMIT_EXCEEDED beyond 60 months from today. Audit RECORD_BU_PAYMENT.",
+					],
+					[
+						"recordClientSubscriptionPayment",
+						"S, client's db_name",
+						"Locks every billed BU; amount ≥ Σ fees × months; one ledger row with bu_id null; all BUs move to one date counted from the earliest paid_through.",
+					],
+					[
+						"setClientMonthlyFee {monthly_fee, preview?}",
+						"S",
+						"Sets the first (oldest) billed BU's fee — the base Enterprise fee; extra BUs keep theirs. Rebases the shared paid_through and writes a fee_rebase row. Audits SET_MONTHLY_FEE (+ REBASE_PAID_THROUGH).",
+					],
+					[
+						"extendClientPaidThrough {paid_through, note}",
+						"S",
+						"today ≤ date ≤ 60 months ahead; 'extension' ledger row; EXTEND_PAID_THROUGH.",
+					],
+					["setClientBillingHold {hold, note}", "S", "Immediate; 'correction' ledger row; SET_BILLING_HOLD."],
+					[
+						"startClientBilling {client_id, monthly_fee, paid_through}",
+						"S",
+						"One transaction: every BU → enterprise, billed, branch_limit null, fee (oldest BU the base, then 0 up to the included count, then the extra fee), paid_through — so the customer is never view-only in between. START_CLIENT_BILLING.",
+					],
+				],
+			},
+			{ type: "heading", text: "Reminders" },
+			{
+				type: "para",
+				text: "app/services/billing_reminders.py, scheduled in app/scheduler.py daily at billing_reminder_hour Asia/Kolkata. reminder_kind(bu, today): first_payment (once), due_soon (once in the last 5 days), due_today, lapsed (once) — never twice a day, never on hold; last_reminder_on/kind record it. The job (and now the monthly stock snapshot) runs inside pg_try_advisory_xact_lock on the control plane, so only one process works.",
+			},
+			{ type: "heading", text: "Client" },
+			{
+				type: "bullets",
+				items: [
+					"Admin → Subscriptions (features/admin/pages/subscriptions-page.tsx, ROUTES.admin.subscriptions, default database only) with change-plan-dialog.tsx and payment-history-dialog.tsx (in features/admin because GET_BU_PAYMENTS is admin-only — tests/test_auth_guards.py fails if components/shared references it).",
+					"Super Admin → Clients → Subscription: features/super-admin/components/client-subscription-dialog.tsx (genericQuery with the client's db_name, schema security).",
+					"components/shared/billing/record-subscription-payment-dialog.tsx: Months/Years toggle, preview line 'fee × months = total · paid through <date>' (billing-dates.ts mirrors extend_paid_through; the server's date is what is stored), amount prefilled and never lower, note required above, 5-year cap.",
+					"branch-section.tsx disables Add Branch at billing.branchLimit (BILLING_BRANCH_LIMIT).",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Why is the subscription status computed in SQL rather than with compute_billing_status?",
+				a: "The screens read it through genericQuery, which returns rows as they are. GET_BU_SUBSCRIPTIONS mirrors compute_billing_status (DUE_SOON_DAYS = 5) on the IST date; keep the two in step.",
+			},
+		],
+	},
+
+	{
+		id: "dev-signup-billing-map",
+		category: "Integrations",
+		title: "Sign-up & Billing — End-to-end Map",
+		summary:
+			"One page for plans/plan.md as built: tables, columns, guards, settings, emails, jobs — and which detailed article to read for each.",
+		tags: [
+			"sign-up",
+			"billing",
+			"map",
+			"overview",
+			"plan.md",
+			"enquiry",
+			"subscription",
+			"view-only",
+			"branch limit",
+			"reminders",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Lite, Basic and Standard customers ('lt') are BUs in one shared default customer database (DEFAULT_CUSTOMER_DB_NAME); Enterprise customers get their own client and database. The portal signs them up, an approver creates them, a monthly payment keeps paid plans writable. Detailed articles: 'Sign-up & Billing — Foundations', 'Public Sign-up Endpoints & Emails', 'Sign-up Approval & Enterprise Provisioning', 'View-only Guard (Unpaid Month)', 'Plans, Payments & Billing Screens', 'Default Division per Branch', 'Every Resolver Guarded & sqlId Allowlists', 'Shared-Database Isolation'.",
+			},
+			{ type: "heading", text: "Data" },
+			{
+				type: "table",
+				headers: ["What", "Where", "Key rules"],
+				rows: [
+					[
+						"Enquiries",
+						"security.sales_enquiry (default db, lt); public.sales_enquiry (control plane, Enterprise)",
+						"Random reference; open-request unique indexes on email, mobile, bu_code; payment columns (setup_fee_paise, payment_status not_required|pending|received|failed, mode/reference/date) with CHECKs — 'received' needs every payment field and amount ≥ fee; approval needs received or not_required.",
+					],
+					[
+						"Claim and resume",
+						"processing_started_at, bu_id, bu_schema_ready_at, user_id, login_email_sent (+ client_id for Enterprise)",
+						"One UPDATE claims (10-minute window); each finished part is stored; any failure releases the claim; a half-built schema is dropped and rebuilt only while bu_schema_ready_at is empty.",
+					],
+					[
+						"Billing",
+						"security.bu: plan_code, billing_required, monthly_fee_paise, paid_through, billing_hold, branch_limit, last_reminder_on/kind; security.bu_payment ledger",
+						"Status: not_billed / read_only (hold, never paid, after paid_through) / due_soon (last 5 days) / active, on the IST date. Payments 1–60 months, amount ≥ fee × months, paid_through ≤ 60 months ahead; fee changes rebase prepaid time (rebase_paid_through). Ledger entry_kind payment | fee_rebase | extension | correction — appended, never edited; genericUpdate cannot write it or the billing columns.",
+					],
+				],
+			},
+			{ type: "heading", text: "Guards" },
+			{
+				type: "bullets",
+				items: [
+					"Step 1: every resolver calls a require_* guard (test_every_resolver_calls_a_guard); non-admins cannot run tenant-wide sqlIds or unlisted scripts (ADMIN_ONLY_SQL_IDS, NON_ADMIN_SECURITY_SQL_IDS, NON_ADMIN_SCRIPT_SQL_IDS).",
+					"Step 6: tenant-wide schemas closed to business users; SECURITY_SERVER_ONLY_TABLES / BU_BILLING_COLUMNS never writable through genericUpdate; subscriptions and media checked per BU.",
+					"require_default_customer_db on every lt approval and billing mutation; require_user_type {S} on every Enterprise one.",
+					"require_bu_writable on every BU write; tests/test_view_only_guard.py keeps the GUARDED and ALLOWED lists complete.",
+					"addBranch is the only way to add a branch: it locks the security.bu row, counts against branch_limit and inserts with the Main division in one transaction. genericUpdate refuses branch inserts so there is one door, and there is deliberately no database trigger. changeBuPlan takes the same lock, so a downgrade and an insert cannot interleave.",
+					"Refusal codes travel as extensions.code through CodedValidationException / AuthorizationException: SIGNUP_* (REST detail.code), PAYMENT_NOT_RECEIVED, EXTRA_BU_CONFIRM_REQUIRED, BRANCH_LIMIT_REACHED, DOWNGRADE_BLOCKED_BRANCHES, PREPAID_LIMIT_EXCEEDED, SUBSCRIPTION_READ_ONLY.",
+				],
+			},
+			{ type: "heading", text: "Settings" },
+			{
+				type: "para",
+				text: "DEFAULT_CUSTOMER_DB_NAME (required for lt sign-ups), BILLING_REMINDER_HOUR, PORTAL_URL_PRODUCTION (portal_url = http://localhost:3005 under DEBUG), LITE_BASIC_STANDARD_ENQUIRY_NOTIFY_EMAIL, ENTERPRISE_ENQUIRY_NOTIFY_EMAIL, the PRICE_… keys and ENTERPRISE_INCLUDED_BUS — see the settings table in 'Sign-up & Billing — Foundations'.",
+			},
+			{ type: "heading", text: "Who gets which email" },
+			{
+				type: "table",
+				headers: ["Event", "To"],
+				rows: [
+					[
+						"Sign-up / enquiry received",
+						"Applicant (thank-you with reference); lt approvers (every active admin of the default db + LITE_BASIC_STANDARD_ENQUIRY_NOTIFY_EMAIL); Enterprise team (CONTACT_NOTIFY_EMAIL + ENTERPRISE_ENQUIRY_NOTIFY_EMAIL)",
+					],
+					["Rejected", "Applicant, with the reason and the status link"],
+					[
+						"Approved / provisioned",
+						"The new Manager (lt, naming the client to pick) or admin (Enterprise): set-password link",
+					],
+					["Extra Enterprise BU", "ENTERPRISE_ENQUIRY_NOTIFY_EMAIL"],
+					["Payment recorded", "The BU's Managers and the database's admins (receipt)"],
+					["Reminders", "Same recipients: due_soon, due_today, lapsed, first_payment"],
+				],
+			},
+			{ type: "heading", text: "Jobs" },
+			{
+				type: "para",
+				text: "app/scheduler.py: billing reminders daily at BILLING_REMINDER_HOUR IST (app/services/billing_reminders.py) and the monthly stock snapshot; both run under a Postgres advisory lock so one process works. Pending-enquiry counts are pushed live on salesEnquiryCount.",
+			},
+		],
+		faqs: [],
 	},
 
 	// ── Category 10: Troubleshooting (Dev) ────────────────────────────────────

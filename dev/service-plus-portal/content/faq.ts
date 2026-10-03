@@ -9,8 +9,12 @@ export const faqs: FaqType[] = [
 		question: "Do I need to pay to try Service+?",
 	},
 	{
-		answer: "Payment is by bank transfer for now. Once we confirm your account we share the details; online payment is coming soon.",
+		answer: "By bank transfer for now. Pay the one-time setup fee first; your account is created once it is received. After that you pay the monthly fee each month, in advance. If a month goes unpaid, a paid plan becomes view-only — you can still see and print everything, but not add or change anything — until it is paid. Online payment is coming soon.",
 		question: "How do I pay?",
+	},
+	{
+		answer: "Yes. You can pay any number of months ahead, or up to 5 years at once, at the same monthly rate — there is no discount for paying in advance. If you change plan later, your prepaid time is adjusted to the new fee.",
+		question: "Can I pay in advance?",
 	},
 	{
 		answer: "Yes. Tell us through the enquiry form or call us, and we move your business unit to the new plan. Your data stays as it is. To move to a plan with fewer branches, you first delete the data of your extra branches and the branches themselves.",
@@ -21,7 +25,7 @@ export const faqs: FaqType[] = [
 		question: "What does “1 user” mean?",
 	},
 	{
-		answer: "A business unit is one workshop or company with its own jobs, stock, numbering and reports. Enterprise lets you run up to five of them on a dedicated database.",
+		answer: "A business unit is one workshop or company with its own jobs, stock, numbering and reports. Enterprise includes five of them on a dedicated database, and you can add more for a monthly fee each — see Compare plans.",
 		question: "What is a business unit?",
 	},
 	{

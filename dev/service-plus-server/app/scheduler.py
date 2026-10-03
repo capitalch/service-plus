@@ -1,17 +1,23 @@
 """
-Monthly stock snapshot scheduler.
+Background jobs.
 
-Runs on the 1st of every month at 00:05 and generates stock snapshots
-for all active client databases and their BU schemas.
+- Monthly stock snapshot: the 1st of every month at 00:05, for every active client
+  database and BU schema.
+- Billing reminders (plans/plan.md Step 13): daily at settings.billing_reminder_hour IST.
+
+Each job takes a Postgres advisory lock for its run, so with several server processes
+only one does the work.
 """
 from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from app.db.connection.psycopg_driver import exec_sql
+from app.config import settings
+from app.db.connection.psycopg_driver import exec_sql, get_client_db_connection
 from app.db.sql.sql_base import SqlStore
 from app.core.exceptions import DatabaseException
 from app.logger import logger
+from app.services.billing_reminders import STOCK_SNAPSHOT_LOCK_KEY, run_billing_reminders
 
 _scheduler: dict[str, AsyncIOScheduler | None] = {"instance": None}
 
@@ -38,6 +44,16 @@ async def run_monthly_snapshot() -> None:
     Job executed on the 1st of every month.
     Snapshots the previous month for all active clients and their BU schemas.
     """
+    async with get_client_db_connection() as conn:
+        cur = await conn.execute("SELECT pg_try_advisory_xact_lock(%s)", (STOCK_SNAPSHOT_LOCK_KEY,))
+        if not (await cur.fetchone())[0]:
+            logger.info("Monthly snapshot: another process holds the lock; skipping")
+            return
+        await _run_monthly_snapshot()
+
+
+async def _run_monthly_snapshot() -> None:
+    """The snapshot itself, run while run_monthly_snapshot holds the advisory lock."""
     now = datetime.now()
     month = now.month - 1 if now.month > 1 else 12
     year  = now.year if now.month > 1 else now.year - 1
@@ -79,8 +95,20 @@ def start_scheduler() -> None:
         id="monthly_stock_snapshot",
         replace_existing=True,
     )
+    _scheduler["instance"].add_job(
+        run_billing_reminders,
+        trigger="cron",
+        hour=settings.billing_reminder_hour,
+        minute=0,
+        timezone="Asia/Kolkata",
+        id="daily_billing_reminders",
+        replace_existing=True,
+    )
     _scheduler["instance"].start()
-    logger.info("Stock snapshot scheduler started (runs on 1st of each month at 00:05)")
+    logger.info(
+        "Scheduler started: stock snapshot on the 1st at 00:05; billing reminders daily at %02d:00 IST",
+        settings.billing_reminder_hour,
+    )
 
 
 def stop_scheduler() -> None:

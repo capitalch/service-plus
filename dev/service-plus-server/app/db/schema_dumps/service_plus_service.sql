@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict x7ITVhNWn8hrJjg3m7Ho7aMXxUePm5urBWIG8BI8bmn2mNiIqC05maoBKEcXP9e
+\restrict GIBufoM9VZqONgGwBEZ4c3mfdLap93Qin50nCsbgv5pkS8G7s6HNRZmM4jGNfBB
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
@@ -288,7 +288,8 @@ CREATE TABLE demo1.division (
     branch_id bigint NOT NULL,
     code text NOT NULL,
     web_site text,
-    account_setting jsonb
+    account_setting jsonb,
+    is_default boolean DEFAULT false NOT NULL
 );
 
 
@@ -2920,6 +2921,13 @@ CREATE INDEX division_code_idx ON demo1.division USING btree (code) WITH (dedupl
 
 
 --
+-- Name: division_one_default_per_branch; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE UNIQUE INDEX division_one_default_per_branch ON demo1.division USING btree (branch_id) WHERE is_default;
+
+
+--
 -- Name: document_sequence_unique; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -3536,7 +3544,7 @@ ALTER TABLE ONLY demo1.customer_contact
 --
 
 ALTER TABLE ONLY demo1.division
-    ADD CONSTRAINT division_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
+    ADD CONSTRAINT division_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) ON DELETE CASCADE;
 
 
 --
@@ -4271,5 +4279,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict x7ITVhNWn8hrJjg3m7Ho7aMXxUePm5urBWIG8BI8bmn2mNiIqC05maoBKEcXP9e
+\unrestrict GIBufoM9VZqONgGwBEZ4c3mfdLap93Qin50nCsbgv5pkS8G7s6HNRZmM4jGNfBB
 

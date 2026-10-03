@@ -253,6 +253,8 @@ class BuAdminSql(BuAdminDdl):
         with "dummy" as (values(1::int))
         SELECT
             b.id, b.code, b.name, b.is_active, b.created_at, b.updated_at,
+            b.plan_code, b.billing_required, b.monthly_fee_paise, b.paid_through,
+            b.billing_hold, b.branch_limit,
             EXISTS (
                 SELECT 1 FROM pg_catalog.pg_namespace
                 WHERE nspname = LOWER(b.code)
@@ -546,31 +548,31 @@ class BuAdminSql(BuAdminDdl):
         with "p_branch_id" as (values(%(branch_id)s::bigint))
         SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
-               d.gstin, d.web_site, d.is_active, d.account_setting,
+               d.gstin, d.web_site, d.is_active, d.is_default, d.account_setting,
                s.gst_state_code
         FROM division d
         LEFT JOIN state s ON s.id = d.state_id
         WHERE d.branch_id = (table "p_branch_id")
-        ORDER BY d.name
+        ORDER BY d.is_default DESC, d.name
     """
 
     GET_ACTIVE_DIVISIONS_BY_BRANCH = """
         with "p_branch_id" as (values(%(branch_id)s::bigint))
         SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
-               d.gstin, d.web_site,
+               d.gstin, d.web_site, d.is_default,
                s.gst_state_code, s.id AS state_id, s.name AS state_name
         FROM division d
         LEFT JOIN state s ON s.id = d.state_id
         WHERE d.branch_id = (table "p_branch_id") AND d.is_active = true
-        ORDER BY d.name
+        ORDER BY d.is_default DESC, d.name
     """
 
     GET_DIVISION_BY_ID = """
         with "p_id" as (values(%(id)s::bigint))
         SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
-               d.gstin, d.web_site, d.is_active, s.gst_state_code
+               d.gstin, d.web_site, d.is_active, d.is_default, s.gst_state_code
         FROM division d
         LEFT JOIN state s ON s.id = d.state_id
         WHERE d.id = (table "p_id")
@@ -983,6 +985,7 @@ class BuAdminSql(BuAdminDdl):
         with "p_user_id" as (values(%(user_id)s::bigint))
         -- with "p_user_id" as (values(1::bigint)) -- Test line
         SELECT b.id, b.code, b.is_active, b.name,
+               b.plan_code, b.billing_required, b.paid_through, b.billing_hold, b.branch_limit,
                EXISTS (
                    SELECT 1 FROM pg_catalog.pg_namespace n
                    WHERE n.nspname = LOWER(b.code)

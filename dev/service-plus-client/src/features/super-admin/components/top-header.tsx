@@ -1,6 +1,7 @@
 import {
 	DatabaseIcon,
 	HelpCircleIcon,
+	InboxIcon,
 	LogOutIcon,
 	MenuIcon,
 	SettingsIcon,
@@ -22,7 +23,9 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useEnquiryCount } from "@/components/shared/enquiries/use-enquiry-count";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { SQL_MAP } from "@/constants/sql-map";
 import type { AuditStatsType } from "@/features/super-admin/types";
 import { ROUTES } from "@/router/routes";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -63,6 +66,13 @@ export const TopHeader = ({ onMenuToggle, onOpenHelp }: TopHeaderPropsType) => {
 
 	const failedLogins = auditData?.auditLogStats?.outcomeCounts?.failure ?? 0;
 	const orphanDbs = clientsData?.superAdminClientsData?.orphanDatabaseCount ?? 0;
+	// "" = the control plane, where Enterprise enquiries live.
+	const { count: newEnquiries } = useEnquiryCount({
+		dbName: "",
+		enabled: true,
+		schema: "public",
+		sqlId: SQL_MAP.GET_ENTERPRISE_ENQUIRY_NEW_COUNT,
+	});
 
 	const notificationItems: NotificationItem[] = [
 		{
@@ -78,6 +88,13 @@ export const TopHeader = ({ onMenuToggle, onOpenHelp }: TopHeaderPropsType) => {
 			id: "orphan-databases",
 			label: "Orphan databases",
 			onSelect: () => navigate(ROUTES.superAdmin.clients, { state: { openOrphanDbs: true } }),
+		},
+		{
+			count: newEnquiries,
+			icon: InboxIcon,
+			id: "enterprise-enquiries",
+			label: "New Enterprise enquiries",
+			onSelect: () => navigate(ROUTES.superAdmin.enquiries),
 		},
 	];
 

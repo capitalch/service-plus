@@ -15,7 +15,6 @@ import {
 	selectCurrentBranch,
 	selectCurrentBu,
 	selectCurrentDivision,
-	selectDefaultDivisionId,
 	setAvailableBranches,
 	setAvailableBus,
 	setAvailableDivisions,
@@ -49,19 +48,23 @@ function parseAppSettings(settings: AppSettingRow[]) {
 		}
 	}
 
-	const rawDefaultId = settings.find((s) => s.setting_key === "default_division_id")?.setting_value;
 	const rawSheets = settings.find((s) => s.setting_key === "no_of_job_sheets_per_print")?.setting_value;
 	const rawInvoices = settings.find((s) => s.setting_key === "no_of_job_invoices_per_print")?.setting_value;
 	const rawReceipts = settings.find((s) => s.setting_key === "no_of_job_receipts_per_print")?.setting_value;
 	const rawTrackUrl = settings.find((s) => s.setting_key === "track_job_url")?.setting_value;
 
 	return {
-		defaultDivisionId: rawDefaultId !== undefined ? Number(coerce(rawDefaultId) ?? 1) : 1,
 		jobSheets: Math.max(1, Number(coerce(rawSheets) ?? 1)),
 		jobInvoices: Math.max(1, Number(coerce(rawInvoices) ?? 1)),
 		jobReceipts: Math.max(1, Number(coerce(rawReceipts) ?? 1)),
 		trackJobUrl: rawTrackUrl !== undefined ? String(coerce(rawTrackUrl) ?? "") || null : null,
 	};
+}
+
+// The branch's default division (division.is_default, plans/plan2.md); the first
+// active division if none is flagged. The division lists arrive default-first.
+function pickDefaultDivision(divisions: DivisionContextType[]): DivisionContextType | null {
+	return divisions.find((d) => d.is_default) ?? divisions[0] ?? null;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -80,7 +83,6 @@ export function useBuBranchDivisionActions() {
 	const currentBu = useAppSelector(selectCurrentBu);
 	const currentBranch = useAppSelector(selectCurrentBranch);
 	const currentDivision = useAppSelector(selectCurrentDivision);
-	const defaultDivisionId = useAppSelector(selectDefaultDivisionId);
 
 	// ── Persist last-used BU and branch to DB ──────────────────────────────────
 
@@ -163,27 +165,21 @@ export function useBuBranchDivisionActions() {
 	// ── Dispatch parsed settings + auto-select division ───────────────────────
 
 	const applyContext = useCallback(
-		(ctx: Awaited<ReturnType<typeof fetchBuContext>>, overrideDefaultDivisionId?: number) => {
+		(ctx: Awaited<ReturnType<typeof fetchBuContext>>) => {
 			if (!ctx) return;
 			const parsed = parseAppSettings(ctx.settings);
-			const effectiveDefaultId = overrideDefaultDivisionId ?? parsed.defaultDivisionId;
+			const defaultDivision = pickDefaultDivision(ctx.divisions);
 
 			dispatch(setAvailableBranches(ctx.branches));
 			dispatch(setCurrentBranch(ctx.resolvedBranch));
 			dispatch(setAvailableDivisions(ctx.divisions));
-			dispatch(setDefaultDivisionId(parsed.defaultDivisionId));
+			dispatch(setDefaultDivisionId(defaultDivision?.id ?? 0));
 			dispatch(setNoOfJobSheetsPerPrint(parsed.jobSheets));
 			dispatch(setNoOfJobInvoicesPerPrint(parsed.jobInvoices));
 			dispatch(setNoOfJobReceiptsPerPrint(parsed.jobReceipts));
 			dispatch(setTrackJobUrl(parsed.trackJobUrl));
 
-			if (ctx.divisions.length === 0) {
-				dispatch(setCurrentDivision(null));
-			} else if (ctx.divisions.length === 1) {
-				dispatch(setCurrentDivision(ctx.divisions[0]));
-			} else {
-				dispatch(setCurrentDivision(ctx.divisions.find((d) => d.id === effectiveDefaultId) ?? null));
-			}
+			dispatch(setCurrentDivision(defaultDivision));
 		},
 		[dispatch],
 	);
@@ -291,22 +287,19 @@ export function useBuBranchDivisionActions() {
 					},
 				});
 				const divisions = divResult.data?.genericQuery ?? [];
+				const defaultDivision = pickDefaultDivision(divisions);
 				dispatch(setAvailableDivisions(divisions));
-				if (divisions.length === 0) {
-					dispatch(setCurrentDivision(null));
-				} else if (divisions.length === 1) {
-					dispatch(setCurrentDivision(divisions[0]));
-				} else {
-					dispatch(setCurrentDivision(divisions.find((d) => d.id === defaultDivisionId) ?? null));
-				}
+				dispatch(setDefaultDivisionId(defaultDivision?.id ?? 0));
+				dispatch(setCurrentDivision(defaultDivision));
 			} catch {
 				dispatch(setAvailableDivisions([]));
+				dispatch(setDefaultDivisionId(0));
 				dispatch(setCurrentDivision(null));
 			} finally {
 				dispatch(setIsResolvingContext(false));
 			}
 		},
-		[availableBranches, currentBranch, currentBu, dbName, defaultDivisionId, dispatch, persist],
+		[availableBranches, currentBranch, currentBu, dbName, dispatch, persist],
 	);
 
 	const handleDivisionChange = useCallback(

@@ -80,7 +80,57 @@ _PROGRESS_COLUMNS = """
 
 
 class SignupSql:
-    """Sign-up reads the browser runs through genericQuery (added by Steps 9 and 10)."""
+    """Sign-up reads the browser runs through genericQuery. Every one names `security.` or
+    `public.`, so Step 1's ADMIN_ONLY_SQL_IDS scan makes it admin-only."""
+
+    # Admin → Enquiries grid (default customer database). Each filter is optional (null = all).
+    GET_SALES_ENQUIRIES = """
+        with
+            "p_status"         as (values(%(status)s::text)),
+            "p_plan_code"      as (values(%(plan_code)s::text)),
+            "p_payment_status" as (values(%(payment_status)s::text))
+        SELECT e.id, e.reference, e.created_at, e.plan_code, e.name, e.business_name, e.mobile,
+               e.email, e.city, e.gstin, e.branches, e.message, e.bu_name, e.bu_code, e.status,
+               e.setup_fee_paise, e.payment_status, e.payment_amount_paise, e.payment_mode,
+               e.payment_reference, e.payment_received_on, e.payment_recorded_by, e.payment_note,
+               e.bu_id, e.user_id, e.login_email_sent, e.processing_started_at, e.reviewed_by,
+               e.reviewed_at, e.rejection_reason, u.username
+        FROM security.sales_enquiry e
+        LEFT JOIN security."user" u ON u.id = e.user_id
+        WHERE ((table "p_status") IS NULL OR e.status = (table "p_status"))
+          AND ((table "p_plan_code") IS NULL OR e.plan_code = (table "p_plan_code"))
+          AND ((table "p_payment_status") IS NULL OR e.payment_status = (table "p_payment_status"))
+        ORDER BY e.created_at DESC
+    """
+
+    GET_SALES_ENQUIRY_PENDING_COUNT = """
+        SELECT COUNT(*)::int AS pending FROM security.sales_enquiry WHERE status = 'pending'
+    """
+
+    # Super Admin → Enquiries grid (control plane, Enterprise). Filters optional.
+    GET_ENTERPRISE_ENQUIRIES = """
+        with
+            "p_status"         as (values(%(status)s::text)),
+            "p_payment_status" as (values(%(payment_status)s::text))
+        SELECT e.id, e.reference, e.created_at, e.plan_code, e.name, e.business_name, e.mobile,
+               e.email, e.city, e.gstin, e.branches, e.message, e.status, e.setup_fee_paise,
+               e.payment_status, e.payment_amount_paise, e.payment_mode, e.payment_reference,
+               e.payment_received_on, e.payment_recorded_by, e.payment_note, e.client_id, e.bu_id,
+               e.user_id, e.processing_started_at, e.reviewed_by, e.reviewed_at, e.rejection_reason,
+               c.code AS client_code, c.db_name
+        FROM public.sales_enquiry e
+        LEFT JOIN public.client c ON c.id = e.client_id
+        WHERE e.plan_code = 'enterprise'
+          AND ((table "p_status") IS NULL OR e.status = (table "p_status"))
+          AND ((table "p_payment_status") IS NULL OR e.payment_status = (table "p_payment_status"))
+        ORDER BY e.created_at DESC
+    """
+
+    GET_ENTERPRISE_ENQUIRY_NEW_COUNT = """
+        SELECT COUNT(*)::int AS pending
+        FROM public.sales_enquiry
+        WHERE plan_code = 'enterprise' AND status = 'new'
+    """
 
 
 class SignupServerSql:
@@ -93,6 +143,313 @@ class SignupServerSql:
         WHERE db_name = %(db_name)s::text
           AND is_active = true
         LIMIT 1
+    """
+
+    # ── Public sign-up (Step 7). lt: default customer database, security schema. ──
+
+    # One row when a pending or approved request has this mobile or email, or the email
+    # already belongs to a user of the default database. Emails are stored lower-case.
+    CHECK_LT_SIGNUP_DUPLICATE = """
+        SELECT 1 AS found
+        WHERE EXISTS (
+            SELECT 1 FROM security.sales_enquiry
+            WHERE status IN ('pending', 'approved')
+              AND (mobile = %(mobile)s OR email = %(email)s)
+        ) OR EXISTS (
+            SELECT 1 FROM security."user" WHERE LOWER(email) = %(email)s
+        )
+    """
+
+    # True when a BU or a pending / approved request already uses this BU name.
+    CHECK_LT_BU_NAME_TAKEN = """
+        SELECT EXISTS (
+            SELECT 1 FROM security.bu WHERE LOWER(name) = LOWER(%(name)s)
+        ) OR EXISTS (
+            SELECT 1 FROM security.sales_enquiry
+            WHERE status IN ('pending', 'approved') AND LOWER(bu_name) = LOWER(%(name)s)
+        ) AS taken
+    """
+
+    # True when this BU code is a BU, an existing schema or a pending / approved request.
+    CHECK_LT_BU_CODE_TAKEN = """
+        SELECT EXISTS (
+            SELECT 1 FROM security.bu WHERE LOWER(code) = %(code)s
+        ) OR EXISTS (
+            SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = %(code)s
+        ) OR EXISTS (
+            SELECT 1 FROM security.sales_enquiry
+            WHERE status IN ('pending', 'approved') AND bu_code = %(code)s
+        ) AS taken
+    """
+
+    INSERT_LT_ENQUIRY = """
+        INSERT INTO security.sales_enquiry
+            (reference, plan_code, name, business_name, mobile, email, city, gstin, branches,
+             message, ip, bu_name, bu_code, setup_fee_paise, payment_status)
+        VALUES
+            (%(reference)s, %(plan_code)s, %(name)s, %(business_name)s, %(mobile)s, %(email)s,
+             %(city)s, %(gstin)s, %(branches)s, %(message)s, %(ip)s, %(bu_name)s, %(bu_code)s,
+             %(setup_fee_paise)s, %(payment_status)s)
+        RETURNING id
+    """
+
+    GET_LT_PENDING_COUNT = """
+        SELECT COUNT(*)::int AS pending FROM security.sales_enquiry WHERE status = 'pending'
+    """
+
+    # Approver email recipients: every active admin of the default database.
+    GET_ACTIVE_ADMIN_EMAILS = """
+        SELECT DISTINCT LOWER(email) AS email
+        FROM security."user"
+        WHERE is_admin AND is_active AND email <> ''
+    """
+
+    # Status page: mobile AND email must match the same request; the newest one wins.
+    GET_LT_SIGNUP_STATUS = """
+        SELECT status, plan_code, rejection_reason, email
+        FROM security.sales_enquiry
+        WHERE mobile = %(mobile)s AND email = %(email)s
+        ORDER BY created_at DESC
+        LIMIT 1
+    """
+
+    # ── Enterprise: service_plus_client DB, public schema (db_name=None). ──
+
+    INSERT_ENT_ENQUIRY = """
+        INSERT INTO public.sales_enquiry
+            (reference, plan_code, name, business_name, mobile, email, city, gstin, branches,
+             message, ip, setup_fee_paise, payment_status)
+        VALUES
+            (%(reference)s, 'enterprise', %(name)s, %(business_name)s, %(mobile)s, %(email)s,
+             %(city)s, %(gstin)s, %(branches)s, %(message)s, %(ip)s, %(setup_fee_paise)s, 'pending')
+        RETURNING id
+    """
+
+    GET_ENT_NEW_COUNT = """
+        SELECT COUNT(*)::int AS pending
+        FROM public.sales_enquiry
+        WHERE plan_code = 'enterprise' AND status = 'new'
+    """
+
+    # ── Approval (Step 9). lt: default customer database, security schema. ──
+
+    GET_LT_ENQUIRY = """
+        SELECT * FROM security.sales_enquiry WHERE id = %(id)s
+    """
+
+    GET_USERNAME = """
+        SELECT username FROM security."user" WHERE id = %(id)s
+    """
+
+    GET_ROLE_ID_BY_CODE = """
+        SELECT id FROM security.role WHERE code = %(code)s
+    """
+
+    # Setup payment for Basic / Standard while the request is still pending.
+    RECORD_LT_PAYMENT = """
+        UPDATE security.sales_enquiry
+        SET payment_status = 'received', payment_amount_paise = %(amount_paise)s,
+            payment_mode = %(mode)s, payment_reference = %(reference)s,
+            payment_received_on = %(received_on)s, payment_recorded_by = %(by)s,
+            payment_recorded_at = now(), payment_note = %(note)s
+        WHERE id = %(id)s AND status = 'pending' AND plan_code IN ('basic', 'standard')
+          AND payment_status IN ('pending', 'failed')
+        RETURNING id
+    """
+
+    MARK_LT_PAYMENT_FAILED = """
+        UPDATE security.sales_enquiry
+        SET payment_status = 'failed', payment_note = %(note)s, payment_recorded_by = %(by)s,
+            payment_recorded_at = now()
+        WHERE id = %(id)s AND status = 'pending' AND plan_code IN ('basic', 'standard')
+          AND payment_status IN ('pending', 'failed')
+        RETURNING id
+    """
+
+    # One statement, so two clicks cannot both claim the row (plans/plan.md constraint 3).
+    CLAIM_LT_ENQUIRY = """
+        UPDATE security.sales_enquiry
+        SET processing_started_at = now()
+        WHERE id = %(id)s AND status = 'pending'
+          AND (processing_started_at IS NULL OR processing_started_at < now() - interval '10 minutes')
+        RETURNING *
+    """
+
+    RELEASE_LT_CLAIM = """
+        UPDATE security.sales_enquiry SET processing_started_at = NULL WHERE id = %(id)s
+    """
+
+    # Step 3 of approval, run with INSERT_BU on one connection (one transaction).
+    SET_LT_BU = """
+        UPDATE security.sales_enquiry
+        SET bu_id = %(bu_id)s, bu_code = %(bu_code)s, bu_name = %(bu_name)s
+        WHERE id = %(id)s
+    """
+
+    SET_LT_SCHEMA_READY = """
+        UPDATE security.sales_enquiry SET bu_schema_ready_at = now() WHERE id = %(id)s
+    """
+
+    SET_LT_USER = """
+        UPDATE security.sales_enquiry
+        SET user_id = %(user_id)s, login_email_sent = %(login_email_sent)s
+        WHERE id = %(id)s
+    """
+
+    FINISH_LT_APPROVAL = """
+        UPDATE security.sales_enquiry
+        SET status = 'approved', reviewed_by = %(by)s, reviewed_at = now(),
+            processing_started_at = NULL
+        WHERE id = %(id)s AND status = 'pending'
+        RETURNING id
+    """
+
+    # Only while pending and before any BU exists; the claim must not be held by an approval.
+    REJECT_LT_ENQUIRY = """
+        UPDATE security.sales_enquiry
+        SET status = 'rejected', rejection_reason = %(reason)s, reviewed_by = %(by)s,
+            reviewed_at = now()
+        WHERE id = %(id)s AND status = 'pending' AND bu_id IS NULL
+          AND (processing_started_at IS NULL OR processing_started_at < now() - interval '10 minutes')
+        RETURNING *
+    """
+
+    # The plan fields on the new BU (security schema of the BU's database).
+    SET_BU_PLAN = """
+        UPDATE security.bu
+        SET plan_code = %(plan_code)s, branch_limit = %(branch_limit)s,
+            billing_required = %(billing_required)s, monthly_fee_paise = %(monthly_fee_paise)s,
+            paid_through = NULL, updated_at = now()
+        WHERE id = %(bu_id)s
+    """
+
+    GET_BU_BY_ID = """
+        SELECT id, code, name FROM security.bu WHERE id = %(id)s
+    """
+
+    # Run in the new BU schema: the applicant's city (and GSTIN, if given) on the head office
+    # and on its default division Main (plans/plan2.md). Two statements: psycopg cannot send
+    # several parameterised statements at once.
+    SET_HEAD_OFFICE_CITY_GSTIN = """
+        UPDATE branch
+        SET city = %(city)s, gstin = COALESCE(%(gstin)s, gstin), updated_at = now()
+        WHERE code = 'HO'
+    """
+
+    SET_MAIN_DIVISION_CITY_GSTIN = """
+        UPDATE division
+        SET city = %(city)s, gstin = COALESCE(%(gstin)s, gstin), updated_at = now()
+        WHERE is_default AND branch_id = (SELECT id FROM branch WHERE code = 'HO')
+    """
+
+    # ── Enterprise (Step 10). Control plane, public schema — run with db_name=None. ──
+
+    GET_ENT_ENQUIRY = """
+        SELECT * FROM public.sales_enquiry WHERE id = %(id)s AND plan_code = 'enterprise'
+    """
+
+    MARK_ENT_CONTACTED = """
+        UPDATE public.sales_enquiry
+        SET status = 'contacted', reviewed_by = %(by)s, reviewed_at = now()
+        WHERE id = %(id)s AND plan_code = 'enterprise' AND status = 'new'
+        RETURNING id
+    """
+
+    # The setup fee can be set while the payment is still outstanding.
+    SET_ENT_FEE = """
+        UPDATE public.sales_enquiry
+        SET setup_fee_paise = %(setup_fee_paise)s
+        WHERE id = %(id)s AND plan_code = 'enterprise' AND status IN ('new', 'contacted')
+          AND payment_status IN ('pending', 'failed')
+        RETURNING id
+    """
+
+    RECORD_ENT_PAYMENT = """
+        UPDATE public.sales_enquiry
+        SET payment_status = 'received', payment_amount_paise = %(amount_paise)s,
+            payment_mode = %(mode)s, payment_reference = %(reference)s,
+            payment_received_on = %(received_on)s, payment_recorded_by = %(by)s,
+            payment_recorded_at = now(), payment_note = %(note)s
+        WHERE id = %(id)s AND plan_code = 'enterprise' AND status IN ('new', 'contacted')
+          AND payment_status IN ('pending', 'failed')
+        RETURNING id
+    """
+
+    MARK_ENT_PAYMENT_FAILED = """
+        UPDATE public.sales_enquiry
+        SET payment_status = 'failed', payment_note = %(note)s, payment_recorded_by = %(by)s,
+            payment_recorded_at = now()
+        WHERE id = %(id)s AND plan_code = 'enterprise' AND status IN ('new', 'contacted')
+          AND payment_status IN ('pending', 'failed')
+        RETURNING id
+    """
+
+    CLAIM_ENT_ENQUIRY = """
+        UPDATE public.sales_enquiry
+        SET processing_started_at = now()
+        WHERE id = %(id)s AND plan_code = 'enterprise' AND status IN ('new', 'contacted')
+          AND (processing_started_at IS NULL OR processing_started_at < now() - interval '10 minutes')
+        RETURNING *
+    """
+
+    RELEASE_ENT_CLAIM = """
+        UPDATE public.sales_enquiry SET processing_started_at = NULL WHERE id = %(id)s
+    """
+
+    # Step 2 of provisioning: the client row and the enquiry's client_id, one transaction.
+    INSERT_ENT_CLIENT = """
+        INSERT INTO public.client (code, name, email, phone, city, gstin, is_active)
+        VALUES (%(code)s, %(name)s, %(email)s, %(phone)s, %(city)s, %(gstin)s, true)
+        RETURNING id
+    """
+
+    SET_ENT_CLIENT = """
+        UPDATE public.sales_enquiry SET client_id = %(client_id)s WHERE id = %(id)s
+    """
+
+    CHECK_DB_NAME_USED = """
+        SELECT 1 AS found FROM public.client WHERE db_name = %(db_name)s
+    """
+
+    GET_CLIENT_BY_ID = """
+        SELECT id, code, name, db_name FROM public.client WHERE id = %(id)s
+    """
+
+    SET_ENT_BU = """
+        UPDATE public.sales_enquiry SET bu_id = %(bu_id)s WHERE id = %(id)s
+    """
+
+    SET_ENT_SCHEMA_READY = """
+        UPDATE public.sales_enquiry SET bu_schema_ready_at = now() WHERE id = %(id)s
+    """
+
+    SET_ENT_USER = """
+        UPDATE public.sales_enquiry
+        SET user_id = %(user_id)s, login_email_sent = %(login_email_sent)s
+        WHERE id = %(id)s
+    """
+
+    FINISH_ENT_PROVISIONING = """
+        UPDATE public.sales_enquiry
+        SET status = 'converted', reviewed_by = %(by)s, reviewed_at = now(),
+            processing_started_at = NULL
+        WHERE id = %(id)s AND status IN ('new', 'contacted')
+        RETURNING id
+    """
+
+    REJECT_ENT_ENQUIRY = """
+        UPDATE public.sales_enquiry
+        SET status = 'rejected', rejection_reason = %(reason)s, reviewed_by = %(by)s,
+            reviewed_at = now()
+        WHERE id = %(id)s AND plan_code = 'enterprise' AND status IN ('new', 'contacted')
+          AND client_id IS NULL
+          AND (processing_started_at IS NULL OR processing_started_at < now() - interval '10 minutes')
+        RETURNING *
+    """
+
+    # In the new client database: its first BU, looked up by code on a resumed provisioning.
+    GET_BU_BY_CODE = """
+        SELECT id, code, name FROM security.bu WHERE code = %(code)s
     """
 
     # Default customer database, security schema. Safe to run twice.

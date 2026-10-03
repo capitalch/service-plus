@@ -16,7 +16,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
+import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -218,29 +218,27 @@ export const AddBranchDialog = ({ onOpenChange, onSuccess, open }: AddBranchDial
 	async function onSubmit(data: AddBranchFormType) {
 		if (!dbName || !schema) return;
 		try {
+			// addBranch also creates the branch's default Main division; genericUpdate refuses branch inserts.
 			await apolloClient.mutate({
-				mutation: GRAPHQL_MAP.genericUpdate,
+				mutation: GRAPHQL_MAP.addBranch,
 				variables: {
 					db_name: dbName,
 					schema,
-					value: graphQlUtils.buildGenericUpdateValue({
-						tableName: "branch",
-						xData: {
-							address_line1: data.address_line1,
-							address_line2: data.address_line2 || null,
-							city: data.city || null,
-							code: data.code,
-							email: data.email || null,
-							gstin: data.gstin || null,
-							name: data.name,
-							phone: data.phone || null,
-							pincode: data.pincode,
-							state_id: data.state_id,
-						},
+					value: encodeObj({
+						address_line1: data.address_line1,
+						address_line2: data.address_line2 || null,
+						city: data.city || null,
+						code: data.code,
+						email: data.email || null,
+						gstin: data.gstin || null,
+						name: data.name,
+						phone: data.phone || null,
+						pincode: data.pincode,
+						state_id: data.state_id,
 					}),
 				},
 			});
-			toast.success(MESSAGES.SUCCESS_BRANCH_CREATED);
+			toast.success(MESSAGES.SUCCESS_BRANCH_CREATED_WITH_MAIN);
 			onSuccess();
 			onOpenChange(false);
 		} catch {

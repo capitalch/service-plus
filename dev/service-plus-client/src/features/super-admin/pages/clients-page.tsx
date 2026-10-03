@@ -26,6 +26,7 @@ import {
 	UsersIcon,
 	XCircleIcon,
 	X,
+	CreditCardIcon,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { useQuery } from "@apollo/client/react";
@@ -64,6 +65,7 @@ import { SeedRolesDialog } from "../components/seed-roles-dialog";
 import { OrphanDatabasesDialog } from "../components/orphan-databases-dialog";
 import { SuperAdminLayout } from "../components/super-admin-layout";
 import { ViewClientDialog } from "../components/view-client-dialog";
+import { ClientSubscriptionDialog } from "../components/client-subscription-dialog";
 import { selectClients, setClients } from "@/features/super-admin/store/super-admin-slice";
 import type { ClientAdminType, ClientType } from "@/features/super-admin/types";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -132,6 +134,7 @@ export const ClientsPage = () => {
 	const [initializeClient, setInitializeClient] = useState<ClientType | null>(null);
 	const [orphanDbsOpen, setOrphanDbsOpen] = useState(false);
 	const [seedRolesClient, setSeedRolesClient] = useState<ClientType | null>(null);
+	const [subscriptionClient, setSubscriptionClient] = useState<ClientType | null>(null);
 	const [viewClient, setViewClient] = useState<ClientType | null>(null);
 
 	// ── Admin dialog state ───────────────────────────────────────────────────
@@ -749,6 +752,14 @@ export const ClientsPage = () => {
 																<ShieldIcon className="mr-2 h-4 w-4" />
 																Seed Roles + Access Rights
 															</DropdownMenuItem>
+															<DropdownMenuItem
+																className="cursor-pointer text-teal-600 focus:text-teal-600"
+																disabled={!client.db_name}
+																onClick={() => setSubscriptionClient(client)}
+															>
+																<CreditCardIcon className="mr-2 h-4 w-4" />
+																Subscription
+															</DropdownMenuItem>
 															<DropdownMenuSeparator />
 															{client.is_active ? (
 																<DropdownMenuItem
@@ -1009,6 +1020,12 @@ export const ClientsPage = () => {
 						if (!open) setSeedRolesClient(null);
 					}}
 					onSuccess={handleRefetch}
+				/>
+			)}
+			{subscriptionClient && (
+				<ClientSubscriptionDialog
+					client={subscriptionClient}
+					onOpenChange={(open) => !open && setSubscriptionClient(null)}
 				/>
 			)}
 			<ViewClientDialog

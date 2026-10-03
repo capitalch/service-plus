@@ -34,11 +34,12 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectBilling, selectSchema } from "@/store/context-slice";
 import { AddBranchDialog } from "./add-branch-dialog";
 import { DeleteBranchDialog } from "./delete-branch-dialog";
 import { EditBranchDialog } from "./edit-branch-dialog";
 import type { BranchType } from "./branch";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,11 +62,16 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const BranchSection = () => {
+	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
+	const billing = useAppSelector(selectBilling);
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 
 	const [addOpen, setAddOpen] = useState(false);
 	const [branches, setBranches] = useState<BranchType[]>([]);
+	// Lite and Basic include the head office only (plans/plan.md Step 12); the server enforces it too.
+	const atBranchLimit = billing?.branchLimit != null && branches.length >= billing.branchLimit;
 	const [deleteBranch, setDeleteBranch] = useState<BranchType | null>(null);
 	const [editBranch, setEditBranch] = useState<BranchType | null>(null);
 	const [loading, setLoading] = useState(false);
@@ -202,6 +208,14 @@ export const BranchSection = () => {
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700"
 							size="sm"
+							disabled={isReadOnly || atBranchLimit}
+							title={
+								isReadOnly
+									? MESSAGES.READ_ONLY_TOOLTIP
+									: atBranchLimit
+										? MESSAGES.BILLING_BRANCH_LIMIT
+										: undefined
+							}
 							onClick={() => setAddOpen(true)}
 						>
 							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />

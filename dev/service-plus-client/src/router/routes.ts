@@ -17,14 +17,17 @@ export const ROUTES = {
 	admin: {
 		audit: "/admin/audit",
 		businessUnits: "/admin/business-units",
+		enquiries: "/admin/enquiries",
 		roles: "/admin/roles",
 		root: "/admin",
 		settings: "/admin/settings",
+		subscriptions: "/admin/subscriptions",
 		users: "/admin/users",
 	},
 	superAdmin: {
 		audit: "/super-admin/audit",
 		clients: "/super-admin/clients",
+		enquiries: "/super-admin/enquiries",
 		root: "/super-admin",
 		settings: "/super-admin/settings",
 		usage: "/super-admin/usage",

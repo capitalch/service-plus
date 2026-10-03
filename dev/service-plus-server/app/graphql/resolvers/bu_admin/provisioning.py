@@ -16,6 +16,7 @@ from app.db.sql.sql_billing import BillingServerSql
 from app.core.exceptions import AppMessages, ValidationException
 from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
+from app.services.enterprise_billing import apply_new_bu_billing, plan_new_bu_billing
 
 # genericUpdate access rights for tables owned by the bu-admin/Configurations
 # menu. Merged into mutation.py's GENERIC_UPDATE_TABLE_RIGHTS — see
@@ -40,10 +41,13 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
     Create a new BU row in security.bu, then create a new schema named after the BU code,
     create all tables (from BU_SCHEMA_DDL), and seed lookup tables (BU_SEED_SQL).
 
-    Value payload (URL-encoded JSON): { code, name }
+    Value payload (URL-encoded JSON): { code, name, id?, confirm_extra_bu? }. In a billed
+    Enterprise client's database the new BU shares the client's plan and dates, and one
+    beyond the included BUs needs confirm_extra_bu (plans/plan.md Step 10).
     """
-    # pylint: disable=unused-argument
+    # pylint: disable=unused-argument,too-many-locals
     payload = _decode_value(value, "createBuSchemaAndFeedSeedData")
+    billing = None
 
     code: str = (payload.get("code") or "").lower().strip()
     name: str = (payload.get("name") or "").strip()
@@ -109,7 +113,11 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
                 extensions={"field": "name"},
             )
 
-        # 4c. Insert BU row into security.bu
+        # 4c. A billed Enterprise client's later BU: work out its fee; an extra BU stops
+        # here with EXTRA_BU_CONFIRM_REQUIRED until the admin confirms.
+        billing = await plan_new_bu_billing(db_name, bool(payload.get("confirm_extra_bu")))
+
+        # 4d. Insert BU row into security.bu
         logger.info("Creating BU '%s' / '%s' in db '%s'", code, name, db_name)
         rows = await exec_sql(
             db_name=db_name,
@@ -118,6 +126,8 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
             sql_args={"code": code, "name": name},
         )
         bu_id = rows[0]["id"] if rows else None
+        if billing and bu_id:
+            await apply_new_bu_billing(db_name, bu_id, code, billing)
 
     # 7. Create schema <code>
     logger.info("Creating schema '%s' in db '%s'", code, db_name)

@@ -37,6 +37,8 @@ type CreateBusinessUnitFormType = z.infer<typeof createBusinessUnitSchema>;
 
 type CreatedBuType = { code: string; id: string; name: string };
 
+type ExtraBuPromptType = { message: string; paidThrough: string | null; paidThroughChanges: boolean };
+
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const createBusinessUnitSchema = z.object({
@@ -116,6 +118,8 @@ export const CreateBusinessUnitDialog = ({ onOpenChange, onSuccess, open }: Crea
 	const [codeTaken, setCodeTaken] = useState<boolean | null>(null);
 	const [createError, setCreateError] = useState<string | null>(null);
 	const [createdBu, setCreatedBu] = useState<CreatedBuType | null>(null);
+	// An Enterprise client's BU beyond the included five needs a confirmation (plans/plan.md Step 10).
+	const [extraBu, setExtraBu] = useState<ExtraBuPromptType | null>(null);
 	const [nameTaken, setNameTaken] = useState<boolean | null>(null);
 	const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -229,6 +233,7 @@ export const CreateBusinessUnitDialog = ({ onOpenChange, onSuccess, open }: Crea
 			setCodeTaken(null);
 			setCreateError(null);
 			setCreatedBu(null);
+			setExtraBu(null);
 			setNameTaken(null);
 			setStep(1);
 			form.reset({ code: "", name: "" });
@@ -237,8 +242,13 @@ export const CreateBusinessUnitDialog = ({ onOpenChange, onSuccess, open }: Crea
 
 	// Step 2: auto-trigger mutation on mount
 	useEffect(() => {
-		if (step !== 2 || !dbName) return;
+		if (step === 2) runCreate(false);
+	}, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	function runCreate(confirmExtraBu: boolean) {
+		if (!dbName) return;
 		setCreateError(null);
+		setExtraBu(null);
 		const data = form.getValues();
 		apolloClient
 			.mutate<{ createBuSchemaAndFeedSeedData: { code: string; id: number; name: string } }>({
@@ -246,7 +256,13 @@ export const CreateBusinessUnitDialog = ({ onOpenChange, onSuccess, open }: Crea
 				variables: {
 					db_name: dbName,
 					schema: "security",
-					value: encodeURIComponent(JSON.stringify({ code: data.code.toLowerCase(), name: data.name })),
+					value: encodeURIComponent(
+						JSON.stringify({
+							code: data.code.toLowerCase(),
+							confirm_extra_bu: confirmExtraBu,
+							name: data.name,
+						}),
+					),
 				},
 			})
 			.then((res) => {
@@ -259,10 +275,18 @@ export const CreateBusinessUnitDialog = ({ onOpenChange, onSuccess, open }: Crea
 				setStep(3);
 			})
 			.catch((err) => {
-				const msg = err?.errors?.[0]?.message ?? MESSAGES.ERROR_BU_CREATE_SCHEMA_FAILED;
-				setCreateError(msg);
+				const first = err?.errors?.[0];
+				if (first?.extensions?.code === "EXTRA_BU_CONFIRM_REQUIRED") {
+					setExtraBu({
+						message: first.message,
+						paidThrough: first.extensions.paid_through ?? null,
+						paidThroughChanges: !!first.extensions.paid_through_changes,
+					});
+					return;
+				}
+				setCreateError(first?.message ?? MESSAGES.ERROR_BU_CREATE_SCHEMA_FAILED);
 			});
-	}, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+	}
 
 	function onNext(data: CreateBusinessUnitFormType) {
 		void data;
@@ -355,7 +379,28 @@ export const CreateBusinessUnitDialog = ({ onOpenChange, onSuccess, open }: Crea
 				{/* ── Step 2: Creating Business Unit ── */}
 				{step === 2 && (
 					<div className="flex flex-col items-center gap-4 py-6">
-						{createError ? (
+						{extraBu ? (
+							<>
+								<p className="text-center text-sm text-slate-700">{extraBu.message}</p>
+								{extraBu.paidThroughChanges && extraBu.paidThrough && (
+									<p className="text-center text-sm font-medium text-amber-700">
+										Your prepaid period will now end on {extraBu.paidThrough}.
+									</p>
+								)}
+								<DialogFooter className="pt-2 w-full">
+									<Button type="button" variant="ghost" onClick={() => setStep(1)}>
+										Back
+									</Button>
+									<Button
+										className="bg-teal-600 text-white hover:bg-teal-700"
+										type="button"
+										onClick={() => runCreate(true)}
+									>
+										Continue
+									</Button>
+								</DialogFooter>
+							</>
+						) : createError ? (
 							<>
 								<p className="text-center text-sm text-red-500">{createError}</p>
 								<DialogFooter className="pt-2 w-full">
@@ -365,7 +410,7 @@ export const CreateBusinessUnitDialog = ({ onOpenChange, onSuccess, open }: Crea
 									<Button
 										className="bg-teal-600 text-white hover:bg-teal-700"
 										type="button"
-										onClick={() => setStep(2)}
+										onClick={() => runCreate(false)}
 									>
 										Retry
 									</Button>

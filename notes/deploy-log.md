@@ -3,6 +3,24 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-03 11:25 (main)
+Billing: sign-up approval, monthly payments, view-only guard, Main division
+
+- Divisions (plan2): every branch gets a default Main division via a new
+  addBranch mutation; division.is_default, cascading branch FK, upgrade script;
+  genericUpdate refuses branch inserts and deleting/deactivating a default
+- Sign-up (plan Steps 7-8): /plan-prices, /signup, /signup/status and
+  Enterprise-only /sales-enquiry with emails; portal live prices, Lite confirm
+  dialog, references and a sign-up status page
+- Approval (Steps 9-10): Admin and Super Admin Enquiries screens; resumable,
+  payment-gated BU/Manager and Enterprise client provisioning; extra-BU fees
+- Billing (Steps 11-14): require_bu_writable view-only guard on BU writes,
+  branch limit and changeBuPlan, monthly payments and Enterprise controls,
+  daily reminders, Subscriptions screens, banner and read-only dialog
+- Tests, help articles, plan.md/plan2.md and refreshed schema dumps and types
+
+Files: 89 changed (+3394 / -563) — Base: 3ca4837
+
 ## 2026-10-02 19:53 (main)
 Security: isolate BUs in shared databases; plan single-division BUs
 

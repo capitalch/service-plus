@@ -17,14 +17,26 @@ type UseGenericQueryResultType<T> = {
 };
 
 type Options = {
+	/** Overrides the session's database; "" is the Super Admin's control plane. */
+	dbName?: string;
 	enabled?: boolean;
+	/** Overrides the current BU schema, e.g. "security" for the admin screens. */
+	schema?: string;
 	sqlArgs?: Record<string, unknown>;
 	sqlId: string;
 };
 
-export function useGenericQuery<T>({ enabled = true, sqlArgs, sqlId }: Options): UseGenericQueryResultType<T> {
-	const dbName = useAppSelector(selectDbName);
-	const schema = useAppSelector(selectSchema);
+export function useGenericQuery<T>({
+	dbName: dbNameOverride,
+	enabled = true,
+	schema: schemaOverride,
+	sqlArgs,
+	sqlId,
+}: Options): UseGenericQueryResultType<T> {
+	const sessionDbName = useAppSelector(selectDbName);
+	const sessionSchema = useAppSelector(selectSchema);
+	const dbName = dbNameOverride ?? sessionDbName;
+	const schema = schemaOverride ?? sessionSchema;
 
 	const [data, setData] = useState<T[]>([]);
 	const [error, setError] = useState<Error | null>(null);
@@ -34,7 +46,7 @@ export function useGenericQuery<T>({ enabled = true, sqlArgs, sqlId }: Options):
 	const argsKey = JSON.stringify(sqlArgs ?? {});
 
 	useEffect(() => {
-		if (!enabled || !dbName || !schema) {
+		if (!enabled || dbName == null || !schema) {
 			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setData([]);
 			return;

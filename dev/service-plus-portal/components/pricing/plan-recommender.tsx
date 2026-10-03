@@ -7,6 +7,7 @@ import { Reveal } from "@/components/layout/reveal";
 import { Button } from "@/components/ui/button";
 import { MESSAGES } from "@/constants/messages";
 import { findPlan, formatInr, type PlanCodeType, type PlanType } from "@/content/pricing";
+import { findLivePlan, usePlanPrices } from "@/lib/plan-prices";
 import { cn } from "@/lib/utils";
 
 type QuestionType = {
@@ -91,7 +92,10 @@ function recommend(answers: AnswersType): { plan: PlanType; reasons: string[] } 
 export const PlanRecommender = ({ onSelect }: { onSelect: (code: PlanCodeType) => void }) => {
 	const [answers, setAnswers] = useState<AnswersType | null>(null);
 
+	const { plans } = usePlanPrices();
 	const result = answers ? recommend(answers) : null;
+	// The recommendation reads the plan features; the price shown is the live one.
+	const resultPlan = result ? (findLivePlan(plans, result.plan.code) ?? result.plan) : null;
 
 	function answer(id: string, value: number) {
 		setAnswers((current) => {
@@ -154,10 +158,10 @@ export const PlanRecommender = ({ onSelect }: { onSelect: (code: PlanCodeType) =
 						<p className="mt-1 flex items-baseline gap-2">
 							<span className="text-2xl font-bold tracking-tight">{result.plan.name}</span>
 							<span className="text-muted-foreground text-sm">
-								{result.plan.monthlyPrice === 0
+								{resultPlan?.monthlyPrice === 0
 									? "Free"
-									: `${formatInr(result.plan.monthlyPrice)} / month`}
-								{result.plan.setupFee > 0 && ` + ${formatInr(result.plan.setupFee)} setup`}
+									: `${formatInr(resultPlan?.monthlyPrice ?? 0)} / month`}
+								{(resultPlan?.setupFee ?? 0) > 0 && ` + ${formatInr(resultPlan?.setupFee ?? 0)} setup`}
 							</span>
 						</p>
 						<p className="text-muted-foreground mt-2 text-sm italic">{result.plan.tagline}</p>

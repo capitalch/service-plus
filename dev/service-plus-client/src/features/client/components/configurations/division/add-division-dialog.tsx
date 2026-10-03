@@ -309,7 +309,7 @@ export const AddDivisionDialog = ({ onOpenChange, onSuccess, open }: AddDivision
 	}
 
 	function onInvalid(formErrors: typeof errors) {
-		setActiveTab(formErrors.account_setting ? "accounts" : "details");
+		setActiveTab(postDataToAccounts && formErrors.account_setting ? "accounts" : "details");
 		toast.error(MESSAGES.ERROR_DIVISION_FORM_INVALID);
 	}
 

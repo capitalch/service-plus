@@ -73,6 +73,7 @@ export const MESSAGES = {
 	// Business Units
 	ERROR_BU_ACTIVATE_FAILED: "Failed to activate business unit. Please try again.",
 	ERROR_BU_CODE_EXISTS: "This code is already in use.",
+	ERROR_BU_CODE_FORMAT: "Use 3–30 lower-case letters, digits or underscores; not a reserved name.",
 	ERROR_BU_SCHEMA_DELETE_FAILED: "Failed to drop business unit schema. Please try again.",
 	ERROR_BU_SCHEMA_NAME_MISMATCH: "Schema name does not match. Please type the exact name.",
 	ERROR_ORPHAN_BU_DELETE_FAILED: "Failed to delete orphaned schema. Please try again.",
@@ -110,12 +111,13 @@ export const MESSAGES = {
 	ERROR_BRANCH_NAME_EXISTS_EDIT: "This name is already used by another branch.",
 	ERROR_BRANCH_UPDATE_FAILED: "Failed to update branch. Please try again.",
 	ERROR_STATES_LOAD_FAILED: "Failed to load states. Please try again.",
-	SUCCESS_BRANCH_CREATED: "Branch created successfully.",
+	SUCCESS_BRANCH_CREATED_WITH_MAIN: "Branch created with its Main division.",
 	SUCCESS_BRANCH_DELETED: "Branch deleted successfully.",
 	SUCCESS_BRANCH_UPDATED: "Branch updated successfully.",
 
 	// Division CRUD
 	ERROR_DIVISION_CREATE_FAILED: "Failed to create division. Please try again.",
+	ERROR_DIVISION_DELETE_DEFAULT: "The default division of a branch cannot be deleted.",
 	ERROR_DIVISION_DELETE_FAILED: "Failed to delete division. Please try again.",
 	ERROR_DIVISION_DELETE_IN_USE: "This division cannot be deleted as it is referenced by existing records.",
 	ERROR_DIVISION_LOAD_FAILED: "Failed to load divisions. Please try again.",
@@ -622,6 +624,59 @@ export const MESSAGES = {
 	CONFIRM_POST_UNPOST_SELECT_ALL_TITLE_UNPOSTED: "Mark all as Unposted?",
 	CONFIRM_POST_UNPOST_SELECT_ALL_BODY:
 		"This will set {count} record{plural} on this page to {state}. The change is staged and applied only when you click Continue.",
+
+	// Plans and monthly billing (plans/plan.md Steps 12–14)
+	BILLING_AMOUNT_BELOW_DUE: "Amount cannot be less than the monthly fee × months.",
+	BILLING_BRANCH_LIMIT: "Your plan includes one branch. Upgrade to Standard for more branches.",
+	BILLING_CAP_EXCEEDED: "This would take the paid period more than 5 years ahead.",
+	BILLING_DOWNGRADE_BLOCKED: "Delete these branches and their data first, then change the plan:",
+	BILLING_DUE_SOON: "Your payment is due. The app becomes view-only after {date}.",
+	BILLING_EXTRA_NOTE_REQUIRED: "Add a note explaining the amount above the monthly fee × months.",
+	BILLING_HOLD_SAVED: "Billing hold updated.",
+	BILLING_LOAD_FAILED: "Failed to load subscriptions. Please try again.",
+	BILLING_NOT_STARTED: "This customer is not billed yet. Start billing to put all its business units on the plan.",
+	BILLING_PAID_THROUGH_SAVED: "Paid-through date updated.",
+	BILLING_PAYMENT_RECORDED: "Payment recorded.",
+	BILLING_PLAN_CHANGED: "Plan changed.",
+	BILLING_READ_ONLY:
+		"Your subscription payment for this month has not been received. You can view your data but cannot add or change it. Please contact your Service+ provider.",
+	BILLING_READ_ONLY_FIRST:
+		"Your first monthly payment has not been recorded yet. You can view your data but cannot add or change it. Please contact your Service+ provider.",
+	BILLING_STARTED: "Billing started.",
+	BILLING_FEE_SAVED: "Monthly fee updated.",
+	READ_ONLY_TOOLTIP: "Read-only: payment pending",
+
+	// Sign-up enquiries (plans/plan.md Steps 9, 10)
+	ENQUIRY_APPROVE_INTRO: "This creates the business unit, its Manager user, and emails the login link.",
+	ENQUIRY_APPROVED_LITE: "Business unit and Manager created. The login email has been sent.",
+	ENQUIRY_APPROVED_LOGIN_EMAIL_FAILED:
+		"Business unit and Manager created, but the login email could not be sent. Resend it from Business Users.",
+	ENQUIRY_APPROVED_PAID:
+		"Record the first monthly payment on the Subscriptions page. Until then this customer can only view.",
+	ENQUIRY_LOAD_FAILED: "Failed to load enquiries. Please try again.",
+	ENQUIRY_LOGIN_EMAIL_NOT_SENT: "Login email not sent",
+	ENQUIRY_NOTE_REQUIRED: "Enter a note.",
+	ENQUIRY_PAYMENT_AMOUNT_LOW: "Amount must be at least the setup fee.",
+	ENQUIRY_PAYMENT_DATE_FUTURE: "Date cannot be in the future.",
+	ENQUIRY_PAYMENT_FAILED_INTRO: "The request stays pending; it can still be paid or rejected later.",
+	ENQUIRY_PAYMENT_FAILED_SAVED: "Setup payment marked as failed.",
+	ENQUIRY_PAYMENT_RECORDED: "Setup payment recorded.",
+	ENQUIRY_PAYMENT_REFERENCE_REQUIRED: "Enter the payment reference.",
+	ENQUIRY_PROVISIONED: "Customer created: client, database, business unit and admin user.",
+	ENQUIRY_REASON_REQUIRED: "Enter a reason.",
+	ENQUIRY_REJECT_PAID_WARNING: "Payment was received — refund outside the system.",
+	ENQUIRY_REJECTED: "Request rejected and the applicant emailed.",
+	ENQUIRY_SAVE_FAILED: "Could not save. Please try again.",
+	ENQUIRY_SETUP_NOT_RECEIVED: "Setup payment not received",
+	ENQUIRY_CONTACTED: "Marked as contacted.",
+	ENQUIRY_FEE_SAVED: "Setup fee updated.",
+	ENQUIRY_FEE_INVALID: "Enter an amount of 0 or more.",
+	ENQUIRY_PROVISION_INTRO:
+		"This creates the client, its database, the first business unit and the admin user, then emails the admin a set-password link.",
+	ERROR_CLIENT_CODE_FORMAT: "Use 4–20 letters or digits.",
+	ERROR_CLIENT_NAME_FORMAT: "Use 6–100 letters, digits, spaces or - _ . ,",
+	ERROR_DB_NAME_FORMAT: "Use service_plus_ followed by lower-case letters, digits or _.",
+	ENQUIRY_NONE: "No requests match these filters.",
 } as const;
 
 // Builds the Post/Unpost "Select All" confirmation title + description from central templates.

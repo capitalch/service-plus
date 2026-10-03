@@ -51,6 +51,7 @@ import {
 	getInitialTransferLine,
 } from "./branch-transfer-schema";
 import { NewBranchTransfer } from "./new-branch-transfer";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,8 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const BranchTransferSection = () => {
+	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -483,6 +486,7 @@ export const BranchTransferSection = () => {
 						disabled={
 							!form.formState.isValid || !linesValid || !selectedBrandId || form.formState.isSubmitting
 						}
+						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{form.formState.isSubmitting ? (

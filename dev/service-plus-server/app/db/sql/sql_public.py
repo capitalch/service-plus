@@ -443,13 +443,3 @@ class PublicSql:
         VALUES
             (%(order_id)s, %(spare_part_web_id)s, %(qty)s, %(unit_price)s, %(line_total)s)
     """
-
-    # service_plus_client DB, public schema — run with db_name=None (the client pool).
-    INSERT_SALES_ENQUIRY = """
-        INSERT INTO public.sales_enquiry
-            (plan_code, name, business_name, mobile, email, city, gstin, branches, message, ip)
-        VALUES
-            (%(plan_code)s, %(name)s, %(business_name)s, %(mobile)s, %(email)s, %(city)s,
-             %(gstin)s, %(branches)s, %(message)s, %(ip)s)
-        RETURNING id
-    """

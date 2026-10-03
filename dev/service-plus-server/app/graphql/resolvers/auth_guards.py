@@ -122,6 +122,30 @@ def require_default_customer_db(info, db_name: str | None) -> None:
         )
 
 
+async def require_bu_writable(info, db_name: str | None, schema: str | None) -> None:
+    """
+    Raise AuthorizationException SUBSCRIPTION_READ_ONLY (with paidThrough) when the BU
+    named by `schema` is view-only for an unpaid month (plans/plan.md Step 11). Run after
+    require_own_tenant and require_bu_access, so a foreign BU gets "forbidden", not a
+    billing message. The `security`, `public` and empty schemas are never billed; only the
+    Super Admin is exempt — an Admin's BU writes are blocked like anyone's.
+    """
+    context = info.context or {}
+    _reject_bad_token(context)
+    if context.get("user_type") == "S" or (schema or "").lower() in TENANT_WIDE_SCHEMAS or not db_name:
+        return
+    # Imported here, like require_default_customer_db: the pure guard tests never load the DB.
+    from app.services.bu_billing import get_bu_billing  # pylint: disable=import-outside-toplevel
+
+    billing = await get_bu_billing(db_name, schema)
+    if billing["status"] == "read_only":
+        raise AuthorizationException(
+            message=AppMessages.SUBSCRIPTION_READ_ONLY,
+            code="SUBSCRIPTION_READ_ONLY",
+            extensions={"paidThrough": billing["paidThrough"], "reason": "subscription_read_only"},
+        )
+
+
 def require_sql_id_access(info, sql_id: str | None) -> None:
     """
     Raise AuthorizationException when a non-admin asks genericQuery /

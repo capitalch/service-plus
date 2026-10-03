@@ -13,34 +13,43 @@ Endpoints:
     GET /api/public/parts/{id}   - Single catalogue part, with its full photo gallery
     POST /api/public/part-orders - Submit a spare-parts order request (no payment, §7)
     POST /api/public/contact     - kush-infotech-web contact-form submission (email only, no DB row)
-    POST /api/public/sales-enquiry - service-plus-portal pricing-page enquiry (DB row in
+    GET /api/public/plan-prices    - service-plus-portal price list (whole rupees)
+    POST /api/public/sales-enquiry - service-plus-portal Enterprise enquiry (DB row in
                                     service_plus_client.public.sales_enquiry, then email)
+    POST /api/public/signup        - Lite / Basic / Standard sign-up (DB row in the default
+                                    customer database's security.sales_enquiry, then email)
+    POST /api/public/signup/status - a sign-up's status, by mobile and email
 
 Every route here is guarded by require_website_key (X-Website-Key header) and
 per-IP rate limiting. No amounts and no internal ids are ever returned — see
 plans/plan.md §3 and app/db/sql/sql_public.py for the column whitelist. The
-spare-parts routes are the one exception to "no amounts": `price` is the
-catalogue price being browsed, not an internal accounting figure — see
-plans/plan-parts-web.md §5.
+exceptions to "no amounts": the spare-parts `price` is the catalogue price being
+browsed, not an internal accounting figure (plans/plan-parts-web.md §5), and
+/plan-prices is the public price list.
 """
 import html
 from dataclasses import dataclass
 from typing import Callable
 
 import psycopg.sql as pgsql
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from psycopg.rows import dict_row
 from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.dependencies import require_website_key
+from app.core.exceptions import AppMessages, ServicePlusException
+from app.core.plan_prices import PAISE_PER_RUPEE, PLAN_CODES, get_price_list
 from app.core.email import send_email
 from app.core.rate_limit import rate_limit
 from app.db.connection.psycopg_driver import exec_sql, exec_sql_query, get_service_db_connection
 from app.db.sql.sql_base import SqlStore
 from app.db.sql.sql_public import PublicSql
 from app.logger import logger
+from app.services.bu_billing import get_bu_billing
 from app.services.public_directory import public_directory
+from app.services.signup_emails import PLAN_NAMES
+from app.services.signups import get_lt_signup_status, submit_enterprise_enquiry, submit_lt_signup
 
 router = APIRouter(
     prefix="/api/public",
@@ -567,6 +576,9 @@ async def submit_part_order(payload: PartOrderIn) -> PartOrderOut:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown company")
     db_name, bu_code = resolved
     schema = bu_code.lower()
+    # A view-only shop (an unpaid month, plans/plan.md Step 11) takes no orders.
+    if (await get_bu_billing(db_name, schema))["status"] == "read_only":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=AppMessages.PART_ORDER_UNAVAILABLE)
 
     branches = await _get_active_branches(db_name, schema)
     target = await resolve_branch(db_name, schema, payload.branch, branches=branches)
@@ -754,10 +766,38 @@ async def submit_contact_message(payload: ContactMessageIn) -> ContactMessageOut
     return ContactMessageOut(status="ok")
 
 
-# ─── service-plus-portal sales enquiry ────────────────────────────────────────
+# ─── service-plus-portal: prices, sign-up and enquiry (plans/plan.md Step 7) ───
 
 
-PLAN_NAMES = {"lite": "Lite", "basic": "Basic", "standard": "Standard", "enterprise": "Enterprise"}
+PRICE_CACHE_SECONDS = 300
+
+# HTTP status for each sign-up refusal code (app.services.signups.SignupException and
+# DEFAULT_DB_NOT_CONFIGURED from app.services.default_customer).
+_SIGNUP_HTTP_STATUS = {
+    "DEFAULT_DB_NOT_CONFIGURED": status.HTTP_503_SERVICE_UNAVAILABLE,
+    "NOT_FOUND": status.HTTP_404_NOT_FOUND,
+    "SIGNUP_DUPLICATE": status.HTTP_409_CONFLICT,
+    "SIGNUP_WRONG_ENDPOINT": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "VALIDATION_ERROR": status.HTTP_422_UNPROCESSABLE_CONTENT,
+}
+
+
+def _signup_http_error(e: ServicePlusException) -> HTTPException:
+    """The applicant-facing HTTP error for a refused sign-up; unknown codes are a 500."""
+    code = _SIGNUP_HTTP_STATUS.get(e.code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return HTTPException(status_code=code, detail={"code": e.code, "message": e.message})
+
+
+class PlanPriceOut(BaseModel):
+    monthly_fee: int
+    plan_code: str
+    setup_fee: int
+
+
+class PlanPricesOut(BaseModel):
+    enterprise_included_bus: int
+    extra_bu_monthly_fee: int
+    plans: list[PlanPriceOut]
 
 
 class SalesEnquiryIn(BaseModel):
@@ -776,32 +816,46 @@ class SalesEnquiryIn(BaseModel):
 
 
 class SalesEnquiryOut(BaseModel):
+    reference: str
     status: str
 
 
-def _sales_enquiry_rows(payload: SalesEnquiryIn) -> list[tuple[str, str]]:
-    """(label, value) pairs shared by the text and HTML notifications."""
+class SignupStatusIn(BaseModel):
+    email: str = Field(min_length=3, max_length=200, pattern=r"^.+@.+\..+$")
+    mobile: str = Field(pattern=r"^[6-9]\d{9}$")
+
+
+class SignupStatusOut(BaseModel):
+    client_name: str | None = None
+    login_email: str | None = None
+    plan_code: str
+    rejection_reason: str | None = None
+    status: str
+
+
+def _sales_enquiry_rows(enquiry: dict) -> list[tuple[str, str]]:
+    """(label, value) pairs shared by the text and HTML team notifications."""
     return [
-        ("Plan", PLAN_NAMES[payload.plan_code]),
-        ("Name", payload.name),
-        ("Business", payload.business_name),
-        ("Mobile", payload.mobile),
-        ("Email", payload.email),
-        ("City / State", payload.city),
-        ("GSTIN", payload.gstin or "—"),
-        ("Branches", str(payload.branches)),
+        ("Plan", PLAN_NAMES[enquiry["plan_code"]]),
+        ("Name", enquiry["name"]),
+        ("Business", enquiry["business_name"]),
+        ("Mobile", enquiry["mobile"]),
+        ("Email", enquiry["email"]),
+        ("City / State", enquiry["city"]),
+        ("GSTIN", enquiry["gstin"] or "—"),
+        ("Branches", str(enquiry["branches"])),
     ]
 
 
-def _build_sales_enquiry_email_text(payload: SalesEnquiryIn, enquiry_id: int) -> str:
-    lines = [f"{label}: {value}" for label, value in _sales_enquiry_rows(payload)]
+def _build_sales_enquiry_email_text(enquiry: dict) -> str:
+    lines = [f"{label}: {value}" for label, value in _sales_enquiry_rows(enquiry)]
     return "\n".join(
         [
-            f"Sales enquiry #{enquiry_id}",
+            f"Sales enquiry {enquiry['reference']}",
             "",
             *lines,
             "",
-            payload.message or "(no message)",
+            enquiry["message"] or "(no message)",
             "",
             "—",
             "Sent from the service-plus-portal pricing page. Reply to this email to respond directly.",
@@ -809,17 +863,17 @@ def _build_sales_enquiry_email_text(payload: SalesEnquiryIn, enquiry_id: int) ->
     )
 
 
-def _build_sales_enquiry_email_html(payload: SalesEnquiryIn, enquiry_id: int) -> str:
+def _build_sales_enquiry_email_html(enquiry: dict) -> str:
     """Same table-based, inline-styled layout as the contact-form email."""
     esc = html.escape
-    message_html = esc(payload.message).replace("\n", "<br>") if payload.message else "—"
+    message_html = esc(enquiry["message"]).replace("\n", "<br>") if enquiry["message"] else "—"
     rows = "".join(
         f"""
         <tr>
           <td style="padding:10px 0;border-bottom:1px solid #e5e9f2;color:#64748b;font-size:13px;width:140px;vertical-align:top;">{esc(label)}</td>
           <td style="padding:10px 0;border-bottom:1px solid #e5e9f2;color:#0f172a;font-size:14px;font-weight:600;vertical-align:top;">{esc(value)}</td>
         </tr>"""
-        for label, value in _sales_enquiry_rows(payload)
+        for label, value in _sales_enquiry_rows(enquiry)
     )
 
     return f"""\
@@ -833,7 +887,7 @@ def _build_sales_enquiry_email_html(payload: SalesEnquiryIn, enquiry_id: int) ->
             <tr>
               <td style="background:#2563eb;padding:24px 32px;">
                 <div style="color:#ffffff;font-size:18px;font-weight:700;">Service+</div>
-                <div style="color:#dbeafe;font-size:13px;margin-top:8px;">Sales enquiry #{enquiry_id} — {esc(PLAN_NAMES[payload.plan_code])}</div>
+                <div style="color:#dbeafe;font-size:13px;margin-top:8px;">Sales enquiry {esc(enquiry['reference'])} — {esc(PLAN_NAMES[enquiry['plan_code']])}</div>
               </td>
             </tr>
             <tr>
@@ -851,7 +905,7 @@ def _build_sales_enquiry_email_html(payload: SalesEnquiryIn, enquiry_id: int) ->
             </tr>
             <tr>
               <td style="padding:16px 32px 24px 32px;border-top:1px solid #e5e9f2;">
-                <div style="color:#94a3b8;font-size:12px;">Sent from the service-plus-portal pricing page. Reply to this email to respond directly to {esc(payload.name)}.</div>
+                <div style="color:#94a3b8;font-size:12px;">Sent from the service-plus-portal pricing page. Reply to this email to respond directly to {esc(enquiry['name'])}.</div>
               </td>
             </tr>
           </table>
@@ -862,6 +916,47 @@ def _build_sales_enquiry_email_html(payload: SalesEnquiryIn, enquiry_id: int) ->
 </html>"""
 
 
+async def _notify_team_of_enterprise_enquiry(enquiry: dict, recipients: list[str]) -> None:
+    """The team notice for an Enterprise enquiry; a failed send is logged, never raised."""
+    if not recipients:
+        logger.warning("Enterprise enquiry %s saved but no notify address is set", enquiry["reference"])
+    for to in recipients:
+        try:
+            await send_email(
+                to=to,
+                subject=f"Service+ sales enquiry — Enterprise — {enquiry['business_name']}",
+                body=_build_sales_enquiry_email_text(enquiry),
+                html_body=_build_sales_enquiry_email_html(enquiry),
+                reply_to=enquiry["email"],
+            )
+        except Exception as mail_err:  # pylint: disable=broad-except
+            logger.warning("Failed to send email for sales enquiry %s: %s", enquiry["reference"], mail_err)
+
+
+@router.get(
+    "/plan-prices",
+    response_model=PlanPricesOut,
+    dependencies=[Depends(rate_limit("plan-prices", limit=60, window_seconds=60))],
+)
+async def get_plan_prices(response: Response) -> PlanPricesOut:
+    """The portal's price list in whole rupees: per plan the setup and monthly fee, plus
+    the Enterprise included-BU count and extra-BU fee. Nothing else."""
+    prices = get_price_list()
+    response.headers["Cache-Control"] = f"public, max-age={PRICE_CACHE_SECONDS}"
+    return PlanPricesOut(
+        enterprise_included_bus=prices.enterprise_included_bus,
+        extra_bu_monthly_fee=prices.extra_bu_monthly_paise // PAISE_PER_RUPEE,
+        plans=[
+            PlanPriceOut(
+                monthly_fee=p.monthly_fee_paise // PAISE_PER_RUPEE,
+                plan_code=code,
+                setup_fee=p.setup_fee_paise // PAISE_PER_RUPEE,
+            )
+            for code, p in ((c, prices.plans[c]) for c in PLAN_CODES)
+        ],
+    )
+
+
 @router.post(
     "/sales-enquiry",
     response_model=SalesEnquiryOut,
@@ -869,44 +964,49 @@ def _build_sales_enquiry_email_html(payload: SalesEnquiryIn, enquiry_id: int) ->
 )
 async def submit_sales_enquiry(payload: SalesEnquiryIn, request: Request) -> SalesEnquiryOut:
     """
-    service-plus-portal pricing-page enquiry — the input to manual provisioning
-    (a BU for Lite/Basic/Standard, a dedicated DB for Enterprise). Unlike the
-    contact form, the enquiry is saved first (service_plus_client.public.sales_enquiry),
-    so a lost email never loses a lead: an email failure is logged and swallowed,
-    the same way `_notify_staff_of_order` treats a durably saved order. Returns
-    only a status — never the row id.
+    service-plus-portal Enterprise enquiry, saved in service_plus_client.public.sales_enquiry
+    with a random reference, the list setup fee and payment_status 'pending'; then the team
+    notice and the applicant's thank-you. Lite / Basic / Standard are refused here
+    (SIGNUP_WRONG_ENDPOINT) — they go to POST /signup. Returns only status and reference.
     """
-    rows = await exec_sql(
-        db_name=None,
-        schema="public",
-        sql=PublicSql.INSERT_SALES_ENQUIRY,
-        sql_args={
-            "plan_code": payload.plan_code,
-            "name": payload.name.strip(),
-            "business_name": payload.business_name.strip(),
-            "mobile": payload.mobile,
-            "email": payload.email.strip(),
-            "city": payload.city.strip(),
-            "gstin": payload.gstin,
-            "branches": payload.branches,
-            "message": payload.message.strip() if payload.message else None,
-            "ip": request.client.host if request.client else None,
-        },
-    )
-    enquiry_id = rows[0]["id"]
+    try:
+        result = await submit_enterprise_enquiry(
+            payload.model_dump(),
+            request.client.host if request.client else None,
+            _notify_team_of_enterprise_enquiry,
+        )
+    except ServicePlusException as e:
+        raise _signup_http_error(e) from e
+    return SalesEnquiryOut(**result)
 
-    if settings.contact_notify_email:
-        try:
-            await send_email(
-                to=settings.contact_notify_email,
-                subject=f"Service+ sales enquiry — {PLAN_NAMES[payload.plan_code]} — {payload.business_name}",
-                body=_build_sales_enquiry_email_text(payload, enquiry_id),
-                html_body=_build_sales_enquiry_email_html(payload, enquiry_id),
-                reply_to=payload.email,
-            )
-        except Exception as mail_err:  # pylint: disable=broad-except
-            logger.warning("Failed to send email for sales enquiry #%s: %s", enquiry_id, mail_err)
-    else:
-        logger.warning("Sales enquiry #%s saved but contact_notify_email is not set", enquiry_id)
 
-    return SalesEnquiryOut(status="ok")
+@router.post(
+    "/signup",
+    response_model=SalesEnquiryOut,
+    dependencies=[Depends(rate_limit("signup", limit=5, window_seconds=60))],
+)
+async def submit_signup(payload: SalesEnquiryIn, request: Request) -> SalesEnquiryOut:
+    """
+    Lite / Basic / Standard sign-up, saved in security.sales_enquiry of the default
+    customer database (never the control plane). Duplicates get one SIGNUP_DUPLICATE
+    message whatever matched, so the endpoint cannot reveal which emails have accounts.
+    """
+    try:
+        result = await submit_lt_signup(payload.model_dump(), request.client.host if request.client else None)
+    except ServicePlusException as e:
+        raise _signup_http_error(e) from e
+    return SalesEnquiryOut(**result)
+
+
+@router.post(
+    "/signup/status",
+    response_model=SignupStatusOut,
+    dependencies=[Depends(rate_limit("signup-status", limit=10, window_seconds=60))],
+)
+async def get_signup_status(payload: SignupStatusIn) -> SignupStatusOut:
+    """A sign-up's status; mobile and email must match the same request, else 404."""
+    try:
+        result = await get_lt_signup_status(payload.mobile, payload.email)
+    except ServicePlusException as e:
+        raise _signup_http_error(e) from e
+    return SignupStatusOut(**result)

@@ -37,12 +37,14 @@ export type DivisionType = {
 	gst_state_code: string | null;
 	web_site: string | null;
 	is_active: boolean;
+	is_default: boolean;
 	account_setting: AccountSettingType | null;
 };
 
 export type DivisionContextType = Pick<
 	DivisionType,
 	| "id"
+	| "is_default"
 	| "code"
 	| "name"
 	| "address_line1"

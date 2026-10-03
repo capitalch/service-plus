@@ -2,6 +2,7 @@ type Query {
     adminDashboardStats(db_name: String!): Generic
     auditLogs(action: String, actor: String, from_date: String, outcome: String, page: Int, page_size: Int, search: String, to_date: String): Generic
     auditLogStats(from_date: String, to_date: String): Generic
+    buBillingStatus(db_name: String!, schema: String!): Generic
     genericBatchQuery(db_name: String!, items: [String!]!): Generic
     genericQuery(db_name: String!, schema: String, value: String!): Generic
     getJobDeliveryOtpPending(db_name: String!, schema: String, value: String!): Generic
@@ -23,6 +24,24 @@ type Mutation {
     deleteClient(db_name: String!, schema: String, value: String!): Generic
     dropDatabase(db_name: String!, schema: String, value: String!): Generic
     genericUpdate(db_name: String!, schema: String, value: String!): Generic
+    addBranch(db_name: String!, schema: String, value: String!): Generic
+    recordSalesEnquiryPayment(db_name: String!, schema: String, value: String!): Generic
+    markSalesEnquiryPaymentFailed(db_name: String!, schema: String, value: String!): Generic
+    approveSalesEnquiry(db_name: String!, schema: String, value: String!): Generic
+    rejectSalesEnquiry(db_name: String!, schema: String, value: String!): Generic
+    markEnterpriseEnquiryContacted(db_name: String!, schema: String, value: String!): Generic
+    setEnterpriseEnquiryFee(db_name: String!, schema: String, value: String!): Generic
+    recordEnterpriseEnquiryPayment(db_name: String!, schema: String, value: String!): Generic
+    markEnterpriseEnquiryPaymentFailed(db_name: String!, schema: String, value: String!): Generic
+    rejectEnterpriseEnquiry(db_name: String!, schema: String, value: String!): Generic
+    provisionEnterpriseEnquiry(db_name: String!, schema: String, value: String!): Generic
+    changeBuPlan(db_name: String!, schema: String, value: String!): Generic
+    recordBuSubscriptionPayment(db_name: String!, schema: String, value: String!): Generic
+    recordClientSubscriptionPayment(db_name: String!, schema: String, value: String!): Generic
+    setClientMonthlyFee(db_name: String!, schema: String, value: String!): Generic
+    extendClientPaidThrough(db_name: String!, schema: String, value: String!): Generic
+    setClientBillingHold(db_name: String!, schema: String, value: String!): Generic
+    startClientBilling(db_name: String!, schema: String, value: String!): Generic
     genericUpdateScript(db_name: String!, schema: String, value: String!): Generic
     deleteUnusedPartsByBrand(db_name: String!, schema: String, value: String!): Generic
     importSpareParts(db_name: String!, schema: String, value: String!): Generic

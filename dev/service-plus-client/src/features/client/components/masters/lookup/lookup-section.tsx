@@ -21,6 +21,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MESSAGES } from "@/constants/messages";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -40,6 +41,7 @@ import { AddLookupDialog } from "./add-lookup-dialog";
 import { DeleteLookupDialog } from "./delete-lookup-dialog";
 import { EditLookupDialog } from "./edit-lookup-dialog";
 import type { LookupConfig, LookupRecord } from "@/features/client/types/lookup";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +66,8 @@ type LookupSectionProps = {
 };
 
 export const LookupSection = ({ config }: LookupSectionProps) => {
+	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentUser = useAppSelector(selectCurrentUser);
@@ -283,6 +287,8 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
 							<Button
 								className="bg-teal-600 text-white hover:bg-teal-700"
 								size="sm"
+								disabled={isReadOnly}
+								title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 								onClick={() => setAddOpen(true)}
 							>
 								<PlusIcon className="mr-1.5 h-3.5 w-3.5" />

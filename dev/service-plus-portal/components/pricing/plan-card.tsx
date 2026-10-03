@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 
 type PlanCardPropsType = {
+	extraBuMonthlyFee: number;
 	onSelect: (code: PlanCodeType) => void;
 	plan: PlanType;
 	/** Set once this card has been chosen, so the grid shows what the form below is set to. */
@@ -26,20 +27,20 @@ type LineType = {
 	label: string;
 };
 
-function planLines(plan: PlanType): LineType[] {
+function planLines(plan: PlanType, extraBuMonthlyFee: number): LineType[] {
 	return [
 		{ included: true, label: usersLabel(plan) },
 		{ included: true, label: jobsLabel(plan) },
 		{ included: true, label: "GST & non-GST billing" },
 		{ included: plan.whatsappPerMonth > 0, label: whatsappLabel(plan) },
 		{ included: plan.inventory, label: plan.inventory ? "Spare-parts inventory" : "No spare-parts inventory" },
-		{ included: true, label: businessUnitsLabel(plan) },
+		{ included: true, label: businessUnitsLabel(plan, extraBuMonthlyFee) },
 		{ included: true, label: branchesLabel(plan) },
 		...(plan.provisioning === "database" ? [{ included: true, label: "Dedicated database" }] : []),
 	];
 }
 
-export const PlanCard = ({ onSelect, plan, selected }: PlanCardPropsType) => {
+export const PlanCard = ({ extraBuMonthlyFee, onSelect, plan, selected }: PlanCardPropsType) => {
 	const isFree = plan.monthlyPrice === 0;
 
 	return (
@@ -83,7 +84,7 @@ export const PlanCard = ({ onSelect, plan, selected }: PlanCardPropsType) => {
 			</p>
 
 			<ul className="mt-6 flex-1 space-y-2.5 text-sm">
-				{planLines(plan).map((line) => (
+				{planLines(plan, extraBuMonthlyFee).map((line) => (
 					<li
 						className={cn("flex items-start gap-2", !line.included && "text-muted-foreground")}
 						key={line.label}

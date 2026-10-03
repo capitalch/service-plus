@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MESSAGES } from "@/constants/messages";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,7 +77,9 @@ export const DeleteConfirmDialog = ({
 			.finally(() => setCheckingInUse(false));
 	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	const isBlocked = !!blockedMessage || inUse === true;
+	// No deleting while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
+	const isBlocked = !!blockedMessage || inUse === true || isReadOnly;
 	// Require the in-use check to have resolved to false (not null) before enabling delete.
 	// When no onCheckInUse is provided, treat it as resolved.
 	const inUseCheckPassed = !onCheckInUse || inUse === false;
@@ -111,10 +115,12 @@ export const DeleteConfirmDialog = ({
 				<div className="flex flex-col gap-4">
 					<p className="text-sm text-muted-foreground">This action cannot be undone.</p>
 
-					{(blockedMessage || inUse === true) && (
+					{(blockedMessage || inUse === true || isReadOnly) && (
 						<div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5">
 							<AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-							<p className="text-sm text-amber-600">{blockedMessage || inUseMessage}</p>
+							<p className="text-sm text-amber-600">
+								{isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : blockedMessage || inUseMessage}
+							</p>
 						</div>
 					)}
 

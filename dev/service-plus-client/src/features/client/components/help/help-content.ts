@@ -2944,6 +2944,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				items: [
 					"At least one branch is required.",
 					"The Head Office branch cannot be deleted.",
+					"Adding a branch also creates its default division, Main, from the branch's address and GSTIN (see Divisions Setup).",
+					"Lite and Basic include the head office only: Add Branch is switched off at that limit. Standard and Enterprise have no limit.",
 					"Users are assigned to specific branches, controlling which branch's data they can access.",
 				],
 			},
@@ -2960,7 +2962,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "What happens if I delete a branch?",
-				a: "Deletion is blocked if the branch has jobs, inventory, or users linked to it. Branches cannot be deleted if they contain data.",
+				a: "Deletion is blocked if the branch has jobs, inventory, or users linked to it. Branches cannot be deleted if they contain data. An unused branch is deleted together with its divisions, including its Main division.",
 			},
 			{
 				q: "Can I change the financial year start date?",
@@ -2981,6 +2983,18 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "para",
 				text: "Configurations → Divisions. A Division is your billing entity — every invoice is issued from a division. You can have multiple divisions (e.g., GST and non-GST, or separate divisions for different states).",
+			},
+			{
+				type: "para",
+				text: "Every branch has one default division, listed first with a Default badge. When a branch is added (and when a new business unit's Head Office is created) a default division named Main is created with it, copied from the branch's address, phone, email and GSTIN — edit it to suit. The default division is selected automatically when you switch to that branch, and new jobs and invoices start on it.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"The default division can be edited, but it has no Deactivate or Delete action.",
+					"Deleting an unused branch also removes its divisions.",
+					"The Accounts tab (Trace+ settings) appears only when post_data_to_accounts is on in App Settings. With it off, a division saves without those settings, and any Trace+ settings already stored on it are kept.",
+				],
 			},
 			{ type: "heading", text: "GST vs Non-GST Division" },
 			{
@@ -3131,7 +3145,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 						"A JSON object controlling the default 'Show Parts in Invoice' toggle plus the fallback combined-line label, HSN, and GST rate used when parts are merged into one invoice line",
 					],
 					["markup_percent_over_cost", "Auto-calculates selling price = cost × (1 + markup%)"],
-					["post_data_to_accounts", "Enables accounting system integration (Post to Accounts)"],
+					[
+						"post_data_to_accounts",
+						"Enables accounting system integration (Post to Accounts). Off for a new business unit; switch it on only if you post to Trace+",
+					],
 					[
 						"whatsapp_notifications",
 						"Turns outbound WhatsApp messages on or off, one switch per event (Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, Extended Warranty) — see 'Turning WhatsApp messages on or off' below",
@@ -3917,6 +3934,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					["Role", "What is this person allowed to do?", "Admin → Roles (view-only)"],
 					["Business User", "Who is logging in?", "Admin → Business Users"],
 					[
+						"Enquiries / Subscriptions",
+						"Portal sign-ups and their monthly payments (shared customer database only)",
+						"Admin → Enquiries, Admin → Subscriptions",
+					],
+					[
 						"Associate BU / Role",
 						"The grant that ties the three together",
 						"Admin → Business Users → row menu",
@@ -4303,6 +4325,122 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "I accidentally deleted a record — can it be recovered?",
 				a: "Deletions are permanent in Service+. For important records (customers, jobs), the system blocks deletion if there are references, so accidental deletion of in-use records is prevented. Contact your administrator if data recovery is needed.",
+			},
+		],
+	},
+	{
+		id: "signup-enquiries",
+		category: "Admin & Users",
+		title: "Sign-up Enquiries (Platform Admin)",
+		summary:
+			"Approve Lite, Basic and Standard sign-ups from the portal: setup payment, Create BU & Manager, Reject.",
+		tags: [
+			"enquiries",
+			"sign-up",
+			"signup",
+			"approval",
+			"setup fee",
+			"payment",
+			"Lite",
+			"Basic",
+			"Standard",
+			"reject",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Admin Mode → Enquiries appears only for the admin of the shared customer database. Every Lite, Basic and Standard sign-up made on the portal lands here, and the bell in the Admin header counts the pending ones. Enterprise enquiries go to the Super Admin instead.",
+			},
+			{
+				type: "steps",
+				items: [
+					"Lite: click Create BU & Manager. Check the business unit name, its code and the Manager's username (all pre-filled and checked as you type), then confirm. The business unit, its Head Office and Main division, and the Manager user are created, and the Manager is emailed a set-password link naming the client to pick at login.",
+					"Basic / Standard: first record the one-time setup payment from the ⋯ menu (amount, mode, reference, date). Until it is recorded, Create BU & Manager stays disabled with 'Setup payment not received'. If a payment bounced, use Mark payment failed with a note — the request stays pending.",
+					"After approving a Basic or Standard request, record the first monthly payment on the Subscriptions page. Until then that customer can only view.",
+					"Reject (⋯ menu) needs a reason, which is emailed to the applicant. It is possible only before the business unit exists. If a payment was received, the dialog reminds you to refund it outside the system.",
+				],
+			},
+			{
+				type: "note",
+				text: "If creating fails part-way (for example the email server is down), the button changes to Resume: clicking it again continues from where it stopped, without creating a second business unit. 'Login email not sent' on an approved row means the Manager exists but the email failed — resend it from Business Users → Mail credentials.",
+			},
+		],
+		faqs: [
+			{
+				q: "Two of us clicked Create at the same time — will there be two business units?",
+				a: "No. The first click claims the request; the second gets 'already being processed'.",
+			},
+			{
+				q: "What does 'view-only' mean for a customer?",
+				a: "A paid plan whose monthly payment is due can still log in, see, print and export everything, but every add, edit or delete is refused with a message to pay. Recording the payment restores access within a minute.",
+			},
+		],
+	},
+	{
+		id: "subscriptions",
+		category: "Admin & Users",
+		title: "Subscriptions (Platform Admin)",
+		summary: "Record monthly payments, see payment history and change a customer's plan.",
+		tags: [
+			"subscriptions",
+			"monthly fee",
+			"payment",
+			"advance",
+			"years",
+			"change plan",
+			"upgrade",
+			"downgrade",
+			"paid through",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Admin Mode → Subscriptions (shared customer database only) lists every business unit with its plan, monthly fee, paid-through date and status. 'Awaiting first payment' rows come first: those customers can only view until you record their first month.",
+			},
+			{
+				type: "steps",
+				items: [
+					"Record payment: choose Months or Years and a count (up to 60 months / 5 years). The amount is filled in as fee × months — no discount for paying ahead — and the line below shows the total and the new paid-through date. You may enter more (a note is then required) but never less.",
+					"A payment can't take the paid period more than 5 years beyond today, even when stacked on earlier advance payments.",
+					"History lists every payment, extension and plan/fee change, newest first; nothing in it is ever edited.",
+					"Change plan moves a customer between Lite, Basic and Standard. Before saving it shows the new fee and, if they have paid ahead, the new paid-through date (an upgrade shortens the prepaid time, a downgrade lengthens it). A downgrade to Lite or Basic is refused while branches other than the head office exist — the dialog lists them with their record counts.",
+				],
+			},
+			{
+				type: "note",
+				text: "The customer's Managers are emailed a receipt for every payment. Reminders go out automatically: 5 days before the paid period ends, on its last day, the day after (now view-only) and once for a first payment that hasn't been made.",
+			},
+		],
+		faqs: [],
+	},
+	{
+		id: "view-only-subscription",
+		category: "Troubleshooting",
+		title: '"View-only" — monthly payment due',
+		summary: "Why saving is refused with a payment message, and what still works.",
+		tags: ["view-only", "read-only", "subscription", "payment due", "monthly fee", "cannot save"],
+		content: [
+			{
+				type: "para",
+				text: 'On a paid plan (Basic, Standard, Enterprise) each month is paid in advance. From the day after the paid period ends — and before the first monthly payment — the business unit is view-only: saving a job, invoice, payment, part, branch or photo is refused with "This business unit is view-only because its monthly payment is due".',
+			},
+			{
+				type: "bullets",
+				items: [
+					"Still works: login, every screen and report, printing, PDFs and exports, and your admin's user and role management.",
+					"Refused: every add, edit or delete of business data, WhatsApp sends from the screens, photo uploads, and online spare-part orders from your website.",
+					"Once the payment is recorded, saving works again within a minute. Nothing is hidden or deleted while view-only.",
+				],
+			},
+			{
+				type: "para",
+				text: 'What you see: an amber banner under the top bar in the last days before the paid period ends ("Your payment is due. The app becomes view-only after <date>."), and a red banner once the business unit is view-only. While view-only, the Add buttons on the Masters screens, Save on the job and inventory entry screens and every Delete are switched off (hover for "Read-only: payment pending"); if a save is refused anyway, a View-only dialog explains why.',
+			},
+		],
+		faqs: [
+			{
+				q: "Why can't I add a second branch?",
+				a: "The Lite and Basic plans include the head office branch only. Add Branch is switched off when you are at the limit, and the server refuses it too. Upgrade to Standard for more branches.",
 			},
 		],
 	},

@@ -31,11 +31,56 @@ class BuAdminDdl:
             name text NOT NULL,
             is_active boolean DEFAULT true NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL
+            updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            plan_code text,
+            billing_required boolean DEFAULT false NOT NULL,
+            monthly_fee_paise bigint,
+            paid_through date,
+            billing_hold boolean DEFAULT false NOT NULL,
+            branch_limit integer,
+            last_reminder_on date,
+            last_reminder_kind text,
+            CONSTRAINT bu_branch_limit_check CHECK (((branch_limit IS NULL) OR (branch_limit >= 1))),
+            CONSTRAINT bu_last_reminder_kind_check CHECK (((last_reminder_kind IS NULL) OR (last_reminder_kind = ANY (ARRAY['due_soon'::text, 'due_today'::text, 'lapsed'::text, 'first_payment'::text])))),
+            CONSTRAINT bu_monthly_fee_check CHECK (((monthly_fee_paise IS NULL) OR (monthly_fee_paise >= 0))),
+            CONSTRAINT bu_plan_code_check CHECK (((plan_code IS NULL) OR (plan_code = ANY (ARRAY['lite'::text, 'basic'::text, 'standard'::text, 'enterprise'::text]))))
         );
 
         ALTER TABLE security.bu ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
             SEQUENCE NAME security.bu_id_seq
+            START WITH 1
+            INCREMENT BY 1
+            NO MINVALUE
+            NO MAXVALUE
+            CACHE 1
+        );
+
+        CREATE TABLE security.bu_payment (
+            id bigint NOT NULL,
+            bu_id bigint,
+            entry_kind text DEFAULT 'payment'::text NOT NULL,
+            amount_paise bigint DEFAULT 0 NOT NULL,
+            months smallint DEFAULT 0 NOT NULL,
+            monthly_fee_paise bigint NOT NULL,
+            payment_mode text,
+            payment_reference text,
+            received_on date,
+            period_from date,
+            period_to date,
+            note text,
+            recorded_by text NOT NULL,
+            recorded_at timestamp with time zone DEFAULT now() NOT NULL,
+            CONSTRAINT bu_payment_amounts_check CHECK (((amount_paise >= 0) AND (monthly_fee_paise >= 0))),
+            CONSTRAINT bu_payment_entry_kind_check CHECK ((entry_kind = ANY (ARRAY['payment'::text, 'fee_rebase'::text, 'extension'::text, 'correction'::text]))),
+            CONSTRAINT bu_payment_mode_check CHECK (((payment_mode IS NULL) OR (payment_mode = ANY (ARRAY['bank_transfer'::text, 'upi'::text, 'cash'::text, 'other'::text])))),
+            CONSTRAINT bu_payment_months_check CHECK ((((months >= 0) AND (months <= 60)) AND ((entry_kind = 'payment'::text) OR (months = 0)))),
+            CONSTRAINT bu_payment_note_check CHECK (((entry_kind = 'payment'::text) OR (note IS NOT NULL))),
+            CONSTRAINT bu_payment_payment_check CHECK (((entry_kind <> 'payment'::text) OR ((months >= 1) AND (amount_paise >= (monthly_fee_paise * months)) AND (payment_mode IS NOT NULL) AND (payment_reference IS NOT NULL) AND (received_on IS NOT NULL)))),
+            CONSTRAINT bu_payment_period_check CHECK (((period_to IS NULL) OR (period_from IS NULL) OR (period_to >= period_from)))
+        );
+
+        ALTER TABLE security.bu_payment ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+            SEQUENCE NAME security.bu_payment_id_seq
             START WITH 1
             INCREMENT BY 1
             NO MINVALUE
@@ -98,6 +143,9 @@ class BuAdminDdl:
         ALTER TABLE ONLY security.access_right
             ADD CONSTRAINT access_right_pkey PRIMARY KEY (id);
 
+        ALTER TABLE ONLY security.bu_payment
+            ADD CONSTRAINT bu_payment_pkey PRIMARY KEY (id);
+
         ALTER TABLE ONLY security.bu
             ADD CONSTRAINT bu_pkey PRIMARY KEY (id);
 
@@ -127,6 +175,8 @@ class BuAdminDdl:
 
         CREATE INDEX access_right_module_idx ON security.access_right USING btree (module) WITH (deduplicate_items='true');
 
+        CREATE INDEX bu_payment_bu_id_idx ON security.bu_payment USING btree (bu_id, recorded_at);
+
         CREATE INDEX role_access_right_access_right_id_idx ON security.role_access_right USING btree (access_right_id) WITH (deduplicate_items='true');
 
         CREATE INDEX role_is_system_idx ON security.role USING btree (is_system) WITH (deduplicate_items='true');
@@ -140,6 +190,9 @@ class BuAdminDdl:
         CREATE INDEX user_full_name_idx ON security."user" USING btree (full_name) WITH (deduplicate_items='true');
 
         CREATE UNIQUE INDEX user_mobile_unique_idx ON security."user" USING btree (mobile) WHERE (mobile IS NOT NULL);
+
+        ALTER TABLE ONLY security.bu_payment
+            ADD CONSTRAINT bu_payment_bu_id_fkey FOREIGN KEY (bu_id) REFERENCES security.bu(id);
 
         ALTER TABLE ONLY security.role_access_right
             ADD CONSTRAINT role_access_right_access_right_id_fkey FOREIGN KEY (access_right_id) REFERENCES security.access_right(id) ON DELETE CASCADE;
@@ -341,7 +394,8 @@ class BuAdminDdl:
             branch_id bigint NOT NULL,
             code text NOT NULL,
             web_site text,
-            account_setting jsonb
+            account_setting jsonb,
+            is_default boolean DEFAULT false NOT NULL
         );
 
         CREATE TABLE document_sequence (
@@ -1709,6 +1763,8 @@ class BuAdminDdl:
 
         CREATE INDEX division_code_idx ON division USING btree (code) WITH (deduplicate_items='true');
 
+        CREATE UNIQUE INDEX division_one_default_per_branch ON division USING btree (branch_id) WHERE is_default;
+
         CREATE UNIQUE INDEX document_sequence_unique ON document_sequence USING btree (document_type_id, branch_id, COALESCE(division_id, (0)::bigint));
 
         CREATE INDEX ew_lead_branch_state_idx ON ew_lead USING btree (branch_id, state);
@@ -1869,7 +1925,7 @@ class BuAdminDdl:
             ADD CONSTRAINT customer_contact_type_fk FOREIGN KEY (customer_type_id) REFERENCES customer_type(id) ON DELETE RESTRICT;
 
         ALTER TABLE ONLY division
-            ADD CONSTRAINT division_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branch(id);
+            ADD CONSTRAINT division_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branch(id) ON DELETE CASCADE;
 
         ALTER TABLE ONLY division
             ADD CONSTRAINT division_state_fk FOREIGN KEY (state_id) REFERENCES state(id) ON DELETE RESTRICT;

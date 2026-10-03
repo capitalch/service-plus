@@ -178,6 +178,14 @@ class SeedBuData:
         SELECT 'HO', 'Head Office', '123 Main St', 29, '700001', true
         WHERE NOT EXISTS (SELECT 1 FROM branch WHERE code = 'HO');
 
+        -- Main: the Head Office's default division, copied from the branch. id 1 in a new BU.
+        INSERT INTO division (id, branch_id, code, name, address_line1, address_line2, city, state_id,
+                              pincode, phone, email, gstin, is_default)
+        SELECT (SELECT COALESCE(MAX(id), 0) + 1 FROM division), b.id, 'MAIN', 'Main', b.address_line1,
+               b.address_line2, b.city, b.state_id, b.pincode, b.phone, b.email, b.gstin, true
+        FROM branch b
+        WHERE b.code = 'HO' AND NOT EXISTS (SELECT 1 FROM division d WHERE d.branch_id = b.id);
+
         INSERT INTO document_sequence (document_type_id, branch_id, prefix, next_number, padding, separator)
         SELECT dt.id, b.id, v.prefix, 1, 5, '/'
         FROM (VALUES
@@ -233,18 +241,17 @@ class SeedBuData:
             (1, 'default_gst_rate',                          '18',    'Default GST rate (%%) applied to invoices',                                                       true),
             (2, 'show_parts_in_job_invoice',              '{"gst_rate":18,"hsn": 11236,"show": true,"text": "Overall repair cost"}',  'When showing parts in invoice, use a single combined line with this label and HSN code', true),
             (3, 'markup_percent_over_cost',                  '20',    'Default markup percent over cost price to get selling price',                                    true),
-            (4, 'default_division_id',                       '1',     'Default division selected when creating a new job',                                              true),
-            (5, 'default_hsn_for_spare_part',               '92099400',  'Default HSN code for Spare Part',                                                                true),
-            (6, 'default_hsn_for_service_charge',           '998726',    'Default HSN code for labour charges, service charges etc.',                                      true),
-            (7, 'no_of_job_sheets_per_print',               '2',         'The no of job sheets to be printed when print pdf',                                        true),
-            (8, 'no_of_job_invoices_per_print',             '2',       'The no of job invoices to be printed when print pdf',                                          true),
-            (9, 'post_data_to_accounts',             'true',       'Post purchase ,receipts, sale to Trace+ accounts',                                          true),
-            (10, 'fiscal_year_start_month_num',             '4',       'Financial year start month number. e,g 4 for April,5 for May,1 for January',              true),
-            (11, 'no_of_job_receipts_per_print',            '2',         'The no of job receipts to be printed when print pdf',                                      true),
-            (12, 'track_job_url',                    '"serviceplus.capital-chowringhee.com"',  'Track your job status from this url',                                                      true),
-            (13, 'job_terms_and_conditions',         '"Material must be collected within 4 months from the Job Sheet date. Thereafter, the Company is not responsible for delivery; if delivery is possible, storage charges of Rs 100/day will apply. Material uncollected for 6 months may be disposed of without further notice or liability."', 'Terms & conditions printed on the Job Sheet, just above the customer signature', true),
-            (14, 'web_order_notify_email',           '""',    'Staff email notified when a spare-parts web order is placed (falls back to branch/head-office email if unset)', true),
-            (15, 'whatsapp_notifications',           '{"JOB_CREATION": false, "JOB_COMPLETION": true, "JOB_DELIVERY": false, "EXTENDED_WARRANTY": false}',  'Per-event on/off switch for outbound WhatsApp messages — keys mirror job.whatsapp_notifications (JOB_CREATION/JOB_COMPLETION/JOB_DELIVERY), plus EXTENDED_WARRANTY', true),
-            (16, 'extended_warranty',                '{"contact_phone": "", "daily_send_cap": 250, "enabled": false, "notify_email": "", "staff_whatsapp_number": "", "whatsapp_number": ""}', 'Extended Warranty. `enabled` shows Custom → Extended Warranty; sending also needs whatsapp_notifications.EXTENDED_WARRANTY.', true)
+            (4, 'default_hsn_for_spare_part',               '92099400',  'Default HSN code for Spare Part',                                                                true),
+            (5, 'default_hsn_for_service_charge',           '998726',    'Default HSN code for labour charges, service charges etc.',                                      true),
+            (6, 'no_of_job_sheets_per_print',               '2',         'The no of job sheets to be printed when print pdf',                                        true),
+            (7, 'no_of_job_invoices_per_print',             '2',       'The no of job invoices to be printed when print pdf',                                          true),
+            (8, 'post_data_to_accounts',             'false',      'Post purchase ,receipts, sale to Trace+ accounts',                                          true),
+            (9, 'fiscal_year_start_month_num',             '4',       'Financial year start month number. e,g 4 for April,5 for May,1 for January',              true),
+            (10, 'no_of_job_receipts_per_print',            '2',         'The no of job receipts to be printed when print pdf',                                      true),
+            (11, 'track_job_url',                    '"serviceplus.capital-chowringhee.com"',  'Track your job status from this url',                                                      true),
+            (12, 'job_terms_and_conditions',         '"Material must be collected within 4 months from the Job Sheet date. Thereafter, the Company is not responsible for delivery; if delivery is possible, storage charges of Rs 100/day will apply. Material uncollected for 6 months may be disposed of without further notice or liability."', 'Terms & conditions printed on the Job Sheet, just above the customer signature', true),
+            (13, 'web_order_notify_email',           '""',    'Staff email notified when a spare-parts web order is placed (falls back to branch/head-office email if unset)', true),
+            (14, 'whatsapp_notifications',           '{"JOB_CREATION": false, "JOB_COMPLETION": true, "JOB_DELIVERY": false, "EXTENDED_WARRANTY": false}',  'Per-event on/off switch for outbound WhatsApp messages — keys mirror job.whatsapp_notifications (JOB_CREATION/JOB_COMPLETION/JOB_DELIVERY), plus EXTENDED_WARRANTY', true),
+            (15, 'extended_warranty',                '{"contact_phone": "", "daily_send_cap": 250, "enabled": false, "notify_email": "", "staff_whatsapp_number": "", "whatsapp_number": ""}', 'Extended Warranty. `enabled` shows Custom → Extended Warranty; sending also needs whatsapp_notifications.EXTENDED_WARRANTY.', true)
         ON CONFLICT (id) DO NOTHING;
     """

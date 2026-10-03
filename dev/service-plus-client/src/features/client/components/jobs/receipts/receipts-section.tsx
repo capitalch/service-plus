@@ -68,6 +68,7 @@ import { buildReceiptPdf } from "@/features/client/components/jobs/deliver-job/d
 import type { JobDetailType } from "@/features/client/types/job";
 import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
 import { useSendWhatsappMoneyReceipt } from "./use-send-whatsapp-money-receipt";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -114,6 +115,8 @@ function modeBadgeClass(mode: string) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const ReceiptsSection = () => {
+	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -845,7 +848,8 @@ export const ReceiptsSection = () => {
 						</Button>
 						<Button
 							className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed"
-							disabled={!form.formState.isValid || form.formState.isSubmitting}
+							disabled={isReadOnly || !form.formState.isValid || form.formState.isSubmitting}
+							title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 							onClick={form.handleSubmit(executeSave)}
 						>
 							{form.formState.isSubmitting ? (

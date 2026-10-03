@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import {
 	BriefcaseIcon,
 	BuildingIcon,
+	CreditCardIcon,
+	InboxIcon,
 	ListChecksIcon,
 	LogOutIcon,
 	ScrollTextIcon,
@@ -11,9 +13,19 @@ import {
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
+import { NotificationBell } from "@/components/shared/notifications/notification-bell";
+import type { NotificationItem } from "@/components/shared/notifications/notification-bell";
+import { useEnquiryCount } from "@/components/shared/enquiries/use-enquiry-count";
 import { Button } from "@/components/ui/button";
+import { SQL_MAP } from "@/constants/sql-map";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { logout, selectCurrentUser, setSessionMode } from "@/features/auth/store/auth-slice";
+import {
+	logout,
+	selectCurrentUser,
+	selectDbName,
+	selectIsDefaultCustomerDb,
+	setSessionMode,
+} from "@/features/auth/store/auth-slice";
 import { clearContext } from "@/store/context-slice";
 import { ROUTES } from "@/router/routes";
 
@@ -29,10 +41,35 @@ const NAV_ITEMS = [
 	{ icon: ScrollTextIcon, label: "Audit Logs", to: ROUTES.admin.audit },
 ];
 
+// Only the default customer database's admin approves portal sign-ups (plans/plan.md Step 9).
+const ENQUIRIES_NAV_ITEM = { icon: InboxIcon, label: "Enquiries", to: ROUTES.admin.enquiries };
+// ...and records their monthly payments and plan changes (plans/plan.md Step 14).
+const SUBSCRIPTIONS_NAV_ITEM = { icon: CreditCardIcon, label: "Subscriptions", to: ROUTES.admin.subscriptions };
+
 export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
 	const dispatch = useAppDispatch();
 	const navigate = useNavigate();
 	const user = useAppSelector(selectCurrentUser);
+	const dbName = useAppSelector(selectDbName);
+	const isDefaultCustomerDb = useAppSelector(selectIsDefaultCustomerDb);
+	const navItems = isDefaultCustomerDb
+		? [...NAV_ITEMS.slice(0, 1), ENQUIRIES_NAV_ITEM, SUBSCRIPTIONS_NAV_ITEM, ...NAV_ITEMS.slice(1)]
+		: NAV_ITEMS;
+	const { count: pendingEnquiries } = useEnquiryCount({
+		dbName,
+		enabled: isDefaultCustomerDb,
+		schema: "security",
+		sqlId: SQL_MAP.GET_SALES_ENQUIRY_PENDING_COUNT,
+	});
+	const notificationItems: NotificationItem[] = [
+		{
+			count: pendingEnquiries,
+			icon: InboxIcon,
+			id: "pending-enquiries",
+			label: "Pending sign-ups",
+			onSelect: () => navigate(ROUTES.admin.enquiries),
+		},
+	];
 
 	useEffect(() => {
 		document.documentElement.classList.remove("dark");
@@ -63,7 +100,7 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
 
 				{/* Nav */}
 				<nav className="flex flex-1 flex-col gap-1 p-3">
-					{NAV_ITEMS.map(({ icon: Icon, label, to }) => (
+					{navItems.map(({ icon: Icon, label, to }) => (
 						<NavLink
 							className={({ isActive }) =>
 								`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
@@ -108,6 +145,9 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
 					</div>
 					<div className="flex flex-1" />
 					<div className="flex items-center gap-3">
+						{isDefaultCustomerDb && (
+							<NotificationBell className="hover:bg-slate-100" items={notificationItems} />
+						)}
 						<div className="text-right leading-tight">
 							<p className="text-xs font-semibold text-slate-600">{user?.fullName ?? user?.username}</p>
 							<p className="text-[10px] font-bold uppercase tracking-widest text-teal-600">

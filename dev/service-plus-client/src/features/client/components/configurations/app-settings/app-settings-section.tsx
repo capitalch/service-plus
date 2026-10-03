@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangleIcon, PencilIcon, SearchIcon, X } from "lucide-react";
+import { PencilIcon, SearchIcon, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshButton } from "@/components/shared/refresh-button";
@@ -15,7 +14,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
+import { selectSchema } from "@/store/context-slice";
 import { EditAppSettingDialog } from "./edit-app-setting-dialog";
 import { EditExtendedWarrantyDialog } from "./edit-extended-warranty-dialog";
 import { EditWhatsappNotificationsDialog } from "./edit-whatsapp-notifications-dialog";
@@ -49,11 +48,6 @@ function displayValue(v: unknown): string {
 export const AppSettingsSection = () => {
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
-	const availableDivisions = useAppSelector(selectAvailableDivisions);
-	const defaultDivisionId = useAppSelector(selectDefaultDivisionId);
-
-	const isDefaultDivisionInactive =
-		availableDivisions.length > 0 && !availableDivisions.some((d) => d.id === defaultDivisionId);
 
 	const [editRecord, setEditRecord] = useState<AppSettingRecord | null>(null);
 	const [loading, setLoading] = useState(false);
@@ -161,19 +155,6 @@ export const AppSettingsSection = () => {
 					)}
 				</div>
 
-				{/* Warning: default_division_id points to inactive/missing division */}
-				{isDefaultDivisionInactive && (
-					<Alert variant="warning" className="flex items-start gap-2 py-2.5">
-						<AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-						<AlertDescription className="text-xs text-yellow-800">
-							<span className="font-semibold">default_division_id</span> is set to{" "}
-							<span className="font-mono">{defaultDivisionId}</span>, which does not match any active
-							division in this branch. The app will fall back to no default division until this is
-							corrected.
-						</AlertDescription>
-					</Alert>
-				)}
-
 				{/* Table */}
 				{loading && records.length === 0 ? (
 					<div className="flex flex-col gap-2">
@@ -212,18 +193,13 @@ export const AppSettingsSection = () => {
 									) : (
 										displayRecords.map((record, idx) => {
 											const isSelected = selectedId === record.id;
-											const isWarnRow =
-												isDefaultDivisionInactive &&
-												record.setting_key === "default_division_id";
 											return (
 												<motion.tr
 													animate="visible"
 													className={`cursor-pointer border-b border-(--cl-border) transition-colors last:border-b-0 ${
 														isSelected
 															? "bg-(--cl-accent)/40 hover:bg-(--cl-accent)/45"
-															: isWarnRow
-																? "bg-yellow-50/60 hover:bg-(--cl-surface-3) dark:bg-yellow-900/10"
-																: "hover:bg-(--cl-surface-3)"
+															: "hover:bg-(--cl-surface-3)"
 													}`}
 													custom={idx}
 													initial="hidden"

@@ -1,6 +1,9 @@
+"use client";
+
 import { Check, X } from "lucide-react";
 
-import { formatInr, plans, type PlanType } from "@/content/pricing";
+import { formatInr, type PlanType } from "@/content/pricing";
+import { usePlanPrices } from "@/lib/plan-prices";
 import { cn } from "@/lib/utils";
 
 type RowType = {
@@ -8,23 +11,32 @@ type RowType = {
 	value: (plan: PlanType) => boolean | string;
 };
 
-const rows: RowType[] = [
-	{ label: "Monthly price", value: (p) => (p.monthlyPrice === 0 ? "Free" : formatInr(p.monthlyPrice)) },
-	{ label: "One-time setup", value: (p) => (p.setupFee === 0 ? "—" : formatInr(p.setupFee)) },
-	{ label: "Users", value: (p) => (p.users === "single" ? "1" : "Multiple") },
-	{ label: "Logins / devices", value: () => "Unlimited" },
-	{ label: "Jobs / month", value: (p) => (p.jobsPerMonth === null ? "Unlimited" : String(p.jobsPerMonth)) },
-	{
-		label: "WhatsApp messages / month",
-		value: (p) => (p.whatsappPerMonth === 0 ? false : p.whatsappPerMonth.toLocaleString("en-IN")),
-	},
-	{ label: "Spare-parts inventory", value: (p) => p.inventory },
-	{ label: "Business units", value: (p) => String(p.businessUnits) },
-	{ label: "Branches", value: (p) => (p.branches === null ? "Unlimited" : "1 (head office)") },
-	{ label: "Dedicated database", value: (p) => p.provisioning === "database" },
-	{ label: "GST & non-GST billing", value: () => true },
-	{ label: "Reports & analytics", value: () => true },
-];
+// Built per render because the business-unit row names the live extra-unit fee.
+function buildRows(extraBuMonthlyFee: number): RowType[] {
+	return [
+		{ label: "Monthly price", value: (p) => (p.monthlyPrice === 0 ? "Free" : formatInr(p.monthlyPrice)) },
+		{ label: "One-time setup", value: (p) => (p.setupFee === 0 ? "—" : formatInr(p.setupFee)) },
+		{ label: "Users", value: (p) => (p.users === "single" ? "1" : "Multiple") },
+		{ label: "Logins / devices", value: () => "Unlimited" },
+		{ label: "Jobs / month", value: (p) => (p.jobsPerMonth === null ? "Unlimited" : String(p.jobsPerMonth)) },
+		{
+			label: "WhatsApp messages / month",
+			value: (p) => (p.whatsappPerMonth === 0 ? false : p.whatsappPerMonth.toLocaleString("en-IN")),
+		},
+		{ label: "Spare-parts inventory", value: (p) => p.inventory },
+		{
+			label: "Business units",
+			value: (p) =>
+				p.businessUnits === 1
+					? "1"
+					: `${p.businessUnits} included, more at ${formatInr(extraBuMonthlyFee)} / month each`,
+		},
+		{ label: "Branches", value: (p) => (p.branches === null ? "Unlimited" : "1 (head office)") },
+		{ label: "Dedicated database", value: (p) => p.provisioning === "database" },
+		{ label: "GST & non-GST billing", value: () => true },
+		{ label: "Reports & analytics", value: () => true },
+	];
+}
 
 const Cell = ({ value }: { value: boolean | string }) => {
 	if (value === true) return <Check aria-label="Included" className="mx-auto size-4 text-success" />;
@@ -33,6 +45,9 @@ const Cell = ({ value }: { value: boolean | string }) => {
 };
 
 export const PlanComparisonTable = () => {
+	const { extraBuMonthlyFee, plans } = usePlanPrices();
+	const rows = buildRows(extraBuMonthlyFee);
+
 	return (
 		<div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-xs">
 			<table className="w-full min-w-[40rem] text-sm">

@@ -58,9 +58,120 @@ class AppMessages:
     INVALID_PHONE_FORMAT = "Invalid phone number format"
     INVALID_DATE_FORMAT = "Invalid date format"
 
+    # Error messages - Branches and default divisions (plans/plan2.md)
+    BRANCH_CREATE_FAILED = "Failed to create the branch"
+    BRANCH_INSERT_VIA_ADD_BRANCH = "Branches are added through Add Branch only."
+    BRANCH_LIMIT_REACHED = "Your plan includes one branch. Upgrade to Standard for more branches."
+    DEFAULT_DIVISION_LOCKED = "The default division of a branch cannot be deleted or deactivated."
+
     # Error messages - Sign-up and billing (plans/plan.md)
     DEFAULT_DB_NOT_CONFIGURED = (
         "Sign-ups are not available right now: the default customer database is not configured."
+    )
+    ENQUIRY_BUSY = "This request is already being processed. Try again in a few minutes."
+    ENQUIRY_NOT_FOUND = "Request not found."
+    ENQUIRY_NOT_PENDING = "Only a pending request can be changed."
+    ENQUIRY_NOTE_REQUIRED = "Enter a note."
+    ENQUIRY_PAYMENT_AMOUNT_LOW = "The amount is less than the setup fee."
+    ENQUIRY_PAYMENT_DATE_FUTURE = "The payment date cannot be in the future."
+    ENQUIRY_PAYMENT_NOT_ALLOWED = "A setup payment can be recorded only for a pending Basic or Standard request."
+    ENQUIRY_REASON_REQUIRED = "Enter a reason."
+    ENQUIRY_REJECT_NOT_ALLOWED = (
+        "This request can no longer be rejected: it is not pending, or its business unit already exists."
+    )
+    ENQUIRY_CONTACT_NOT_ALLOWED = "Only a new enquiry can be marked as contacted."
+    ENQUIRY_FEE_NOT_ALLOWED = "The setup fee can be changed only while the payment is outstanding."
+    EXTRA_BU_CONFIRM_REQUIRED = (
+        "This business unit is outside the {included} included in the plan and adds ₹{fee} to the "
+        "monthly fee. Confirm to continue."
+    )
+    INVALID_CLIENT_CODE = "Client code must be 4–20 letters or digits."
+    INVALID_CLIENT_NAME = "Client name must be 6–100 letters, digits, spaces or - _ . ,"
+    INVALID_DB_NAME = "Database name must look like service_plus_<lower-case letters, digits or _>."
+    INVALID_USERNAME = "Username must be at least 5 letters or digits."
+    BILLING_EMAIL_RECEIPT_SUBJECT = "Service+ payment received — {bu_name}"
+    BILLING_EMAIL_RECEIPT_TEXT = (
+        "Thank you. Payment of ₹{amount} received for {period} for {bu_name}.\n\n"
+        "Paid through {paid_through}."
+    )
+    BILLING_EMAIL_REMINDER_SUBJECT = "Service+ payment reminder — {bu_name}"
+    BILLING_EMAIL_REMINDER_DUE_SOON = "Your Service+ payment for {bu_name} is due on {due_date}. Pay before then to keep adding and changing data."
+    BILLING_EMAIL_REMINDER_DUE_TODAY = "Today is the last paid day of Service+ for {bu_name}. From tomorrow it becomes view-only until the next payment."
+    BILLING_EMAIL_REMINDER_LAPSED = "Service+ for {bu_name} is now view-only: the monthly payment has not been received. You can still view and print your data. Pay to continue adding and changing data."
+    BILLING_EMAIL_REMINDER_FIRST = "Welcome to Service+. {bu_name} is view-only until the first monthly payment is recorded. Pay to start adding data."
+    SIGNUP_EMAIL_EXTRA_BU_SUBJECT = "Service+ Enterprise: extra business unit {bu_code} for {client_name}"
+    SIGNUP_EMAIL_EXTRA_BU_TEXT = (
+        "Client {client_name} ({db_name}) added business unit {bu_code}, number {bu_number} — beyond the "
+        "{included} included. Its monthly fee is ₹{fee}; the client's monthly fee is now ₹{total}.{rebase}"
+    )
+    INVALID_BU_CODE = "Code must be 3–30 lower-case letters, digits or underscores, and not a reserved name."
+    BU_NOT_BILLED = "This business unit is not on a paid plan."
+    DOWNGRADE_BLOCKED_BRANCHES = (
+        "Lite and Basic include the head office only. Delete the other branches and their data first."
+    )
+    PAID_THROUGH_INVALID = "The paid-through date must be today or later, and at most 5 years ahead."
+    PAYMENT_AMOUNT_BELOW_DUE = "The amount is less than the monthly fee × months."
+    PAYMENT_EXTRA_NOTE_REQUIRED = "Add a note explaining an amount above the monthly fee × months."
+    PAYMENT_MONTHS_INVALID = "Pay for 1 to 60 months."
+    PLAN_CHANGE_INVALID = "Choose Lite, Basic or Standard, different from the current plan."
+    PREPAID_LIMIT_EXCEEDED = "This payment would take the paid period more than 5 years ahead."
+    PART_ORDER_UNAVAILABLE = "This shop is not taking online orders right now. Please call the shop."
+    PAYMENT_NOT_RECEIVED = "The setup payment has not been received yet."
+    SUBSCRIPTION_READ_ONLY = (
+        "This business unit is view-only because its monthly payment is due. "
+        "Pay to continue adding and changing data."
+    )
+    SIGNUP_BRANCHES_ONE = "The Lite and Basic plans include one branch only."
+    SIGNUP_DUPLICATE = (
+        "A request with this mobile number or email already exists. "
+        "Check its progress on the sign-up status page."
+    )
+    SIGNUP_NOT_FOUND = "No request found for this mobile number and email."
+    SIGNUP_WRONG_ENDPOINT = "This plan is signed up through the sign-up form, not the enquiry form."
+
+    # Sign-up emails (plans/plan.md Step 7). Plain-text templates; the HTML version is
+    # built from the same text by app.services.signup_emails. {placeholders} are filled
+    # with str.format.
+    SIGNUP_EMAIL_LITE_SUBJECT = "Your Service+ Lite request {reference}"
+    SIGNUP_EMAIL_LITE_TEXT = (
+        "Dear {name},\n\n"
+        "Thank you for signing up for Service+ Lite for {business_name}.\n\n"
+        "Your request {reference} is pending approval. Once it is approved you will get an email "
+        "with your login details.\n\n"
+        "Check the progress of your request at any time: {status_url}"
+    )
+    SIGNUP_EMAIL_PAID_SUBJECT = "Your Service+ {plan_name} request {reference}"
+    SIGNUP_EMAIL_PAID_TEXT = (
+        "Dear {name},\n\n"
+        "Thank you for choosing Service+ {plan_name} for {business_name}. Our sales team will "
+        "contact you shortly.\n\n"
+        "Your reference is {reference}. The one-time setup cost is ₹{setup_fee}. Your account is "
+        "created once it is received. The monthly fee of ₹{monthly_fee} is paid separately, "
+        "each month in advance."
+    )
+    SIGNUP_EMAIL_ENTERPRISE_SUBJECT = "Your Service+ Enterprise enquiry {reference}"
+    SIGNUP_EMAIL_ENTERPRISE_TEXT = (
+        "Dear {name},\n\n"
+        "Thank you for your interest in Service+ Enterprise for {business_name}. Our sales team "
+        "will contact you shortly.\n\n"
+        "Your reference is {reference}."
+    )
+    SIGNUP_EMAIL_REJECTED_SUBJECT = "Your Service+ request {reference}"
+    SIGNUP_EMAIL_REJECTED_TEXT = (
+        "Dear {name},\n\n"
+        "We are sorry, your Service+ request {reference} for {business_name} was not approved.\n\n"
+        "Reason: {reason}\n\n"
+        "You can see this on the sign-up status page: {status_url}"
+    )
+    SIGNUP_EMAIL_APPROVER_SUBJECT = "New Service+ {plan_name} sign-up {reference} — {business_name}"
+    SIGNUP_EMAIL_APPROVER_TEXT = (
+        "A new {plan_name} sign-up is waiting.\n\n"
+        "Reference: {reference}\n"
+        "Business: {business_name}\n"
+        "Applicant: {name}, {mobile}, {email}\n"
+        "City: {city}\n"
+        "Setup payment: {setup_status}\n\n"
+        "Review it on the Enquiries page: {enquiries_url}"
     )
 
     # Error messages - Authorization / Authentication
@@ -164,6 +275,23 @@ class AppMessages:
     )
     EMAIL_NEW_BU_USER_LINK_SUBJECT = "Welcome to Service+ — Set Your Password to Get Started"
 
+    # Login email for a sign-up approved on the portal (plans/plan.md Step 9): names the
+    # client to pick on the login screen, since the shared database holds many customers.
+    EMAIL_SIGNUP_USER_LINK_BODY = (
+        "Hello {full_name},\n\n"
+        "Your Service+ sign-up has been approved. Welcome!\n\n"
+        "Here are your sign-in details:\n\n"
+        "  Client   : {client_name}\n"
+        "  Login ID : {username}\n\n"
+        "Set your password with the secure link below (valid for 48 hours):\n\n"
+        "  {reset_link}\n\n"
+        "Then sign in to Service+: choose the client \"{client_name}\", enter your Login ID and "
+        "the password you chose.\n\n"
+        "Welcome aboard,\n"
+        "The Service+ Team"
+    )
+    EMAIL_SIGNUP_USER_LINK_SUBJECT = "Your Service+ account is ready — set your password"
+
     EMAIL_BU_RESET_LINK_BODY = (
         "Hello {full_name},\n\n"
         "A password reset has been requested for your account.\n\n"
@@ -256,6 +384,16 @@ class ValidationException(ServicePlusException):
         extensions: Optional[Dict[str, Any]] = None
     ):
         super().__init__(message=message, code="VALIDATION_ERROR", extensions=extensions)
+
+
+class CodedValidationException(ValidationException):
+    """A validation refusal with its own error code, which reaches the client as
+    extensions.code (format_graphql_error sets it from `code`, so a "code" key put in
+    `extensions` of a plain ValidationException would be overwritten by VALIDATION_ERROR)."""
+
+    def __init__(self, message: str, code: str, extensions: Optional[Dict[str, Any]] = None):
+        super().__init__(message=message, extensions=extensions)
+        self.code = code
 
 
 class AuthorizationException(ServicePlusException):

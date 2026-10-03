@@ -72,6 +72,7 @@ import { calcLine } from "./sales-invoice-utils";
 import { NewSalesInvoice } from "./new-sales-invoice";
 import { ViewSalesInvoiceDialog } from "./view-sales-invoice-dialog";
 import { SalesInvoicePdfPreviewDialog } from "./sales-invoice-pdf-preview-dialog";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,8 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SalesEntrySection = () => {
+	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -1000,7 +1003,8 @@ export const SalesEntrySection = () => {
 					</Button>
 					<Button
 						className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-						disabled={!canSave || form.formState.isSubmitting}
+						disabled={isReadOnly || !canSave || form.formState.isSubmitting}
+						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{form.formState.isSubmitting ? (
