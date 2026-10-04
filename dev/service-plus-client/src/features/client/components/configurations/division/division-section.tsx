@@ -33,6 +33,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
+import { useBuBranchDivisionActions } from "@/features/admin/hooks/use-bu-branch-division-actions";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { AddDivisionDialog } from "./add-division-dialog";
@@ -66,6 +67,7 @@ export const DivisionSection = () => {
 	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
+	const { refreshBuContext } = useBuBranchDivisionActions();
 	const currentBranch = useAppSelector(selectCurrentBranch);
 
 	const [addOpen, setAddOpen] = useState(false);
@@ -105,6 +107,12 @@ export const DivisionSection = () => {
 		loadDivisions();
 	}, [loadDivisions]);
 
+	// An edit changes data the whole app has cached, so reload the screen and the shared BU context.
+	async function handleChanged() {
+		await loadDivisions();
+		await refreshBuContext();
+	}
+
 	async function handleToggleActive(division: DivisionType) {
 		if (!dbName || !schema) return;
 		try {
@@ -119,7 +127,7 @@ export const DivisionSection = () => {
 					}),
 				},
 			});
-			await loadDivisions();
+			await handleChanged();
 		} catch {
 			toast.error(MESSAGES.ERROR_DIVISION_UPDATE_FAILED);
 		}
@@ -415,7 +423,7 @@ export const DivisionSection = () => {
 			</motion.div>
 
 			{/* ── Dialogs ──────────────────────────────────────────────────────── */}
-			<AddDivisionDialog open={addOpen} onOpenChange={setAddOpen} onSuccess={loadDivisions} />
+			<AddDivisionDialog open={addOpen} onOpenChange={setAddOpen} onSuccess={handleChanged} />
 			{editDivision && (
 				<EditDivisionDialog
 					division={editDivision}
@@ -423,7 +431,7 @@ export const DivisionSection = () => {
 					onOpenChange={(o) => {
 						if (!o) setEditDivision(null);
 					}}
-					onSuccess={loadDivisions}
+					onSuccess={handleChanged}
 				/>
 			)}
 			{deleteDivision && (
@@ -433,7 +441,7 @@ export const DivisionSection = () => {
 					onOpenChange={(o) => {
 						if (!o) setDeleteDivision(null);
 					}}
-					onSuccess={loadDivisions}
+					onSuccess={handleChanged}
 				/>
 			)}
 		</>

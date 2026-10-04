@@ -3,6 +3,19 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-04 21:28 (main)
+Client: idle logout, fresher config edits, switch for boolean settings, portal form trim
+
+- client auth: sign out after 3 hours without input (useIdleLogout in ClientLayout) with a 5-minute warning toast; timings in constants/timing.ts
+- client config: app-setting, branch, division and admin BU edits now refresh Redux (loadAppSettings, refreshBuContext, network-only fetches); associate-role and seed-roles dialogs say users must sign in again
+- client app settings: true/false settings edit with an on/off switch; Admin tab, mobile link and "Unposted documents" bell entry hidden when post_data_to_accounts is off
+- client admin/jobs: Manager role preselected in Add Business User; Set Technician dialog added to Job Control
+- server seed: Main division gets default prefixes (MR, SI, SR, SI, RI) when a BU is created, idempotent on re-seed
+- portal: "Branches needed" removed from the subscription form, request and recap
+- docs: both help files updated; notes reorganised (knowledgebase folder, Marketting.md); .gitignore ignores src/**/.claude/
+
+Files: 34 changed (+447 / -1117) — Base: 33d1c66
+
 ## 2026-10-03 15:05 (main)
 Docs: archive plan2 and add a subscription test checklist
 

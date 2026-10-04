@@ -13,7 +13,7 @@ import {
 	type AccessRightCode,
 } from "@/features/auth/utils/access-rights";
 import { ROUTES } from "@/router/routes";
-import { selectExtendedWarrantyEnabled } from "@/store/context-slice";
+import { selectExtendedWarrantyEnabled, selectPostDataToAccounts } from "@/store/context-slice";
 import { getVisibleCustomMenuItems } from "./custom-menu-registry";
 import { useLayout, useTheme } from "./client-layout";
 import type { Section } from "./client-layout";
@@ -58,7 +58,11 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 	// not bought.
 	const extendedWarrantyEnabled = useAppSelector(selectExtendedWarrantyEnabled);
 	const hasCustomItems = getVisibleCustomMenuItems(user, { extendedWarrantyEnabled }).length > 0;
-	const navItems = NAV_ITEMS.filter((item) => item.section !== "custom" || hasCustomItems);
+	// Admin holds only Post / Unpost, which exists only for tenants that post to accounts.
+	const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
+	const navItems = NAV_ITEMS.filter(
+		(item) => (item.section !== "custom" || hasCustomItems) && (item.section !== "admin" || postDataToAccounts),
+	);
 	const { isDark, toggleTheme } = useTheme();
 	const { toggleExplorer } = useLayout();
 	const { ewOpenInterest, jobsOverdue, lowStockParts, unpostedDocs } = useNotificationsSummary();
@@ -68,7 +72,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 		navigate(ROUTES.login);
 	}
 
-	const notificationItems: NotificationItem[] = [
+	const allNotificationItems: NotificationItem[] = [
 		{
 			count: jobsOverdue,
 			icon: Timer,
@@ -100,6 +104,8 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 				navigate(ROUTES.client.custom, { state: { ewDrill: "INTERESTED", subItem: "Extended Warranty" } }),
 		},
 	];
+
+	const notificationItems = allNotificationItems.filter((item) => item.id !== "unposted-docs" || postDataToAccounts);
 
 	return (
 		<header className="fixed left-0 right-0 top-0 z-50 flex h-12 items-center overflow-x-auto border-b border-(--cl-border) bg-(--cl-bg) px-3 sm:px-4">

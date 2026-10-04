@@ -276,6 +276,13 @@ export const CreateBusinessUserDialog = ({ onOpenChange, onSuccess, open }: Crea
 			});
 	}, [debouncedUsername]); // eslint-disable-line react-hooks/exhaustive-deps
 
+	// Preselect the Manager role once roles are available
+	useEffect(() => {
+		if (!open || selectedRoleId) return;
+		const manager = roles.find((role) => role.name.trim().toLowerCase() === "manager");
+		if (manager) setSelectedRoleId(String(manager.id));
+	}, [open, roles]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	// Reset state when dialog closes
 	useEffect(() => {
 		if (!open) {

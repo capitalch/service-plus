@@ -24,30 +24,19 @@ import { BU_NAME_REGEX, GSTIN_REGEX, MOBILE_REGEX, normalizeGstin, normalizeMobi
 
 const MESSAGE_LIMIT = 2000;
 
-const enquirySchema = z
-	.object({
-		branches: z
-			.number({ error: MESSAGES.errBranches })
-			.int(MESSAGES.errBranches)
-			.min(1, MESSAGES.errBranches)
-			.max(50, MESSAGES.errBranches),
-		// The business name becomes the business unit's name, so it follows the BU name rule.
-		businessName: z.string().trim().regex(BU_NAME_REGEX, MESSAGES.errBusinessName),
-		city: z.string().trim().min(2, MESSAGES.errCity).max(100, MESSAGES.errCity),
-		email: z.email(MESSAGES.errEmail).max(200, MESSAGES.errEmail),
-		gstin: z.string().refine((v) => v === "" || GSTIN_REGEX.test(v), MESSAGES.errGstin),
-		message: z.string().max(MESSAGE_LIMIT, MESSAGES.errMessage),
-		mobile: z.string().regex(MOBILE_REGEX, MESSAGES.errMobile),
-		name: z.string().trim().min(2, MESSAGES.errName).max(100, MESSAGES.errName),
-		plan: z.enum(planCodes, { error: MESSAGES.errPlan }),
-		// Honeypot: hidden from people, filled in by bots.
-		website: z.string(),
-	})
-	// Lite and Basic are limited to the head office, so more than one branch needs a bigger plan.
-	.refine((v) => v.branches === 1 || findPlan(v.plan)?.branches === null, {
-		message: MESSAGES.errBranchesPlan,
-		path: ["branches"],
-	});
+const enquirySchema = z.object({
+	// The business name becomes the business unit's name, so it follows the BU name rule.
+	businessName: z.string().trim().regex(BU_NAME_REGEX, MESSAGES.errBusinessName),
+	city: z.string().trim().min(2, MESSAGES.errCity).max(100, MESSAGES.errCity),
+	email: z.email(MESSAGES.errEmail).max(200, MESSAGES.errEmail),
+	gstin: z.string().refine((v) => v === "" || GSTIN_REGEX.test(v), MESSAGES.errGstin),
+	message: z.string().max(MESSAGE_LIMIT, MESSAGES.errMessage),
+	mobile: z.string().regex(MOBILE_REGEX, MESSAGES.errMobile),
+	name: z.string().trim().min(2, MESSAGES.errName).max(100, MESSAGES.errName),
+	plan: z.enum(planCodes, { error: MESSAGES.errPlan }),
+	// Honeypot: hidden from people, filled in by bots.
+	website: z.string(),
+});
 
 type EnquiryFormType = z.infer<typeof enquirySchema>;
 
@@ -66,7 +55,6 @@ const fieldOrder: FieldMetaType[] = [
 	{ id: "email", label: "Email" },
 	{ id: "city", label: "City / State" },
 	{ id: "gstin", label: "GSTIN" },
-	{ id: "branches", label: "Branches needed" },
 	{ id: "message", label: "Message" },
 ];
 
@@ -171,7 +159,6 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 		watch,
 	} = useForm<EnquiryFormType>({
 		defaultValues: {
-			branches: 1,
 			businessName: "",
 			city: "",
 			email: "",
@@ -360,19 +347,6 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 								{...aria}
 							/>
 						)}
-					/>
-				)}
-			</Field>
-
-			<Field error={errors.branches?.message} htmlFor="branches" label="Branches needed">
-				{(aria) => (
-					<Input
-						inputMode="numeric"
-						max={50}
-						min={1}
-						type="number"
-						{...aria}
-						{...register("branches", { valueAsNumber: true })}
 					/>
 				)}
 			</Field>

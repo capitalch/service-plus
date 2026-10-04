@@ -14,7 +14,6 @@ type EnquirySuccessPropsType = {
 	reference: string;
 	// Echoed back so the visitor can confirm what was actually sent before they close the tab.
 	values: {
-		branches: number;
 		businessName: string;
 		city: string;
 		email: string;
@@ -112,7 +111,6 @@ export const EnquirySuccess = ({ onReset, plan, reference, values }: EnquirySucc
 		{ label: "Mobile", value: values.mobile },
 		{ label: "Email", value: values.email },
 		{ label: "City / State", value: values.city },
-		{ label: "Branches", value: String(values.branches) },
 		{ label: "Plan", value: plan.name },
 	];
 	if (values.gstin) recap.push({ label: "GSTIN", value: values.gstin });

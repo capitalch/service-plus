@@ -200,6 +200,25 @@ class SeedBuData:
             WHERE ds.document_type_id = dt.id AND ds.branch_id = b.id AND ds.division_id IS NULL
         );
 
+        -- Main division's own series (division_id set); the branch-level rows above cover
+        -- Job Sheet and purchases. Sales Invoice shares the 'SI' prefix with Service Invoice by design.
+        INSERT INTO document_sequence (document_type_id, branch_id, division_id, prefix, next_number, padding, separator)
+        SELECT dt.id, d.branch_id, d.id, v.prefix, 1, 5, '/'
+        FROM (VALUES
+            ('MONEY_RECEIPT',          'MR'),
+            ('SALES_INVOICE',          'SI'),
+            ('SALES_RETURN_INVOICE',   'SR'),
+            ('SERVICE_INVOICE',        'SI'),
+            ('SERVICE_RETURN_INVOICE', 'RI')
+        ) AS v(doc_code, prefix)
+        JOIN document_type dt ON dt.code = v.doc_code
+        JOIN division d ON d.code = 'MAIN' AND d.is_default
+        WHERE NOT EXISTS (
+            SELECT 1 FROM document_sequence ds
+            WHERE ds.document_type_id = dt.id AND ds.branch_id = d.branch_id
+              AND COALESCE(ds.division_id, 0) = d.id
+        );
+
         INSERT INTO financial_year (id, start_date, end_date) VALUES
             (2022, '2022-04-01', '2023-03-31'),
             (2023, '2023-04-01', '2024-03-31'),

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { apolloClient } from "@/lib/apollo-client";
@@ -62,6 +63,11 @@ function detectMode(v: unknown): ValueMode {
 	return "simple";
 }
 
+// A setting stored as true/false (or the text "true"/"false") is edited with a switch, not free text.
+function isBooleanValue(v: unknown): boolean {
+	return typeof v === "boolean" || v === "true" || v === "false";
+}
+
 function valueToString(v: unknown): string {
 	if (v === null || v === undefined) return "";
 	if (typeof v === "object") return JSON.stringify(v, null, 2);
@@ -97,6 +103,8 @@ export const EditAppSettingDialog = ({ onOpenChange, onSuccess, open, record }: 
 	const schema = useAppSelector(selectSchema);
 
 	const [valueMode, setValueMode] = useState<ValueMode>(() => detectMode(record.setting_value));
+
+	const isBoolean = isBooleanValue(record.setting_value);
 
 	const form = useForm<FormType>({
 		defaultValues: {
@@ -190,6 +198,8 @@ export const EditAppSettingDialog = ({ onOpenChange, onSuccess, open, record }: 
 		}
 	}
 
+	const switchOn = form.watch("setting_value").trim() === "true";
+
 	const submitDisabled = Object.keys(errors).length > 0 || form.formState.isSubmitting;
 
 	return (
@@ -209,56 +219,69 @@ export const EditAppSettingDialog = ({ onOpenChange, onSuccess, open, record }: 
 					</div>
 
 					{/* Value */}
-					<div className="flex flex-col gap-1.5">
-						<div className="flex items-center justify-between">
-							<Label htmlFor="es_value">
-								Value <span className="text-red-500">*</span>
-							</Label>
-							{/* Mode toggle — real buttons, with the active one held visibly pressed */}
-							<div className="flex items-center gap-1.5">
-								{(["simple", "json"] as const).map((m) => {
-									const isActive = valueMode === m;
-									return (
-										<Button
-											key={m}
-											aria-pressed={isActive}
-											className={
-												isActive
-													? "translate-y-px inset-shadow-sm ring-1 ring-(--cl-accent)/40"
-													: ""
-											}
-											size="xs"
-											type="button"
-											variant={isActive ? "default" : "outline"}
-											onClick={() => handleModeSwitch(m)}
-										>
-											{m === "simple" ? "Simple" : "JSON"}
-										</Button>
-									);
-								})}
-							</div>
+					{isBoolean ? (
+						<div className="flex items-center justify-between gap-3 rounded-md border border-(--cl-border) px-3 py-2.5">
+							<Label htmlFor="es_value">{switchOn ? "On (true)" : "Off (false)"}</Label>
+							<Switch
+								checked={switchOn}
+								id="es_value"
+								onCheckedChange={(checked) =>
+									form.setValue("setting_value", String(checked), { shouldDirty: true })
+								}
+							/>
 						</div>
+					) : (
+						<div className="flex flex-col gap-1.5">
+							<div className="flex items-center justify-between">
+								<Label htmlFor="es_value">
+									Value <span className="text-red-500">*</span>
+								</Label>
+								{/* Mode toggle — real buttons, with the active one held visibly pressed */}
+								<div className="flex items-center gap-1.5">
+									{(["simple", "json"] as const).map((m) => {
+										const isActive = valueMode === m;
+										return (
+											<Button
+												key={m}
+												aria-pressed={isActive}
+												className={
+													isActive
+														? "translate-y-px inset-shadow-sm ring-1 ring-(--cl-accent)/40"
+														: ""
+												}
+												size="xs"
+												type="button"
+												variant={isActive ? "default" : "outline"}
+												onClick={() => handleModeSwitch(m)}
+											>
+												{m === "simple" ? "Simple" : "JSON"}
+											</Button>
+										);
+									})}
+								</div>
+							</div>
 
-						{valueMode === "simple" ? (
-							<Input
-								autoComplete="off"
-								className="font-mono"
-								id="es_value"
-								placeholder="e.g. 18, true, or plain text"
-								{...form.register("setting_value")}
-							/>
-						) : (
-							<Textarea
-								autoComplete="off"
-								className="font-mono text-sm"
-								id="es_value"
-								placeholder={'{\n  "key": "value"\n}'}
-								rows={6}
-								{...form.register("setting_value")}
-							/>
-						)}
-						<FieldError message={errors.setting_value?.message} />
-					</div>
+							{valueMode === "simple" ? (
+								<Input
+									autoComplete="off"
+									className="font-mono"
+									id="es_value"
+									placeholder="e.g. 18, true, or plain text"
+									{...form.register("setting_value")}
+								/>
+							) : (
+								<Textarea
+									autoComplete="off"
+									className="font-mono text-sm"
+									id="es_value"
+									placeholder={'{\n  "key": "value"\n}'}
+									rows={6}
+									{...form.register("setting_value")}
+								/>
+							)}
+							<FieldError message={errors.setting_value?.message} />
+						</div>
+					)}
 
 					{/* Description */}
 					<div className="flex flex-col gap-1.5">

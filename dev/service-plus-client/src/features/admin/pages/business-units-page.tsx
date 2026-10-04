@@ -24,6 +24,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
+import { setAvailableBus } from "@/store/context-slice";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -105,6 +106,13 @@ export const BusinessUnitsPage = () => {
 	}, [loadBusinessUnits]);
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
+
+	// The client-mode BU list is loaded once; emptying it makes the switcher reload it with this change.
+	function handleChanged() {
+		dispatch(setAvailableBus([]));
+		return loadBusinessUnits();
+	}
+
 	const handleActivate = (bu: BusinessUnitType) => setActivateBu(bu);
 	const handleCreate = () => setCreateOpen(true);
 	const handleCreateSchema = (bu: BusinessUnitType) => setSchemaBu(bu);
@@ -340,7 +348,7 @@ export const BusinessUnitsPage = () => {
 			</motion.div>
 
 			{/* ── Dialogs ──────────────────────────────────────────────────────── */}
-			<CreateBusinessUnitDialog open={createOpen} onOpenChange={setCreateOpen} onSuccess={loadBusinessUnits} />
+			<CreateBusinessUnitDialog open={createOpen} onOpenChange={setCreateOpen} onSuccess={handleChanged} />
 			{schemaBu && (
 				<CreateBuSchemaDialog
 					bu={schemaBu}
@@ -348,7 +356,7 @@ export const BusinessUnitsPage = () => {
 					onOpenChange={(open) => {
 						if (!open) setSchemaBu(null);
 					}}
-					onSuccess={loadBusinessUnits}
+					onSuccess={handleChanged}
 				/>
 			)}
 			{seedBu && (
@@ -358,7 +366,7 @@ export const BusinessUnitsPage = () => {
 					onOpenChange={(open) => {
 						if (!open) setSeedBu(null);
 					}}
-					onSuccess={loadBusinessUnits}
+					onSuccess={handleChanged}
 				/>
 			)}
 			{editBu && (
@@ -368,7 +376,7 @@ export const BusinessUnitsPage = () => {
 					onOpenChange={(open) => {
 						if (!open) setEditBu(null);
 					}}
-					onSuccess={loadBusinessUnits}
+					onSuccess={handleChanged}
 				/>
 			)}
 			{activateBu && (
@@ -378,7 +386,7 @@ export const BusinessUnitsPage = () => {
 					onOpenChange={(open) => {
 						if (!open) setActivateBu(null);
 					}}
-					onSuccess={loadBusinessUnits}
+					onSuccess={handleChanged}
 				/>
 			)}
 			{deactivateBu && (
@@ -388,7 +396,7 @@ export const BusinessUnitsPage = () => {
 					onOpenChange={(open) => {
 						if (!open) setDeactivateBu(null);
 					}}
-					onSuccess={loadBusinessUnits}
+					onSuccess={handleChanged}
 				/>
 			)}
 			{deleteBu && (
@@ -398,7 +406,7 @@ export const BusinessUnitsPage = () => {
 					onOpenChange={(open) => {
 						if (!open) setDeleteBu(null);
 					}}
-					onSuccess={loadBusinessUnits}
+					onSuccess={handleChanged}
 				/>
 			)}
 			<OrphanBuSchemasDialog open={orphanOpen} onOpenChange={setOrphanOpen} />

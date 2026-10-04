@@ -14,7 +14,6 @@ export class ApiError extends Error {
 }
 
 export type SalesEnquiryType = {
-	branches: number;
 	businessName: string;
 	city: string;
 	email: string;
@@ -86,7 +85,6 @@ function publicPost<T>(path: string, body: unknown): Promise<T> {
 
 function enquiryBody(enquiry: SalesEnquiryType) {
 	return {
-		branches: enquiry.branches,
 		business_name: enquiry.businessName,
 		city: enquiry.city,
 		email: enquiry.email,

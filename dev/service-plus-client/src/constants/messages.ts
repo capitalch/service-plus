@@ -5,6 +5,10 @@
  */
 
 export const MESSAGES = {
+	INFO_USER_MUST_RELOGIN: "Users already signed in see this change only after they sign out and sign in again.",
+	INFO_IDLE_WARNING:
+		"You will be signed out in 5 minutes due to inactivity. Move the mouse or press a key to stay signed in.",
+	INFO_IDLE_LOGOUT: "You were signed out after 3 hours of inactivity. Please sign in again.",
 	// Validation Errors - Required Fields
 	ERROR_CLIENT_REQUIRED: "Please select a client",
 	ERROR_EMAIL_OR_USERNAME_REQUIRED: "Email or username is required",
@@ -460,6 +464,7 @@ export const MESSAGES = {
 	ERROR_JOB_MODEL_REQUIRED: "Please select a product / model.",
 	SUCCESS_JOB_CREATED: "Job created successfully.",
 	SUCCESS_JOB_UPDATED: "Job updated successfully.",
+	SUCCESS_JOB_TECHNICIAN_SET: "Technician set on the job.",
 	SUCCESS_JOB_DELETED: "Job deleted successfully.",
 	// Opening Job
 	ERROR_OPENING_JOB_NO_REQUIRED: "Job No is required.",

@@ -557,6 +557,8 @@ const MOBILE_NAV_ITEMS: MobileNavItem[] = [
 export const ClientExplorerPanel = ({ activeSection }: Props) => {
 	const { explorerOpen, toggleExplorer } = useLayout();
 	const ExplorerContent = EXPLORERS[activeSection];
+	const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
+	const mobileNavItems = MOBILE_NAV_ITEMS.filter((item) => item.section !== "admin" || postDataToAccounts);
 
 	// Position: left-0 on mobile (activity bar hidden), left-16 on md+ (right of activity bar)
 	// Slide in/out with transform
@@ -584,7 +586,7 @@ export const ClientExplorerPanel = ({ activeSection }: Props) => {
 			{/* Mobile section nav — hidden on md+ since top nav covers it */}
 			<div className="border-b border-(--cl-border) px-2 py-2 md:hidden">
 				<div className="grid grid-cols-3 gap-1">
-					{MOBILE_NAV_ITEMS.map(({ label, section, to, end }) => (
+					{mobileNavItems.map(({ label, section, to, end }) => (
 						<NavLink
 							key={to}
 							to={to}

@@ -153,6 +153,58 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
+		id: "dev-session-cache-refresh",
+		category: "Architecture",
+		title: "What the Session Caches & When Edits Show Up",
+		summary:
+			"Which data is loaded once per session, which edit screens re-read it, and where a re-login is still needed.",
+		tags: ["session", "cache", "context-slice", "refreshBuContext", "loadAppSettings", "re-login", "access rights"],
+		content: [
+			{
+				type: "para",
+				text: "Auth user (accessRights, roleCode, availableBus) is written once by setCredentials in auth-slice.ts; token refresh updates only the tokens, although the server re-reads role_code, access_rights and bu_codes on refresh (auth helper refresh_token_helper). So rights and BU access changes reach another user's JWT within about 30 minutes but their client copy and menus stay stale until they sign in again.",
+			},
+			{
+				type: "para",
+				text: "BU context (branches, divisions, app settings) lives in context-slice. loadAppSettings (features/client/utils/load-app-settings.ts) dispatches the ten app-setting values; ClientLayout calls it on [dbName, schema]. useBuBranchDivisionActions (features/admin/hooks) now also exposes refreshBuContext, which re-reads branches, divisions and settings (network-only, keeping the chosen branch and division where they still exist). Its fetches were changed from cache-first to network-only.",
+			},
+			{
+				type: "table",
+				headers: ["Edit", "Refresh after save"],
+				rows: [
+					["App Settings dialogs", "app-settings-section.tsx handleChanged → loadData + loadAppSettings"],
+					[
+						"Division add / edit / delete / toggle",
+						"division-section.tsx handleChanged → loadDivisions + refreshBuContext",
+					],
+					[
+						"Branch add / edit / delete / toggle",
+						"masters/branch/branch-section.tsx handleChanged → loadBranches + refreshBuContext",
+					],
+					[
+						"BU create / edit / (de)activate (Admin)",
+						"business-units-page.tsx handleChanged → setAvailableBus([]) so the switcher re-runs initContext",
+					],
+					[
+						"Associate BU / Role, re-seed access rights",
+						"No refresh possible (another user's session); dialogs show MESSAGES.INFO_USER_MUST_RELOGIN",
+					],
+				],
+			},
+			{
+				type: "note",
+				text: "Not cached, no action needed: masters (read no-cache), document sequences, WhatsApp settings, billing (useBillingSync refetches on focus). A real fix for rights drift would be to return the user from the refresh endpoint and update auth-slice; not done.",
+			},
+		],
+		faqs: [
+			{
+				q: "I added a new setting that is mirrored in Redux. What must I do?",
+				a: "Parse it in load-app-settings.ts so both the first load and the post-edit reload pick it up; do not add a second loader.",
+			},
+		],
+	},
+
+	{
 		id: "dev-realtime-updates",
 		category: "Architecture",
 		title: "Real-Time Updates (GraphQL Subscriptions)",
@@ -234,6 +286,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 		],
 		faqs: [
+			{
+				q: "Is there an inactivity logout?",
+				a: "Client Mode only: useIdleLogout (src/hooks/use-idle-logout.ts), called from ClientLayout, logs out after IDLE_LOGOUT_MS (3 hours, constants/timing.ts) without click/keydown/mousemove/scroll/touchstart/wheel. It compares a last-activity timestamp every IDLE_CHECK_INTERVAL_MS (30 s) and on visibilitychange rather than using one long timeout, so a sleeping laptop logs out on wake. Per tab: activity in another tab does not count. Admin and Super Admin layouts do not use it. IDLE_WARNING_MS (5 min) before the cutoff a persistent sonner toast (id idle-logout-warning, MESSAGES.INFO_IDLE_WARNING) appears; the next activity event dismisses it. Logout message: MESSAGES.INFO_IDLE_LOGOUT.",
+			},
 			{
 				q: "Can a userType 'A' user reach Super Admin?",
 				a: "No — ProtectedRoute checks userType strictly, and Super Admin routes require exactly 'S'.",
@@ -396,7 +452,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				headers: ["Table", "Purpose"],
 				rows: [
 					["customer_contact / customer_type", "Customer master and type lookup"],
-					["technician", "Repair staff, branch-scoped, code unique per branch"],
+					[
+						"technician",
+						"Repair staff, branch-scoped, code unique per branch. AddTechnicianDialog defaults branch_id to selectCurrentBranch (only if it is in the GET_BU_BRANCHES list), set on open since branches load async",
+					],
 					[
 						"brand / product / product_brand_model",
 						"The Brand → Product → Model hierarchy jobs are keyed to",
@@ -1799,7 +1858,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					["JOBS_OPENING_JOBS", "Jobs → Opening Jobs"],
 					[
 						"JOBS_ACCOUNTS_POSTING",
-						"Jobs → Accounts Posting (in addition to the existing postDataToAccounts app-setting condition)",
+						"Jobs → Accounts Posting (in addition to the existing postDataToAccounts app-setting condition). The same selectPostDataToAccounts flag also hides the Admin top-nav tab (its only item is Post / Unpost), the mobile Admin link in client-explorer-panel.tsx, and the 'Unposted documents' bell entry in client-top-nav.tsx; the /client/admin route itself is not guarded.",
 					],
 					["MASTERS_MENU", "The whole Masters top-level tab"],
 					["CONFIG_MENU", "The whole Configurations top-level tab"],
@@ -2400,6 +2459,50 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
+		id: "dev-job-control-set-technician",
+		category: "Jobs",
+		title: "Job Control Set Technician Action — Implementation",
+		summary:
+			"The 'Set Technician' item in Job Control's ⇄ menu reassigns a job's technician through updateJob without changing status.",
+		tags: ["job control", "set technician", "updateJob", "job_transaction", "technician_id"],
+		content: [
+			{
+				type: "para",
+				text: "set-technician-dialog.tsx (job-control/) is opened from job-control-section.tsx via the setTechnicianJob state. It sends the same GRAPHQL_MAP.updateJob payload as a status transition, but keeps job_status_id, amount, estimate_amount, is_final and is_closed at the job's current values and changes only technician_id.",
+			},
+			{
+				type: "table",
+				headers: ["Concern", "Detail"],
+				rows: [
+					[
+						"Visibility",
+						"showSetTechnician = !job.is_closed && !job.is_final; it also feeds hasAnyAction so the lock icon is not shown",
+					],
+					[
+						"Server effect",
+						"resolve_update_job_helper writes a job_transaction row with the same status and the new technician_id, so 'Undo Last Transaction' restores the previous technician",
+					],
+					[
+						"estimate_amount",
+						"Must be passed through: the server coerces a missing estimate_amount to 0 and would overwrite the stored value",
+					],
+					[
+						"Technician list",
+						"The branch's GET_ALL_TECHNICIANS result already loaded by job-control-section.tsx; inactive technicians are hidden unless currently assigned",
+					],
+					["Message", "MESSAGES.SUCCESS_JOB_TECHNICIAN_SET"],
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Why does Set Technician create a job_transaction row?",
+				a: "updateJob always records a transaction. Recording the same status with the new technician keeps the history intact and lets Undo Last Transaction restore the previous technician.",
+			},
+		],
+	},
+
+	{
 		id: "dev-job-control-receipt-chip",
 		category: "Jobs",
 		title: "Job Control Receipt Chip (Rec:) — Implementation",
@@ -2507,7 +2610,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				items: [
 					"Create Business Unit (create-business-unit-dialog.tsx) — the company record; starts with schema Missing.",
 					"Create Schema & Seed Data (create-bu-schema-dialog.tsx) — provisions the BU's dedicated schema inside the tenant database.",
-					"Create Business User (create-business-user-dialog.tsx) — a login for this client company.",
+					"Create Business User (create-business-user-dialog.tsx) — a login for this client company. The Role select defaults to the role whose name is 'manager' (case-insensitive match on RoleType.name, applied by an effect once roles load); if no such role exists nothing is preselected.",
 					"Associate BU / Role (associate-bu-role-dialog.tsx) — the step that actually grants access: pick Business Unit(s) + exactly one Role.",
 					"Mail credentials (mail-business-user-credentials-dialog.tsx) — send the new user their login.",
 					"Activate Business Unit / Activate Business User (activate-business-unit-dialog.tsx, activate-business-user-dialog.tsx).",
@@ -2704,7 +2807,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "seed_bu_data.py's BU_SEED_SQL (reverted/updated 2026-09-18) pre-populates document_sequence for the auto-created 'HO' branch: JOB_SHEET→'J', PURCHASE_INVOICE→'P', PURCHASE_RETURN_INVOICE→'PR', all with next_number=1, padding=5, separator='/', division_id NULL — matching document-sequence-section.tsx's own client-side fallback defaults (next_number ?? 1, padding ?? 5, separator ?? '/') so the saved row and an unsaved/blank row render identically. Inserted via JOIN branch/document_type + WHERE NOT EXISTS (same idiom as the branch insert above it), so it's safe on re-seed and never overwrites a value an Admin already changed. SERVICE_INVOICE/MONEY_RECEIPT/SALES_INVOICE are NOT pre-seeded — they're per-division. Since plans/plan2.md Step 1 the seed also creates HO's default division Main (see 'Default Division per Branch'), but its per-division sequences are still left for the Admin to configure.",
+				text: "seed_bu_data.py's BU_SEED_SQL (reverted/updated 2026-09-18) pre-populates document_sequence for the auto-created 'HO' branch: JOB_SHEET→'J', PURCHASE_INVOICE→'P', PURCHASE_RETURN_INVOICE→'PR', all with next_number=1, padding=5, separator='/', division_id NULL — matching document-sequence-section.tsx's own client-side fallback defaults (next_number ?? 1, padding ?? 5, separator ?? '/') so the saved row and an unsaved/blank row render identically. Inserted via JOIN branch/document_type + WHERE NOT EXISTS (same idiom as the branch insert above it), so it's safe on re-seed and never overwrites a value an Admin already changed. The per-division types are seeded for HO's default division Main (see 'Default Division per Branch') in a second INSERT with division_id = Main's id: MONEY_RECEIPT→'MR', SALES_INVOICE→'SI', SALES_RETURN_INVOICE→'SR', SERVICE_INVOICE→'SI', SERVICE_RETURN_INVOICE→'RI' (same padding/separator; SALES_INVOICE and SERVICE_INVOICE share 'SI' deliberately — the unique index is per document_type_id, so they number independently). Guarded by NOT EXISTS on (document_type_id, branch_id, COALESCE(division_id,0)), so re-running feedBuSeedData also back-fills existing BUs without touching edited rows. Divisions added later get no rows; the Admin configures them.",
 			},
 		],
 		faqs: [
@@ -3114,7 +3217,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "para",
-				text: "Client side: the generic App Settings editor (edit-app-setting-dialog.tsx) is bypassed for this one key — app-settings-section.tsx branches on record.setting_key === \"whatsapp_notifications\" to open edit-whatsapp-notifications-dialog.tsx instead, a purpose-built dialog with one Switch per event (src/components/ui/switch.tsx), still writing through the same genericUpdate mutation, no new resolver. Both sendWhatsappCompletion/sendWhatsappJobIntake's TS wrapper types (send-whatsapp-completion.ts / send-whatsapp-job-intake.ts) now return {results, disabled} instead of a bare array specifically so a disabled event isn't shown to staff as a send failure — use-send-whatsapp-job-intake.ts and customer-connect-section.tsx's handleConfirmSend both check disabled before falling into the existing empty-results/failure branches.",
+				text: 'Client side: the generic App Settings editor (edit-app-setting-dialog.tsx) shows a Switch instead of the text/JSON value field whenever the stored value is a JSON boolean or the string "true"/"false" (isBooleanValue; e.g. post_data_to_accounts) — it writes "true"/"false" into the same form field, so encodeSimpleValue keeps the original type on save. For whatsapp_notifications it is bypassed for this one key — app-settings-section.tsx branches on record.setting_key === "whatsapp_notifications" to open edit-whatsapp-notifications-dialog.tsx instead, a purpose-built dialog with one Switch per event (src/components/ui/switch.tsx), still writing through the same genericUpdate mutation, no new resolver. Both sendWhatsappCompletion/sendWhatsappJobIntake\'s TS wrapper types (send-whatsapp-completion.ts / send-whatsapp-job-intake.ts) now return {results, disabled} instead of a bare array specifically so a disabled event isn\'t shown to staff as a send failure — use-send-whatsapp-job-intake.ts and customer-connect-section.tsx\'s handleConfirmSend both check disabled before falling into the existing empty-results/failure branches.',
 			},
 			{ type: "heading", text: "Access rights" },
 			{

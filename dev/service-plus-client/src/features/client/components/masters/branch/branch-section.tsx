@@ -33,6 +33,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
+import { useBuBranchDivisionActions } from "@/features/admin/hooks/use-bu-branch-division-actions";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectBilling, selectSchema } from "@/store/context-slice";
 import { AddBranchDialog } from "./add-branch-dialog";
@@ -67,6 +68,7 @@ export const BranchSection = () => {
 	const billing = useAppSelector(selectBilling);
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
+	const { refreshBuContext } = useBuBranchDivisionActions();
 
 	const [addOpen, setAddOpen] = useState(false);
 	const [branches, setBranches] = useState<BranchType[]>([]);
@@ -104,6 +106,12 @@ export const BranchSection = () => {
 		loadBranches();
 	}, [loadBranches]);
 
+	// An edit changes data the whole app has cached, so reload the screen and the shared BU context.
+	async function handleChanged() {
+		await loadBranches();
+		await refreshBuContext();
+	}
+
 	async function handleToggleActive(branch: BranchType) {
 		if (!dbName || !schema) return;
 		try {
@@ -118,7 +126,7 @@ export const BranchSection = () => {
 					}),
 				},
 			});
-			await loadBranches();
+			await handleChanged();
 		} catch {
 			toast.error(MESSAGES.ERROR_BRANCH_UPDATE_FAILED);
 		}
@@ -406,7 +414,7 @@ export const BranchSection = () => {
 			</motion.div>
 
 			{/* ── Dialogs ──────────────────────────────────────────────────────── */}
-			<AddBranchDialog open={addOpen} onOpenChange={setAddOpen} onSuccess={loadBranches} />
+			<AddBranchDialog open={addOpen} onOpenChange={setAddOpen} onSuccess={handleChanged} />
 			{editBranch && (
 				<EditBranchDialog
 					branch={editBranch}
@@ -414,7 +422,7 @@ export const BranchSection = () => {
 					onOpenChange={(o) => {
 						if (!o) setEditBranch(null);
 					}}
-					onSuccess={loadBranches}
+					onSuccess={handleChanged}
 				/>
 			)}
 			{deleteBranch && (
@@ -424,7 +432,7 @@ export const BranchSection = () => {
 					onOpenChange={(o) => {
 						if (!o) setDeleteBranch(null);
 					}}
-					onSuccess={loadBranches}
+					onSuccess={handleChanged}
 				/>
 			)}
 		</>

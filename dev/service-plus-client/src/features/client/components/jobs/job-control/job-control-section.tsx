@@ -23,6 +23,7 @@ import {
 	ReceiptText,
 	Search,
 	Truck,
+	UserCog,
 	Undo2,
 	X,
 } from "lucide-react";
@@ -79,6 +80,7 @@ import { FinalJobDialog } from "./final-job-dialog";
 import { FinalAJobSection } from "../final-a-job/final-a-job-section";
 import { DeliverJobSection } from "../deliver-job/deliver-job-section";
 import { DeliveryModal } from "../deliver-job/delivery-modal";
+import { SetTechnicianDialog } from "./set-technician-dialog";
 import { useDeliveredJobActions } from "../deliver-job/use-delivered-job-actions";
 import { useSendWhatsappJobInvoice } from "../deliver-job/use-send-whatsapp-job-invoice";
 import type { JobDeliveryFullDetail } from "../deliver-job/deliver-job-schema";
@@ -169,6 +171,7 @@ export const JobControlSection = () => {
 	const [technicians, setTechnicians] = useState<TechnicianRow[]>([]);
 	const [pendingTran, setPendingTran] = useState<{ job: JobControlRow; transition: Transition } | null>(null);
 	const [submitting, setSubmitting] = useState(false);
+	const [setTechnicianJob, setSetTechnicianJob] = useState<JobControlRow | null>(null);
 	const [undoPendingJob, setUndoPendingJob] = useState<JobControlRow | null>(null);
 	const [chargesJob, setChargesJob] = useState<ChargesJobSummary | null>(null);
 
@@ -1169,8 +1172,11 @@ export const JobControlSection = () => {
 																	job.job_status_code === "COMPLETED_OK" &&
 																	job.is_final;
 																const showDeliverJob = job.is_final && !job.is_closed;
+																const showSetTechnician =
+																	!job.is_closed && !job.is_final;
 																const hasAnyAction =
 																	!isNoAction ||
+																	showSetTechnician ||
 																	rowCanUndo ||
 																	showCharges ||
 																	showFinalJob ||
@@ -1250,6 +1256,22 @@ export const JobControlSection = () => {
 																							);
 																						})
 																					)}
+																				</>
+																			)}
+																			{showSetTechnician && (
+																				<>
+																					{!isNoAction && (
+																						<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+																					)}
+																					<DropdownMenuItem
+																						className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer"
+																						onClick={() =>
+																							setSetTechnicianJob(job)
+																						}
+																					>
+																						<UserCog className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+																						Set Technician
+																					</DropdownMenuItem>
 																				</>
 																			)}
 																			{rowCanUndo && (
@@ -1512,6 +1534,15 @@ export const JobControlSection = () => {
 			{/* Proforma Invoice Modal */}
 			{proformaJobId !== null && (
 				<JobProformaInvoiceModal jobId={proformaJobId} onClose={() => setProformaJobId(null)} />
+			)}
+
+			{setTechnicianJob && (
+				<SetTechnicianDialog
+					job={setTechnicianJob}
+					technicians={technicians}
+					onClose={() => setSetTechnicianJob(null)}
+					onSuccess={refreshGrid}
+				/>
 			)}
 
 			{/* Status transition modal */}

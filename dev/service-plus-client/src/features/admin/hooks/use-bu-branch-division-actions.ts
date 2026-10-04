@@ -30,6 +30,7 @@ import {
 } from "@/store/context-slice";
 import type { BranchContextType, BuContextType } from "@/store/context-slice";
 import type { DivisionContextType } from "@/features/client/types/division";
+import { loadAppSettings } from "@/features/client/utils/load-app-settings";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -118,7 +119,7 @@ export function useBuBranchDivisionActions() {
 			const schema = buCode.toLowerCase();
 
 			const batchResult = await apolloClient.query<GenericBatchQueryDataType>({
-				fetchPolicy: "cache-first",
+				fetchPolicy: "network-only",
 				query: GRAPHQL_MAP.genericBatchQuery,
 				variables: {
 					db_name: dbName,
@@ -143,7 +144,7 @@ export function useBuBranchDivisionActions() {
 			let divisions: DivisionContextType[] = [];
 			if (resolvedBranch) {
 				const divResult = await apolloClient.query<GenericDivisionDataType>({
-					fetchPolicy: "cache-first",
+					fetchPolicy: "network-only",
 					query: GRAPHQL_MAP.genericQuery,
 					variables: {
 						db_name: dbName,
@@ -232,6 +233,32 @@ export function useBuBranchDivisionActions() {
 		applyContext(ctx);
 	}, [user, dbName, dispatch, fetchBuContext, applyContext]);
 
+	// ── Re-read the open BU after a configuration edit ─────────────────────────
+	// Branch, division and app-setting edits write to the database only; this pulls them back into
+	// Redux (keeping the selected branch and division where they still exist) so the change shows
+	// without a re-login.
+
+	const refreshBuContext = useCallback(async () => {
+		if (!dbName || !currentBu) return;
+		const schema = currentBu.code.toLowerCase();
+		try {
+			const ctx = await fetchBuContext(currentBu.code, currentBranch?.id);
+			if (!ctx) return;
+			const keptDivision = ctx.divisions.find((d) => d.id === currentDivision?.id) ?? null;
+			const defaultDivision = pickDefaultDivision(ctx.divisions);
+
+			dispatch(setAvailableBranches(ctx.branches));
+			dispatch(setCurrentBranch(ctx.resolvedBranch));
+			dispatch(setAvailableDivisions(ctx.divisions));
+			dispatch(setDefaultDivisionId(defaultDivision?.id ?? 0));
+			// "All divisions" (null) stays as chosen; a removed or deactivated division falls back to the default.
+			dispatch(setCurrentDivision(currentDivision === null ? null : (keptDivision ?? defaultDivision)));
+			await loadAppSettings(dispatch, dbName, schema);
+		} catch {
+			// Non-critical — the screen the user is on has already reloaded its own table
+		}
+	}, [currentBranch, currentBu, currentDivision, dbName, dispatch, fetchBuContext]);
+
 	// ── Handlers ─────────────────────────────────────────────────────────────
 
 	const handleBuChange = useCallback(
@@ -275,7 +302,7 @@ export function useBuBranchDivisionActions() {
 			}
 			try {
 				const divResult = await apolloClient.query<GenericDivisionDataType>({
-					fetchPolicy: "cache-first",
+					fetchPolicy: "network-only",
 					query: GRAPHQL_MAP.genericQuery,
 					variables: {
 						db_name: dbName,
@@ -324,6 +351,7 @@ export function useBuBranchDivisionActions() {
 		currentBranch,
 		currentDivision,
 		initContext,
+		refreshBuContext,
 		handleBuChange,
 		handleBranchChange,
 		handleDivisionChange,

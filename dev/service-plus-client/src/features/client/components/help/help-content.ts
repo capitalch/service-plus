@@ -68,6 +68,14 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				a: "A Branch is a physical service center location. All jobs, inventory, and technicians are scoped to a branch. You can have multiple branches.",
 			},
 			{
+				q: "I changed a setting, branch or division — do I need to sign in again?",
+				a: "No. The screen and the rest of the app update as soon as you save. The exception is when you change another person's role or Business Unit access: that person must sign out and sign in again to see it.",
+			},
+			{
+				q: "Why was I signed out on my own?",
+				a: "Client Mode signs you out after 3 hours with no clicks, typing, scrolling or touch. Five minutes before that a warning appears; any click, key press or mouse move cancels it. Sign in again to continue. Anything you had half-typed on screen is lost, so save before stepping away for long.",
+			},
+			{
 				q: "Can I switch between modes?",
 				a: "Yes. Type A (Business Admin) users can switch between Client Mode and Admin Mode from the top-right menu.",
 			},
@@ -94,8 +102,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				items: [
 					"Create a Branch (Masters → Branch). At least one branch is required.",
 					"Create a Division (Configurations → Divisions). Fill GSTIN for a GST division; leave GSTIN blank for non-GST.",
-					"Configure Numbering / Auto Series (Configurations → Numbering / Auto Series). JOB_SHEET (prefix J), PURCHASE_INVOICE (prefix P), and PURCHASE_RETURN_INVOICE (prefix PR) already come pre-filled for the new BU's Head Office branch — set a prefix for SERVICE_INVOICE and MONEY_RECEIPT yourself, since those are per-division and there's no division yet until the previous step. Without these, invoices and receipts cannot be created.",
-					"Set App Settings (Configurations → App Settings): default GST rate, default HSN codes, number of print copies.",
+					"Configure Numbering / Auto Series (Configurations → Numbering / Auto Series). JOB_SHEET (prefix J), PURCHASE_INVOICE (prefix P), and PURCHASE_RETURN_INVOICE (prefix PR) already come pre-filled for the new BU's Head Office branch — the Main division's series also come pre-filled: MONEY_RECEIPT (MR), SALES_INVOICE (SI), SALES_RETURN_INVOICE (SR), SERVICE_INVOICE (SI) and SERVICE_RETURN_INVOICE (RI). Change any of them if you prefer. Any other division you add needs its own prefixes.",
+					"Set App Settings (Configurations → App Settings): default GST rate, default HSN codes, number of print copies. Yes/no settings such as post_data_to_accounts are edited with an on/off switch instead of typing true or false.",
 					"Add lookup values: Job Types, Job Statuses, Receive/Delivery Manners, Receive Conditions (Masters → Service Config).",
 					"Add Brands, Products, and Models (Masters → Brand / Product / Model). Jobs require all three.",
 					"Add Spare Parts with Cost Price, HSN code, and GST Rate (Masters → Parts).",
@@ -106,7 +114,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "warning",
-				text: "If you skip numbering setup for SERVICE_INVOICE or MONEY_RECEIPT (or add a second branch, which does not inherit the first branch's numbering), you will see an error such as: 'Job Sheet document sequence is not configured or has no prefix.' Go to Configurations → Numbering / Auto Series and add a prefix to resolve it. (The in-app message currently says 'Settings → Document Sequence' — that wording is stale; the real menu path is Configurations → Numbering / Auto Series.)",
+				text: "If a prefix was cleared, or you add a second branch or division (which does not inherit the first one's numbering), you will see an error such as: 'Job Sheet document sequence is not configured or has no prefix.' Go to Configurations → Numbering / Auto Series and add a prefix to resolve it. (The in-app message currently says 'Settings → Document Sequence' — that wording is stale; the real menu path is Configurations → Numbering / Auto Series.)",
 			},
 		],
 		faqs: [
@@ -408,6 +416,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
 						"Move job to …",
 						"Job has valid next statuses",
 						"Opens the transition dialog to set division, technician, estimate (if needed), remarks, and date",
+					],
+					[
+						"Set Technician",
+						"Job is not yet final or closed",
+						"Assigns or changes the technician without changing the job's status. Pick the technician and confirm",
 					],
 					[
 						"Undo Last Transaction",
@@ -2629,7 +2642,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "table",
 				headers: ["Field", "Notes"],
 				rows: [
-					["Branch", "Required. Technicians are branch-scoped."],
+					[
+						"Branch",
+						"Required. Technicians are branch-scoped. Add Technician preselects your current branch; change it if needed.",
+					],
 					[
 						"Code",
 						"Required. Unique per branch. Alphanumeric + underscore only. Max 20 characters. Auto-uppercased.",
@@ -3780,7 +3796,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 		faqs: [
 			{
 				q: "Can I delete an invoice that has been posted to accounts?",
-				a: "No. Unpost it first from Admin → Post/Unpost, then delete it.",
+				a: "No. Unpost it first from Admin → Post/Unpost, then delete it. (The Admin tab only appears when the post_data_to_accounts app setting is switched on.)",
 			},
 			{
 				q: "Can I issue a zero-value GST invoice?",
@@ -3818,6 +3834,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				items: [
 					"Admin → Business Users → Add Business User.",
 					"Enter Email (must be unique across the platform), Username (unique), Full Name, and Mobile.",
+					"Pick the Business Unit(s) and Role. The Role starts as Manager; change it if the user needs something else.",
 					"Save. The user has no access yet at this point — see 'Granting Access: Associate BU / Role' in the Access Management category for the next step.",
 				],
 			},

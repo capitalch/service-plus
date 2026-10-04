@@ -354,6 +354,7 @@ export const SeedRolesDialog = ({ client, onOpenChange, onSuccess, open }: SeedR
 									? "Access rights were already present and have been upgraded with any newly-added codes."
 									: "Roles and access rights have both been seeded into this client's database."}
 							</p>
+							<p className="mb-6 text-xs text-slate-500">{MESSAGES.INFO_USER_MUST_RELOGIN}</p>
 							<Button
 								className="bg-emerald-600 text-white hover:bg-emerald-700"
 								onClick={() => onOpenChange(false)}

@@ -20,7 +20,7 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { BranchOption } from "@/features/client/types/technician";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -70,12 +70,16 @@ function FieldError({ message }: { message?: string }) {
 export const AddTechnicianDialog = ({ branches, onOpenChange, onSuccess, open }: AddTechnicianDialogPropsType) => {
 	const [checkingCode, setCheckingCode] = useState(false);
 	const [codeTaken, setCodeTaken] = useState<boolean | null>(null);
+	const currentBranch = useAppSelector(selectCurrentBranch);
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 
+	// Preselect the current branch when it is one of the selectable branches
+	const defaultBranchId = branches.some((b) => b.id === currentBranch?.id) ? (currentBranch?.id ?? 0) : 0;
+
 	const form = useForm<AddTechnicianFormType>({
 		defaultValues: {
-			branch_id: 0,
+			branch_id: defaultBranchId,
 			code: "",
 			email: "",
 			leaving_date: "",
@@ -94,14 +98,16 @@ export const AddTechnicianDialog = ({ branches, onOpenChange, onSuccess, open }:
 	const branchIdValue = useWatch({ control: form.control, name: "branch_id" });
 	const debouncedCode = useDebounce(codeValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
-	// Reset on close
+	// Reset on close; on open, default the branch to the current branch
 	useEffect(() => {
 		if (!open) {
 			setCheckingCode(false);
 			setCodeTaken(null);
 			form.reset();
+			return;
 		}
-	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+		if (!form.getValues("branch_id")) form.setValue("branch_id", defaultBranchId);
+	}, [open, defaultBranchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Code uniqueness check (scoped to branch)
 	useEffect(() => {
@@ -188,6 +194,7 @@ export const AddTechnicianDialog = ({ branches, onOpenChange, onSuccess, open }:
 								form.setValue("branch_id", Number(v), { shouldValidate: true });
 								setCodeTaken(null);
 							}}
+							value={branchIdValue ? String(branchIdValue) : ""}
 						>
 							<SelectTrigger id="at_branch">
 								<SelectValue placeholder="Select branch" />

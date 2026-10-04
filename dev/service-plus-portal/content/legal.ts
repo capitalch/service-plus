@@ -25,7 +25,7 @@ export const privacy: LegalPageType = {
 		{
 			heading: "What we collect",
 			items: [
-				"Details you type into the enquiry form: your name, business name, mobile number, email address, city, GSTIN if you give one, the number of branches you need, and any message you write.",
+				"Details you type into the enquiry form: your name, business name, mobile number, email address, city, GSTIN if you give one, and any message you write.",
 				"The plan you select on the form.",
 				"Basic technical records our servers keep automatically, such as your IP address and the time the enquiry arrived, which we use to block automated spam.",
 			],

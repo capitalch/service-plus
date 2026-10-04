@@ -12,7 +12,8 @@ import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
-import { useAppSelector } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { loadAppSettings } from "@/features/client/utils/load-app-settings";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import { EditAppSettingDialog } from "./edit-app-setting-dialog";
@@ -47,6 +48,7 @@ function displayValue(v: unknown): string {
 
 export const AppSettingsSection = () => {
 	const dbName = useAppSelector(selectDbName);
+	const dispatch = useAppDispatch();
 	const schema = useAppSelector(selectSchema);
 
 	const [editRecord, setEditRecord] = useState<AppSettingRecord | null>(null);
@@ -79,6 +81,12 @@ export const AppSettingsSection = () => {
 	useEffect(() => {
 		loadData();
 	}, [loadData]);
+
+	// A saved setting also lives in Redux (GST rate, print copies, post to accounts, …), so reload it there too.
+	async function handleChanged() {
+		await loadData();
+		if (dbName && schema) await loadAppSettings(dispatch, dbName, schema);
+	}
 
 	const displayRecords = useMemo(() => {
 		if (!search.trim()) return records;
@@ -272,7 +280,7 @@ export const AppSettingsSection = () => {
 						onOpenChange={(o) => {
 							if (!o) setEditRecord(null);
 						}}
-						onSuccess={loadData}
+						onSuccess={handleChanged}
 					/>
 				) : editRecord.setting_key === "whatsapp_notifications" ? (
 					<EditWhatsappNotificationsDialog
@@ -281,7 +289,7 @@ export const AppSettingsSection = () => {
 						onOpenChange={(o) => {
 							if (!o) setEditRecord(null);
 						}}
-						onSuccess={loadData}
+						onSuccess={handleChanged}
 					/>
 				) : (
 					<EditAppSettingDialog
@@ -290,7 +298,7 @@ export const AppSettingsSection = () => {
 						onOpenChange={(o) => {
 							if (!o) setEditRecord(null);
 						}}
-						onSuccess={loadData}
+						onSuccess={handleChanged}
 					/>
 				))}
 		</>

@@ -12,9 +12,6 @@ export const MESSAGES = {
 	enquiryIntro: "Tell us about your workshop. We will call you back and set up your account.",
 	enquiryRateLimited: "Too many attempts. Please wait a minute and try again.",
 	enquiryTitle: "Start your subscription",
-	errBranches: "Enter a number between 1 and 50",
-	errBranchesPlan:
-		"Lite and Basic include the head office branch only. Choose Standard or Enterprise for more branches",
 	errBusinessName:
 		"Use 3 to 100 characters, starting with a letter or digit: letters, digits, spaces and . & ' ( ) / , -",
 	errCity: "Enter your city and state",

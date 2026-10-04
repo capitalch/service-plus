@@ -248,6 +248,8 @@ export const AssociateBuRoleDialog = ({ onOpenChange, onSuccess, open, user }: A
 					</div>
 				)}
 
+				<p className="text-xs text-muted-foreground">{MESSAGES.INFO_USER_MUST_RELOGIN}</p>
+
 				<DialogFooter>
 					<Button
 						disabled={form.formState.isSubmitting}

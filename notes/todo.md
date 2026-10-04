@@ -1,12 +1,27 @@
 # To Do
-- Subscription testing
+Enhancements
+	- Set correctly, the app settings default values for seed data
+	- One internal remarks, not printable, for internal working
+	- Intimation for immediate collection of your set
 	- Creation of CRM for subscription for sales team
-	- Enhancement / Alteration of portal
+	- Subscription
 		- Live demo and practice in demo site which is fully functional for demo purposes. You can make entry and see the results
-		- Demo user name and password available on demand
+			- Demo user name and password available on demand
 			- Automated mail
 			- A report on how many users requested for demo and which user entered what
-				- This will show how much sincere a customer is. 
+				- This will show how much sincere a customer is.
+	- documentation
+		- When a bu is created and success mail is sent to user, there should be a link showing how to do for first time list:
+			- How to create the 1st job
+				- Create a customer by clicking + sign at Customer
+				- Masters > Product & Parts: Product: Add a product
+				- Masters > Product & Parts: Brand: Add a brand
+				- Masters > Entities > Technician: Add technician
+				- In Single Job: Add a new model and select it
+- Subscription testing
+	- Enhancement / Alteration of portal
+	- Manually create a new user as manager and login as manager
+		- dummymanager, lohar49064@hudzer.com, s...3
 	- Super admin
 		- Remove customers client
 		- Create customers client
@@ -24,22 +39,23 @@
 		- Customer checks full cycle
 	- Similar enquiry cycle for basic and standard and Ent version
 		- Check the options available as promised at site
-				
-- Bug fix
+
+						- Bug fix
 									- Warranty parts show as loss, although charged to customers
-- Subscriptions
-	- Public facing site
-		- Home, Contacts, Pricing, Product details
-		- domain
-		- Contact details
-	- Api to serviceplus
-		- Registered customers
-		- Spin lite version
-		- Customer queries
-	- DB changes to accommodate subscription plans
-	- Set lite version with api
-	- Set other plans with manual initiate
-	- Initiate enterprise version
+							- Subscriptions
+								- Public facing site
+									- Home, Contacts, Pricing, Product details
+									- domain
+									- Contact details
+								- Api to serviceplus
+									- Registered customers
+									- Spin lite version
+									- Customer queries
+								- DB changes to accommodate subscription plans
+								- Set lite version with api
+								- Set other plans with manual initiate
+								- Initiate enterprise version
+	
 - Credentials for clients
 	- demo-> bu: demo1, demo2
 		- demo1: manager: pwd service123
@@ -48,30 +64,12 @@
 		- skali: receptionist: pwd service123
 		- subrata: receptionist: pwd $ervice123
 		- swapan: manager: pwd $ervice123
-- Marketting
-	- domain
-		- available
-			- jobservice, serviceworks, servicebase, servicemate, serviceprime, serviceforge, servicemain, servicechoice, servicegate, servicepure, serviceroot, servicework, serviceto, servicedo, serviceop, servicenail.com, serviceclick, servicecon, servicebyte
-			servicebench, myserviceplus, servicebyte, serviceforge, servicevice.com, serviceside, servicelive 
-			servicevista, servicequick, servicepride, servicemake.com, serviceplaza, servicework, servicepure 					
-			- makemyservice, makeservice																:.in: 549/yr
-			- repairjob.in, repairplus.in, repairtrack, repairsuite, repairbase, repaircore  :.in: 549/yr
-		- Not available
-			- serviceplus, servicejob, serviceflow, serviceking, serviceforce, serviceone, servicego, servicefast, servicebest
-			- service360, serviceall, serviceme, servicefast, servicefirst, serviceone, servicebest, serviceall
-			- repairplus.com, repairflow, repairdesk, repairhub, 
-- Ali
+
+						- Ali
 								- Advance info in job control
-- Extended Warranty
-	- Leads -> Open Leads
-	- Everything in the card will show actions. With 0 value no actions navigate
-	
-- Invoice
-	- Intimation of warranty over message for renew
-		- privacy policy update. Also set nginx.
-	- Intimation for immediate collection of your set
-	- One internal remarks, not printable, for internal working
-	- Estimate approval process through whatsapp
+							- Extended Warranty
+								- Leads -> Open Leads
+								- Everything in the card will show actions. With 0 value no actions navigate
 								- Log of multiple message timings
 								- Delivery of Invoice through whatsapp
 								- Sony service center
@@ -80,18 +78,16 @@
 								- Parts costing is must
 								- Allow cost to change even after final and posting
 								- Locking of charge rows in additional charges while doing final of a job
-- Menu proper arrangement
-- Fix location and style of refresh and search box in the screen
-- Whatsapp
-	- Whatsapp Money receipt
-	- Whatsapp delivery 
-		- Modify template
-		- Make single template with pin
+		- Fix location and style of refresh and search box in the screen
+			- Whatsapp
+				- Whatsapp Money receipt
+				- Whatsapp delivery 
+					- Modify template
+					- Make single template with pin
 						- Receive a job
 							- Modifications of status info
 								- Show price info
 								- show index no of row for batch jobs
-								
 								- Modifications of job slip pdf
 							- Status info
 								- Ngrok implement
@@ -101,14 +97,14 @@
 								- After deployment: Ready status whatsapp to customer
 								- Migration tool
 								- creation
-- Service plus web
+				- Service plus web
 					- Job Query
 						- Company selection: include branch also in web job query
 					- Spare parts
 						- Sale and images
 						- Opening stock does not save
 						- app settings: no_of_job_receipts per print and single page print
-- Release
+			- Release
 				- New client
 					- Admin user
 						- Receptionists
@@ -137,7 +133,7 @@
 								- Inventory menu item test scripts
 								- Access management
 								- Validate creation of new client / Bu / Branch / Division end to end
-	- Security of server config file
+							- Security of server config file
 								- Cleanup of warnings and extra code
 								- Help system for developer in super admin mode
 								- Account icon implement
