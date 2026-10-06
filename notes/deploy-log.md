@@ -3,6 +3,17 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-07 00:48 (main)
+Jobs: add staff-only internal notes on jobs
+
+- server: job_internal_note table, migration runner and right 21 JOBS_INTERNAL_NOTES_MANAGE (Manager) in the seed
+- server: addJobInternalNote for everyone, update/delete gated by the new right; writes in a server-only SQL class, table refused to genericUpdate; 18 new tests
+- client: Internal Notes panel in Job Details, plus a notes chip and menu item in Job Control (both row menus)
+- schema: refreshed template and demo dumps, BU_SCHEMA_DDL and generated types; IsoDatesType and date formatters moved to shared files
+- help and plan: user and developer articles for internal notes, plan.md steps ticked with browser results
+
+Files: 28 changed (+748 / -84) — Base: aa65b18
+
 ## 2026-10-06 23:48 (main)
 Docs: plan internal notes on jobs
 

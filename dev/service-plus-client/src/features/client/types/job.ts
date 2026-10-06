@@ -1,3 +1,7 @@
+import type { JobInternalNote } from "@/types/db-schema-service";
+
+import type { IsoDatesType } from "./iso-dates";
+
 export type JobControlRow = {
 	id: number;
 	job_no: string;
@@ -9,6 +13,7 @@ export type JobControlRow = {
 	customer_name: string | null;
 	customer_gstin?: string | null;
 	file_count: number;
+	internal_note_count: number;
 	transaction_count: number;
 	mobile: string;
 	job_type_name: string;
@@ -280,3 +285,9 @@ export type JobTransactionRow = {
 	transaction_date: string | null;
 	is_opening_job: boolean;
 };
+
+// One internal (staff-only, never printed) note on a job — GET_JOB_INTERNAL_NOTES.
+export type JobInternalNoteType = Pick<
+	IsoDatesType<JobInternalNote>,
+	"created_at" | "created_by_name" | "id" | "note" | "updated_at" | "updated_by_name"
+>;

@@ -67,8 +67,9 @@ SECURITY_ADMIN_ONLY_TABLES = frozenset({
 # Tables nobody writes through genericUpdate, Super Admin included: they change only
 # through their own mutations (sign-up approval, payments). Checked in any schema —
 # `public.sales_enquiry` (Enterprise) is server-only as well, and no BU table shares
-# either name.
-SECURITY_SERVER_ONLY_TABLES = frozenset({"bu_payment", "sales_enquiry"})
+# either name. `job_internal_note` (BU schemas) is written only by the three
+# internal-note mutations, so authorship and the edit right cannot be bypassed.
+SECURITY_SERVER_ONLY_TABLES = frozenset({"bu_payment", "job_internal_note", "sales_enquiry"})
 
 # security.bu billing columns: set only by approval, plan change and payment
 # mutations, never by genericUpdate (edit / activate / deactivate BU write none of them).

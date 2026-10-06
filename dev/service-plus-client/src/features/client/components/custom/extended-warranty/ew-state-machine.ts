@@ -378,26 +378,6 @@ export function daysLeftLabel(daysLeft: number): string {
 	return `Expired ${-daysLeft} days ago`;
 }
 
-/** '13 Sep 2026'; '' for null. */
-export function formatDate(value: string | null): string {
-	const date = toDate(value);
-	return date ? date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "";
-}
-
-/** '13 Sep 2026, 6:30 pm'; '' for null. */
-export function formatDateTime(value: string | null): string {
-	const date = toDate(value);
-	return date
-		? date.toLocaleString("en-IN", {
-				day: "2-digit",
-				hour: "numeric",
-				minute: "2-digit",
-				month: "short",
-				year: "numeric",
-			})
-		: "";
-}
-
 /**
  * A usable 10-digit mobile. Stricter than lib/mobile's isValidMobile, which accepts "" for
  * forms where the mobile is optional — here a lead's mobile is what the reminder goes to.
@@ -433,14 +413,6 @@ export function stateBadgeLabel(row: EwLeadType): string {
 	}
 	if (row.state === "IN_PROGRESS" && row.progress_stage) return `${label} · ${EW_STAGES[row.progress_stage].label}`;
 	return label;
-}
-
-/** Date-only ISO strings are read as local dates, so '2026-09-13' never shifts a day. */
-function toDate(value: string | null): Date | null {
-	if (!value) return null;
-	const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-	const date = dateOnly ? new Date(+dateOnly[1], +dateOnly[2] - 1, +dateOnly[3]) : new Date(value);
-	return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /** Menu / dialog wording for a move; a move out of Lost or Cancelled reads as a reopen. */

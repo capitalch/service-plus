@@ -39,19 +39,12 @@ import type {
 import { cn } from "@/lib/utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
+import { formatDate, formatDateTime } from "@/features/client/components/shared/format-date-time";
 
 import { useGenericQuery } from "../../reports/common/use-generic-query";
 import { addEwFollowUp } from "./ew-mutations";
 import { EwStateBadge } from "./ew-state-badge";
-import {
-	EW_FOLLOW_UP_ACTIONS,
-	EW_NOTES_MAX,
-	EW_STAGES,
-	EW_STATE_META,
-	daysLeftLabel,
-	formatDate,
-	formatDateTime,
-} from "./ew-state-machine";
+import { EW_FOLLOW_UP_ACTIONS, EW_NOTES_MAX, EW_STAGES, EW_STATE_META, daysLeftLabel } from "./ew-state-machine";
 import { combineDateTime, ewFollowUpSchema } from "./extended-warranty-schema";
 import type { EwFollowUpFormType } from "./extended-warranty-schema";
 

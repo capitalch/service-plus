@@ -2139,6 +2139,66 @@ export const HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
+		id: "job-internal-notes",
+		category: "Jobs",
+		title: "Internal Notes on a Job",
+		summary:
+			"Private staff notes on a job — customer behaviour, escalations, anything worth remembering. Never printed and never sent to the customer.",
+		tags: ["internal notes", "notes", "private", "escalation", "customer behaviour", "staff only", "job control"],
+		content: [
+			{
+				type: "para",
+				text: "Every job can carry any number of internal notes. Each note is its own entry, stamped with the date, time and the name of whoever wrote it. Use them for things the customer must not see: how the customer behaved, an escalation to the brand or parent company, a promise made on the phone, anything unforeseen.",
+			},
+			{
+				type: "warning",
+				text: "Internal notes never appear on the job sheet, Job Info PDF, invoice, receipt, delivery note, WhatsApp messages or the job-tracking page. They are not the same as Remarks — Remarks can reach the customer, internal notes cannot.",
+			},
+			{ type: "heading", text: "Where to find them" },
+			{
+				type: "bullets",
+				items: [
+					"Job Details window (open any job's details from Job Control, Job Pipeline, Receipts and the other job grids): the Internal Notes section sits right after Remarks.",
+					"Job Control: a job with notes shows a small indigo 'N Notes' chip under its job number — click it to open the notes.",
+					"Job Control → row menu → Internal Notes: open the notes of any job, including one that has none yet. On open jobs it is at the bottom of the status menu (⇄); on delivered jobs, in the actions menu (⋮).",
+				],
+			},
+			{ type: "heading", text: "Who can do what" },
+			{
+				type: "table",
+				headers: ["Action", "Who"],
+				rows: [
+					["Read notes", "Everyone who can open the job"],
+					["Add a note", "Everyone who can open the job"],
+					["Edit or delete a note", "Admin and Manager only — any note, whoever wrote it"],
+				],
+			},
+			{
+				type: "para",
+				text: "Newest notes are listed first. An edited note keeps its original time and author and shows 'edited by <name>, <time>' underneath. Only the latest wording is kept. Deleting a note asks for confirmation and cannot be undone.",
+			},
+			{
+				type: "note",
+				text: "A note can be up to 2000 characters. The Add Note button stays disabled while the box is empty or over the limit. When the subscription is view-only, notes can still be read but not added, edited or deleted.",
+			},
+		],
+		faqs: [
+			{
+				q: "I am a Manager but I don't see the edit and delete buttons — why?",
+				a: "The edit right is loaded when you sign in. If it was given to your role after you signed in (for example just after an update), sign out and sign in again.",
+			},
+			{
+				q: "I wrote a note by mistake and I am not a Manager — what do I do?",
+				a: "Add a new note that corrects it, or ask an Admin or Manager to edit or delete it.",
+			},
+			{
+				q: "Will the customer ever see a note?",
+				a: "No. Notes are stored separately from the job's printable fields and no printout, message or tracking page reads them.",
+			},
+		],
+	},
+
+	{
 		id: "receipts",
 		category: "Jobs",
 		title: "Receipts (Job Payments)",
@@ -4118,6 +4178,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					["Jobs → Accounts Posting", "✅", "❌", "✅"],
 					["Jobs → Deliver Job", "✅", "❌", "✅"],
 					["Jobs → Customer Connect", "✅", "❌", "✅"],
+					["Jobs → Internal Notes: edit / delete (adding is open to all)", "✅", "❌", "❌"],
 					["Masters tab (whole tab)", "✅", "❌", "✅"],
 					["Configurations tab (whole tab)", "✅", "❌", "❌"],
 					["Admin tab / Post-Unpost", "✅", "❌", "❌"],

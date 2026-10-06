@@ -45,6 +45,7 @@ import type { JobDetailType, JobTransactionRow } from "@/features/client/types/j
 import type { JobInvoiceFullRow, JobInvoiceLineRow } from "../deliver-job/deliver-job-schema";
 import { buildInvoicePdf, buildReceiptPdf, buildDeliveryNotePdf } from "../deliver-job/deliver-job-pdf";
 import { getJobSheetBlobUrl, getJobInfoBlobUrl } from "../job-sheet-pdf";
+import { InternalNotesPanel } from "../internal-notes/internal-notes-panel";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobFinalInfoModal } from "../final-a-job/job-final-info-modal";
 import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
@@ -847,6 +848,13 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
 										</p>
 									</div>
 								</div>
+
+								{/* ── Internal Notes — staff only, never printed: keep it out of every PDF builder below ── */}
+								<InternalNotesPanel
+									branchId={currentBranch?.id ?? job.branch_id}
+									jobId={jobId}
+									onChanged={onJobChanged}
+								/>
 
 								{/* ── Attachments ── */}
 								<div className="rounded-lg bg-white shadow-sm overflow-hidden">

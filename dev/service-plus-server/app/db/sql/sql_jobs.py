@@ -807,6 +807,8 @@ class JobsSql:
             ji.is_posted AS invoice_is_posted,
             (SELECT COALESCE(SUM(jp.amount), 0) FROM job_payment jp WHERE jp.job_id = j.id) AS receipt_total,
             (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id) AS file_count,
+            -- Internal notes: a count only, staff-facing grid. Never print (plans/plan.md).
+            (SELECT COUNT(*) FROM job_internal_note jin WHERE jin.job_id = j.id) AS internal_note_count,
             (SELECT COUNT(*) FROM job_transaction  jtr WHERE jtr.job_id = j.id) AS transaction_count
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
@@ -836,6 +838,17 @@ class JobsSql:
          LIMIT  (table "p_limit")
          OFFSET (table "p_offset")
      """
+
+    # Internal notes — staff only. Never join job_internal_note into a print, WhatsApp
+    # or public query (plans/plan.md, constraint 1). Writes are server-only:
+    # JobInternalNoteServerSql (sql_job_internal_notes.py).
+    GET_JOB_INTERNAL_NOTES = """
+        with "p_job_id" as (values(%(job_id)s::bigint))
+        SELECT id, note, created_by_name, created_at, updated_by_name, updated_at
+        FROM job_internal_note
+        WHERE job_id = (table "p_job_id")
+        ORDER BY created_at DESC, id DESC
+    """
 
     GET_JOB_DETAIL = """
         with "p_id" as (values(%(id)s::bigint))

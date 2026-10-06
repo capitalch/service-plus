@@ -1,6 +1,6 @@
 # Plan — Internal notes on jobs
 
-Source: `plans/prompt2.md`, plus the chat correction of 6 Oct 2026: "only manager / admin can modify / edit notes. Other users can only append". Plan only, nothing built yet. (The previous plan in this file, the consistent Device column, is in git history, last committed 6 Oct 2026 in `8c7317f`.)
+Source: `plans/prompt2.md`, plus the chat correction of 6 Oct 2026: "only manager / admin can modify / edit notes. Other users can only append". Decisions agreed 6 Oct 2026. Steps 1–8 built and Your Part B run 7 Oct 2026; Step 9 done, including a browser run as Admin on 7 Oct 2026; what remains of Your Part C is the non-Admin check and the print check. (The previous plan in this file, the consistent Device column, is in git history, last committed 6 Oct 2026 in `8c7317f`.)
 
 ## Goal
 
@@ -96,11 +96,11 @@ Decisions made in this plan (Your Part A confirms them):
 
 | Part | What | Where | When |
 |---|---|---|---|
-| A | Confirm the six decisions under Goal | here | now |
-| B | Back up and run the migration script | after Step 1 | after Step 1 |
+| A | Confirm the six decisions under Goal | here | ✅ done |
+| B | Back up and run the migration script | after Step 1 | ✅ done |
 | C | Check in the browser | after Step 9 | at the end |
 
-**🧑 Your Part A — Confirm the decisions.**
+**✅ 🧑 Your Part A — Confirm the decisions — agreed 6 Oct 2026.**
 1. Separate `job_internal_note` table.
 2. Every user can append; no right needed.
 3. New right `JOBS_INTERNAL_NOTES_MANAGE` (id 21) for edit and delete, Manager only. Receptionist does not get it.
@@ -109,8 +109,10 @@ Decisions made in this plan (Your Part A confirms them):
 6. 2000-character limit.
 - **Done when:** you reply "agreed" or say what to change.
 
-### Step 1 — Server: table, right, migration script
+### ✅ Step 1 — Server: table, right, migration script — built 7 Oct 2026
 **Needs:** Your Part A.
+
+**As built:** `scripts/job_internal_note_schema.sql` holds the table and index. The runner reads that file and holds the right SQL, including the id-21 collision guard. The seed has row 21 and `(1, 21)`. The dry run lists 3 databases and 5 schemas: service_plus_capitalgroup (capitalelectronics, navtechnology), service_plus_customers (dummy) and service_plus_demo (demo1, demo2). `service_plus_service` is not on this server, so it was skipped. The table SQL and the right SQL were each run twice in demo1 inside a rolled-back transaction: no errors, a blank note and a 2001-character note were refused by the CHECK, and right 21 was mapped to role 1 only.
 
 - **Explanation:** creates the table in every BU schema and the right in every tenant, and seeds the right for new tenants.
 - **Paths:**
@@ -156,16 +158,24 @@ Decisions made in this plan (Your Part A confirms them):
     - Add a line to the module docstring and to the role comment ("RECEPTIONIST: every right except … and JOBS_INTERNAL_NOTES_MANAGE").
 - **Done when:** the dry run lists every tenant database and every BU schema, and the table SQL has run twice on a throw-away schema inside a rolled-back transaction without error.
 
-### 🧑 Your Part B — Back up and run the migration
+### ✅ 🧑 Your Part B — Back up and run the migration — done 7 Oct 2026
 **Needs:** Step 1.
+
+**As done:** a read-only check after the run found `job_internal_note` in all five BU schemas (capitalelectronics, navtechnology, dummy, demo1, demo2). Right 21 `JOBS_INTERNAL_NOTES_MANAGE` is mapped to role 1 only in all three databases.
 1. Back up `service_plus_capitalgroup`, `service_plus_demo`, `service_plus_customers`, and `service_plus_service` if you have it.
 2. From `service-plus-server/`, inside the venv, run `python scripts/run_job_internal_note_ddl.py --dry-run` and check the targets.
 3. Run `python scripts/run_job_internal_note_ddl.py`.
 4. Tell Claude.
 - **Done when:** the script ends with 0 failed.
 
-### Step 2 — Regenerate the dump, `BU_SCHEMA_DDL` and client types
+### ✅ Step 2 — Regenerate the dump, `BU_SCHEMA_DDL` and client types — done 7 Oct 2026
 **Needs:** Your Part B.
+
+**As built:**
+- The template dump was re-taken with `pg_dump --schema-only -n demo1 -n security` from `service_plus_demo`. Apart from pg_dump's `\restrict` token, it differs from the old dump only by the `job_internal_note` table, its pkey, index and FK.
+- `sql_bu_admin_ddl.py` was regenerated (+30 lines), and `db-schema-service.ts` regenerated with `pnpm run gen-types-service` (`JobInternalNote`). Security and client types were not touched: right 21 is a data row, not a schema change.
+- `JobInternalNoteType` is now `Pick<IsoDatesType<JobInternalNote>, …>`. `IsoDatesType` moved out of `types/extended-warranty.ts` into the new `types/iso-dates.ts` so both files share it.
+- `tsc -b --force` passes.
 
 - **Explanation:** a BU created from now on gets the table, and the client gets a generated `JobInternalNote` type.
 - **Paths:**
@@ -181,8 +191,20 @@ Decisions made in this plan (Your Part A confirms them):
     - `db-schema-service.ts` has `job_internal_note`.
     - A read-only check finds the table in every BU schema and right 21 mapped to role 1 in every tenant.
 
-### Step 3 — Server: read query, three mutations, guard, Job Control count
+### ✅ Step 3 — Server: read query, three mutations, guard, Job Control count — built 7 Oct 2026
 **Needs:** Step 1.
+
+**As built — one change from the plan below:** the three write statements are **not** in `sql_jobs.py`. They are in a new server-only class, `JobInternalNoteServerSql` (`app/db/sql/sql_job_internal_notes.py`), kept out of `SqlStore`. Reason: `genericQuery` runs any `SqlStore` constant by sqlId, so a write placed there could be called straight from the browser, skipping the edit right. This is the same split Extended Warranty uses. `GET_JOB_INTERNAL_NOTES` stays in `JobsSql`, and `sql_base.py`'s docstring lists the new class. The helpers use a shared `_clean_note()` and `_required_int()`, and `INTERNAL_NOTE_MAX = 2000`.
+
+The three mutations were added to `GUARDED` in `tests/test_view_only_guard.py`; its "every mutation classified once" test requires that. The new `tests/jobs/test_job_internal_notes.py` has 18 tests. All 296 server tests pass, and the three mutations bind in `create_schema()`.
+
+The SQL was exercised on demo1 with the table created inside a rolled-back transaction:
+- add returned a row; add, update and delete with the wrong branch returned nothing;
+- after an update, the note showed `updated_by_name`;
+- delete removed the row;
+- `GET_JOB_SEARCH_PAGED` returned 414 rows, with `internal_note_count` 1 on the noted job.
+
+**Warning:** until Your Part B runs, `GET_JOB_SEARCH_PAGED` (Job Control) fails on a running server, because it now reads `job_internal_note`.
 
 - **Paths:**
     - `service-plus-server/app/db/sql/sql_jobs.py`
@@ -288,8 +310,13 @@ Decisions made in this plan (Your Part A confirms them):
     - `GET_JOB_INTERNAL_NOTES` names `job_internal_note` and `GET_JOB_DETAIL` does not (protects constraint 1).
 - **Done when:** all server tests pass, and the three mutations are in the built schema.
 
-### Step 4 — Client plumbing
+### ✅ Step 4 — Client plumbing — built 7 Oct 2026
 **Needs:** Step 2, Step 3.
+
+**As built:**
+- Built ahead of Step 2. `JobInternalNoteType` is written out by hand in `types/job.ts` for now, and Step 2 switches it to the `Pick` from the generated type.
+- `formatDate` moved together with `formatDateTime`, because both use the private `toDate()` and all three Extended Warranty files import the pair.
+- `tsc -b --force` passes.
 
 - **Paths and changes:**
     - `src/features/auth/utils/access-rights.ts`: add `JOBS_INTERNAL_NOTES_MANAGE: "JOBS_INTERNAL_NOTES_MANAGE"` to `ACCESS_RIGHTS`.
@@ -317,8 +344,13 @@ Decisions made in this plan (Your Part A confirms them):
     - Date-time formatting: move `formatDateTime` (and the private `toDate` it uses) from `custom/extended-warranty/ew-state-machine.ts` to a new `src/features/client/components/shared/format-date-time.ts`. Point the three Extended Warranty importers at it. The notes panel needs the same "13 Sep 2026, 6:30 pm" format.
 - **Done when:** `pnpm exec tsc -b` passes.
 
-### Step 5 — The Internal Notes panel and dialog
+### ✅ Step 5 — The Internal Notes panel and dialog — built 7 Oct 2026
 **Needs:** Step 4.
+
+**As built:**
+- The mutation helpers throw `InternalNoteErrorType` (carrying `reason`) for `ok: false`. `internalNoteErrorMessage()` maps that to `ERROR_INTERNAL_NOTE_NOT_FOUND`, and any GraphQL error to the server's message (for example the view-only refusal).
+- Pencil and trash are ghost icon buttons in slate. The delete confirm is an `AlertDialog`, which is right here because it is an irreversible action.
+- Not yet rendered in the harness. That check moves to Step 9, once the table exists and real rows can be shown.
 
 - **Paths (new folder `src/features/client/components/jobs/internal-notes/`):**
     - `internal-note-schema.ts`: zod `{ note: z.string().trim().min(1, MESSAGES.ERROR_INTERNAL_NOTE_REQUIRED).max(2000, MESSAGES.ERROR_INTERNAL_NOTE_TOO_LONG) }` and its inferred `InternalNoteFormType`. Shared by the add and edit forms.
@@ -345,8 +377,10 @@ Decisions made in this plan (Your Part A confirms them):
     - Long lists scroll inside the panel (`max-h-80 overflow-y-auto`) so the Job Details window stays usable.
 - **Done when:** the panel renders against real rows in the tsc render harness (memory "verify against live db"), both with and without the right. With the right it shows pencil and trash; without, only the add form and the list.
 
-### Step 6 — Internal Notes in the Job Details window
+### ✅ Step 6 — Internal Notes in the Job Details window — built 7 Oct 2026
 **Needs:** Step 5.
+
+**As built:** the panel's `onChanged` is wired to the modal's existing `onJobChanged`. Job Control now passes `onJobChanged={refreshGrid}` to the modal, so a note added in Job Details updates the chip count. Undo Last in that modal now refreshes the grid too.
 
 - **Path:** `src/features/client/components/jobs/job-pipeline/job-details-modal.tsx`.
 - **Change:** render `<InternalNotesPanel branchId={currentBranch?.id ?? job.branch_id} jobId={jobId} />` directly **after the Remarks block**, ahead of Attachments. It sits with the other text sections and is easy to spot.
@@ -354,8 +388,15 @@ Decisions made in this plan (Your Part A confirms them):
     - Nothing from the panel is passed to `getJobSheetBlobUrl`, `getJobInfoBlobUrl`, `buildInvoicePdf`, `buildReceiptPdf` or `buildDeliveryNotePdf`.
 - **Done when:** the Job Details window shows the section from every grid that opens it.
 
-### Step 7 — Job Control: notes chip and menu item
+### ✅ Step 7 — Job Control: notes chip and menu item — built 7 Oct 2026
 **Needs:** Step 5 (and Step 3 for `internal_note_count`).
+
+**As built:**
+- The dialog takes Job Control's own `branchId`, and the Internal Notes menu item is shown to every user.
+- Job Control has **two** row menus:
+    - the ⋮ actions menu, for delivered jobs only — "Job Details PDF" lives here;
+    - the ⇄ status menu, for every other job.
+- The item was first added only after "Job Details PDF", so open jobs lacked it; the browser check on 7 Oct 2026 caught this. It is now also the last item of the ⇄ menu, after a separator. The client help says where to find it in each case.
 
 - **Path:** `src/features/client/components/jobs/job-control/job-control-section.tsx`.
 - **Changes:**
@@ -368,8 +409,15 @@ Decisions made in this plan (Your Part A confirms them):
     - Other grids are left alone. They reach notes through the Job Details window (Step 6).
 - **Done when:** the chip appears only on jobs with notes, the count updates after adding or deleting, and the grid stays readable on a phone.
 
-### Step 8 — Help, both files
+### ✅ Step 8 — Help, both files — built 7 Oct 2026
 **Needs:** Step 6, Step 7.
+
+**As built:**
+- Client article `job-internal-notes` (placed before Receipts). The Roles table gains the row "Jobs → Internal Notes: edit / delete": Manager ✅, Technician ❌, Receptionist ❌.
+- Developer article `dev-job-internal-notes` (placed after Job Cost Correction).
+- Stale text fixed:
+    - the seed article now says 21 rows, and names internal notes as the most recent right;
+    - the `genericUpdate` table-rules row now lists `job_internal_note`.
 
 - **`features/client/components/help/help-content.ts`**, a new article "Internal Notes on a Job":
     - what notes are for, and that they are never printed or sent;
@@ -391,8 +439,16 @@ Decisions made in this plan (Your Part A confirms them):
   Grep `access_right rows`, `most recent one`, `SERVER_ONLY`.
 - **Done when:** both articles render in their help screens.
 
-### Step 9 — Verification
+### ✅ Step 9 — Verification — done 7 Oct 2026
 **Needs:** Steps 1–8.
+
+**As done:**
+- `tsc -b --force` passes. Prettier was run on every touched file. All 296 server tests pass.
+- Read-only on the live databases: `GET_JOB_SEARCH_PAGED` runs in capitalelectronics, navtechnology, dummy and demo1 and returns `internal_note_count` on every row (0 everywhere; demo2 has no jobs). `GET_JOB_INTERNAL_NOTES` runs in each.
+- Vite serves the new and changed modules.
+- **Not done:**
+    - At first the panel was not rendered: there is no jsdom in the repo, and the Chrome extension was not connected. Once it connected, the real UI was checked as Admin. See Your Part C.
+    - `graphify update .` could not run: the `graphify` command is installed but its Python module is missing (`ModuleNotFoundError: No module named 'graphify'`).
 
 - `pnpm exec tsc -b --force` passes, and `pnpm format` has been run on the touched files. (eslint is broken repo-wide, see memory.)
 - The server test suite passes.
@@ -404,8 +460,19 @@ Decisions made in this plan (Your Part A confirms them):
 - Confirm through Vite (`curl` the module) that the browser is getting the new files.
 - Then run `graphify update .`.
 
-### 🧑 Your Part C — Check in the browser
+### 🧑 Your Part C — Check in the browser — partly done by Claude, 7 Oct 2026
 **Needs:** Step 9.
+
+**Done by Claude**, in your Chrome, signed in as Admin, on demo1 job HO/00083 (test notes deleted afterwards; demo1 has 0 notes):
+- Job Details shows Internal Notes after Remarks, with Add Note disabled while the box is empty.
+- Adding a two-line note worked: the toast showed, the count went to 1, the entry read "07 Oct 2026, 12:31 am · by Sushant", line breaks were kept, and the pencil and trash were shown.
+- Editing worked and showed "edited by Sushant, 07 Oct 2026, 12:32 am".
+- Closing Job Details refreshed Job Control, which showed the "1 Note" chip. The chip opened the Internal Notes dialog.
+- Delete asked for confirmation, then removed the note; the count went to 0 and the chip disappeared.
+- The ⇄ menu item for open jobs (the Step 7 fix) opened the dialog for HO/00117.
+- No console errors.
+
+**Still for you:** step 1 (Receptionist or Technician: can add, no edit or delete buttons) and step 4 (printouts). There was no non-Admin login in this browser, and the test notes were already deleted before the print check.
 1. Sign in as a Receptionist or Technician. Open a job's Job Details and add a note. It shows with time and your name. There are no edit or delete buttons, and the "Only Admin and Manager…" line shows.
 2. Sign in as a Manager (sign out first if already signed in). On the same job:
     - edit that note, and check that it shows "edited by <you>, <time>";

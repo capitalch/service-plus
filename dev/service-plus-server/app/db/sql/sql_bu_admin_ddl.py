@@ -733,6 +733,28 @@ class BuAdminDdl:
             CACHE 1
         );
 
+        CREATE TABLE job_internal_note (
+            id bigint NOT NULL,
+            job_id bigint NOT NULL,
+            note text NOT NULL,
+            created_by bigint NOT NULL,
+            created_by_name text,
+            created_at timestamp with time zone DEFAULT now() NOT NULL,
+            updated_by bigint,
+            updated_by_name text,
+            updated_at timestamp with time zone,
+            CONSTRAINT job_internal_note_note_chk CHECK (((char_length(btrim(note)) >= 1) AND (char_length(btrim(note)) <= 2000)))
+        );
+
+        ALTER TABLE job_internal_note ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+            SEQUENCE NAME job_internal_note_id_seq
+            START WITH 1
+            INCREMENT BY 1
+            NO MINVALUE
+            NO MAXVALUE
+            CACHE 1
+        );
+
         CREATE TABLE job_invoice (
             id bigint NOT NULL,
             job_id bigint NOT NULL,
@@ -1584,6 +1606,9 @@ class BuAdminDdl:
         ALTER TABLE ONLY job_image_doc
             ADD CONSTRAINT job_image_doc_pkey PRIMARY KEY (id);
 
+        ALTER TABLE ONLY job_internal_note
+            ADD CONSTRAINT job_internal_note_pkey PRIMARY KEY (id);
+
         ALTER TABLE ONLY job_invoice
             ADD CONSTRAINT job_invoice_invoice_no_key UNIQUE (invoice_no);
 
@@ -1837,6 +1862,8 @@ class BuAdminDdl:
 
         CREATE INDEX job_customer_idx ON job USING btree (customer_contact_id);
 
+        CREATE INDEX job_internal_note_job_id_idx ON job_internal_note USING btree (job_id, created_at);
+
         CREATE INDEX job_invoice_is_posted_idx ON job_invoice USING btree (is_posted) WITH (deduplicate_items='true');
 
         CREATE INDEX job_is_igst_idx ON job USING btree (is_igst) WITH (deduplicate_items='true');
@@ -1968,6 +1995,9 @@ class BuAdminDdl:
 
         ALTER TABLE ONLY job_image_doc
             ADD CONSTRAINT job_image_doc_job_id_fkey FOREIGN KEY (job_id) REFERENCES job(id);
+
+        ALTER TABLE ONLY job_internal_note
+            ADD CONSTRAINT job_internal_note_job_fkey FOREIGN KEY (job_id) REFERENCES job(id) ON DELETE CASCADE;
 
         ALTER TABLE ONLY job_invoice
             ADD CONSTRAINT job_invoice_job_fk FOREIGN KEY (job_id) REFERENCES job(id) ON DELETE RESTRICT;

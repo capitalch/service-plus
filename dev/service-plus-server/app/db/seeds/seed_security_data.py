@@ -9,7 +9,9 @@ role -> rights mapping from plans/plan-access-control.md ("Access-right catalog"
 and "Role -> rights mapping" tables), plus the 7-code extension from plans/plan.md
 ("Design: seven new access-right codes" and its "Role -> rights mapping"), plus
 the 2-code Masters extension (MASTERS_ORGANIZATION, MASTERS_SERVICE_CONFIG) that
-restricts Receptionist from Masters -> Organization and Masters -> Service Config.
+restricts Receptionist from Masters -> Organization and Masters -> Service Config,
+plus JOBS_INTERNAL_NOTES_MANAGE (id 21, MANAGER only) — editing / deleting internal
+notes on a job; appending a note needs no right (plans/plan.md, internal notes).
 TECHNICIAN intentionally gets zero role_access_right rows — the mapping grants
 it none of the gated rights.
 """
@@ -49,16 +51,17 @@ class SeedSecurityData:
             (17, 'JOBS_CUSTOMER_CONNECT',       'Customer Connect',      'JOBS',      'Access to Jobs -> Customer Connect'),
             (18, 'JOBS_CORRECT_COST',           'Correct Job Cost',      'JOBS',      'Access to correct cost on finalized/posted jobs'),
             (19, 'CUSTOM_MENU',                 'Custom',                'CUSTOM',    'Access to the Custom tab (add-on services)'),
-            (20, 'CUSTOM_EXTENDED_WARRANTY',    'Extended Warranty',     'CUSTOM',    'Access to Custom -> Extended Warranty')
+            (20, 'CUSTOM_EXTENDED_WARRANTY',    'Extended Warranty',     'CUSTOM',    'Access to Custom -> Extended Warranty'),
+            (21, 'JOBS_INTERNAL_NOTES_MANAGE',  'Edit Internal Notes',   'JOBS',      'Edit or delete internal notes on a job')
         ON CONFLICT (id) DO NOTHING;
 
         -- MANAGER (role_id=1): every right
         -- RECEPTIONIST (role_id=3): every right except CONFIG_MENU, ADMIN_MENU,
         --                           MASTERS_ORGANIZATION, MASTERS_SERVICE_CONFIG
-        --                           and JOBS_CORRECT_COST
+        --                           JOBS_CORRECT_COST and JOBS_INTERNAL_NOTES_MANAGE
         -- TECHNICIAN (role_id=2): none — no rows
         INSERT INTO security.role_access_right (role_id, access_right_id) VALUES
-            (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20),
+            (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20), (1, 21),
             (3, 1), (3, 2), (3, 3), (3, 4), (3, 7), (3, 8), (3, 9), (3, 10), (3, 11), (3, 12), (3, 13), (3, 16), (3, 17), (3, 19), (3, 20)
         ON CONFLICT (role_id, access_right_id) DO NOTHING;
     """

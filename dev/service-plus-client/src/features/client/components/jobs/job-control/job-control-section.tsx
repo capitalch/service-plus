@@ -22,6 +22,7 @@ import {
 	Receipt,
 	ReceiptText,
 	Search,
+	StickyNote,
 	Truck,
 	UserCog,
 	Undo2,
@@ -71,6 +72,7 @@ import type { TransitionPayload } from "../job-pipeline/status-transition-modal"
 import { UndoTransactionDialog } from "../job-pipeline/undo-transaction-dialog";
 import { JobChargesModal } from "../job-pipeline/job-charges-modal";
 import type { ChargesJobSummary } from "../job-pipeline/job-charges-modal";
+import { InternalNotesDialog } from "../internal-notes/internal-notes-dialog";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { JobPdfModal } from "./job-pdf-modal";
@@ -185,6 +187,7 @@ export const JobControlSection = () => {
 	const [viewJobId, setViewJobId] = useState<number | null>(null);
 	const [pdfJobId, setPdfJobId] = useState<number | null>(null);
 	const [correctCostsJob, setCorrectCostsJob] = useState<JobControlRow | null>(null);
+	const [notesJob, setNotesJob] = useState<JobControlRow | null>(null);
 	const [proformaJobId, setProformaJobId] = useState<number | null>(null);
 	const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
 
@@ -957,6 +960,23 @@ export const JobControlSection = () => {
 															</span>
 														</button>
 													)}
+													{job.internal_note_count > 0 && (
+														<button
+															type="button"
+															className="flex items-center gap-1 text-[9px] text-indigo-600 dark:text-indigo-400 font-medium hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer bg-indigo-50 dark:bg-indigo-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
+															onClick={(e) => {
+																e.stopPropagation();
+																setSelectedRowId(job.id);
+																setNotesJob(job);
+															}}
+														>
+															<StickyNote className="h-2.5 w-2.5 text-slate-600" />
+															<span>
+																{job.internal_note_count} Note
+																{job.internal_note_count !== 1 ? "s" : ""}
+															</span>
+														</button>
+													)}
 												</div>
 											</td>
 											<td className={tdClass}>
@@ -1121,6 +1141,14 @@ export const JobControlSection = () => {
 																		>
 																			<FileDown className="h-3.5 w-3.5 shrink-0 text-slate-600" />{" "}
 																			Job Details PDF
+																		</DropdownMenuItem>
+																		{/* Everyone may append a note; edit / delete is gated inside the panel. */}
+																		<DropdownMenuItem
+																			className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+																			onClick={() => setNotesJob(job)}
+																		>
+																			<StickyNote className="h-3.5 w-3.5 shrink-0 text-slate-600" />{" "}
+																			Internal Notes
 																		</DropdownMenuItem>
 																		{/* Deliberately not gated on invoice_is_posted — cost
                                                                         correction is allowed on posted jobs. */}
@@ -1437,6 +1465,15 @@ export const JobControlSection = () => {
 																					</DropdownMenuItem>
 																				</>
 																			)}
+																			{/* Everyone may append a note; edit / delete is gated inside the panel. */}
+																			<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+																			<DropdownMenuItem
+																				className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-indigo-700 focus:text-indigo-700 focus:bg-indigo-50 dark:focus:bg-indigo-950/30"
+																				onClick={() => setNotesJob(job)}
+																			>
+																				<StickyNote className="h-3.5 w-3.5 shrink-0 text-slate-600" />
+																				Internal Notes
+																			</DropdownMenuItem>
 																		</DropdownMenuContent>
 																	</DropdownMenu>
 																);
@@ -1540,8 +1577,21 @@ export const JobControlSection = () => {
 				}}
 			/>
 
+			{/* Internal Notes Dialog */}
+			{notesJob && branchId && (
+				<InternalNotesDialog
+					branchId={Number(branchId)}
+					jobId={notesJob.id}
+					jobNo={notesJob.job_no}
+					onChanged={refreshGrid}
+					onClose={() => setNotesJob(null)}
+				/>
+			)}
+
 			{/* Job Details Modal */}
-			{viewJobId !== null && <JobDetailsModal jobId={viewJobId} onClose={() => setViewJobId(null)} />}
+			{viewJobId !== null && (
+				<JobDetailsModal jobId={viewJobId} onClose={() => setViewJobId(null)} onJobChanged={refreshGrid} />
+			)}
 
 			{/* PDF / Print Modal */}
 			{pdfJobId !== null && <JobPdfModal jobId={pdfJobId} onClose={() => setPdfJobId(null)} />}

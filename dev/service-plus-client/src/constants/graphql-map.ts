@@ -250,6 +250,21 @@ export const GRAPHQL_MAP = {
 			addEwFollowUp(db_name: $db_name, schema: $schema, value: $value)
 		}
 	`,
+	addJobInternalNote: gql`
+		mutation AddJobInternalNote($db_name: String!, $schema: String, $value: String!) {
+			addJobInternalNote(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	deleteJobInternalNote: gql`
+		mutation DeleteJobInternalNote($db_name: String!, $schema: String, $value: String!) {
+			deleteJobInternalNote(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	updateJobInternalNote: gql`
+		mutation UpdateJobInternalNote($db_name: String!, $schema: String, $value: String!) {
+			updateJobInternalNote(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
 	resendEwLeadAlert: gql`
 		mutation ResendEwLeadAlert($db_name: String!, $schema: String, $value: String!) {
 			resendEwLeadAlert(db_name: $db_name, schema: $schema, value: $value)

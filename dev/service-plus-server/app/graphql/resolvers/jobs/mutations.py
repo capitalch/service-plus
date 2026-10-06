@@ -10,14 +10,17 @@ import psycopg.sql as pgsql
 from psycopg.rows import dict_row
 
 from app.db.connection.psycopg_driver import (
+    exec_sql,
     get_service_db_connection,
     process_data,
     process_details,
 )
 from app.db.sql.sql_base import SqlStore
+from app.db.sql.sql_job_internal_notes import JobInternalNoteServerSql
 from app.core.exceptions import AppMessages, ValidationException
 from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
+from app.whatsapp.ew_sender import staff_name
 
 # genericUpdate access rights for tables owned by the jobs domain. Merged
 # into mutation.py's GENERIC_UPDATE_TABLE_RIGHTS — see plans/plan.md
@@ -831,3 +834,104 @@ async def resolve_delete_job_batch_helper(
             await cur.execute("DELETE FROM job WHERE batch_no = %s", (batch_no,))
 
     return {"success": True}
+
+
+# ── Internal notes (plans/plan.md, Step 3) ────────────────────────────────────
+# Staff-only notes on a job, never printed. Anyone in the BU may append; edit and delete
+# need JOBS_INTERNAL_NOTES_MANAGE (checked in mutation.py). user_id comes from the
+# session, and the name is looked up here — neither is ever read from the payload.
+
+INTERNAL_NOTE_MAX = 2000
+
+
+def _clean_note(payload: dict) -> str:
+    """Trimmed note text. Empty is refused, and so is anything over INTERNAL_NOTE_MAX —
+    never silently cut. The table's CHECK enforces the same limit."""
+    note = str(payload.get("note") or "").strip()
+    if not note:
+        raise ValidationException(message=AppMessages.REQUIRED_FIELD_MISSING, extensions={"field": "note"})
+    if len(note) > INTERNAL_NOTE_MAX:
+        raise ValidationException(message=AppMessages.INVALID_INPUT, extensions={"field": "note"})
+    return note
+
+
+def _required_int(payload: dict, field: str) -> int:
+    try:
+        return int(payload.get(field))
+    except (TypeError, ValueError) as e:
+        raise ValidationException(message=AppMessages.REQUIRED_FIELD_MISSING, extensions={"field": field}) from e
+
+
+async def add_job_internal_note(
+    db_name: str, schema: str = "public", value: str = "", user_id: int | None = None
+) -> dict[str, Any]:
+    """addJobInternalNote — payload `{branch_id, job_id, note}`. Only ever INSERTs; an `id`
+    in the payload is ignored, so appending can never touch an existing note."""
+    payload = _decode_value(value, "addJobInternalNote")
+    branch_id = _required_int(payload, "branch_id")
+    job_id = _required_int(payload, "job_id")
+    note = _clean_note(payload)
+    rows = await exec_sql(
+        db_name=db_name or "",
+        schema=schema or "public",
+        sql=JobInternalNoteServerSql.ADD_JOB_INTERNAL_NOTE,
+        sql_args={
+            "branch_id": branch_id,
+            "by": user_id,
+            "by_name": await staff_name(db_name or "", user_id),
+            "job_id": job_id,
+            "note": note,
+        },
+        text_dates=True,
+    )
+    if not rows:
+        return {"ok": False, "reason": "JOB_NOT_FOUND"}
+    logger.info("addJobInternalNote: schema=%s job=%s note=%s by=%s", schema, job_id, rows[0]["id"], user_id)
+    return {"created_at": rows[0]["created_at"], "id": rows[0]["id"], "ok": True}
+
+
+async def update_job_internal_note(
+    db_name: str, schema: str = "public", value: str = "", user_id: int | None = None
+) -> dict[str, Any]:
+    """updateJobInternalNote — payload `{branch_id, id, note}`. Replaces the text and stamps
+    the editor; the created_* columns are never written."""
+    payload = _decode_value(value, "updateJobInternalNote")
+    branch_id = _required_int(payload, "branch_id")
+    note_id = _required_int(payload, "id")
+    note = _clean_note(payload)
+    rows = await exec_sql(
+        db_name=db_name or "",
+        schema=schema or "public",
+        sql=JobInternalNoteServerSql.UPDATE_JOB_INTERNAL_NOTE,
+        sql_args={
+            "branch_id": branch_id,
+            "by": user_id,
+            "by_name": await staff_name(db_name or "", user_id),
+            "id": note_id,
+            "note": note,
+        },
+        text_dates=True,
+    )
+    if not rows:
+        return {"ok": False, "reason": "NOTE_NOT_FOUND"}
+    logger.info("updateJobInternalNote: schema=%s note=%s by=%s", schema, note_id, user_id)
+    return {"id": rows[0]["id"], "ok": True, "updated_at": rows[0]["updated_at"]}
+
+
+async def delete_job_internal_note(
+    db_name: str, schema: str = "public", value: str = "", user_id: int | None = None
+) -> dict[str, Any]:
+    """deleteJobInternalNote — payload `{branch_id, id}`."""
+    payload = _decode_value(value, "deleteJobInternalNote")
+    branch_id = _required_int(payload, "branch_id")
+    note_id = _required_int(payload, "id")
+    rows = await exec_sql(
+        db_name=db_name or "",
+        schema=schema or "public",
+        sql=JobInternalNoteServerSql.DELETE_JOB_INTERNAL_NOTE,
+        sql_args={"branch_id": branch_id, "id": note_id},
+    )
+    if not rows:
+        return {"ok": False, "reason": "NOTE_NOT_FOUND"}
+    logger.info("deleteJobInternalNote: schema=%s note=%s by=%s", schema, note_id, user_id)
+    return {"id": note_id, "ok": True}

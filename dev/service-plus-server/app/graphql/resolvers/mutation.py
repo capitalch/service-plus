@@ -84,6 +84,8 @@ from app.graphql.resolvers.jobs.invoicing import (
 from app.graphql.resolvers.jobs.mutations import (
     JOBS_GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS,
     JOBS_GENERIC_UPDATE_TABLE_RIGHTS,
+    add_job_internal_note,
+    delete_job_internal_note,
     resolve_create_job_batch_helper,
     resolve_create_job_payment_helper,
     resolve_create_single_job_helper,
@@ -94,6 +96,7 @@ from app.graphql.resolvers.jobs.mutations import (
     resolve_update_job_batch_helper,
     resolve_update_job_helper,
     resolve_update_opening_job_helper,
+    update_job_internal_note,
 )
 from app.whatsapp.ew_sender import send_ew_reminders
 from app.whatsapp.sender import (
@@ -899,6 +902,52 @@ async def resolve_set_job_delivery_manual_confirmation(
     await require_bu_writable(info, db_name, schema)
     staff_id = (info.context or {}).get("user_id")
     return await set_job_delivery_manual_confirmation(db_name, schema, value, staff_id)
+
+
+# ── Internal notes on jobs (plans/plan.md, Step 3) ───────────────────────────
+# Staff-only notes, never printed. Anyone in the BU may append; edit and delete need
+# JOBS_INTERNAL_NOTES_MANAGE (Manager; Admin by bypass). The table is refused to
+# genericUpdate (SECURITY_SERVER_ONLY_TABLES), so these three are its only writers.
+# `user_id` comes from the authenticated context, never the payload.
+INTERNAL_NOTES_MANAGE_RIGHT = "JOBS_INTERNAL_NOTES_MANAGE"
+
+
+@mutation.field("addJobInternalNote")
+@handle_graphql_errors("Error adding internal note")
+async def resolve_add_job_internal_note(
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Append an internal note to a job. Any BU user — no access right."""
+    require_own_tenant(info, db_name)
+    require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
+    return await add_job_internal_note(db_name, schema, value, (info.context or {}).get("user_id"))
+
+
+@mutation.field("updateJobInternalNote")
+@handle_graphql_errors("Error editing internal note")
+async def resolve_update_job_internal_note(
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Replace an internal note's text. Admin / Manager only."""
+    require_own_tenant(info, db_name)
+    require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
+    require_access_right(info, INTERNAL_NOTES_MANAGE_RIGHT)
+    return await update_job_internal_note(db_name, schema, value, (info.context or {}).get("user_id"))
+
+
+@mutation.field("deleteJobInternalNote")
+@handle_graphql_errors("Error deleting internal note")
+async def resolve_delete_job_internal_note(
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Delete an internal note. Admin / Manager only."""
+    require_own_tenant(info, db_name)
+    require_bu_access(info, schema)
+    await require_bu_writable(info, db_name, schema)
+    require_access_right(info, INTERNAL_NOTES_MANAGE_RIGHT)
+    return await delete_job_internal_note(db_name, schema, value, (info.context or {}).get("user_id"))
 
 
 # ── Extended Warranty (plans/plan-ew-final.md §C5.6) ─────────────────────────

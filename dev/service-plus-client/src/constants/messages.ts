@@ -701,6 +701,21 @@ export const MESSAGES = {
 	ERROR_CLIENT_NAME_FORMAT: "Use 6–100 letters, digits, spaces or - _ . ,",
 	ERROR_DB_NAME_FORMAT: "Use service_plus_ followed by lower-case letters, digits or _.",
 	ENQUIRY_NONE: "No requests match these filters.",
+	// Internal notes on a job
+	CONFIRM_INTERNAL_NOTE_DELETE: "Delete this internal note? This cannot be undone.",
+	ERROR_INTERNAL_NOTE_ADD_FAILED: "Failed to add the internal note.",
+	ERROR_INTERNAL_NOTE_DELETE_FAILED: "Failed to delete the internal note.",
+	ERROR_INTERNAL_NOTE_NOT_FOUND: "This note or job is no longer available in the current branch.",
+	ERROR_INTERNAL_NOTE_REQUIRED: "Note cannot be empty.",
+	ERROR_INTERNAL_NOTE_TOO_LONG: "Note can be at most 2000 characters.",
+	ERROR_INTERNAL_NOTE_UPDATE_FAILED: "Failed to update the internal note.",
+	ERROR_INTERNAL_NOTES_LOAD_FAILED: "Failed to load internal notes.",
+	INFO_INTERNAL_NOTES_EDIT_RESTRICTED: "Only Admin and Manager can edit or delete notes.",
+	INFO_INTERNAL_NOTES_EMPTY: "No internal notes yet.",
+	INFO_INTERNAL_NOTES_HINT: "Staff only. Never printed or shown to the customer.",
+	SUCCESS_INTERNAL_NOTE_ADDED: "Internal note added.",
+	SUCCESS_INTERNAL_NOTE_DELETED: "Internal note deleted.",
+	SUCCESS_INTERNAL_NOTE_UPDATED: "Internal note updated.",
 } as const;
 
 // Builds the Post/Unpost "Select All" confirmation title + description from central templates.

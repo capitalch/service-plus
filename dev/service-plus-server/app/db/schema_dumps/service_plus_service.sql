@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict GIBufoM9VZqONgGwBEZ4c3mfdLap93Qin50nCsbgv5pkS8G7s6HNRZmM4jGNfBB
+\restrict XGAa1CtjnGr8gZlbAyJ5sQSnDh3eFwy2IQPWyOw8KVQchSCSZ7hEApfwhc6DCcs
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
@@ -746,6 +746,40 @@ ALTER TABLE demo1.job_image_doc OWNER TO webadmin;
 
 ALTER TABLE demo1.job_image_doc ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME demo1.job_image_doc_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: job_internal_note; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_internal_note (
+    id bigint NOT NULL,
+    job_id bigint NOT NULL,
+    note text NOT NULL,
+    created_by bigint NOT NULL,
+    created_by_name text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by bigint,
+    updated_by_name text,
+    updated_at timestamp with time zone,
+    CONSTRAINT job_internal_note_note_chk CHECK (((char_length(btrim(note)) >= 1) AND (char_length(btrim(note)) <= 2000)))
+);
+
+
+ALTER TABLE demo1.job_internal_note OWNER TO webadmin;
+
+--
+-- Name: job_internal_note_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.job_internal_note ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.job_internal_note_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2341,6 +2375,14 @@ ALTER TABLE ONLY demo1.job_image_doc
 
 
 --
+-- Name: job_internal_note job_internal_note_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_internal_note
+    ADD CONSTRAINT job_internal_note_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: job_invoice job_invoice_invoice_no_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -3180,6 +3222,13 @@ CREATE INDEX job_customer_idx ON demo1.job USING btree (customer_contact_id);
 
 
 --
+-- Name: job_internal_note_job_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_internal_note_job_id_idx ON demo1.job_internal_note USING btree (job_id, created_at);
+
+
+--
 -- Name: job_invoice_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -3657,6 +3706,14 @@ ALTER TABLE ONLY demo1.job
 
 ALTER TABLE ONLY demo1.job_image_doc
     ADD CONSTRAINT job_image_doc_job_id_fkey FOREIGN KEY (job_id) REFERENCES demo1.job(id);
+
+
+--
+-- Name: job_internal_note job_internal_note_job_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_internal_note
+    ADD CONSTRAINT job_internal_note_job_fkey FOREIGN KEY (job_id) REFERENCES demo1.job(id) ON DELETE CASCADE;
 
 
 --
@@ -4279,5 +4336,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict GIBufoM9VZqONgGwBEZ4c3mfdLap93Qin50nCsbgv5pkS8G7s6HNRZmM4jGNfBB
+\unrestrict XGAa1CtjnGr8gZlbAyJ5sQSnDh3eFwy2IQPWyOw8KVQchSCSZ7hEApfwhc6DCcs
 

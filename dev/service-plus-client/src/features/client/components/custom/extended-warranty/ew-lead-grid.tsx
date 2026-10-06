@@ -29,6 +29,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
 import { selectCurrentBranch } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
+import { formatDate, formatDateTime } from "@/features/client/components/shared/format-date-time";
 
 import { ReportEmpty } from "../../reports/common/report-empty";
 import { ReportError } from "../../reports/common/report-error";
@@ -44,8 +45,6 @@ import {
 	EW_STATE_META,
 	EW_STATES,
 	daysLeftLabel,
-	formatDate,
-	formatDateTime,
 	isCompleteMobile,
 	isFollowUpDue,
 	sendBlockReason,

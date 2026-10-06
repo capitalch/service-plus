@@ -8,10 +8,7 @@
  */
 import type { EwLead } from "@/types/db-schema-service";
 
-/** Generated Date columns as they arrive over genericQuery: ISO strings. */
-type IsoDatesType<T> = {
-	[K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K];
-};
+import type { IsoDatesType } from "./iso-dates";
 
 type EwPeriodMetricType =
 	| "cancelled"

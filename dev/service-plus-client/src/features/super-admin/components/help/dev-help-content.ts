@@ -1868,8 +1868,8 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				headers: ["List", "Who may write it through genericUpdate"],
 				rows: [
 					[
-						"SECURITY_SERVER_ONLY_TABLES: sales_enquiry, bu_payment",
-						"Nobody, Super Admin included, in any schema and at any xDetails depth. Changed only by the sign-up and payment mutations (Steps 9, 10, 13).",
+						"SECURITY_SERVER_ONLY_TABLES: sales_enquiry, bu_payment, job_internal_note",
+						"Nobody, Super Admin included, in any schema and at any xDetails depth. sales_enquiry / bu_payment change only by the sign-up and payment mutations (Steps 9, 10, 13); job_internal_note only by the three internal-note mutations (see 'Job Internal Notes — Implementation').",
 					],
 					[
 						"BU_BILLING_COLUMNS of security.bu: plan_code, billing_required, monthly_fee_paise, paid_through, billing_hold, branch_limit, last_reminder_on, last_reminder_kind",
@@ -1939,7 +1939,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				rows: [
 					[
 						"seed_security_data.py",
-						"ROLE_SEED_SQL (the 3 role rows) + ACCESS_RIGHT_SEED_SQL (18 access_right rows as of job cost correction + role_access_right mapping), both ON CONFLICT DO NOTHING — fully idempotent, safe to re-run. A new right needs a new row here AND a corresponding role_access_right row per role that should get it — see 'WhatsApp Integration — Implementation' for a worked example (JOBS_CUSTOMER_CONNECT, id=17), and 'Job Cost Correction — Implementation' for the most recent one (JOBS_CORRECT_COST, id=18, MANAGER only).",
+						"ROLE_SEED_SQL (the 3 role rows) + ACCESS_RIGHT_SEED_SQL (21 access_right rows as of job internal notes + role_access_right mapping), both ON CONFLICT DO NOTHING — fully idempotent, safe to re-run. A new right needs a new row here AND a corresponding role_access_right row per role that should get it — see 'WhatsApp Integration — Implementation' for a worked example (JOBS_CUSTOMER_CONNECT, id=17), 'Job Cost Correction — Implementation' (JOBS_CORRECT_COST, id=18, MANAGER only), and 'Job Internal Notes — Implementation' for the most recent one (JOBS_INTERNAL_NOTES_MANAGE, id=21, MANAGER only).",
 					],
 					[
 						"Automatic seeding",
@@ -2380,6 +2380,115 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "Why does the client still check cost > 0 if the SQL already does?",
 				a: "For the error message and to keep Save disabled. It is convenience only — the server rejects the row regardless, and the client treats an updated/submitted mismatch as a failure.",
+			},
+		],
+	},
+
+	{
+		id: "dev-job-internal-notes",
+		category: "Jobs",
+		title: "Job Internal Notes — Implementation",
+		summary:
+			"job_internal_note, its read query, the three server-only write mutations, right 21 (JOBS_INTERNAL_NOTES_MANAGE) and the never-print invariant.",
+		tags: [
+			"internal notes",
+			"job_internal_note",
+			"GET_JOB_INTERNAL_NOTES",
+			"addJobInternalNote",
+			"updateJobInternalNote",
+			"deleteJobInternalNote",
+			"JOBS_INTERNAL_NOTES_MANAGE",
+			"JobInternalNoteServerSql",
+			"SECURITY_SERVER_ONLY_TABLES",
+			"internal_note_count",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Staff-only notes on a job, one row per entry. Anyone in the BU may append; editing and deleting need JOBS_INTERNAL_NOTES_MANAGE (access_right id 21, MANAGER only; A and S pass by bypass). Source: plans/plan.md, 6 Oct 2026.",
+			},
+			{
+				type: "warning",
+				text: "Never join job_internal_note into GET_JOB_DETAIL or any query that feeds a PDF, a WhatsApp send or a public route. Only GET_JOB_INTERNAL_NOTES and the internal_note_count column of GET_JOB_SEARCH_PAGED read it — tests/jobs/test_job_internal_notes.py asserts GET_JOB_DETAIL does not. On the client, InternalNotesPanel keeps its own state; nothing from it may reach a PDF builder.",
+			},
+			{ type: "heading", text: "Table (every BU schema)" },
+			{
+				type: "table",
+				headers: ["Column", "Meaning"],
+				rows: [
+					["id", "bigint identity"],
+					["job_id", "FK job(id) ON DELETE CASCADE; index (job_id, created_at)"],
+					["note", "text, CHECK char_length(btrim(note)) BETWEEN 1 AND 2000"],
+					[
+						"created_by / created_by_name",
+						'security."user" id from the session, name stamped server-side by staff_name()',
+					],
+					["created_at", "DEFAULT now()"],
+					[
+						"updated_by / updated_by_name / updated_at",
+						"NULL until edited; set by the update mutation only. Only the latest text is kept",
+					],
+				],
+			},
+			{ type: "heading", text: "Where everything lives" },
+			{
+				type: "table",
+				headers: ["Piece", "Where"],
+				rows: [
+					[
+						"Read",
+						"JobsSql.GET_JOB_INTERNAL_NOTES (sql_jobs.py), via genericQuery, newest first. Names are on the row, so no security join and no NON_ADMIN_SECURITY_SQL_IDS entry",
+					],
+					[
+						"Writes",
+						"JobInternalNoteServerSql in sql_job_internal_notes.py — ADD_ / UPDATE_ / DELETE_JOB_INTERNAL_NOTE. Deliberately NOT in SqlStore: genericQuery runs any SqlStore constant by sqlId, which would skip the edit right",
+					],
+					[
+						"Mutations",
+						"addJobInternalNote (no right), updateJobInternalNote and deleteJobInternalNote (require_access_right JOBS_INTERNAL_NOTES_MANAGE) in mutation.py; helpers in resolvers/jobs/mutations.py. All three call require_own_tenant, require_bu_access and require_bu_writable",
+					],
+					[
+						"genericUpdate",
+						"job_internal_note is in SECURITY_SERVER_ONLY_TABLES, refused at any depth to everyone — otherwise any BU user could forge created_by or edit someone's note",
+					],
+					[
+						"Grid count",
+						"internal_note_count in GET_JOB_SEARCH_PAGED (Job Control), a correlated COUNT like file_count",
+					],
+					[
+						"Client",
+						"jobs/internal-notes/ — panel, dialog, form, zod schema (INTERNAL_NOTE_MAX 2000), mutation helpers. Shown in job-details-modal.tsx after Remarks and from Job Control's chip and row menu",
+					],
+					[
+						"Dates",
+						"formatDate / formatDateTime now live in features/client/components/shared/format-date-time.ts (moved from ew-state-machine.ts)",
+					],
+				],
+			},
+			{ type: "heading", text: "Guards in the SQL" },
+			{
+				type: "bullets",
+				items: [
+					"Branch ownership: add is INSERT … SELECT FROM job WHERE id AND branch_id; update / delete join job on branch_id. No row back → {ok: false, reason: JOB_NOT_FOUND | NOTE_NOT_FOUND}.",
+					"Add only INSERTs and ignores any id / by / by_name in the payload, so appending can never change an existing note.",
+					"Update writes note and the updated_* columns only — never created_*.",
+					"The 2000-character limit is held three times: table CHECK, _clean_note() in the helper, internalNoteSchema in the client.",
+				],
+			},
+			{ type: "heading", text: "Rollout" },
+			{
+				type: "para",
+				text: "scripts/run_job_internal_note_ddl.py (with --dry-run) runs scripts/job_internal_note_schema.sql in every schema with a job table and adds right 21 + the (1, 21) mapping in each tenant's security schema, guarded so id 21 cannot silently collide. New tenants get the right from SeedSecurityData; new BUs get the table from the regenerated BU_SCHEMA_DDL. Rights are read at sign-in, so a Manager must sign in again to edit.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why three mutations instead of genericUpdate with a rights-map entry?",
+				a: "GENERIC_UPDATE_TABLE_RIGHTS gates a whole table with one right, but here appending is open to all while editing is not; and genericUpdate writes whatever columns the payload carries, so the author could be forged. Dedicated mutations take the user from the session and split the two permissions.",
+			},
+			{
+				q: "Adding a fourth place that shows notes?",
+				a: "Reuse InternalNotesPanel / InternalNotesDialog. Never add the notes to a job query that a print or message also uses.",
 			},
 		],
 	},

@@ -9,6 +9,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import type { EwLeadType, EwTimelineItemType } from "@/features/client/types/extended-warranty";
 import { selectCurrentBranch } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
+import { formatDate, formatDateTime } from "@/features/client/components/shared/format-date-time";
 
 import { ReportError } from "../../reports/common/report-error";
 import { ReportLoading } from "../../reports/common/report-loading";
@@ -16,15 +17,7 @@ import { useGenericQuery } from "../../reports/common/use-generic-query";
 import { EwDeliveryChip } from "./ew-delivery-chip";
 import { EwLeadActionsMenu } from "./ew-lead-actions-menu";
 import { EwStateBadge } from "./ew-state-badge";
-import {
-	EW_BANDS,
-	EW_FOLLOW_UP_ACTIONS,
-	EW_STAGES,
-	EW_STATE_META,
-	daysLeftLabel,
-	formatDate,
-	formatDateTime,
-} from "./ew-state-machine";
+import { EW_BANDS, EW_FOLLOW_UP_ACTIONS, EW_STAGES, EW_STATE_META, daysLeftLabel } from "./ew-state-machine";
 import type { EwActionType } from "./ew-state-machine";
 import { SerialNoLine } from "@/features/client/components/shared/device-cell";
 
