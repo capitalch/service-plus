@@ -3,6 +3,16 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-06 23:48 (main)
+Docs: plan internal notes on jobs
+
+- plans/plan.md: replace the shipped Device-column plan with the job internal notes design
+- plans/plan.md: new job_internal_note table; anyone appends, Admin/Manager edit or delete via new right JOBS_INTERNAL_NOTES_MANAGE (id 21)
+- plans/plan.md: server-only table guard, three dedicated mutations, migration runner, Job Details panel and Job Control chip
+- plans/prompt2.md: new prompt for the internal notes feature
+
+Files: 2 changed (+404 / -156) — Base: 8c7317f
+
 ## 2026-10-06 15:37 (main)
 Client: SN-labelled Device column, technician reports, On Hold steps
 
