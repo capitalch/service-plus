@@ -28,6 +28,7 @@ import { WarrantyPeriodComparison } from "./warranty-period-comparison";
 import { WarrantyRangeTabs } from "./warranty-range-tabs";
 import { WarrantyTopPartsChart } from "./warranty-top-parts-chart";
 import type { WarrantyJobRowType, WarrantyPartRollupType, WarrantySummaryRowType } from "./warranty-types";
+import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
 
 const JOB_COLUMNS: ReportColumnType<WarrantyJobRowType>[] = [
 	{
@@ -56,11 +57,13 @@ const JOB_COLUMNS: ReportColumnType<WarrantyJobRowType>[] = [
 				<span className="text-[10px] text-(--cl-text-muted)">
 					{[r.brand_name, r.model_name].filter(Boolean).join(" • ")}
 				</span>
+				<SerialNoLine serialNo={r.serial_no} />
 			</div>
 		),
 		header: "Device",
 		id: "device",
-		value: (r) => `${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""}`,
+		value: (r) =>
+			`${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""} ${serialNoText(r.serial_no)}`.trim(),
 	},
 	{
 		cell: (r) => r.technician_name ?? "—",
@@ -233,7 +236,9 @@ export const WarrantyJobsSection = () => {
 				rows: jobsQ.data.map((r) => ({
 					customer_name: r.customer_name,
 					date: formatDateShort(r.delivery_date ?? r.job_date),
-					device: [r.product_name, r.brand_name, r.model_name].filter(Boolean).join(" • "),
+					device: [r.product_name, r.brand_name, r.model_name, serialNoText(r.serial_no)]
+						.filter(Boolean)
+						.join(" • "),
 					job_no: r.job_no,
 					qty: formatNumber(Number(r.parts_qty)),
 					technician: r.technician_name ?? "",
@@ -286,6 +291,7 @@ export const WarrantyJobsSection = () => {
 							"Parts Qty": Number(r.parts_qty),
 							"Parts Value": Number(r.parts_value),
 							Product: r.product_name ?? "",
+							"Serial No": r.serial_no ?? "",
 							Status: r.status_name,
 							Technician: r.technician_name ?? "",
 						})),

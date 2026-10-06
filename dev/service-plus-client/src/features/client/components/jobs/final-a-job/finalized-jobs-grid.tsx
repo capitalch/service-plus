@@ -36,6 +36,7 @@ import { PAGE_SIZE, thClass, tdClass } from "./final-a-job-helpers";
 import { JobTypeBadge } from "../job-badges";
 import type { FinalizedJobRow } from "./final-a-job-schema";
 import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
+import { DeviceCell } from "@/features/client/components/shared/device-cell";
 
 type Props = {
 	rows: FinalizedJobRow[];
@@ -153,7 +154,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 										"Job No",
 										"Customer",
 										"Mobile",
-										"Device Details",
+										"Device",
 										"Technician",
 										"Amount",
 										"Actions",
@@ -189,7 +190,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 									<th className={thClass}>Job No</th>
 									<th className={thClass}>Customer</th>
 									<th className={thClass}>Mobile</th>
-									<th className={`${thClass} w-40`}>Device Details</th>
+									<th className={`${thClass} w-40`}>Device</th>
 									<th className={thClass}>Technician</th>
 									<th className={`${thClass} text-right`}>Amount</th>
 									<th className={`${thClass} sticky right-0 z-20 bg-(--cl-surface-2)!`}>Actions</th>
@@ -318,9 +319,8 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 										</td>
 										<td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 
-										{/* device_details already contains serial_no (built by SQL CONCAT_WS) */}
 										<td className={`${tdClass} max-w-40`}>
-											<span className="text-xs leading-snug">{row.device_details || "—"}</span>
+											<DeviceCell deviceDetails={row.device_details} serialNo={row.serial_no} />
 										</td>
 
 										<td className={tdClass}>{row.technician_name ?? "—"}</td>

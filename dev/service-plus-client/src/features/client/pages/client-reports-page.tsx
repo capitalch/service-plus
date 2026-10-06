@@ -81,9 +81,21 @@ const TechnicianScorecardSection = lazy(() =>
 	})),
 );
 
-const TechnicianProfitReportSection = lazy(() =>
-	import("../components/reports/profit/technician-profit-report-section").then((m) => ({
-		default: m.TechnicianProfitReportSection,
+const TechnicianReport1Section = lazy(() =>
+	import("../components/reports/technician/technician-report-1-section").then((m) => ({
+		default: m.TechnicianReport1Section,
+	})),
+);
+
+const TechnicianReport2Section = lazy(() =>
+	import("../components/reports/technician/technician-report-2-section").then((m) => ({
+		default: m.TechnicianReport2Section,
+	})),
+);
+
+const TechnicianReport3Section = lazy(() =>
+	import("../components/reports/technician/technician-report-3-section").then((m) => ({
+		default: m.TechnicianReport3Section,
 	})),
 );
 
@@ -170,7 +182,9 @@ const REPORT_SECTIONS: Record<string, ComponentType> = {
 	"Stock Movement Summary": StockMovementSummarySection,
 	"Technician Productivity Heatmap": TechnicianProductivityHeatmapSection,
 	"Technician Profit & Revenue": TechnicianProfitRevenueSection,
-	"Technician Profit Report": TechnicianProfitReportSection,
+	"Technician Report 1": TechnicianReport1Section,
+	"Technician Report 2": TechnicianReport2Section,
+	"Technician Report 3": TechnicianReport3Section,
 	"Technician Repaired vs Delivered": TechnicianRepairedDeliveredSection,
 	"Technician Scorecard": TechnicianScorecardSection,
 	"Warranty Jobs": WarrantyJobsSection,

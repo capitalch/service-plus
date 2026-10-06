@@ -20,6 +20,7 @@ import { exportReportPdf } from "../common/pdf-export";
 import { exportReportXlsx } from "../common/xlsx-export";
 import { useFiscalSetting } from "../common/use-fiscal-setting";
 import { useGenericQuery } from "../common/use-generic-query";
+import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
 
 type RowType = {
 	brand_name: string | null;
@@ -31,6 +32,7 @@ type RowType = {
 	is_warranty: boolean;
 	job_no: string;
 	model_name: string | null;
+	serial_no: string | null;
 	parts_cost: number;
 	product_name: string | null;
 	profit: number;
@@ -65,11 +67,13 @@ const COLUMNS: ReportColumnType<RowType>[] = [
 				<span className="text-[10px] text-(--cl-text-muted)">
 					{[r.brand_name, r.model_name].filter(Boolean).join(" • ")}
 				</span>
+				<SerialNoLine serialNo={r.serial_no} />
 			</div>
 		),
 		header: "Device",
 		id: "device",
-		value: (r) => `${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""}`,
+		value: (r) =>
+			`${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""} ${serialNoText(r.serial_no)}`.trim(),
 	},
 	{
 		cell: (r) => r.technician_name ?? "—",
@@ -174,7 +178,9 @@ export const JobsDeliveredDetailedSection = () => {
 					charges: formatInr(Number(r.charges_cost)),
 					customer: r.customer_name,
 					delivered: formatDateShort(r.delivery_date),
-					device: [r.product_name, r.brand_name, r.model_name].filter(Boolean).join(" • "),
+					device: [r.product_name, r.brand_name, r.model_name, serialNoText(r.serial_no)]
+						.filter(Boolean)
+						.join(" • "),
 					job_no: r.job_no,
 					parts: formatInr(Number(r.parts_cost)),
 					profit: formatInr(Number(r.profit)),
@@ -218,6 +224,7 @@ export const JobsDeliveredDetailedSection = () => {
 							Model: r.model_name ?? "",
 							Parts: Number(r.parts_cost),
 							Product: r.product_name ?? "",
+							"Serial No": r.serial_no ?? "",
 							Profit: Number(r.profit),
 							Selling: Number(r.selling_total),
 							Technician: r.technician_name ?? "",

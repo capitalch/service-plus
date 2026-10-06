@@ -69,6 +69,7 @@ import type { JobDetailType } from "@/features/client/types/job";
 import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
 import { useSendWhatsappMoneyReceipt } from "./use-send-whatsapp-money-receipt";
 import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { DeviceCell } from "@/features/client/components/shared/device-cell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -438,7 +439,7 @@ export const ReceiptsSection = () => {
 		"Job No",
 		"Customer",
 		"Mobile",
-		"Device Details",
+		"Device",
 		"Job Type",
 		"Status",
 		"Mode",
@@ -548,7 +549,7 @@ export const ReceiptsSection = () => {
 									<th className={thClass}>Job No</th>
 									<th className={thClass}>Customer</th>
 									<th className={thClass}>Mobile</th>
-									<th className={`${thClass} w-[10rem]`}>Device Details</th>
+									<th className={`${thClass} w-[10rem]`}>Device</th>
 									<th className={thClass}>Job Type</th>
 									<th className={thClass}>Status</th>
 									<th className={thClass}>Mode</th>
@@ -637,7 +638,9 @@ export const ReceiptsSection = () => {
 											</div>
 										</td>
 										<td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
-										<td className={`${tdClass} text-xs`}>{row.device_details || "—"}</td>
+										<td className={`${tdClass} text-xs`}>
+											<DeviceCell deviceDetails={row.device_details} serialNo={row.serial_no} />
+										</td>
 										<td className={tdClass}>
 											<JobTypeBadge code={row.job_type_code} name={row.job_type_name} />
 										</td>

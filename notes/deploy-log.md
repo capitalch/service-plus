@@ -3,6 +3,18 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-06 15:37 (main)
+Client: SN-labelled Device column, technician reports, On Hold steps
+
+- Job and report grids: every Device column is headed "Device" and shows the serial as a teal "SN: <value>" line via shared/device-cell.tsx; Opening Jobs gains a Device column and shows Alt on its own line
+- Server SQL: grid and report job queries return serial_no as its own column; new technician queries (product split, product jobs, monthly warranty) in sql_reports_audit.py
+- Reports: Technician Profit Report replaced by Technician Reports 1-3 (monthly, monthly with warranty, technician x product) with job drill-downs
+- Jobs: warranty jobs may finalize spare/parts charges at 0 cost; On Hold offered from Received, Assigned, Estimated, Estimate Approved and Received Back; setting a technician on a final or delivered job no longer logs a transaction
+- Portal: new /workflow page (stage explorer, swimlane board, status map), added to the sitemap
+- Help and plans: both help files updated for all of the above; plans/plan.md now holds the Device/SN plan; start script opens portal terminals
+
+Files: 60 changed (+1725 / -1306) — Base: 31aeaef
+
 ## 2026-10-04 21:28 (main)
 Client: idle logout, fresher config edits, switch for boolean settings, portal form trim
 

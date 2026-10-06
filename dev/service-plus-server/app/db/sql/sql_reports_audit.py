@@ -83,6 +83,7 @@ class ReportsAuditSql:
             p.name                    AS product_name,
             b.name                    AS brand_name,
             pbm.model_name            AS model_name,
+            j.serial_no               AS serial_no,
             js.code                   AS status_code,
             js.name                   AS status_name,
             t.name                    AS technician_name,
@@ -134,6 +135,7 @@ class ReportsAuditSql:
             p.name                    AS product_name,
             b.name                    AS brand_name,
             pbm.model_name            AS model_name,
+            j.serial_no               AS serial_no,
             js.code                   AS status_code,
             js.name                   AS status_name,
             t.name                    AS technician_name,
@@ -181,6 +183,7 @@ class ReportsAuditSql:
             p.name                    AS product_name,
             b.name                    AS brand_name,
             pbm.model_name            AS model_name,
+            j.serial_no               AS serial_no,
             js.code                   AS status_code,
             js.name                   AS status_name,
             t.name                    AS technician_name,
@@ -210,6 +213,7 @@ class ReportsAuditSql:
             p.name                    AS product_name,
             b.name                    AS brand_name,
             pbm.model_name            AS model_name,
+            j.serial_no               AS serial_no,
             js.code                   AS status_code,
             js.name                   AS status_name,
             t.name                    AS technician_name,
@@ -324,6 +328,7 @@ class ReportsAuditSql:
             p.name                    AS product_name,
             b.name                    AS brand_name,
             pbm.model_name            AS model_name,
+            j.serial_no               AS serial_no,
             t.name                    AS technician_name,
             js.code                   AS status_code,
             js.name                   AS status_name,
@@ -341,7 +346,7 @@ class ReportsAuditSql:
         WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
           AND COALESCE(j.delivery_date, j.job_date) BETWEEN (table "p_from") AND (table "p_to")
         GROUP BY j.id, j.job_no, j.job_date, j.delivery_date, j.warranty_card_no,
-                 cc.full_name, p.name, b.name, pbm.model_name, t.name,
+                 cc.full_name, p.name, b.name, pbm.model_name, j.serial_no, t.name,
                  js.code, js.name
         ORDER BY COALESCE(j.delivery_date, j.job_date) DESC, j.id DESC
     """
@@ -464,7 +469,7 @@ class ReportsAuditSql:
             "p_category" as (values(%(category_name)s::text))
         SELECT
             'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, j.created_at as event_time,
-            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
         FROM job j
         LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
@@ -549,7 +554,7 @@ class ReportsAuditSql:
         (
             select
                 'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, j.created_at as event_time, cur_js.name as status_label,
-                cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+                cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
                 (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
                 d.code as division_code,
                 COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
@@ -572,7 +577,7 @@ class ReportsAuditSql:
         (
             select
                 't-' || jt.id as row_key, j.id, j.job_no, jt.transaction_date as event_date, jt.performed_at as event_time, js.name as status_label,
-                cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+                cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
                 (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
                 d.code as division_code,
                 COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
@@ -629,7 +634,7 @@ class ReportsAuditSql:
             "p_category" as (values(%(category_name)s::text))
         SELECT
             'j-' || j.id as row_key, j.id, j.job_no, j.updated_at::date as event_date, j.updated_at as event_time,
-            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
         FROM job j
         JOIN job_status js ON js.id = j.job_status_id
@@ -689,7 +694,7 @@ class ReportsAuditSql:
             )
         SELECT
             'j-' || j.id as row_key, j.id, j.job_no, j.delivery_date as event_date, dt.performed_at as event_time,
-            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
             COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
             COALESCE(ji.aggregate, 0) as total_charges,
@@ -748,7 +753,7 @@ class ReportsAuditSql:
             "p_category" as (values(%(category_name)s::text))
         SELECT
             't-' || jt.id as row_key, j.id, j.job_no, jt.transaction_date as event_date, jt.performed_at as event_time,
-            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name,
+            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
         FROM job_transaction jt
         JOIN job_status js ON js.id = jt.status_id
@@ -771,6 +776,7 @@ class ReportsAuditSql:
             cc.full_name                        AS customer_name,
             b.name                              AS brand_name,
             pbm.model_name                      AS model_name,
+            j.serial_no                         AS serial_no,
             p.name                              AS product_name,
             t.name                              AS technician_name,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS is_warranty,
@@ -1163,7 +1169,7 @@ class ReportsAuditSql:
 
     # ── Reports — Profit ──────────────────────────────────────────────────────
 
-    GET_TECHNICIAN_PROFIT_MONTHLY_FY = """
+    GET_TECHNICIAN_REPORTS_MONTHLY_FY = """
         with
             "p_from" as (values(%(from)s::date))
         SELECT
@@ -1205,7 +1211,190 @@ class ReportsAuditSql:
         ORDER BY t.name, m.month_idx
     """
 
-    GET_TECHNICIAN_PROFIT_MONTH_JOBS = """
+    # Technician Report 3: technician × product for one date range, split warranty (job type
+    # UNDER_WARRANTY, as Jobs Summary counts it) vs out of warranty. p_mode picks the jobs, each
+    # exactly as the matching Jobs Summary tab counts them, invoiced or not:
+    #   'delivered' — status DELIVERED_OK, by delivery_date (Jobs Delivered (OK));
+    #   'repaired'  — final, status COMPLETED_OK or DELIVERED_OK, by updated_at (Jobs Repaired (OK)).
+    # A free warranty repair (or a repaired job not yet invoiced) shows zero revenue and its parts
+    # cost as a loss. Totals are summed client-side.
+    GET_TECHNICIAN_REPORTS_PRODUCT_SPLIT = """
+        with
+            "p_from" as (values(%(from)s::date)),
+            "p_to"   as (values(%(to)s::date)),
+            "p_mode" as (values(%(mode)s::text)),
+            parts as (
+                SELECT job_id, SUM(cost_price * qty) AS parts_cost FROM job_part_used GROUP BY job_id
+            ),
+            charges as (
+                SELECT job_id, SUM(cost_price * qty) AS charges_cost FROM job_additional_charge GROUP BY job_id
+            ),
+            jc as (
+                SELECT
+                    j.technician_id                                         AS technician_id,
+                    COALESCE(p.name, '—')                                   AS product_name,
+                    COALESCE(jty.code = 'UNDER_WARRANTY', false)            AS is_warranty,
+                    COALESCE(ji.aggregate, 0)                               AS revenue,
+                    COALESCE(ji.aggregate, 0)
+                      - COALESCE(parts.parts_cost, 0)
+                      - COALESCE(charges.charges_cost, 0)                   AS profit
+                FROM job j
+                JOIN job_status js ON js.id = j.job_status_id
+                LEFT JOIN job_type jty            ON jty.id = j.job_type_id
+                LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+                LEFT JOIN product p               ON p.id   = pbm.product_id
+                LEFT JOIN job_invoice ji          ON ji.job_id = j.id
+                LEFT JOIN parts                   ON parts.job_id   = j.id
+                LEFT JOIN charges                 ON charges.job_id = j.id
+                WHERE (
+                        (table "p_mode") = 'delivered'
+                    AND js.code = 'DELIVERED_OK'
+                    AND j.delivery_date BETWEEN (table "p_from") AND (table "p_to")
+                ) OR (
+                        (table "p_mode") = 'repaired'
+                    AND j.is_final = true
+                    AND js.code IN ('COMPLETED_OK', 'DELIVERED_OK')
+                    AND j.updated_at::date BETWEEN (table "p_from") AND (table "p_to")
+                )
+            )
+        SELECT
+            t.id                                                               AS technician_id,
+            t.name                                                             AS technician_name,
+            jc.product_name                                                    AS product_name,
+            COUNT(*) FILTER (WHERE NOT jc.is_warranty)                         AS oow_count,
+            COALESCE(SUM(jc.profit)  FILTER (WHERE NOT jc.is_warranty), 0)     AS oow_profit,
+            COALESCE(SUM(jc.revenue) FILTER (WHERE NOT jc.is_warranty), 0)     AS oow_revenue,
+            COUNT(*) FILTER (WHERE jc.is_warranty)                             AS warranty_count,
+            COALESCE(SUM(jc.profit)  FILTER (WHERE jc.is_warranty), 0)         AS warranty_profit,
+            COALESCE(SUM(jc.revenue) FILTER (WHERE jc.is_warranty), 0)         AS warranty_revenue
+        FROM jc
+        JOIN technician t ON t.id = jc.technician_id AND t.is_active = true
+        GROUP BY t.id, t.name, jc.product_name
+        ORDER BY t.name, jc.product_name
+    """
+
+    # Technician Report 3 drill-down: the jobs behind one grid cell. Same job filter as
+    # GET_TECHNICIAN_REPORTS_PRODUCT_SPLIT (p_mode, p_from, p_to, active technicians), keep the two in
+    # step. p_technician_id / p_product are NULL for the Total row / column / grand total, and
+    # p_warranty ('all' | 'warranty' | 'oow') follows the report's Warranty switch.
+    GET_TECHNICIAN_REPORTS_PRODUCT_JOBS = """
+        with
+            "p_from"          as (values(%(from)s::date)),
+            "p_to"            as (values(%(to)s::date)),
+            "p_mode"          as (values(%(mode)s::text)),
+            "p_technician_id" as (values(%(technician_id)s::bigint)),
+            "p_product"       as (values(%(product_name)s::text)),
+            "p_warranty"      as (values(%(warranty)s::text)),
+            parts as (
+                SELECT job_id, SUM(cost_price * qty) AS parts_cost FROM job_part_used GROUP BY job_id
+            ),
+            charges as (
+                SELECT job_id, SUM(cost_price * qty) AS charges_cost FROM job_additional_charge GROUP BY job_id
+            )
+        SELECT
+            j.id                                                   AS id,
+            j.job_no                                               AS job_no,
+            d.code                                                 AS division_code,
+            CASE WHEN (table "p_mode") = 'repaired'
+                 THEN j.updated_at::date ELSE j.delivery_date END  AS event_date,
+            cc.full_name                                           AS customer_name,
+            t.name                                                 AS technician_name,
+            b.name                                                 AS brand_name,
+            pbm.model_name                                         AS model_name,
+            j.serial_no                                            AS serial_no,
+            COALESCE(p.name, '—')                                  AS product_name,
+            COALESCE(jty.code = 'UNDER_WARRANTY', false)           AS is_warranty,
+            COALESCE(parts.parts_cost, 0)
+              + COALESCE(charges.charges_cost, 0)                  AS total_cost,
+            COALESCE(ji.aggregate, 0)                              AS revenue,
+            COALESCE(ji.aggregate, 0)
+              - COALESCE(parts.parts_cost, 0)
+              - COALESCE(charges.charges_cost, 0)                  AS profit
+        FROM job j
+        JOIN job_status js       ON js.id = j.job_status_id
+        JOIN technician t        ON t.id  = j.technician_id AND t.is_active = true
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN job_type jty            ON jty.id = j.job_type_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand b                 ON b.id   = pbm.brand_id
+        LEFT JOIN product p               ON p.id   = pbm.product_id
+        LEFT JOIN division d              ON d.id   = j.division_id
+        LEFT JOIN job_invoice ji          ON ji.job_id = j.id
+        LEFT JOIN parts                   ON parts.job_id   = j.id
+        LEFT JOIN charges                 ON charges.job_id = j.id
+        WHERE (
+                (
+                    (table "p_mode") = 'delivered'
+                AND js.code = 'DELIVERED_OK'
+                AND j.delivery_date BETWEEN (table "p_from") AND (table "p_to")
+            ) OR (
+                    (table "p_mode") = 'repaired'
+                AND j.is_final = true
+                AND js.code IN ('COMPLETED_OK', 'DELIVERED_OK')
+                AND j.updated_at::date BETWEEN (table "p_from") AND (table "p_to")
+            )
+          )
+          AND ((table "p_technician_id") IS NULL OR j.technician_id = (table "p_technician_id"))
+          AND ((table "p_product") IS NULL OR COALESCE(p.name, '—') = (table "p_product"))
+          AND (
+                (table "p_warranty") = 'all'
+             OR ((table "p_warranty") = 'warranty' AND COALESCE(jty.code = 'UNDER_WARRANTY', false))
+             OR ((table "p_warranty") = 'oow'      AND NOT COALESCE(jty.code = 'UNDER_WARRANTY', false))
+          )
+        ORDER BY event_date, j.job_no
+    """
+
+    # Technician Report 2: Report 1's technician × month grid, but counting EVERY job delivered OK —
+    # invoiced or not, the same rule as Technician Report 3 / Jobs Summary's Jobs Delivered (OK) — so
+    # profit and revenue are the merged values of warranty and out-of-warranty jobs (a free warranty
+    # repair adds its parts cost as a loss). warranty_count is the UNDER_WARRANTY subset of
+    # delivered_count. Drill-down: GET_TECHNICIAN_REPORTS_PRODUCT_JOBS (mode 'delivered', product NULL),
+    # which applies the same filter.
+    GET_TECHNICIAN_REPORTS_MONTHLY_FY_WARRANTY = """
+        with
+            "p_from" as (values(%(from)s::date))
+        SELECT
+            t.id                                                       AS technician_id,
+            t.name                                                     AS technician_name,
+            m.month_idx                                                AS month_idx,
+            COUNT(jc.job_id)                                           AS delivered_count,
+            COALESCE(SUM(jc.profit), 0)                                AS profit,
+            COALESCE(SUM(jc.total_charges), 0)                         AS total_charges,
+            COUNT(jc.job_id) FILTER (WHERE jc.is_warranty)             AS warranty_count
+        FROM technician t
+        CROSS JOIN (SELECT generate_series(0, 11) AS month_idx) m
+        LEFT JOIN (
+            SELECT
+                j.id                                                     AS job_id,
+                j.technician_id                                          AS technician_id,
+                (
+                  (EXTRACT(YEAR  FROM AGE(date_trunc('month', j.delivery_date), date_trunc('month', (table "p_from")))) * 12
+                 +  EXTRACT(MONTH FROM AGE(date_trunc('month', j.delivery_date), date_trunc('month', (table "p_from")))))
+                )::int                                                   AS month_idx,
+                COALESCE(jty.code = 'UNDER_WARRANTY', false)             AS is_warranty,
+                COALESCE(ji.aggregate, 0)
+                  - COALESCE(parts.parts_cost, 0)
+                  - COALESCE(charges.charges_cost, 0)                    AS profit,
+                COALESCE(ji.aggregate, 0)                                AS total_charges
+            FROM job j
+            JOIN job_status js ON js.id = j.job_status_id AND js.code = 'DELIVERED_OK'
+            LEFT JOIN job_type jty   ON jty.id = j.job_type_id
+            LEFT JOIN job_invoice ji ON ji.job_id = j.id
+            LEFT JOIN (
+                SELECT job_id, SUM(cost_price * qty) AS parts_cost FROM job_part_used GROUP BY job_id
+            ) parts ON parts.job_id = j.id
+            LEFT JOIN (
+                SELECT job_id, SUM(cost_price * qty) AS charges_cost FROM job_additional_charge GROUP BY job_id
+            ) charges ON charges.job_id = j.id
+            WHERE j.delivery_date >= (table "p_from")
+              AND j.delivery_date <  (table "p_from") + INTERVAL '12 months'
+        ) jc ON jc.technician_id = t.id AND jc.month_idx = m.month_idx
+        WHERE t.is_active = true
+        GROUP BY t.id, t.name, m.month_idx
+        ORDER BY t.name, m.month_idx
+    """
+
+    GET_TECHNICIAN_REPORTS_MONTH_JOBS = """
         with
             "p_technician_id" as (values(%(technician_id)s::bigint)),
             "p_from"          as (values(%(from)s::date)),
@@ -1218,6 +1407,7 @@ class ReportsAuditSql:
             cc.full_name                                           AS customer_name,
             b.name                                                 AS brand_name,
             pbm.model_name                                         AS model_name,
+            j.serial_no                                            AS serial_no,
             p.name                                                 AS product_name,
             COALESCE(parts.parts_cost, 0)                          AS parts_cost,
             COALESCE(charges.charges_cost, 0)                      AS charges_cost,

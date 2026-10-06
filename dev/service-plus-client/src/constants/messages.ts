@@ -614,6 +614,25 @@ export const MESSAGES = {
 	INFO_REPORTS_PDF_PREPARING: "Preparing PDF…",
 	SUCCESS_REPORTS_EXPORTED: "Report exported successfully.",
 
+	// Reports — Technician Report 3
+	INFO_TECH_REPORTS_JOBS_SELECT_HINT: "tick jobs to add them up; click a row to open it",
+	INFO_TECH_REPORT2_OOW_DRILL_HINT: "Out of warranty — view product-wise",
+	INFO_TECH_REPORT2_W_DRILL_HINT: "Warranty — view product-wise",
+	INFO_TECH_REPORT2_PRODUCT_DRILL: "Jobs delivered OK, product-wise. Click a product for its job details",
+	INFO_TECH_REPORT2_SUBTITLE:
+		"All delivered jobs, invoiced or not — out-of-warranty and warranty quantities, then profit and (revenue) of both. Click a quantity to drill down",
+	INFO_TECH_REPORT3_EMPTY_FILTERED: "No jobs match the selected technician and warranty filters in this period.",
+	INFO_TECH_REPORT3_EMPTY_DELIVERED: "No active technician delivered a job in this period.",
+	INFO_TECH_REPORT3_EMPTY_REPAIRED: "No active technician repaired a job in this period.",
+	INFO_TECH_REPORT3_LEGEND_FILTERED:
+		"Each cell: quantity, profit and revenue for the warranty type shown on the right.",
+	INFO_TECH_REPORT3_LEGEND:
+		"Each cell: out-of-warranty, warranty and total (Σ) lines — quantity, profit and revenue.",
+	INFO_TECH_REPORT3_SUBTITLE_DELIVERED:
+		"Jobs delivered OK by technician × product, by delivery date, split out of warranty / warranty, with profit and revenue. Every delivered job counts, invoiced or not.",
+	INFO_TECH_REPORT3_SUBTITLE_REPAIRED:
+		"Jobs repaired (Completed OK or Delivered OK) by technician × product, by date last updated, split out of warranty / warranty, with profit and revenue. Jobs not yet invoiced show zero revenue.",
+
 	// Reports — Dashboard
 	ERROR_DASHBOARD_KPIS_LOAD_FAILED: "Failed to load dashboard KPIs. Please try again.",
 	ERROR_DASHBOARD_CHART_LOAD_FAILED: "Failed to load dashboard chart data. Please try again.",

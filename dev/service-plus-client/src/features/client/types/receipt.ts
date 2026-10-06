@@ -44,6 +44,7 @@ export type JobReceiptListRowType = {
 	job_type_name: string;
 	job_type_code: string;
 	device_details: string | null;
+	serial_no: string | null;
 	batch_no: number | null;
 	division_id: number | null;
 	invoice_is_posted: boolean | null;

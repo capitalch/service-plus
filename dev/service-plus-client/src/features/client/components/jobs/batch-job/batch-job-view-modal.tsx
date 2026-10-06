@@ -7,6 +7,7 @@ import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { useAppSelector } from "@/store/hooks";
 import { selectAvailableDivisions } from "@/store/context-slice";
+import { DeviceCell } from "@/features/client/components/shared/device-cell";
 
 const thClass =
 	"sticky top-0 z-10 text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted) p-2.5 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
@@ -82,7 +83,7 @@ export const BatchJobViewModal = ({
 											<th className={thClass}>Job No</th>
 											<th className={thClass}>Customer</th>
 											<th className={thClass}>Mobile</th>
-											<th className={`${thClass} w-[10rem]`}>Device Details</th>
+											<th className={`${thClass} w-[10rem]`}>Device</th>
 											<th className={thClass}>Job Type</th>
 											<th className={thClass}>Status</th>
 											<th className={thClass}>Technician</th>
@@ -135,9 +136,16 @@ export const BatchJobViewModal = ({
 												</td>
 												<td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
 												<td className={`${tdClass} text-xs`}>
-													{[job.brand_name, job.product_name, job.model_name, job.serial_no]
-														.filter(Boolean)
-														.join(" — ") || "—"}
+													<DeviceCell
+														deviceDetails={[
+															job.brand_name,
+															job.product_name,
+															job.model_name,
+														]
+															.filter(Boolean)
+															.join(" — ")}
+														serialNo={job.serial_no}
+													/>
 												</td>
 												<td className={`${tdClass} text-xs`}>
 													<JobTypeBadge code={job.job_type_code} name={job.job_type_name} />

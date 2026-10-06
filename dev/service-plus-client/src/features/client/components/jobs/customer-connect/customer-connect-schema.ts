@@ -58,6 +58,7 @@ export type CustomerConnectJobRow = {
 	job_status_name: string;
 	job_status_code: string;
 	device_details: string | null;
+	serial_no: string | null;
 };
 
 // One row per receipt *send*, not per job (plans/plan.md, Step 5) —

@@ -4,6 +4,8 @@ type SectionHeadingPropsType = {
 	align?: "center" | "start";
 	className?: string;
 	eyebrow?: string;
+	/** Recolours the eyebrow. Passed a stage accent so each section wears its own hue. */
+	eyebrowClassName?: string;
 	intro?: string;
 	/** A page hero owns the h1; a section inside it owns the h2. */
 	level?: "h1" | "h2";
@@ -14,6 +16,7 @@ export const SectionHeading = ({
 	align = "center",
 	className,
 	eyebrow,
+	eyebrowClassName,
 	intro,
 	level = "h2",
 	title,
@@ -23,7 +26,11 @@ export const SectionHeading = ({
 
 	return (
 		<div className={cn(centered && "mx-auto max-w-2xl text-center", className)}>
-			{eyebrow && <p className="text-primary text-sm font-semibold tracking-wide uppercase">{eyebrow}</p>}
+			{eyebrow && (
+				<p className={cn("text-primary text-sm font-semibold tracking-wide uppercase", eyebrowClassName)}>
+					{eyebrow}
+				</p>
+			)}
 			<Heading
 				className={cn(
 					"font-bold tracking-tight",

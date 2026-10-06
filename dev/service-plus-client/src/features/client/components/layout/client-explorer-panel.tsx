@@ -16,6 +16,7 @@ import {
 	Hash,
 	History,
 	LayoutDashboard,
+	LayoutGrid,
 	Layers,
 	LineChart,
 	MapPin,
@@ -473,8 +474,10 @@ function ReportsExplorer() {
 					helpArticleId="job-reports"
 				/>
 			</div>
-			<CollapsibleGroup label="Profit Reports">
-				<TreeItem icon={DollarSign} iconColor="text-green-600" label="Technician Profit Report" />
+			<CollapsibleGroup label="Technician Reports">
+				<TreeItem icon={DollarSign} iconColor="text-green-600" label="Technician Report 1" />
+				<TreeItem icon={ShieldCheck} iconColor="text-green-600" label="Technician Report 2" />
+				<TreeItem icon={LayoutGrid} iconColor="text-green-600" label="Technician Report 3" />
 			</CollapsibleGroup>
 			<CollapsibleGroup label="Job Reports">
 				<TreeItem icon={History} iconColor="text-orange-600" label="Event Tracking" />

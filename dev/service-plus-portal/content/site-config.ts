@@ -45,6 +45,7 @@ export const siteConfig = {
 export const navItems: NavItemType[] = [
 	{ href: "/", label: "Home" },
 	{ href: "/features", label: "Features" },
+	{ href: "/workflow", label: "Workflow" },
 	{ href: "/pricing", label: "Pricing" },
 	{ href: "/contact", label: "Contact" },
 ];

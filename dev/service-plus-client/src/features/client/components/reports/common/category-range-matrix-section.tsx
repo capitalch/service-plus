@@ -145,13 +145,15 @@ export const CategoryRangeMatrixSection = ({
 	function handlePdfExport() {
 		try {
 			exportReportPdf({
+				// Sized to fit landscape A4 (273 mm between the 12 mm margins): 28 + 13 × 18.5 mm.
+				// Long cells such as "12 (W:3 OW:9)" wrap onto a second line rather than overflow.
 				columns: [
-					{ dataKey: "category", header: rowLabel, width: 32 },
+					{ dataKey: "category", header: rowLabel, width: 28 },
 					...CATEGORY_BUCKET_COLUMNS.map((b) => ({
 						align: "right" as const,
 						dataKey: b.field,
 						header: b.label,
-						width: 28,
+						width: 18.5,
 					})),
 				],
 				fileName: fileSlug,

@@ -26,6 +26,7 @@ import {
 	formatDateTime,
 } from "./ew-state-machine";
 import type { EwActionType } from "./ew-state-machine";
+import { SerialNoLine } from "@/features/client/components/shared/device-cell";
 
 type Props = {
 	ewLeadId: number;
@@ -146,9 +147,7 @@ export const EwLeadDetailDialog = ({ ewLeadId, onAction, onClose, refreshKey }: 
 						<div className="grid grid-cols-1 gap-3 rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-3 sm:grid-cols-2">
 							<Fact label="Device">
 								{[row.brand_name, row.product_label].filter(Boolean).join(" · ") || "—"}
-								{row.serial_no && (
-									<span className="block text-xs text-(--cl-text-muted)">SN {row.serial_no}</span>
-								)}
+								<SerialNoLine serialNo={row.serial_no} />
 							</Fact>
 							<Fact label="Warranty ends">
 								{formatDate(row.warranty_end_date)}

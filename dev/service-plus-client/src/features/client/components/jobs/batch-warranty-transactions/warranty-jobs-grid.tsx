@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { WarrantyBatchJobRow } from "@/features/client/types/job";
 import { StatusBadge } from "../job-badges";
+import { DeviceCell } from "@/features/client/components/shared/device-cell";
 
 const thClass =
 	"text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
@@ -152,16 +153,7 @@ export function WarrantyJobsGrid({ rows, loading, search, selectedIds, onSelecti
 									</td>
 									<td className={`${tdClass} whitespace-nowrap`}>{row.job_date}</td>
 									<td className={tdClass}>
-										<div className="flex flex-col gap-0.5">
-											{row.device_details && (
-												<span className="text-xs leading-snug">{row.device_details}</span>
-											)}
-											{row.serial_no && (
-												<span className="font-mono text-[10px] text-(--cl-text-muted)">
-													S/N: {row.serial_no}
-												</span>
-											)}
-										</div>
+										<DeviceCell deviceDetails={row.device_details} serialNo={row.serial_no} />
 									</td>
 									<td className={tdClass}>
 										<div className="flex flex-col gap-0.5">

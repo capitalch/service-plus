@@ -18,6 +18,7 @@ Enhancements
 				- Masters > Product & Parts: Brand: Add a brand
 				- Masters > Entities > Technician: Add technician
 				- In Single Job: Add a new model and select it
+								- Show workflow in portal
 - Subscription testing
 	- Enhancement / Alteration of portal
 	- Manually create a new user as manager and login as manager

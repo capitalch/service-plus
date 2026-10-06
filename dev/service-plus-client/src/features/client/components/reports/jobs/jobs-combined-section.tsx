@@ -183,14 +183,15 @@ export const JobsCombinedSection = () => {
 	function handlePdfExport() {
 		try {
 			exportReportPdf({
+				// Sized to fit landscape A4 (273 mm between the 12 mm margins): 2 × 22 + 13 × 17.5 mm.
 				columns: [
-					{ dataKey: "category", header: "Category", width: 26 },
-					{ dataKey: "stage", header: "Stage", width: 26 },
+					{ dataKey: "category", header: "Category", width: 22 },
+					{ dataKey: "stage", header: "Stage", width: 22 },
 					...CATEGORY_BUCKET_COLUMNS.map((b) => ({
 						align: "right" as const,
 						dataKey: b.field,
 						header: b.label,
-						width: 24,
+						width: 17.5,
 					})),
 				],
 				fileName: "jobs-combined-summary",

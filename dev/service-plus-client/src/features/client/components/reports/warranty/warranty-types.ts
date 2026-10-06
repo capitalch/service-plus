@@ -18,6 +18,7 @@ export type WarrantyJobRowType = {
 	job_date: string;
 	job_no: string;
 	model_name: string | null;
+	serial_no: string | null;
 	parts_qty: number;
 	parts_value: number;
 	product_name: string | null;

@@ -21,6 +21,7 @@ import { type DivisionContextType, isGstDivision } from "@/features/client/types
 import { PAGE_SIZE, thClass, tdClass, fmtCurrency } from "./deliver-job-helpers";
 import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
+import { DeviceCell } from "@/features/client/components/shared/device-cell";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -194,7 +195,7 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
 										"Job No",
 										"Customer",
 										"Mobile",
-										"Device Details",
+										"Device",
 										"Technician",
 										"Status",
 										"Amount",
@@ -244,7 +245,7 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
 									<th className={thClass}>Job No</th>
 									<th className={thClass}>Customer</th>
 									<th className={thClass}>Mobile</th>
-									<th className={`${thClass} w-40`}>Device Details</th>
+									<th className={`${thClass} w-40`}>Device</th>
 									<th className={thClass}>Technician</th>
 									<th className={thClass}>Status</th>
 									<th className={`${thClass} text-right`}>Amount</th>
@@ -373,18 +374,9 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
 										</td>
 										<td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 
-										{/* Device details */}
+										{/* Device */}
 										<td className={`${tdClass} max-w-40`}>
-											<div className="flex flex-col gap-0.5">
-												{row.device_details && (
-													<span className="text-xs leading-snug">{row.device_details}</span>
-												)}
-												{row.serial_no && (
-													<span className="font-mono text-[10px] text-(--cl-text-muted)">
-														S/N: {row.serial_no}
-													</span>
-												)}
-											</div>
+											<DeviceCell deviceDetails={row.device_details} serialNo={row.serial_no} />
 										</td>
 
 										<td className={tdClass}>{row.technician_name ?? "—"}</td>

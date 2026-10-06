@@ -27,6 +27,7 @@ export type JobControlRow = {
 	is_final: boolean;
 	invoice_is_posted: boolean | null;
 	device_details: string | null;
+	serial_no?: string | null;
 	batch_no?: number | null;
 	division_id?: number | null;
 };
@@ -171,6 +172,7 @@ export type OpenJobRow = {
 	technician_name: string | null;
 	technician_id: number | null;
 	device_details: string | null;
+	serial_no: string | null;
 	file_count: number;
 	transaction_count: number;
 	job_receive_manner_name: string | null;

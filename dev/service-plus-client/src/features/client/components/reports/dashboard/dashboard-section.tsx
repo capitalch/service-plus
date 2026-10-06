@@ -138,6 +138,7 @@ export const DashboardSection = () => {
 		job_no: string;
 		model_name: string | null;
 		product_name: string | null;
+		serial_no: string | null;
 		status_code: string;
 		status_name: string;
 		technician_name: string | null;

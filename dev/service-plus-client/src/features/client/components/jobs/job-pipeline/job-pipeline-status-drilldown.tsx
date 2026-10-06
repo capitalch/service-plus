@@ -76,6 +76,7 @@ import {
 	type ChargesViewPartLine,
 	type ChargesViewChargeLine,
 } from "../final-a-job/job-charges-readonly-modal";
+import { DeviceCell } from "@/features/client/components/shared/device-cell";
 
 type Props = {
 	status: JobBoardStatusCount;
@@ -598,7 +599,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 									<th className={thClass}>Job No</th>
 									<th className={thClass}>Customer</th>
 									<th className={thClass}>Mobile</th>
-									<th className={`${thClass} w-[10rem]`}>Device Details</th>
+									<th className={`${thClass} w-[10rem]`}>Device</th>
 									<th className={thClass}>Job Type</th>
 									<th className={thClass}>Status</th>
 									<th className={`${thClass} text-right`}>Amount</th>
@@ -724,7 +725,12 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 												</div>
 											</td>
 											<td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
-											<td className={`${tdClass} text-xs`}>{row.device_details ?? "—"}</td>
+											<td className={`${tdClass} text-xs`}>
+												<DeviceCell
+													deviceDetails={row.device_details}
+													serialNo={row.serial_no}
+												/>
+											</td>
 											<td className={tdClass}>
 												<JobTypeBadge code={row.job_type_code} name={row.job_type_name} />
 											</td>

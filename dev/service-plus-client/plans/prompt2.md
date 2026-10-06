@@ -1,7 +1,8 @@
-# Division issue to be fixed before continueing with plan.md
-- At present each branch can have multiple divisions. At least one division is mandatory for each branch.
-- When a new bu is created by admin, a default branch Head Office is auto created.
-- To do
-    - Whenever a new branch is created, a default division should be auto created and its name should be "Main". This division can not be deleted. Common fields from branch should be auto copied to division. The id of this division should be 1,hence it is default division.
-    - post_data_to_accounts app setting should be default false and when it is false, division trace+ configuration should not be visible. Division should be able to edit save without trace+ configuration.
-
+# New Tab in Reports > Technician reports
+- Rename existing Technician report as Technician Report 1 as first tab.
+- Create a new tab named as Technician Report 2
+    - At the top there are filter buttons for this month, -1 month, -2 month, -3 month, this qtr, -1 qtr, -2 qtr, this year, -1 year, -2 year, custom date range.
+    - Rows are technician names
+    - columns are product names
+    - Values in the cells are: oow quantity, oow profit, oow revenue, warranty quantity, warranty profit, warranty revenue, total quantity, total profit, total revenue. Do the placement nicely and not making clumsy.
+    

@@ -12,3 +12,11 @@ export const SPARE_CHARGE_PATTERN = /(spare|parts)/i;
 export function chargeNeedsCost(chargeName: string): boolean {
 	return SPARE_CHARGE_PATTERN.test(chargeName);
 }
+
+// The finalize-time variant: on a warranty job a spare/parts charge may be finalized at
+// ₹0 cost (the parts were supplied free under warranty). Used only by the Finalize form
+// and its save check — the missing_cost_lines badge and the Correct Costs modal still
+// apply chargeNeedsCost() unchanged.
+export function finalizeChargeNeedsCost(chargeName: string, isWarrantyJob: boolean): boolean {
+	return !isWarrantyJob && chargeNeedsCost(chargeName);
+}

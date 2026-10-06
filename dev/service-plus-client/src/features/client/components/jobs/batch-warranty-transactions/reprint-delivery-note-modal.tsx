@@ -28,6 +28,7 @@ import type { DivisionContextType } from "@/features/client/types/division";
 import { StatusBadge } from "../job-badges";
 import { buildDeliveryNotePdf } from "../deliver-job/deliver-job-pdf";
 import { fetchDeliveryNoteJobsByIds } from "../deliver-job/fetch-delivery-note-jobs";
+import { SerialNoLine } from "@/features/client/components/shared/device-cell";
 
 const PAGE_SIZE = 20;
 
@@ -527,11 +528,7 @@ export function ReprintDeliveryNoteModal({ branchId, branchName, availableDivisi
 																			{job.device_details}
 																		</span>
 																	)}
-																	{job.serial_no && (
-																		<span className="font-mono text-[10px] text-(--cl-text-muted)">
-																			S/N: {job.serial_no}
-																		</span>
-																	)}
+																	<SerialNoLine serialNo={job.serial_no} />
 																</div>
 															</td>
 															<td className="border-b border-(--cl-surface-3) p-2">

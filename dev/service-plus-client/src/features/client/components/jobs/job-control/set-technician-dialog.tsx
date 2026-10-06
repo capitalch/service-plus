@@ -39,6 +39,28 @@ export const SetTechnicianDialog = ({ job, onClose, onSuccess, technicians }: Se
 		if (!dbName || !schema || unchanged) return;
 		setSubmitting(true);
 		try {
+			// A finalised or delivered job only has its technician_id changed — no job_transaction.
+			// updateJob would log a new transaction carrying the job's current status, which on a
+			// delivered job reads as a second Deliver event (Event Tracking, transaction ledger) and
+			// becomes the transaction Undo Delivery would undo. updated_at is left alone too, so the
+			// job keeps its place in the Repaired reports.
+			if (job.is_closed || job.is_final) {
+				await apolloClient.mutate({
+					mutation: GRAPHQL_MAP.genericUpdate,
+					variables: {
+						db_name: dbName,
+						schema,
+						value: encodeObj({
+							tableName: "job",
+							xData: { id: job.id, technician_id: Number(technicianId) },
+						}),
+					},
+				});
+				toast.success(MESSAGES.SUCCESS_JOB_TECHNICIAN_SET);
+				onSuccess();
+				onClose();
+				return;
+			}
 			await apolloClient.mutate({
 				mutation: GRAPHQL_MAP.updateJob,
 				variables: {

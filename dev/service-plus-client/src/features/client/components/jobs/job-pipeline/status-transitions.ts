@@ -36,11 +36,13 @@ export function getTransitions(statusId: number, jobTypeCode: string): Transitio
 				return [
 					{ targetId: 2, targetCode: "ASSIGNED", targetName: "Assigned", fields: "RT" },
 					{ targetId: 3, targetCode: "ESTIMATED", targetName: "Estimated", fields: "RET" },
+					{ targetId: 8, targetCode: "ON_HOLD", targetName: "On Hold", fields: "R" },
 				];
 			return [
 				{ targetId: 2, targetCode: "ASSIGNED", targetName: "Assigned", fields: "RT" },
 				{ targetId: 3, targetCode: "ESTIMATED", targetName: "Estimated", fields: "RET" },
 				{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "RT" },
+				{ targetId: 8, targetCode: "ON_HOLD", targetName: "On Hold", fields: "R" },
 				{ targetId: 10, targetCode: "SENT_TO_COMPANY", targetName: "Sent to Company", fields: "Rt" },
 				{ targetId: 11, targetCode: "COMPLETED_OK", targetName: "Completed OK", fields: "RT" },
 				{ targetId: 12, targetCode: "RETURN", targetName: "Return", fields: "R" },
@@ -51,15 +53,20 @@ export function getTransitions(statusId: number, jobTypeCode: string): Transitio
 			return [
 				{ targetId: 2, targetCode: "ASSIGNED", targetName: "Re-Assign", fields: "RT" },
 				{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "RT" },
+				{ targetId: 8, targetCode: "ON_HOLD", targetName: "On Hold", fields: "R" },
 			];
 		case 3: // ESTIMATED
 			return [
 				{ targetId: 4, targetCode: "ESTIMATE_APPROVED", targetName: "Estimate Approved", fields: "R" },
 				{ targetId: 5, targetCode: "ESTIMATE_REJECTED", targetName: "Estimate Rejected", fields: "R" },
 				{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "RT" },
+				{ targetId: 8, targetCode: "ON_HOLD", targetName: "On Hold", fields: "R" },
 			];
 		case 4: // ESTIMATE_APPROVED
-			return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "RT" }];
+			return [
+				{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "RT" },
+				{ targetId: 8, targetCode: "ON_HOLD", targetName: "On Hold", fields: "R" },
+			];
 		case 5: // ESTIMATE_REJECTED
 			return [{ targetId: 12, targetCode: "RETURN", targetName: "Return", fields: "R" }];
 		case 6: // IN_PROGRESS
@@ -93,6 +100,7 @@ export function getTransitions(statusId: number, jobTypeCode: string): Transitio
 		case 17: // RECEIVED_BACK_FROM_COMPANY
 			return [
 				{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "RT" },
+				{ targetId: 8, targetCode: "ON_HOLD", targetName: "On Hold", fields: "R" },
 				{ targetId: 11, targetCode: "COMPLETED_OK", targetName: "Completed OK", fields: "RT" },
 			];
 		default:

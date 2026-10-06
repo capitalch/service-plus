@@ -20,6 +20,7 @@ import { ReportLoading } from "../common/report-loading";
 import { ReportTable } from "../common/report-table";
 import type { ReportColumnType } from "../common/report-table";
 import { formatDateShort, formatNumber, formatTimeShort } from "../common/formatters";
+import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
 
 // Cost/Sale/Profit only make sense once a job has been costed out — meaningful
 // for Finalize (COMPLETED_OK) and Deliver, not for Received/Status Change.
@@ -42,6 +43,7 @@ type CellJobType = {
 	customer_name: string | null;
 	brand_name: string | null;
 	model_name: string | null;
+	serial_no: string | null;
 	product_name: string | null;
 	is_warranty: boolean;
 	division_code: string | null;
@@ -114,11 +116,13 @@ export const EventTrackingCellDialog = ({ cell, onClose }: Props) => {
 					<span className="text-[10px] text-(--cl-text-muted)">
 						{[r.brand_name, r.model_name].filter(Boolean).join(" • ")}
 					</span>
+					<SerialNoLine serialNo={r.serial_no} />
 				</div>
 			),
 			header: "Device",
 			id: "device",
-			value: (r) => `${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""}`,
+			value: (r) =>
+				`${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""} ${serialNoText(r.serial_no)}`.trim(),
 		},
 		{
 			cell: (r) =>

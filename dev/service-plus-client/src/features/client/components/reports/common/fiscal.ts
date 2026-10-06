@@ -4,6 +4,7 @@ export type RangeKeyType =
 	| "lastMonth"
 	| "lastQuarter"
 	| "lastYear"
+	| "monthBeforeLast"
 	| "prevWeek"
 	| "q1"
 	| "q2"
@@ -33,6 +34,7 @@ const RANGE_LABELS: Record<RangeKeyType, string> = {
 	lastMonth: "Last Month",
 	lastQuarter: "Last Quarter",
 	lastYear: "Last Year",
+	monthBeforeLast: "2 Months Ago",
 	prevWeek: "Previous Week",
 	q1: "Q1",
 	q2: "Q2",
@@ -233,6 +235,12 @@ export function getRange(
 			const from = startOfDay(d);
 			const to = endOfMonth(d.getFullYear(), d.getMonth());
 			return { from, key, label: RANGE_LABELS.lastMonth, to };
+		}
+		case "monthBeforeLast": {
+			const d = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+			const from = startOfDay(d);
+			const to = endOfMonth(d.getFullYear(), d.getMonth());
+			return { from, key, label: RANGE_LABELS.monthBeforeLast, to };
 		}
 		case "q1":
 			return getFiscalQuarterBounds(1, today, fyStart);

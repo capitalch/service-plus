@@ -50,6 +50,7 @@ import { JobFinalInfoModal } from "../final-a-job/job-final-info-modal";
 import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { STATUS_COLORS } from "./status-transitions";
 import { UndoTransactionDialog } from "./undo-transaction-dialog";
+import { SerialNoLine } from "@/features/client/components/shared/device-cell";
 
 type Props = {
 	jobId: number;
@@ -657,11 +658,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
 												</p>
 											)}
 											<div className="flex flex-wrap gap-2">
-												{job.serial_no && (
-													<span className="inline-flex items-center rounded-md bg-violet-50 px-2.5 py-1 text-[11px] font-mono font-semibold text-violet-700 border border-violet-200">
-														S/N: {job.serial_no}
-													</span>
-												)}
+												<SerialNoLine className="mt-0 self-center" serialNo={job.serial_no} />
 												{job.warranty_card_no && (
 													<span className="inline-flex items-center rounded-md bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700 border border-violet-200">
 														Warranty: {job.warranty_card_no}

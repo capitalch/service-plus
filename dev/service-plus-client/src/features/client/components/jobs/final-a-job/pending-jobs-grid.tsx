@@ -21,6 +21,7 @@ import { PAGE_SIZE, thClass, tdClass } from "./final-a-job-helpers";
 import { JobTypeBadge } from "../job-badges";
 import type { FinalJobRow } from "./final-a-job-schema";
 import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
+import { DeviceCell } from "@/features/client/components/shared/device-cell";
 
 type Props = {
 	rows: FinalJobRow[];
@@ -122,7 +123,7 @@ export const PendingJobsGrid = forwardRef<GridRetentionHandle, Props>(function P
 										"Job No",
 										"Customer",
 										"Mobile",
-										"Device Details",
+										"Device",
 										"Job Type",
 										"Amount",
 										"Actions",
@@ -158,7 +159,7 @@ export const PendingJobsGrid = forwardRef<GridRetentionHandle, Props>(function P
 									<th className={thClass}>Job No</th>
 									<th className={thClass}>Customer</th>
 									<th className={thClass}>Mobile</th>
-									<th className={`${thClass} w-40`}>Device Details</th>
+									<th className={`${thClass} w-40`}>Device</th>
 									<th className={thClass}>Job Type</th>
 									<th className={`${thClass} text-right`}>Amount</th>
 									<th className={`${thClass} sticky right-0 z-20 bg-(--cl-surface-2)!`}>Actions</th>
@@ -271,18 +272,9 @@ export const PendingJobsGrid = forwardRef<GridRetentionHandle, Props>(function P
 										</td>
 										<td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 
-										{/* Device details */}
+										{/* Device */}
 										<td className={`${tdClass} max-w-40`}>
-											<div className="flex flex-col gap-0.5">
-												{row.device_details && (
-													<span className="text-xs leading-snug">{row.device_details}</span>
-												)}
-												{row.serial_no && (
-													<span className="font-mono text-[10px] text-(--cl-text-muted)">
-														S/N: {row.serial_no}
-													</span>
-												)}
-											</div>
+											<DeviceCell deviceDetails={row.device_details} serialNo={row.serial_no} />
 										</td>
 
 										<td className={tdClass}>

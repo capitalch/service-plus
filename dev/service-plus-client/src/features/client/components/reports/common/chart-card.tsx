@@ -4,13 +4,15 @@ import { cn } from "@/lib/utils";
 
 type Props = {
 	actions?: ReactNode;
+	/** Extra classes for the body, e.g. "flex min-h-0 flex-col" to let a scroll box fill the card. */
+	bodyClassName?: string;
 	children: ReactNode;
 	className?: string;
 	description?: string;
 	title?: string;
 };
 
-export const ChartCard = ({ actions, children, className, description, title }: Props) => {
+export const ChartCard = ({ actions, bodyClassName, children, className, description, title }: Props) => {
 	const hasHeader = Boolean(title || description || actions);
 	return (
 		<section
@@ -30,7 +32,7 @@ export const ChartCard = ({ actions, children, className, description, title }: 
 					{actions && <div className="flex items-center gap-1">{actions}</div>}
 				</header>
 			)}
-			<div className="flex-1 p-3">{children}</div>
+			<div className={cn("flex-1 p-3", bodyClassName)}>{children}</div>
 		</section>
 	);
 };

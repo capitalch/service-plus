@@ -19,8 +19,9 @@ import { ReportLoading } from "../common/report-loading";
 import { ReportTable } from "../common/report-table";
 import type { ReportColumnType } from "../common/report-table";
 import { formatNumber } from "../common/formatters";
+import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
 
-export type ProfitCellType = {
+export type TechnicianCellType = {
 	technicianId: number;
 	technicianName: string;
 	monthLabel: string;
@@ -36,6 +37,7 @@ type CellJobType = {
 	customer_name: string;
 	brand_name: string | null;
 	model_name: string | null;
+	serial_no: string | null;
 	product_name: string | null;
 	parts_cost: number;
 	charges_cost: number;
@@ -45,11 +47,11 @@ type CellJobType = {
 };
 
 type Props = {
-	cell: ProfitCellType | null;
+	cell: TechnicianCellType | null;
 	onClose: () => void;
 };
 
-export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
+export const TechnicianCellDialog = ({ cell, onClose }: Props) => {
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 
@@ -86,11 +88,13 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
 					<span className="text-[10px] text-(--cl-text-muted)">
 						{[r.brand_name, r.model_name].filter(Boolean).join(" • ")}
 					</span>
+					<SerialNoLine serialNo={r.serial_no} />
 				</div>
 			),
 			header: "Device",
 			id: "device",
-			value: (r) => `${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""}`,
+			value: (r) =>
+				`${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""} ${serialNoText(r.serial_no)}`.trim(),
 		},
 		{
 			align: "right",
@@ -145,7 +149,7 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
 					schema,
 					value: graphQlUtils.buildGenericQueryValue({
 						sqlArgs: { technician_id: cell.technicianId, from: cell.from, to: cell.to },
-						sqlId: SQL_MAP.GET_TECHNICIAN_PROFIT_MONTH_JOBS,
+						sqlId: SQL_MAP.GET_TECHNICIAN_REPORTS_MONTH_JOBS,
 					}),
 				},
 			})

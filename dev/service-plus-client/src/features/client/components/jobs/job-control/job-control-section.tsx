@@ -89,6 +89,7 @@ import {
 	type ChargesViewPartLine,
 	type ChargesViewChargeLine,
 } from "../final-a-job/job-charges-readonly-modal";
+import { DeviceCell } from "@/features/client/components/shared/device-cell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -812,7 +813,7 @@ export const JobControlSection = () => {
 										"Job No",
 										"Customer",
 										"Mobile",
-										"Device Details",
+										"Device",
 										"Job Type",
 										"Status",
 										"Amount",
@@ -852,7 +853,7 @@ export const JobControlSection = () => {
 									<th className={thClass}>Job No</th>
 									<th className={thClass}>Customer</th>
 									<th className={thClass}>Mobile</th>
-									<th className={`${thClass} w-[10rem]`}>Device Details</th>
+									<th className={`${thClass} w-[10rem]`}>Device</th>
 									<th className={thClass}>Job Type</th>
 									<th className={thClass}>Status</th>
 									<th className={`${thClass} text-right`}>Amount</th>
@@ -974,7 +975,12 @@ export const JobControlSection = () => {
 												</div>
 											</td>
 											<td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
-											<td className={`${tdClass} text-xs`}>{job.device_details || "—"}</td>
+											<td className={`${tdClass} text-xs`}>
+												<DeviceCell
+													deviceDetails={job.device_details}
+													serialNo={job.serial_no}
+												/>
+											</td>
 											<td className={tdClass}>
 												<JobTypeBadge code={job.job_type_code} name={job.job_type_name} />
 											</td>
@@ -1103,6 +1109,13 @@ export const JobControlSection = () => {
 																			</DropdownMenuItem>
 																		)}
 																		<DropdownMenuItem
+																			className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer"
+																			onClick={() => setSetTechnicianJob(job)}
+																		>
+																			<UserCog className="h-3.5 w-3.5 shrink-0 text-blue-600" />{" "}
+																			Set Technician
+																		</DropdownMenuItem>
+																		<DropdownMenuItem
 																			className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
 																			onClick={() => setPdfJobId(job.id)}
 																		>
@@ -1172,8 +1185,10 @@ export const JobControlSection = () => {
 																	job.job_status_code === "COMPLETED_OK" &&
 																	job.is_final;
 																const showDeliverJob = job.is_final && !job.is_closed;
-																const showSetTechnician =
-																	!job.is_closed && !job.is_final;
+																// Every job can have its technician changed; finalised
+																// and closed jobs are saved without a transaction (see
+																// SetTechnicianDialog).
+																const showSetTechnician = true;
 																const hasAnyAction =
 																	!isNoAction ||
 																	showSetTechnician ||

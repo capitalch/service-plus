@@ -19,6 +19,7 @@ import { ReportLoading } from "./report-loading";
 import { ReportTable } from "./report-table";
 import type { ReportColumnType } from "./report-table";
 import { formatDateShort, formatNumber, formatTimeShort } from "./formatters";
+import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
 
 export type CategoryRangeCellType = {
 	reportTitle: string;
@@ -40,6 +41,7 @@ type CellJobType = {
 	customer_name: string | null;
 	brand_name: string | null;
 	model_name: string | null;
+	serial_no: string | null;
 	product_name: string | null;
 	is_warranty: boolean;
 	total_cost?: number;
@@ -95,11 +97,13 @@ export const CategoryRangeCellDialog = ({ cell, onClose }: Props) => {
 					<span className="text-[10px] text-(--cl-text-muted)">
 						{[r.brand_name, r.model_name].filter(Boolean).join(" • ")}
 					</span>
+					<SerialNoLine serialNo={r.serial_no} />
 				</div>
 			),
 			header: "Device",
 			id: "device",
-			value: (r) => `${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""}`,
+			value: (r) =>
+				`${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""} ${serialNoText(r.serial_no)}`.trim(),
 		},
 		{
 			cell: (r) =>

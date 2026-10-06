@@ -3,6 +3,7 @@ import { ShieldCheck } from "lucide-react";
 import { ReportTable } from "../common/report-table";
 import type { ReportColumnType } from "../common/report-table";
 import { formatDateShort } from "../common/formatters";
+import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
 
 export type JobRowType = {
 	brand_name: string | null;
@@ -12,6 +13,7 @@ export type JobRowType = {
 	job_date: string;
 	job_no: string;
 	model_name: string | null;
+	serial_no: string | null;
 	product_name: string | null;
 	status_code: string;
 	status_name: string;
@@ -51,11 +53,13 @@ const COLUMNS: ReportColumnType<JobRowType>[] = [
 				<span className="text-[10px] text-(--cl-text-muted)">
 					{[r.brand_name, r.model_name].filter(Boolean).join(" • ")}
 				</span>
+				<SerialNoLine serialNo={r.serial_no} />
 			</div>
 		),
 		header: "Device",
 		id: "device",
-		value: (r) => `${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""}`,
+		value: (r) =>
+			`${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""} ${serialNoText(r.serial_no)}`.trim(),
 	},
 	{
 		cell: (r) => (

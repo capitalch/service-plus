@@ -51,6 +51,7 @@ import {
 	sendBlockReason,
 } from "./ew-state-machine";
 import type { EwLeadActionsType } from "./use-ew-lead-actions";
+import { SerialNoLine } from "@/features/client/components/shared/device-cell";
 
 // Selecting leads to send is this grid's main action, so its boxes are bigger and carry the
 // teal accent rather than the default hairline square. [&_svg] beats the tick's own colour.
@@ -327,9 +328,7 @@ export const EwLeadGrid = ({ actions, filter, refreshKey, showStateFilter = fals
 											<div className="truncate">
 												{[row.brand_name, row.product_label].filter(Boolean).join(" · ")}
 											</div>
-											{row.serial_no && (
-												<div className="text-(--cl-text-muted)">SN {row.serial_no}</div>
-											)}
+											<SerialNoLine serialNo={row.serial_no} />
 										</td>
 										<td className={cn(TD, "whitespace-nowrap")}>
 											<div>{formatDate(row.purchase_date)}</div>

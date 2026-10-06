@@ -309,6 +309,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					"ASSIGNED, ESTIMATED, ESTIMATE_APPROVED, ESTIMATE_REJECTED → pre-repair estimate steps, if used",
 					"IN_PROGRESS → technician is actively working on the device",
 					"PARTS_PENDING, ON_HOLD, OUTSOURCED, SENT_TO_COMPANY → work paused or handed off, for various reasons",
+					"On Hold can be set from Received, Assigned, Estimated, Estimate Approved, In Progress and Received Back (from company). A job on hold comes off hold only by moving it to In Progress.",
 					"COMPLETED_OK → work done, device is repaired and working",
 					"RETURN → work done, but device could not be fixed (this is the terminal 'not fixed' status)",
 					"DELIVERED_OK → device returned to customer (was working)",
@@ -330,6 +331,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "para",
 				text: "A job must have is_final = true and not be closed yet — its status is not otherwise restricted, so any finalized, non-closed job (including RETURN) appears in the Deliver Job screen.",
+			},
+			{ type: "heading", text: "The Device column in job lists" },
+			{
+				type: "para",
+				text: "Every job list and report that shows the device uses the same column, headed Device. It shows the product, brand and model, and when the job has a serial number, a line 'SN: <serial number>' underneath. A job saved without a serial number has no SN line. The SN line is dark teal, bold and letter-spaced, and always stays on one line, so the serial number is easy to read off the screen when matching a device in hand. The Job Details window and the Extended Warranty lead details show it the same way. This is the same on Job Control, Single Job, Opening Jobs, Batch Job, Receipts, Job Pipeline, Final a Job, Deliver Job, Batch Warranty, Customer Connect, the WhatsApp Log, the Extended Warranty lead list and the job lists inside Reports. The Warranty Jobs and Delivered Jobs (Detailed) exports carry the serial number too — as 'SN: …' in the PDF's Device text and as a Serial No column in Excel.",
 			},
 		],
 		faqs: [
@@ -419,8 +425,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"Set Technician",
-						"Job is not yet final or closed",
-						"Assigns or changes the technician without changing the job's status. Pick the technician and confirm",
+						"Any job — Open, Delivered and All views (on delivered jobs it is in the ⋮ menu)",
+						"Assigns or changes the technician without changing the job's status. Pick the technician and confirm. On a finalised or delivered job the change is saved without a new transaction, so it does not show in the job's history and Undo cannot reverse it — use Set Technician again to change it back",
 					],
 					[
 						"Undo Last Transaction",
@@ -695,6 +701,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "note",
 				text: "Requires the Opening Jobs access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown.",
 			},
+			{
+				type: "para",
+				text: "The Opening Jobs list (grid view) shows date, job no, customer, mobile, Device, job type, status, technician and amount. Under each job no is its alternate job no (the teal 'Alt: …' tag) and, when entered, the purchase date ('PUR: …'). Device shows the product, brand and model with the serial number as 'SN: …' underneath, the same as on Single Job.",
+			},
 			{ type: "heading", text: "Editing an Opening Job" },
 			{
 				type: "para",
@@ -885,6 +895,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				text: "Every part or charge row you've filled in must have Qty greater than 0, and Cost Price and Selling Price cannot be negative. 'Save & Mark Final' is blocked with a toast — 'Qty must be greater than 0 and Cost/Sale prices cannot be negative. Please fix the highlighted rows before finalizing.' — until every such row passes.",
 			},
 			{
+				type: "para",
+				text: "Cost must also be greater than 0 on every part row and on every additional charge whose name contains 'spare' or 'parts' (for example 'Spare Parts'). Those Cost cells turn red until filled. Labour, service and visit charges can stay at 0. Exception: on a warranty job, a spare/parts additional charge may be finalized with a cost of 0 — its Cost cell is not flagged. Part rows still need a cost on every job.",
+			},
+			{
 				type: "warning",
 				text: "Once you click 'Save & Mark Final', the job is locked. No further edits are possible without using the Undo function in the Finalized Jobs tab.",
 			},
@@ -976,7 +990,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			"selling price",
 			"profit",
 			"GST",
-			"technician profit report",
+			"technician reports",
 		],
 		content: [
 			{
@@ -988,7 +1002,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "bullets",
 				items: [
 					"Job View / Job Details → click the 'Job Final Info' pill in the action row.",
-					"Technician Profit Report → drill into a technician/month cell → click any row in the job list.",
+					"Technician Reports → drill into a technician/month cell → click any row in the job list.",
 				],
 			},
 			{
@@ -1031,7 +1045,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Where else can I open this besides Job View?",
-				a: "From the Technician Profit Report: drill into any technician/month cell, then click a job row in the list to see that job's full parts/charges breakdown.",
+				a: "From Technician Reports: drill into any technician/month cell, then click a job row in the list to see that job's full parts/charges breakdown.",
 			},
 		],
 	},
@@ -1073,7 +1087,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Spotting jobs that need it" },
 			{
 				type: "para",
-				text: "The Delivered Jobs and Finalized Jobs grids show an amber '<n> missing cost' badge beside the job number when that job has lines with no cost recorded (Job Control does not show the badge — the action is there, the flag is not). A part line always needs a cost; a charge line only counts when it is really a spare/parts charge — labour, diagnostic and similar charges legitimately have none, and are never flagged.",
+				text: "The Delivered Jobs and Finalized Jobs grids show an amber '<n> missing cost' badge beside the job number when that job has lines with no cost recorded (Job Control does not show the badge — the action is there, the flag is not). A part line always needs a cost; a charge line only counts when it is really a spare/parts charge — labour, diagnostic and similar charges legitimately have none, and are never flagged. A warranty job finalized with a ₹0 spare/parts charge (which Finalize allows) still shows that charge in the badge count; fix it here if you know the cost, or leave it.",
 			},
 			{ type: "heading", text: "Making the correction" },
 			{
@@ -1601,7 +1615,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 						'The finalized job, its alt job no if any, and its original intake date ("Job …") underneath',
 					],
 					["Customer / Mobile", "Who the message goes to"],
-					["Device Details / Job Type / Status", "Same job info shown elsewhere in Jobs"],
+					[
+						"Device / Job Type / Status",
+						"Same job info shown elsewhere in Jobs — the device with its SN: serial number line",
+					],
 					[
 						"Amount",
 						"This job's final amount — summed per customer in the message preview when a customer has more than one selected job",
@@ -3279,7 +3296,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"Jobs Summary",
-						"Six tabs — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Combined, Combined Chart, Job Transactions — each one row per product category (Job Transactions: one row per job status, in workflow order) and one column per fixed period (Today/This Week/.../YTD); each cell shows the total with an orange Warranty / emerald Out-of-Warranty split below it, plus a Total row summing each period across categories",
+						"Six tabs — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Combined, Combined Chart, Job Transactions — each one row per product category (Job Transactions: one row per job status, in workflow order) and one column per fixed period (Today, Yesterday, This Week, Previous Week, This Month, Last Month, 2 Months Ago, Q1–Q4, Year-to-Date, Last Year); each cell shows the total with an orange Warranty / emerald Out-of-Warranty split below it, plus a Total row summing each period across categories",
 						"Monitor inflow, repair output, delivery volume, and status-change activity",
 					],
 					[
@@ -3442,7 +3459,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
-		id: "technician-reports",
+		id: "technician-performance-reports",
 		category: "Reports",
 		title: "Technician Performance Reports",
 		summary: "Scorecard, productivity, and revenue attribution per technician.",
@@ -3472,14 +3489,13 @@ export const HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
-		id: "technician-profit-report",
+		id: "technician-reports",
 		category: "Reports",
-		title: "Technician Profit Report",
+		title: "Technician Reports",
 		summary:
-			"Technician × month matrix of jobs delivered OK, profit, and sale, for a selectable fiscal year — with per-job drill-down.",
+			"Three reports under the Technician Reports menu group: Technician Report 1 — technician × month matrix of jobs delivered OK, profit, and sale for a fiscal year, with per-job drill-down; Technician Report 3 — technician × product matrix for a chosen period, split out of warranty / warranty; Technician Report 2 — Report 1 with the warranty job count added to each cell.",
 		tags: [
-			"profit reports",
-			"technician profit report",
+			"technician reports",
 			"profit",
 			"sale",
 			"fiscal year",
@@ -3487,11 +3503,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			"delivered OK",
 			"drill down",
 			"GST",
+			"technician report 1",
+			"technician report 3",
+			"product wise",
+			"warranty",
+			"out of warranty",
+			"OOW",
 		],
 		content: [
 			{
 				type: "para",
-				text: "Reports → Profit Reports → Technician Profit Report. Rows are technicians; columns are the 12 months of a fiscal year (April → March), picked from the Fiscal Year selector in the toolbar.",
+				text: "Reports → Technician Reports. The group has three menu items: Technician Report 1 (by month), Technician Report 3 (by product) and Technician Report 2 (by month, with warranty jobs).",
+			},
+			{ type: "heading", text: "Technician Report 1 — by Month" },
+			{
+				type: "para",
+				text: "Rows are technicians; columns are the 12 months of a fiscal year (April → March), picked from the Fiscal Year selector in the toolbar.",
 			},
 			{ type: "heading", text: "Reading a Cell" },
 			{
@@ -3519,6 +3546,48 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					"Click any row in that list to open Job Final Info for the full parts/charges/cost/sale breakdown of that job.",
 				],
 			},
+			{ type: "heading", text: "Technician Report 2 — by Month, with Warranty Jobs" },
+			{
+				type: "para",
+				text: "The same grid as Report 1 — technicians × the 12 months of the fiscal year chosen in the toolbar, with row, column and grand totals — with one addition: each cell's top line gives two separate quantities, out-of-warranty jobs in blue and warranty jobs in orange — the key beside the Fiscal Year picker names the two colours. Below come profit (green) and revenue in brackets (amber), as in Report 1.",
+			},
+			{
+				type: "note",
+				text: "Unlike Report 1, Report 2 counts every job delivered OK, invoiced or not — the same rule as Technician Report 3. The blue and orange quantities add up to the cell's delivered jobs, and profit and revenue are the merged totals of warranty and out-of-warranty jobs, so a free warranty repair adds its parts cost as a loss. Drill-down is on the two quantities: click the blue (out of warranty) or orange (warranty) number — in a month cell, a technician's Total, a month's Total or the grand total — to see that side product-wise (quantity, profit and revenue per product). Click a product there to see its job details. The figures at each step add up to the number you clicked.",
+			},
+			{ type: "heading", text: "Technician Report 3 — by Product" },
+			{
+				type: "para",
+				text: "Rows are technicians; columns are products. The top row holds the Jobs switch and the period (with its exact dates on the right); the second row holds the Warranty and Technician filters, with the summary on the right. Jobs switch: Repaired (jobs finished Completed OK or Delivered OK, dated by when they were last updated — the same as Jobs Summary → Jobs Repaired (OK)) or Delivered (jobs Delivered OK, dated by delivery date — the default, same as Jobs Summary → Jobs Delivered (OK)). Narrow it further if needed: Warranty — All (default; OOW, W and Σ lines), W (warranty jobs only) or OOW (out-of-warranty jobs only), each cell then showing just that one line, without the W / OOW tag — a W or OOW pill in the grid's header says which side you are looking at; and Technician — All technicians (default) or one technician from the list (the technicians with jobs in the chosen period; if the one you picked has none in a new period, it goes back to All). Products and technicians with nothing left after filtering drop out of the grid. Then pick the period with the button groups — Month (This, -1, -2, -3), Quarter (This, -1, -2, -3), Year (This, -1, -2, -3) — or turn on the switch beside the Custom label at the right of that row and type any dates into its date range. Quarters and years are fiscal. Each button shows the period it means underneath (e.g. Sep '26, Jul–Sep, FY 26-27); the Custom date range at the right of the row always shows the exact dates (day / month / year). With its switch off, it just shows the chosen period's dates. Switch it on to edit them — type the digits or use the calendar button — and, after a brief pause, the report reloads for the new range; the period buttons deselect. Switching it off, or clicking a period button, goes back to that period. A From date after the To date shows an error and is not applied. A one-line summary to the right of the date range gives the period's total jobs (Jobs Repaired or Jobs Delivered, following the switch), revenue and profit, each with its OOW / W split in brackets.",
+			},
+			{
+				type: "table",
+				headers: ["Line in a cell", "Meaning"],
+				rows: [
+					[
+						"OOW (grey)",
+						"Out-of-warranty jobs the technician repaired or delivered (per the Jobs switch) for that product in the period",
+					],
+					["W (orange)", "Warranty jobs (job type Under Warranty) repaired or delivered"],
+					["Σ (Total)", "OOW and W added together"],
+				],
+			},
+			{
+				type: "para",
+				text: "Each line reads Qty · Profit (green) · Revenue (amber), under the Qty / Profit / Revenue captions in every column header. Lines are tagged OOW (grey), W (orange) and Σ (the total, below a thin rule). Revenue is the pre-tax invoice amount; Profit is revenue minus parts cost minus charges cost. A line with no jobs shows a dash. Column headers and technician names show their job count. The Total column (right) adds a technician's products; the Total row (bottom) adds all technicians for a product; the bottom-right cell is the grand total. The technician column, the header, the Total column and the Total row stay in place while you scroll a wide or long grid. When the grid is wider than the screen, a horizontal scrollbar appears just above it as well as at its bottom, so you can scroll sideways from either end; Shift + mouse wheel also scrolls sideways.",
+			},
+			{
+				type: "para",
+				text: "Click any cell with jobs to see the jobs behind it — a technician × product cell, a technician's Total (all their products), a product's Total (all technicians) or the grand total. The list follows the Jobs switch, the Warranty and Technician filters and the period, so its count, revenue and profit match the cell you clicked. It shows date, job no, customer, device (with its serial number, SN:), a W / OOW Type for every job, cost, revenue and profit — plus Technician when the jobs span technicians. Technician Report 2's product-wise drill-down opens the same job list. Tick the checkbox at the start of any rows to select several jobs: the bar above the list then shows how many are selected with their cost, revenue and profit added up, and Select all / Clear. Clicking elsewhere on a row still opens that job's Job Final Info. Click a job in the list to open Job Final Info.",
+			},
+			{
+				type: "para",
+				text: "Export → PDF or Excel saves the report for the chosen Jobs switch, Warranty and Technician filters, and period; with Warranty on W or OOW only that side's quantity, profit and revenue columns are exported. Both list one row per technician and product, with OOW, W and Total quantity, profit and revenue, an 'All products' subtotal after each technician, and a grand total at the end. The Excel file has a second sheet with totals per product. Export appears once the grid has data.",
+			},
+			{
+				type: "note",
+				text: "Unlike Report 1, Report 3 counts every job, invoiced or not. A free warranty repair — or, under Repaired, a job finished but not yet invoiced — therefore shows with revenue 0 and its parts cost as a negative profit. Only active technicians are listed, so the grand total can be lower than the matching Jobs Summary tab when jobs belong to an inactive technician or have no technician.",
+			},
 		],
 		faqs: [
 			{
@@ -3527,11 +3596,15 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Can I view a previous fiscal year?",
-				a: "Yes — use the Fiscal Year selector in the top toolbar; it lists the current FY and several prior years.",
+				a: "In Technician Report 1, use the Fiscal Year selector in the top toolbar; it lists the current FY and several prior years. In Technician Report 3, use the Year buttons (-1 to -3), or edit the dates in the date range for any range.",
 			},
 			{
 				q: "Why does a job I know was delivered not appear?",
-				a: "Either its invoice amount is ₹0 (excluded by design), or its delivery date falls outside the selected fiscal year.",
+				a: "In Report 1, either its invoice amount is ₹0 (excluded by design), or its delivery date falls outside the selected fiscal year. In Report 3 every delivered OK job counts, so check the selected period and that the job's technician is active.",
+			},
+			{
+				q: "Why do Report 1 and Report 3 show different job counts for the same month?",
+				a: "Report 1 counts only invoiced jobs; Report 3 also counts jobs with no invoice, such as free warranty repairs.",
 			},
 		],
 	},

@@ -88,10 +88,13 @@ export const ReportToolbar = ({
 				</div>
 			</div>
 
-			<div className="flex flex-wrap items-end gap-3">
-				{!hideRange && range && onSetRange && <RangePicker onChange={onSetRange} range={range} />}
-				{children}
-			</div>
+			{/* Rendered only when it has content — an empty row would still add the header's gap. */}
+			{((!hideRange && range && onSetRange) || children) && (
+				<div className="flex flex-wrap items-end gap-3">
+					{!hideRange && range && onSetRange && <RangePicker onChange={onSetRange} range={range} />}
+					{children}
+				</div>
+			)}
 		</header>
 	);
 };

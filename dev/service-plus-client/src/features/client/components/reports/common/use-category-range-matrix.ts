@@ -18,6 +18,7 @@ export type CategoryBucketFieldType =
 	| "prevWeek"
 	| "thisMonth"
 	| "lastMonth"
+	| "monthBeforeLast"
 	| "q1"
 	| "q2"
 	| "q3"
@@ -47,6 +48,7 @@ const BUCKETS: { key: RangeKeyType; label: string }[] = [
 	{ key: "prevWeek", label: "Previous Week" },
 	{ key: "thisMonth", label: "This Month" },
 	{ key: "lastMonth", label: "Last Month" },
+	{ key: "monthBeforeLast", label: "2 Months Ago" },
 	{ key: "q1", label: "Q1" },
 	{ key: "q2", label: "Q2" },
 	{ key: "q3", label: "Q3" },
@@ -67,7 +69,7 @@ export function useCategoryRangeMatrix(sqlId: string, fyStartMonth: number, enab
 	);
 
 	// React hooks can't be called in a loop — same constraint use-event-tracking-matrix.ts
-	// works around, 12 buckets here to match the original row set of this report.
+	// works around: one query per bucket, 13 of them, in BUCKETS order.
 	const q0 = useGenericQuery<CategoryCountRowType>({
 		enabled,
 		sqlArgs: { from: formatIsoDate(ranges[0].range.from), to: formatIsoDate(ranges[0].range.to) },
@@ -129,10 +131,16 @@ export function useCategoryRangeMatrix(sqlId: string, fyStartMonth: number, enab
 		sqlId,
 	});
 
-	const queries = [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11];
+	const q12 = useGenericQuery<CategoryCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[12].range.from), to: formatIsoDate(ranges[12].range.to) },
+		sqlId,
+	});
+
+	const queries = [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12];
 
 	// Row axis is dynamic (product categories are tenant-managed, not a fixed enum) —
-	// derived from the union of category names seen across all 12 bucket results. Sorted
+	// derived from the union of category names seen across all 13 bucket results. Sorted
 	// alphabetically by default, or per `rowOrder` when the caller has a fixed, meaningfully
 	// ordered enum instead (e.g. job_status.display_order) — either way, a category with
 	// zero jobs in every bucket never appears as a row.

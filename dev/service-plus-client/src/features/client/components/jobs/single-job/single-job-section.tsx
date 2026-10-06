@@ -74,6 +74,7 @@ import { getJobSheetBlobUrl } from "../job-sheet-pdf";
 import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { DeviceCell } from "@/features/client/components/shared/device-cell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -823,7 +824,7 @@ export const SingleJobSection = ({
 												"Job",
 												"Customer",
 												"Mobile",
-												"Device Details",
+												"Device",
 												"Job Type",
 												"Status",
 												"Technician",
@@ -861,7 +862,7 @@ export const SingleJobSection = ({
 											<th className={thClass}>Job</th>
 											<th className={thClass}>Customer</th>
 											<th className={thClass}>Mobile</th>
-											<th className={`${thClass} w-[10rem]`}>Device Details</th>
+											<th className={`${thClass} w-[10rem]`}>Device</th>
 											<th className={thClass}>Job Type</th>
 											<th className={thClass}>Status</th>
 											<th className={thClass}>Technician</th>
@@ -953,7 +954,12 @@ export const SingleJobSection = ({
 													</div>
 												</td>
 												<td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
-												<td className={`${tdClass} text-xs`}>{job.device_details || "—"}</td>
+												<td className={`${tdClass} text-xs`}>
+													<DeviceCell
+														deviceDetails={job.device_details}
+														serialNo={job.serial_no}
+													/>
+												</td>
 												<td className={tdClass}>
 													<JobTypeBadge code={job.job_type_code} name={job.job_type_name} />
 												</td>

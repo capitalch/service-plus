@@ -373,6 +373,7 @@ class JobsSql:
             j.technician_id,
             t.name         AS technician_name,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+            j.serial_no,
             (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id)  AS file_count,
             (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id)  AS transaction_count,
             jrm.name       AS job_receive_manner_name,
@@ -469,6 +470,7 @@ class JobsSql:
             j.technician_id,
             t.name         AS technician_name,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+            j.serial_no,
             (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id)  AS file_count,
             (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id)  AS transaction_count,
             jrm.name       AS job_receive_manner_name,
@@ -623,6 +625,7 @@ class JobsSql:
             cc.gstin      AS customer_gstin,
             cc.mobile,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+            j.serial_no,
             jt.name       AS job_type_name,
             jt.code       AS job_type_code,
             js.name       AS job_status_name,
@@ -701,6 +704,7 @@ class JobsSql:
             cc.gstin      AS customer_gstin,
             cc.mobile,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+            j.serial_no,
             jt.name       AS job_type_name,
             jt.code       AS job_type_code,
             js.name       AS job_status_name,
@@ -795,6 +799,7 @@ class JobsSql:
             cc.gstin     AS customer_gstin,
             cc.mobile,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+            j.serial_no,
             jt.name      AS job_type_name,
             js.name      AS job_status_name,
             t.name       AS technician_name,
@@ -1439,6 +1444,7 @@ class JobsSql:
                j.is_closed, j.is_final, j.batch_no, j.division_id, js.code AS job_status_code, js.name AS job_status_name,
                jt.name AS job_type_name, jt.code AS job_type_code,
                TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+               j.serial_no,
                ji.is_posted AS invoice_is_posted,
                (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job_payment jp
@@ -2536,7 +2542,8 @@ class JobsSql:
             jt.code      AS job_type_code,
             js.name      AS job_status_name,
             js.code      AS job_status_code,
-            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(b.name, ''), NULLIF(pbm.model_name, ''))) AS device_details
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(b.name, ''), NULLIF(pbm.model_name, ''))) AS device_details,
+            j.serial_no
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_type         jt ON jt.id = j.job_type_id
@@ -2636,7 +2643,8 @@ class JobsSql:
             jt.code      AS job_type_code,
             js.name      AS job_status_name,
             js.code      AS job_status_code,
-            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(b.name, ''), NULLIF(pbm.model_name, ''))) AS device_details
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(b.name, ''), NULLIF(pbm.model_name, ''))) AS device_details,
+            j.serial_no
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_type         jt ON jt.id = j.job_type_id

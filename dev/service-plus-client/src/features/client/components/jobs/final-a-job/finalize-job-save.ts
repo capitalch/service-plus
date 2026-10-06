@@ -7,7 +7,7 @@ import { isValidGstin, saveCustomerGstin } from "@/lib/gstin";
 import type { JobDetailType } from "@/features/client/types/job";
 
 import type { EditablePartLine, EditableChargeLine, FinalJobRow } from "./final-a-job-schema";
-import { chargeNeedsCost } from "../charge-cost-rule";
+import { finalizeChargeNeedsCost } from "../charge-cost-rule";
 
 export type FinalizeJobSaveArgs = {
 	selectedJob: JobDetailType;
@@ -135,12 +135,15 @@ export async function finalizeJobSave(args: FinalizeJobSaveArgs): Promise<boolea
 		// staff hunting through every numeric column. Row existence is judged the same
 		// way every other check on this screen judges it (a part actually selected, a
 		// charge actually named), so a blank placeholder row is not a validation error.
-		// Every part needs a cost; a charge only when chargeNeedsCost() says so — labour
-		// and service charges legitimately have none. That test is the same rule the
-		// missing_cost_lines badge and the Correct Costs modal apply.
+		// Every part needs a cost; a charge only when finalizeChargeNeedsCost() says so —
+		// labour and service charges legitimately have none, and on a warranty job a
+		// spare/parts charge may also stay at 0.
 		const zeroCostParts = partLines.filter((l) => l.part_id && !((parseFloat(l.cost_price) || 0) > 0));
 		const zeroCostCharges = chargeLines.filter(
-			(c) => c.charge_name.trim() && chargeNeedsCost(c.charge_name) && !((parseFloat(c.cost_price) || 0) > 0),
+			(c) =>
+				c.charge_name.trim() &&
+				finalizeChargeNeedsCost(c.charge_name, isWarrantyJob) &&
+				!((parseFloat(c.cost_price) || 0) > 0),
 		);
 		if (zeroCostParts.length > 0 || zeroCostCharges.length > 0) {
 			const where = [

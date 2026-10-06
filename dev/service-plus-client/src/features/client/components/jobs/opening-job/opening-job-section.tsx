@@ -57,6 +57,7 @@ import { STATUS_FLAGS } from "../job-pipeline/status-transitions";
 import { OpeningJobForm } from "./opening-job-form";
 import { openingJobFormSchema, type OpeningJobFormValues, getOpeningJobDefaultValues } from "./opening-job-schema";
 import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { DeviceCell } from "@/features/client/components/shared/device-cell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -658,6 +659,7 @@ export const OpeningJobSection = () => {
 												"Job No",
 												"Customer",
 												"Mobile",
+												"Device",
 												"Job Type",
 												"Status",
 												"Technician",
@@ -673,7 +675,7 @@ export const OpeningJobSection = () => {
 									<tbody>
 										{Array.from({ length: 12 }).map((_, i) => (
 											<tr key={i} className="animate-pulse">
-												{Array.from({ length: 10 }).map((__, j) => (
+												{Array.from({ length: 11 }).map((__, j) => (
 													<td key={j} className={tdClass}>
 														<div className="h-4 w-16 rounded bg-(--cl-border)" />
 													</td>
@@ -695,6 +697,7 @@ export const OpeningJobSection = () => {
 											<th className={thClass}>Job No</th>
 											<th className={thClass}>Customer</th>
 											<th className={thClass}>Mobile</th>
+											<th className={`${thClass} w-[10rem]`}>Device</th>
 											<th className={thClass}>Job Type</th>
 											<th className={thClass}>Status</th>
 											<th className={thClass}>Technician</th>
@@ -715,21 +718,21 @@ export const OpeningJobSection = () => {
 												</td>
 												<td className={tdClass}>{job.job_date}</td>
 												<td className={`${tdClass} font-mono font-medium text-(--cl-accent)`}>
-													<div className="flex items-center justify-between gap-1.5">
-														<span>
-															{job.job_no}
-															{job.is_closed && (
-																<span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">
-																	CLOSED
-																</span>
-															)}
-														</span>
-														{job.alternate_job_no && (
-															<span className="shrink-0 font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">
-																Alt: {job.alternate_job_no}
+													<div>
+														{job.job_no}
+														{job.is_closed && (
+															<span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">
+																CLOSED
 															</span>
 														)}
 													</div>
+													{job.alternate_job_no && (
+														<div className="mt-0.5">
+															<span className="inline-block whitespace-nowrap font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5">
+																Alt: {job.alternate_job_no}
+															</span>
+														</div>
+													)}
 													{job.purchase_date && (
 														<div className="text-[11px] font-semibold text-(--cl-text-muted)">
 															PUR: {job.purchase_date}
@@ -738,6 +741,12 @@ export const OpeningJobSection = () => {
 												</td>
 												<td className={tdClass}>{job.customer_name ?? "—"}</td>
 												<td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
+												<td className={`${tdClass} text-xs`}>
+													<DeviceCell
+														deviceDetails={job.device_details}
+														serialNo={job.serial_no}
+													/>
+												</td>
 												<td className={tdClass}>
 													<JobTypeBadge code={job.job_type_code} name={job.job_type_name} />
 												</td>

@@ -1250,6 +1250,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 						"Conditional classNames",
 						"cn() in lib/utils — twMerge(clsx(inputs)), smarter than plain clsx because later conflicting Tailwind classes win cleanly",
 					],
+					[
+						"Pointer cursor",
+						"Tailwind v4 dropped cursor: pointer on buttons, so a rule in @layer base of src/index.css gives it back to every clickable — enabled buttons, links, checkboxes/radios, selects, summary, the native date-picker icon and the button/tab/option/menuitem/checkbox/switch roles — and not-allowed to disabled ones. Being in the base layer, any cursor-* utility (e.g. shadcn's cursor-default on some dropdown items) still wins. A clickable <td> or <div> with only an onClick needs cursor-pointer added by hand.",
+					],
 				],
 			},
 			{ type: "heading", text: "Theme token scopes" },
@@ -1395,7 +1399,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "This bit multiple dialogs across the codebase in one pass this session (master-data-diff-modal.tsx, physical-invoice-modal.tsx, undo-transaction-dialog.tsx, warranty-job-detail-dialog.tsx, job-pipeline-cell-dialog.tsx, technician-profit-cell-dialog.tsx, customer-search-modal.tsx, import-part-dialog.tsx, and the delivered-job-actions hook's modal). When adding a new DialogContent with a custom width, always use the sm:max-w-* form, never bare max-w-*.",
+				text: "This bit multiple dialogs across the codebase in one pass this session (master-data-diff-modal.tsx, physical-invoice-modal.tsx, undo-transaction-dialog.tsx, warranty-job-detail-dialog.tsx, job-pipeline-cell-dialog.tsx, technician-cell-dialog.tsx, customer-search-modal.tsx, import-part-dialog.tsx, and the delivered-job-actions hook's modal). When adding a new DialogContent with a custom width, always use the sm:max-w-* form, never bare max-w-*.",
 			},
 			{ type: "heading", text: "ReportTable's scroll container" },
 			{
@@ -1405,21 +1409,26 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "The click-a-cell-to-drill-down pattern" },
 			{
 				type: "para",
-				text: 'Three report areas — Technician Profit Report, Event Tracking, and every tab of Jobs Summary — share one interaction shape: a non-zero matrix cell is a <button>; clicking it sets a small "cell" state object, which a sibling dialog component watches and fetches the underlying job list for.',
+				text: 'Four report areas — Technician Report 1, Technician Report 3, Event Tracking, and every tab of Jobs Summary — share one interaction shape: a non-zero matrix cell is a <button>; clicking it sets a small "cell" state object, which a sibling dialog component watches and fetches the underlying job list for.',
 			},
 			{
 				type: "table",
 				headers: ["Dialog component", "Cell type", "Used by"],
 				rows: [
 					[
-						"TechnicianProfitCellDialog (reports/profit/)",
-						"ProfitCellType",
-						"Technician Profit Report — the original implementation this pattern was copied from",
+						"TechnicianCellDialog (reports/technician/)",
+						"TechnicianCellType",
+						"Technician Reports — the original implementation this pattern was copied from. Formerly named Technician Profit Report, then Technician Report, then a tab of Technician Reports; it is now the menu item Technician Report 1: its grid lives in technician-monthly-report.tsx (TechnicianMonthlyReport, shared with Report 2), wrapped by technician-report-1-section.tsx; drill-down technician-cell-dialog.tsx, sql ids GET_TECHNICIAN_REPORTS_MONTHLY_FY (grid) and GET_TECHNICIAN_REPORTS_MONTH_JOBS (drill-down) in sql_reports_audit.py — previously GET_TECHNICIAN_PROFIT_* and then GET_TECHNICIAN_REPORT_*. The menu label 'Technician Report 1' is also the key in client-reports-page.tsx's section map, so the two must match",
 					],
 					[
 						"EventTrackingCellDialog (reports/jobs/)",
 						"EventTrackingCellType",
 						'Event Tracking — Cost/Sale/Profit columns shown only for Finalize/Deliver events (COST_EVENTS set). 20 period buckets (Today/This plus -1, -2, -3 in each of Day, Week, Month, Quarter, Year). Column headers come from BUCKET_COLUMNS in event-tracking-section.tsx, not from RANGE_LABELS in fiscal.ts, so changing one does not change the other. Each entry has a group (Day/Week/Month/Quarter/Year, drawn as ReportTable\'s merged top header row) and a short header (Today/This, -1, -2, -3). exportHeader() turns that into the flat name ("Today", "This Week", "Week -1") used for the PDF/XLSX column names and passed as bucketLabel to the drill-down dialog title. Header tooltips (headerTitle) come from bucketTitles returned by useEventTrackingMatrix — formatRangeLabel / formatShortDate of each bucket\'s range. Date ranges come from BUCKETS in use-event-tracking-matrix.ts: buckets with a RangeKeyType use getRange, the nine older ones (threeDaysAgo and the two…/three… Weeks/Months/Quarters/YearsAgo fields) use getPeriodsAgoRange(offset, today, fyStart, unit) in fiscal.ts — whole periods, quarters and years fiscal. GET_EVENT_TRACKING_COUNTS just takes from/to, so no server change; one query per bucket (20 round trips, hand-unrolled q0–q19 because hooks can\'t run in a loop). Adding a bucket means the row type, BUCKETS, another qN line and BUCKET_COLUMNS; the PDF bucket width (12 mm) is sized so 20 columns fit A4 landscape',
+					],
+					[
+						"TechnicianProductCellDialog (reports/technician/)",
+						"TechnicianProductCellType",
+						"Technician Report 3 — any cell including the Total row / column and grand total (null technician / product = all); passes the report's Jobs mode and Warranty switch through to GET_TECHNICIAN_REPORTS_PRODUCT_JOBS",
 					],
 					[
 						"CategoryRangeCellDialog (reports/common/)",
@@ -1469,7 +1478,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "Fix: give the direct-child wrapper div (the one holding ReportLoading/ReportError/ReportEmpty/ReportTable, immediately inside DialogContent) className=\"min-w-0\" — not overflow-hidden on DialogContent itself. min-w-0 lets that grid item shrink to the container's actual track width, at which point ReportTable's own overflow-auto wrapper (report-table.tsx) takes over and shows an internal horizontal scrollbar instead of pushing the whole modal wider. All three drill-down dialogs (EventTrackingCellDialog, CategoryRangeCellDialog, TechnicianProfitCellDialog) now carry this on their content wrapper div.",
+				text: "Fix: give the direct-child wrapper div (the one holding ReportLoading/ReportError/ReportEmpty/ReportTable, immediately inside DialogContent) className=\"min-w-0\" — not overflow-hidden on DialogContent itself. min-w-0 lets that grid item shrink to the container's actual track width, at which point ReportTable's own overflow-auto wrapper (report-table.tsx) takes over and shows an internal horizontal scrollbar instead of pushing the whole modal wider. All three drill-down dialogs (EventTrackingCellDialog, CategoryRangeCellDialog, TechnicianCellDialog) now carry this on their content wrapper div.",
 			},
 			{
 				type: "note",
@@ -1518,6 +1527,123 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "I added more columns to a drill-down dialog's ReportTable and now content pokes out past the dialog's right edge — why?",
 				a: "The direct-child wrapper div inside your DialogContent is missing min-w-0. DialogContent is display: grid with overflow: visible, so a wide table forces its grid-item ancestor wider than the container's max-width instead of triggering ReportTable's own internal scrollbar — see \"The actual content-spills-out-of-the-modal bug\" above.",
+			},
+		],
+	},
+	{
+		id: "dev-jobs-summary-period-buckets",
+		category: "Client (Frontend)",
+		title: "Jobs Summary Period Columns (Date Buckets)",
+		summary:
+			"Where the 13 fixed period columns of every Jobs Summary tab come from, and what to touch to add or change one.",
+		tags: [
+			"jobs summary",
+			"buckets",
+			"periods",
+			"2 months ago",
+			"monthBeforeLast",
+			"fiscal",
+			"category range matrix",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Every Jobs Summary tab — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Combined, Combined Chart and Job Transactions — shows the same 13 period columns, in this order: Today, Yesterday, This Week, Previous Week, This Month, Last Month, 2 Months Ago, Q1, Q2, Q3, Q4, Year-to-Date, Last Year. They are defined once, in the BUCKETS array of src/features/client/components/reports/common/use-category-range-matrix.ts; CATEGORY_BUCKET_COLUMNS, the drill-down ranges (bucketRanges), the Combined tabs (use-jobs-combined-matrix.ts) and the Excel/PDF exports all derive from it, so a new entry there reaches every tab.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"Dates are computed in the browser by getRange (reports/common/fiscal.ts) and sent as plain from/to arguments to the server sql ids (GET_JOBS_RECEIVED_BY_CATEGORY_RANGE_SPLIT and siblings). A new bucket needs no server or SQL change.",
+					'"2 Months Ago" is the RangeKeyType monthBeforeLast: the whole calendar month two months before the current one (in October, all of August).',
+					"Each bucket is its own useGenericQuery call — 13 hand-written calls (q0…q12), because hooks cannot run in a loop. Adding a bucket means adding to BUCKETS, to the CategoryBucketFieldType union, and one more qN call, keeping them in BUCKETS order; the queries array must list every qN.",
+					"PDF exports are landscape A4 with 273 mm between the margins. Column widths in category-range-matrix-section.tsx (28 + 13 × 18.5 mm) and jobs-combined-section.tsx (2 × 22 + 13 × 17.5 mm) are budgeted to fit; adding a column means shrinking those widths, or the right-hand columns run off the page.",
+					"useCategoryRangeMatrix is used only by Jobs Summary, so changing BUCKETS affects no other report. Event Tracking has its own period set (use-event-tracking-matrix.ts).",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "I added a bucket and its column is empty on every tab.",
+				a: "The qN call is missing or out of order. BUCKETS index n must line up with qN, and qN must be in the queries array — rows are filled by position, so a skipped call leaves that column at zero.",
+			},
+		],
+	},
+
+	{
+		id: "dev-technician-report-2",
+		category: "Client (Frontend)",
+		title: "Technician Reports — Report 2 (Month Grid with Warranty Count)",
+		summary:
+			"Reports → Technician Reports → Technician Report 2: Report 1's technician × month grid with a warranty job count per cell, built on the same shared component.",
+		tags: [
+			"technician reports",
+			"technician report 2",
+			"TechnicianMonthlyReport",
+			"GET_TECHNICIAN_REPORTS_MONTHLY_FY_WARRANTY",
+			"warranty_count",
+			"showWarranty",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Numbering note: on 2026-10-06 Technician Reports 2 and 3 were interchanged — this month grid was Report 3 and the technician × product grid was Report 2. Labels, file names (technician-report-2/3-section.tsx), components (TechnicianReport2/3Section), INFO_TECH_REPORT2_/3_ message keys, element ids (tr2-/tr3-), export file names and these article ids were all swapped together; the sql ids carry no number and did not change. Reports 1 and 2 share TechnicianMonthlyReport (reports/technician/technician-monthly-report.tsx): fiscal-year picker, 12 month columns, row / column / grand totals (addCells) and the TechnicianCellDialog drill-down. technician-report-1-section.tsx and technician-report-2-section.tsx are thin wrappers passing sqlId, title, subtitle and showWarranty. A change to the grid reaches both reports.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"Data: GET_TECHNICIAN_REPORTS_MONTHLY_FY_WARRANTY (sql_reports_audit.py, mirrored in SQL_MAP). Report 1 keeps its own query (GET_TECHNICIAN_REPORTS_MONTHLY_FY) untouched. When last changed it was reconciled on demo1, capitalelectronics and navtechnology: every non-empty cell's delivered_count, warranty_count, profit and total_charges equalled its drill-down list, and the FY 2026-27 totals (85 / 222 / 185 jobs) equalled Technician Report 3's delivered totals.",
+					"Counting rule: every DELIVERED_OK job by delivery_date, invoiced or not — Report 3's / Jobs Summary's rule, NOT Report 1's invoiced-only rule (that filter is deliberately absent). warranty_count = COUNT FILTER (is_warranty) over the same jobs, so W ≤ count; profit and total_charges are merged over warranty and out-of-warranty jobs (a free warranty repair contributes −parts cost and 0 revenue). An earlier version kept Report 1's invoiced count with a separate all-warranty count; it was replaced because W exceeded the count and profit / revenue left the warranty work out.",
+					"Cell (CellFigures): Report 1's three lines — count, profit, (sale). showWarranty replaces the count with two separate quantities — out of warranty (blue, delivered_count − warranty_count; Report 2 counts every delivered job so the difference is exact) and warranty (orange) — same size and weight (text-sm bold, or text-xs on the quiet Total row), each dimmed at 0, no letters; WarrantyKey names the colours (Out of warranty blue, Warranty orange) from the ReportToolbar actions, beside the FY picker — the grid's ChartCard has no header band at all in either report, to keep the header compact. Orange, not red: red is reserved for errors across the app. Drill-down, two levels, from the quantities rather than the cell: CellFigures' onSideClick turns each non-zero OOW / W number into a button (SideQty) on month cells, the Total column (fyPeriod), the Total row (technician null) and the grand total; the td itself is clickable only in Report 1 (TechnicianCellDialog, invoiced only). Level 1, TechnicianProductSummaryDialog (technician-product-summary-dialog.tsx): GET_TECHNICIAN_REPORTS_PRODUCT_SPLIT with mode 'delivered' for the period, filtered to the technician and summed per product for the clicked side in toProductRows — no new sql id, because that query's delivered rule is exactly Report 2's. Level 2: a product row opens TechnicianProductCellDialog (GET_TECHNICIAN_REPORTS_PRODUCT_JOBS with product, side and technician), nested; level 1 is hidden, not unmounted, while it is open. Reconciled on demo1 / capitalelectronics / navtechnology when added: every month cell's OOW and W, and every technician's FY total, equalled the level-1 product sums. Texts: INFO_TECH_REPORT2_PRODUCT_DRILL, INFO_TECH_REPORT2_OOW_DRILL_HINT, INFO_TECH_REPORT2_W_DRILL_HINT.",
+					"Texts: INFO_TECH_REPORT2_SUBTITLE (one line; it absorbed the old grid-card description INFO_TECH_REPORT2_LEGEND, now deleted) in constants/messages.ts. ReportToolbar renders its second (filter) row only when it has content, so a report without filters has no empty gap under the title. Menu: TreeItem 'Technician Report 2' (ShieldCheck icon) in the Technician Reports group.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Why do Report 1 and Report 2 show different job counts and profit for the same month?",
+				a: "Report 1 counts invoiced jobs only; Report 2 counts every delivered job, including free warranty repairs, whose parts cost lowers the merged profit.",
+			},
+		],
+	},
+
+	{
+		id: "dev-technician-report-3",
+		category: "Client (Frontend)",
+		title: "Technician Reports — Report 3 (Technician × Product)",
+		summary:
+			"Reports → Technician Reports → Technician Report 3: one technician × product grid for a chosen period, split out of warranty / warranty with quantity, profit and revenue.",
+		tags: [
+			"technician reports",
+			"technician report 3",
+			"GET_TECHNICIAN_REPORTS_PRODUCT_SPLIT",
+			"product split",
+			"warranty",
+			"getPeriodsAgoRange",
+			"sidebar menu",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Reports → Technician Reports is a sidebar group (CollapsibleGroup in client-explorer-panel.tsx) with three TreeItems, each mapped by its label in client-reports-page.tsx's REPORT_SECTIONS: 'Technician Report 1' → TechnicianReport1Section (the fiscal-year × month grid), 'Technician Report 3' → TechnicianReport3Section (technician-report-3-section.tsx) and 'Technician Report 2' → TechnicianReport2Section (see dev-technician-report-2). They were briefly two tabs of one 'Technician Reports' item (technician-reports-section.tsx, now deleted). The sidebar group holding it was renamed from Profit Reports to Technician Reports, and its folder from reports/profit/ to reports/technician/ to keep the folder ↔ menu mapping; the group label is display-only (nothing stores it), so the rename needed no migration.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"Data: one sql id, GET_TECHNICIAN_REPORTS_PRODUCT_SPLIT (sql_reports_audit.py, mirrored in SQL_MAP), args from / to as ISO dates and mode ('repaired' | 'delivered', from the Jobs switch — JOB_MODES, default delivered). Returns one row per active technician × product with oow_count / oow_profit / oow_revenue and warranty_count / warranty_profit / warranty_revenue. Totals (per technician, per product, grand) are summed client-side by addCells / addSplits.",
+					"Counting rule, invoiced or not, chosen by p_mode: delivered = status DELIVERED_OK with delivery_date in range, the same rule as GET_JOBS_DELIVERED_OK_BY_CATEGORY_RANGE_SPLIT; repaired = is_final and status COMPLETED_OK or DELIVERED_OK with updated_at::date in range, the same rule as GET_JOBS_REPAIRED_OK_BY_CATEGORY_RANGE_SPLIT. Keep each branch in step with its Jobs Summary twin, or the two screens will disagree. This differs on purpose from Report 1, whose GET_TECHNICIAN_REPORTS_MONTHLY_FY keeps only jobs with ji.amount > 0; without that, free warranty repairs would never appear. Warranty = job_type code UNDER_WARRANTY; anything else (including no job type) is OOW. Revenue = job_invoice.aggregate (pre-tax); profit = revenue − parts cost − additional-charges cost, the same formula as Report 1.",
+					"Only active technicians are listed (JOIN technician … is_active), matching Report 1. Jobs with no technician or an inactive one are dropped, so the grand total can be below Jobs Summary's for the same range. When added it was checked against live data: on capitalelectronics and navtechnology the grand totals equalled Jobs Summary's delivered and repaired totals exactly.",
+					"Period buttons: PERIOD_GROUPS in the component (Month, Quarter and Year × 4 each: This, -1, -2, -3), each button keyed unit-offset and resolved with getPeriodsAgoRange(offset, today, fyStart, unit) from reports/common/fiscal.ts — offset 0 is the current month / fiscal quarter / fiscal year (full year, not year-to-date). formatPeriodCaption writes the caption under each button. There is no Custom button: the date-range chip on the right, captioned 'Custom' in the same small uppercase style as the period group labels, is two RangeDateInput fields — the shared LocaleDateInput (components/ui/locale-date-input.tsx), made borderless. Not a native type=date: those display in the browser's language (mm/dd/yyyy on an English-US browser), while LocaleDateInput is always dd / mm / yyyy, still offers the calendar picker, and emits ISO only once a full valid date is typed. A full-size Switch on the label line, right of the 'Custom' caption (slate track when off, accent with a ring when on, followed by an On / Off word), toggles custom mode (isCustom = selectedKey === CUSTOM_KEY): handleCustomSwitch(true) seeds draft and appliedCustom from the dates on screen and sets CUSTOM_KEY (buttons deselect, accent ring); handleCustomSwitch(false) restores lastPresetKey, which handlePresetSelect records on every period-button click. The fields are disabled while off (LocaleDateInput disabled, with opacity-100 so the period's dates stay readable) and handleRangeEdit ignores edits then; an effect applies a valid draft to appliedCustom after FIELD_VALIDATION_DEBOUNCE_MS, so a year typed digit by digit does not query every half-typed date. getCustomError (ERROR_REPORTS_CUSTOM_RANGE_INVALID) shows immediately under row 1 and blocks applying. Choosing a period button simply sets selectedKey; the fields then show that period (shownRange).",
+					"Layout: the period summary is an inline strip of three SummaryItem components (jobs, revenue, profit, each with an OOW / W split) on the toolbar's filter row. Toolbar layout: row 1 = Jobs switch, then the period (Month, Quarter, Year), then the editable date-range chip pushed right with ml-auto; then a date-error line only when the typed range is invalid; row 2 = Warranty and Technician, with the summary strip pushed right (ml-auto) — it replaced a KpiGrid of KpiCards to give the grid more height. The grid card fills the height left under the toolbar (ChartCard className flex-1 min-h-[calc(75vh+10.25rem)] — 75vh plus two more grid rows (a full OOW / W / Σ row is about 82 px, i.e. 5.1rem); taller than the space left, so the page scrolls and the top scrollbar matters, bodyClassName flex min-h-0 flex-col — bodyClassName was added to ChartCard for this), so the grid's bottom scrollbar normally stays on screen; useSyncedHorizontalScroll (reports/common/use-synced-horizontal-scroll.ts) adds a second horizontal scrollbar above the grid, synced both ways and shown only while the grid is wider than its box, so horizontal scroll is always reachable. The table uses border-separate so sticky cells keep their borders: header (top), technician column (left), Total column (right) and Total row (bottom) are all sticky, which is why every sticky cell needs an opaque background. SplitCell renders OOW, W and Σ (total) lines, each tagged by LineBadge (a colour-only variant without tags, like Report 2's, was tried and rejected — the tags read better here); every SplitLine and the Qty / Profit / Revenue captions in HeaderLabel share the fixed SPLIT_GRID column widths, so figures sit under their captions across the whole grid — widen SPLIT_GRID if amounts outgrow it. Figures are one size (text-xs) and weight, no brackets. Texts are INFO_TECH_REPORT3_* in constants/messages.ts.",
+					"Export: Export → PDF / Excel (handlePdfExport, handleXlsxExport, shown only when the grid has rows). Both are flat, not the on-screen pivot — buildDetailRows gives one row per technician × product with jobs, plus an 'All products' subtotal per technician; EXPORT_FIGURE_COLUMNS names the nine figure columns. PDF is landscape with widths 38 + 37 + 9 × 22 = 273 mm, exactly the page width between margins — jspdf-autotable logs a warning when fixed widths are short of the page as well as over. Excel has a second sheet of product totals; its figures are numbers (2 dp), the PDF's are formatted strings. Checked by generating both files from live navtechnology rows.",
+					"Filters (client-side — the query already returns every active technician with the split, so no sql args): Warranty switch (WARRANTY_FILTERS: all | warranty | oow) and Technician Select (ALL_TECHNICIANS = 'all' or a technician id as a string; options come from the unfiltered q.data, and effectiveTechnician falls back to all when the picked id is not in the current period's data). applyWarrantyFilter zeroes the switched-off side in the grid build, and rows left empty are dropped, so products/technicians vanish and totals, the SummaryItem strip (its OOW/W split hidden when filtered) and both exports follow without extra checks. SplitCell takes the filter and shows only that line (no Σ) when on W / OOW, without its LineBadge: SplitLine with no label switches to SPLIT_GRID_PLAIN (three columns), and HeaderLabel narrows its Qty / Profit / Revenue captions to the same grid so they stay aligned. The grid card's header then shows FilterPill (W or OOW, in the LINE_TONE_CLASS colours) instead of the Legend, and its description uses INFO_TECH_REPORT3_LEGEND_FILTERED. exportColumns(filter) narrows EXPORT_FIGURE_COLUMNS by scope; PDF figure widths are 198 / column count so the total stays exactly 273 mm. INFO_TECH_REPORT3_EMPTY_FILTERED is the empty message when the period has data but the filters leave none.",
+					"Drill-down: every cell with jobs — technician × product, the Total column, the Total row and the grand total — opens TechnicianProductCellDialog (technician-product-cell-dialog.tsx) via openDrill / drillProps (DRILL_CELL_CLASS hover ring). Its sql id GET_TECHNICIAN_REPORTS_PRODUCT_JOBS takes from / to / mode like the grid query plus technician_id and product_name (NULL = all) and warranty (all | warranty | oow); its job filter must stay identical to GET_TECHNICIAN_REPORTS_PRODUCT_SPLIT. A Total-row / grand-total click passes the filtered technician when the Technician filter is set, so the list always matches the figure clicked. When added, every cell was reconciled on live data (demo1 and navtechnology, both modes, both warranty sides): job count, profit and revenue matched with zero mismatches. The dialog adds a Technician column only when the jobs span technicians a W / OOW Type column always (even for a one-side list, so each job states its type), and j.serial_no under the device as 'SN:' via the shared SerialNoLine (serial_no in GET_TECHNICIAN_REPORTS_PRODUCT_JOBS; see 'Device Column and Serial No'); a leading checkbox column (styled up on this instance only — size-5, border-2, accent-blue fill with a white tick via [&_svg]:text-white overriding the shared Checkbox's emerald icon; components/ui/checkbox.tsx is untouched) multi-selects rows (selectedIds, a Set of job ids, reset on every fetch) — the checkbox's wrapper stops propagation so a tick doesn't also fire ReportTable's onRowClick, which still opens JobFinalInfoModal — selected rows are tinted via rowClassName, and SelectionBar above the table sums cost / revenue / profit of the ticked jobs with Select all / Clear (hint text INFO_TECH_REPORTS_JOBS_SELECT_HINT); a row click opens JobFinalInfoModal, as in Report 1.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Report 3 shows more jobs than Report 1 for the same month.",
+				a: "Expected. Report 3 counts uninvoiced delivered jobs (mostly free warranty repairs); Report 1 does not.",
 			},
 		],
 	},
@@ -2220,17 +2346,17 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"jobs/charge-cost-rule.ts — the one client-side copy",
-						"SPARE_CHARGE_PATTERN = /(spare|parts)/i, exposed as chargeNeedsCost()",
+						"SPARE_CHARGE_PATTERN = /(spare|parts)/i, exposed as chargeNeedsCost() and finalizeChargeNeedsCost(chargeName, isWarrantyJob)",
 					],
 				],
 			},
 			{
 				type: "para",
-				text: "Three client sites consume charge-cost-rule.ts and none of them restate the regex: cost-correction-helpers.ts (needsCost / isMissingCost), finalize-job-save.ts (the zeroCostCharges filter that blocks Finalize) and final-job-form.tsx (isChargeCostMissing — the red Cost cell). The Cost column on the Additional Charges table deliberately carries no red asterisk, because the column is not mandatory on every row.",
+				text: "Three client sites consume charge-cost-rule.ts and none of them restate the regex: cost-correction-helpers.ts (needsCost / isMissingCost), finalize-job-save.ts (the zeroCostCharges filter that blocks Finalize) and final-job-form.tsx (isChargeCostMissing — the red Cost cell). The two finalize sites call finalizeChargeNeedsCost(name, isWarrantyJob), which returns false on a warranty job (job_type_code = 'UNDER_WARRANTY'): a warranty job may finalize a spare/parts charge at ₹0 cost. The Cost input's min drops to 0 on warranty jobs to match. Part lines are not exempt. The Cost column on the Additional Charges table deliberately carries no red asterisk, because the column is not mandatory on every row.",
 			},
 			{
 				type: "warning",
-				text: "Change one, change both — they define the same 'this charge needs a cost' rule, and a drift shows up as a badge count that disagrees with what the editor flags. Until this was fixed, finalize-job-save.ts held a fourth, stricter rule of its own (cost > 0 on every named charge), which rejected zero-cost labour charges the badge and the Correct Costs modal were happy with.",
+				text: "Change one, change both — they define the same 'this charge needs a cost' rule, and a drift shows up as a badge count that disagrees with what the editor flags. Until this was fixed, finalize-job-save.ts held a fourth, stricter rule of its own (cost > 0 on every named charge), which rejected zero-cost labour charges the badge and the Correct Costs modal were happy with. The warranty exemption is the one deliberate divergence: it applies only at finalize time. missing_cost_lines and needsCost() still count a ₹0 spare/parts charge on a warranty job, so such a job shows the amber badge after finalizing. If that ever needs to go away, add a job_type check to both SQL expressions and to needsCost() together.",
 			},
 			{ type: "heading", text: "No audit trail — deliberate" },
 			{
@@ -2463,7 +2589,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		category: "Jobs",
 		title: "Job Control Set Technician Action — Implementation",
 		summary:
-			"The 'Set Technician' item in Job Control's ⇄ menu reassigns a job's technician through updateJob without changing status.",
+			"The 'Set Technician' item in Job Control (⇄ menu, and the ⋮ menu of delivered rows) reassigns a job's technician without changing status — via updateJob for open jobs, a plain genericUpdate for finalised or closed ones.",
 		tags: ["job control", "set technician", "updateJob", "job_transaction", "technician_id"],
 		content: [
 			{
@@ -2476,11 +2602,11 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				rows: [
 					[
 						"Visibility",
-						"showSetTechnician = !job.is_closed && !job.is_final; it also feeds hasAnyAction so the lock icon is not shown",
+						"Every row, in every filter (Open, Delivered, All): showSetTechnician is always true in the ⇄ menu (so hasAnyAction is always true and the lock icon no longer appears), and delivered rows (DELIVERED_OK / DELIVERED_NOT_OK), which use their own ⋮ menu, carry a Set Technician item too",
 					],
 					[
 						"Server effect",
-						"resolve_update_job_helper writes a job_transaction row with the same status and the new technician_id, so 'Undo Last Transaction' restores the previous technician",
+						"Open jobs (not is_final, not is_closed): resolve_update_job_helper writes a job_transaction row with the same status and the new technician_id, so 'Undo Last Transaction' restores the previous technician. Finalised or closed jobs: genericUpdate { tableName: 'job', xData: { id, technician_id } } only — no transaction, no to_set_updated_at",
 					],
 					[
 						"estimate_amount",
@@ -2498,6 +2624,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "Why does Set Technician create a job_transaction row?",
 				a: "updateJob always records a transaction. Recording the same status with the new technician keeps the history intact and lets Undo Last Transaction restore the previous technician.",
+			},
+			{
+				q: "Why do finalised and delivered jobs skip updateJob?",
+				a: "Its transaction would carry the job's current status. On a delivered job that is a second DELIVERED_OK transaction — counted as another Deliver event in Event Tracking and the Job Transaction Ledger — and it becomes last_transaction_id, so Undo Delivery would undo the technician change instead of the delivery. The direct genericUpdate also leaves updated_at alone (no to_set_updated_at), so the job stays in its Jobs Summary / Technician Report 3 'Repaired' bucket. Reports attribute by job.technician_id, so they follow the change immediately. genericUpdate on 'job' has no table right in GENERIC_UPDATE_TABLE_RIGHTS, matching updateJob, which has none either.",
 			},
 		],
 	},
@@ -4528,6 +4658,119 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "What package manager does this repo use?",
 				a: "pnpm, not npm — house rule. corepack enable pnpm if it's not already available, and use pnpm dlx in place of npx.",
+			},
+		],
+	},
+	{
+		id: "dev-device-column-serial",
+		category: "Client (Frontend)",
+		title: "Device Column and Serial No",
+		summary:
+			"Every grid's Device column goes through shared/device-cell.tsx: header 'Device', serial no as an 'SN: <value>' line, trailing serial stripped from server device_details.",
+		tags: [
+			"device",
+			"device_details",
+			"serial_no",
+			"SN",
+			"DeviceCell",
+			"SerialNoLine",
+			"serialNoText",
+			"stripTrailingSerial",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Every grid that shows a job's device has the header 'Device' (never 'Device Details') and shows the serial no as a dark-teal 'SN: <value>' line under the device, or no line when serial_no is NULL / ''. All of it comes from features/client/components/shared/device-cell.tsx. Do not hand-write a serial line in a grid — import from there.",
+			},
+			{ type: "heading", text: "The helpers" },
+			{
+				type: "table",
+				headers: ["Export", "Use"],
+				rows: [
+					[
+						"DeviceCell({ deviceDetails, serialNo })",
+						"Job grids that get a server-built device_details string. Renders the stripped device text (or —) with SerialNoLine under it.",
+					],
+					[
+						"SerialNoLine({ serialNo, className? })",
+						"Report grids that build the cell from product / brand / model themselves, plus the Extended Warranty lead grid / detail dialog, the Job Details modal and the reprint delivery note modal. One style everywhere: text-xs, text-teal-800 (dark: text-teal-300), value font-mono font-semibold tracking-wider — tuned with the user on Single Job View, then made the only style. className is for layout tweaks only (e.g. mt-0 self-center inside the Job Details chip row), not for restyling. The line is whitespace-nowrap so 'SN:' never wraps away from its value; a very long serial overflows the cell rather than breaking.",
+					],
+					[
+						"serialNoText(serialNo)",
+						"'SN: <value>' or '' — for ReportTable value strings (search / sort) and PDF export text.",
+					],
+					[
+						"stripTrailingSerial(deviceDetails, serialNo)",
+						"Removes the serial from the end of device_details when it is there. Same endsWith test as deliver-job-pdf.ts.",
+					],
+				],
+			},
+			{ type: "heading", text: "Why device_details still carries the serial" },
+			{
+				type: "para",
+				text: "Most job queries build device_details as CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no). That string also feeds PDFs (deliver-job-pdf.ts), quick-info cards, the status / undo / delivery dialogs and fetch-delivery-note-jobs.ts, so it was deliberately left unchanged. Grids strip the trailing serial client-side and print the SN line from a separate serial_no column instead. The WhatsApp queries build device_details as 'product / brand / model' without the serial, and that text feeds message templates — also unchanged.",
+			},
+			{ type: "heading", text: "Queries that return serial_no as its own column" },
+			{
+				type: "bullets",
+				items: [
+					"sql_jobs.py — GET_JOB_PIPELINE_PAGED, GET_JOB_PIPELINE_ALL_PAGED, GET_JOBS_PAGED, GET_OPENING_JOBS_PAGED, GET_JOB_SEARCH_PAGED (Job Control), GET_JOB_PAYMENTS_PAGED, GET_WHATSAPP_ELIGIBLE_JOBS_PAGED, GET_WHATSAPP_EVENT_LOG_PAGED (added for this feature), plus the ones that already had it: GET_COMPLETED_JOBS_PAGED, GET_DELIVERABLE_JOBS_PAGED, GET_DELIVERED_JOBS_PAGED, GET_JOB_BATCHES_WITH_JOBS_PAGED, GET_WARRANTY_JOBS_BY_CUSTOMER.",
+					"sql_reports_audit.py — GET_DASHBOARD_RECENT_JOBS, GET_DASHBOARD_JOBS_RECEIVED_LIST, GET_DASHBOARD_JOBS_DELIVERED_LIST, GET_DASHBOARD_OPEN_JOBS_LIST, GET_JOBS_RECEIVED_DETAIL, GET_JOBS_REPAIRED_OK_DETAIL, GET_JOBS_DELIVERED_OK_DETAIL, GET_JOB_TRANSACTIONS_DETAIL, GET_EVENT_TRACKING_JOBS (both UNION ALL branches), GET_TECHNICIAN_REPORTS_MONTH_JOBS, GET_WARRANTY_JOBS_LIST_RANGE (also in its GROUP BY), GET_DELIVERED_JOBS_DETAILED_RANGE, and the existing GET_TECHNICIAN_REPORTS_PRODUCT_JOBS.",
+				],
+			},
+			{
+				type: "warning",
+				text: "A new grid fed by a CONCAT_WS(..., j.serial_no) query must use DeviceCell (which strips), not a bare SerialNoLine next to device_details — otherwise the serial shows twice. A new query behind a Device column must select j.serial_no separately, or the SN line silently never appears. A query with UNION ALL needs the column in every branch.",
+			},
+			{ type: "heading", text: "Exports" },
+			{
+				type: "para",
+				text: "Warranty Jobs and Delivered Jobs (Detailed) append serialNoText to the PDF export's device text and add a 'Serial No' column to the Excel sheet, which already splits device into Product / Brand / Model columns.",
+			},
+			{ type: "heading", text: "Not covered" },
+			{
+				type: "para",
+				text: "job-details-modal.tsx, ew-lead-detail-dialog.tsx and reprint-delivery-note-modal.tsx were moved onto SerialNoLine too. Still on their own wording: undo / status-transition dialogs and quick-info cards (they show server device_details as-is), and every PDF — job-details-modal's handlePrintDeliveryNote still builds 'S/N: …' text for buildDeliveryNotePdf, because a PDF cannot use the teal styling. The Job Pipeline report cell drill-down has a Model column, not Device, and is not part of this. Opening Jobs (opening-job/opening-job-section.tsx, GET_OPENING_JOBS_PAGED) had no Device column at first; it was added later with DeviceCell after Mobile — remember the skeleton header list and the skeleton cell count (11) when adding or removing a column there.",
+			},
+		],
+		faqs: [
+			{
+				q: "The SN line doesn't appear on a grid — why?",
+				a: "The query behind it doesn't select serial_no as its own column, or the row type lacks serial_no. Add j.serial_no to the SELECT (every UNION branch) and serial_no: string | null to the row type.",
+			},
+			{
+				q: "The serial shows twice in a grid.",
+				a: "The grid renders device_details next to SerialNoLine, but device_details already ends with the serial. Use DeviceCell instead, which strips it.",
+			},
+		],
+	},
+	{
+		id: "dev-job-status-transitions",
+		category: "Jobs",
+		title: "Job Status Transitions",
+		summary:
+			"Which status actions Job Control and the Job Pipeline drill-down offer comes only from getTransitions() in job-pipeline/status-transitions.ts; the server does not validate transitions.",
+		tags: ["status", "transition", "getTransitions", "STATUS_FLAGS", "ON_HOLD", "job control", "job pipeline"],
+		content: [
+			{
+				type: "para",
+				text: "getTransitions(statusId, jobTypeCode) in features/client/components/jobs/job-pipeline/status-transitions.ts returns the next-status actions for a job. It is the only source for the ⇄ status menu in job-control-section.tsx and job-pipeline-status-drilldown.tsx. Status ids are the fixed seed ids from seed_bu_data.py (8 = ON_HOLD, 6 = IN_PROGRESS, …). STATUS_FLAGS (is_final / is_closed per status) is mirrored server-side in resolvers/jobs/mutations.py and must stay in step, but the server keeps no transition table — adding or removing an action is a client-only change.",
+			},
+			{ type: "heading", text: "On Hold" },
+			{
+				type: "bullets",
+				items: [
+					"Into ON_HOLD (8): from RECEIVED (1, both the ESTIMATE-type and normal lists), ASSIGNED (2), ESTIMATED (3), ESTIMATE_APPROVED (4), IN_PROGRESS (6) and RECEIVED_BACK_FROM_COMPANY (17). Fields: R (remarks only).",
+					"Out of ON_HOLD: only to IN_PROGRESS (6), fields RT (remarks + technician).",
+					"PARTS_PENDING and OUTSOURCED are holds of their own kind and deliberately do not offer On Hold.",
+					"While a job is ON_HOLD, Receipts (edit / delete) and Part Used (job lookup) refuse it — see receipts-section.tsx and receipts/job-lookup-combobox.tsx.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "I added a transition but the server rejected it — where is the server rule?",
+				a: "There is none for transitions. If a save fails, compare STATUS_FLAGS in status-transitions.ts with the copy in resolvers/jobs/mutations.py.",
 			},
 		],
 	},

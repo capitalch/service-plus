@@ -7,6 +7,7 @@ import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-r
 import { WhatsappStatusCell } from "../whatsapp-status-cell";
 import { PAGE_SIZE, isRowSelectable } from "./customer-connect-helpers";
 import type { CustomerConnectJobRow } from "./customer-connect-schema";
+import { DeviceCell } from "@/features/client/components/shared/device-cell";
 
 const thClass =
 	"sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
@@ -119,7 +120,7 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
 									"Job No",
 									"Customer",
 									"Mobile",
-									"Device Details",
+									"Device",
 									"Job Type",
 									"Status",
 									"Amount",
@@ -170,7 +171,7 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
 								<th className={thClass}>Job No</th>
 								<th className={thClass}>Customer</th>
 								<th className={thClass}>Mobile</th>
-								<th className={`${thClass} w-40`}>Device Details</th>
+								<th className={`${thClass} w-40`}>Device</th>
 								<th className={thClass}>Job Type</th>
 								<th className={thClass}>Status</th>
 								<th className={`${thClass} text-right`}>Amount</th>
@@ -241,7 +242,9 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
 										</td>
 										<td className={tdClass}>{row.customer_name}</td>
 										<td className={`${tdClass} font-mono text-xs`}>{row.mobile || "—"}</td>
-										<td className={`${tdClass} max-w-40 text-xs`}>{row.device_details || "—"}</td>
+										<td className={`${tdClass} max-w-40 text-xs`}>
+											<DeviceCell deviceDetails={row.device_details} serialNo={row.serial_no} />
+										</td>
 										<td className={tdClass}>
 											<JobTypeBadge code={row.job_type_code} name={row.job_type_name} />
 										</td>
