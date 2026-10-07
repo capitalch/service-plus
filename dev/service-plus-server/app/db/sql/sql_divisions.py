@@ -5,6 +5,9 @@ Every branch has exactly one default division (`division.is_default`), named Mai
 one-off DEFAULT_DIVISION_DDL script, and the `addBranch` mutation (plan2 Step 2,
 resolvers/masters/branches.py), which is also the only way to create a branch.
 
+A job's branch_id must equal its division's branch_id (plans/plan1.md):
+JOB_DIVISION_BRANCH_FK_DDL makes the database enforce it.
+
 - `DivisionServerSql` — DDL and server-only SQL. Deliberately NOT in SqlStore, since
   genericQuery runs any SqlStore constant by sqlId.
 """
@@ -103,4 +106,51 @@ class DivisionServerSql:
         FROM branch b
         LEFT JOIN division d ON d.branch_id = b.id AND d.is_default
         ORDER BY b.id
+    """
+
+    # plans/plan1.md Step 1. Every BU schema (run with search_path set to it). Safe to run
+    # twice. job keeps branch_id (job_no is unique per branch, and branch filters read it),
+    # so the database guarantees it equals the branch of the job's division:
+    # 1 refuses the schema if any job already disagrees (nothing is guessed or changed);
+    # 2 adds UNIQUE (id, branch_id) on division, only as the target of the FK below;
+    # 3 adds the composite FK. Its default ON UPDATE NO ACTION also stops a division
+    #   that has jobs from moving to another branch.
+    # No % characters: this runs without parameters.
+    JOB_DIVISION_BRANCH_FK_DDL = """
+        DO $$
+        DECLARE
+            bad bigint;
+        BEGIN
+            SELECT COUNT(*) INTO bad
+            FROM job j
+            JOIN division d ON d.id = j.division_id
+            WHERE d.branch_id <> j.branch_id;
+            IF bad > 0 THEN
+                RAISE EXCEPTION USING MESSAGE = bad || ' jobs whose branch differs from their division';
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'division_id_branch_uidx' AND conrelid = 'division'::regclass
+            ) THEN
+                ALTER TABLE division ADD CONSTRAINT division_id_branch_uidx UNIQUE (id, branch_id);
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'job_division_branch_fk' AND conrelid = 'job'::regclass
+            ) THEN
+                ALTER TABLE job ADD CONSTRAINT job_division_branch_fk
+                    FOREIGN KEY (division_id, branch_id) REFERENCES division (id, branch_id);
+            END IF;
+        END $$;
+    """
+
+    # Report the two constraints after JOB_DIVISION_BRANCH_FK_DDL ran (runner output).
+    GET_JOB_DIVISION_BRANCH_FK = """
+        SELECT conname
+        FROM pg_constraint
+        WHERE (conname = 'division_id_branch_uidx' AND conrelid = 'division'::regclass)
+           OR (conname = 'job_division_branch_fk' AND conrelid = 'job'::regclass)
+        ORDER BY conname
     """

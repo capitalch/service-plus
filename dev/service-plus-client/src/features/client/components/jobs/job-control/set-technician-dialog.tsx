@@ -17,8 +17,20 @@ import type { JobControlRow, TechnicianRow } from "@/features/client/types/job";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// Only the fields the dialog reads, so both Job Control and Job Pipeline rows fit.
 type SetTechnicianDialogPropsType = {
-	job: JobControlRow;
+	job: Pick<
+		JobControlRow,
+		| "amount"
+		| "estimate_amount"
+		| "id"
+		| "is_closed"
+		| "is_final"
+		| "job_no"
+		| "job_status_id"
+		| "last_transaction_id"
+		| "technician_id"
+	>;
 	onClose: () => void;
 	onSuccess: () => void;
 	technicians: TechnicianRow[];

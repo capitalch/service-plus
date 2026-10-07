@@ -179,6 +179,7 @@ export type OpenJobRow = {
 	device_details: string | null;
 	serial_no: string | null;
 	file_count: number;
+	internal_note_count: number;
 	transaction_count: number;
 	job_receive_manner_name: string | null;
 	job_receive_condition_name: string | null;

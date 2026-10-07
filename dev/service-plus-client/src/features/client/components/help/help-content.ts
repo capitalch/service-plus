@@ -425,7 +425,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"Set Technician",
-						"Any job — Open, Delivered and All views (on delivered jobs it is in the ⋮ menu)",
+						"Any job — Open, Delivered and All views (on delivered jobs it is in the ⋮ menu). Also in the Job Pipeline drilldown's ⇄ menu, for every job",
 						"Assigns or changes the technician without changing the job's status. Pick the technician and confirm. On a finalised or delivered job the change is saved without a new transaction, so it does not show in the job's history and Undo cannot reverse it — use Set Technician again to change it back",
 					],
 					[
@@ -480,8 +480,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				a: "Job Control is a flat, searchable list you act on directly. Job Pipeline shows how many jobs are in each status and lets you drill into a status group — the drilldown offers the same status-change actions as Job Control, just grouped differently.",
 			},
 			{
-				q: "The action menu shows a lock icon — why?",
-				a: "The job is in a status with no available action (for example a returned or already-delivered job). No transitions, undo, or charges apply to it.",
+				q: "Can I set the technician or open internal notes from Job Pipeline?",
+				a: "Yes. In the Job Pipeline drilldown, every job's ⇄ menu ends with Set Technician and Internal Notes, which work the same as in Job Control. A job with notes also shows the indigo 'N Notes' chip under its job number. Because these two items apply to every job, the ⇄ menu is always available and the lock icon is no longer shown.",
 			},
 			{
 				q: "Why can't I Undo Final or Undo Delivery on a job?",
@@ -2159,7 +2159,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "bullets",
 				items: [
 					"Job Details window (open any job's details from Job Control, Job Pipeline, Receipts and the other job grids): the Internal Notes section sits right after Remarks.",
-					"Job Control: a job with notes shows a small indigo 'N Notes' chip under its job number — click it to open the notes.",
+					"Job Control and the Job Pipeline drilldown: a job with notes shows a small indigo 'N Notes' chip under its job number — click it to open the notes.",
+					"Job Pipeline drilldown → ⇄ menu → Internal Notes: open the notes of any job, at the bottom of the menu.",
 					"Job Control → row menu → Internal Notes: open the notes of any job, including one that has none yet. On open jobs it is at the bottom of the status menu (⇄); on delivered jobs, in the actions menu (⋮).",
 				],
 			},
@@ -4180,6 +4181,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					["Jobs → Customer Connect", "✅", "❌", "✅"],
 					["Jobs → Internal Notes: edit / delete (adding is open to all)", "✅", "❌", "❌"],
 					["Masters tab (whole tab)", "✅", "❌", "✅"],
+					["Masters → Organization (Branch, Financial Year, State / Province)", "✅", "❌", "❌"],
+					["Masters → Service Config (Customer Type, Job Type, Job Status, …)", "✅", "❌", "❌"],
 					["Configurations tab (whole tab)", "✅", "❌", "❌"],
 					["Admin tab / Post-Unpost", "✅", "❌", "❌"],
 					["Inventory → Purchase Entry", "✅", "❌", "✅"],
@@ -4222,7 +4225,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Why can a Receptionist see Masters but not Configurations?",
-				a: "That split is intentional: Masters holds day-to-day reference data (customers, parts, technicians) that front-desk staff maintain, while Configurations controls system-wide behavior (divisions, numbering, app settings) reserved for Managers.",
+				a: "That split is intentional: Masters holds day-to-day reference data (customers, parts, technicians) that front-desk staff maintain, while Configurations controls system-wide behavior (divisions, numbering, app settings) reserved for Managers. Inside Masters, the Organization and Service Config groups are Manager-only too, so a Receptionist opening Masters lands on Customer instead of Branch.",
 			},
 		],
 	},

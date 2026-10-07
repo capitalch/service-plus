@@ -1568,6 +1568,9 @@ class BuAdminDdl:
             ADD CONSTRAINT division_code_check CHECK ((code ~ '^[A-Z0-9_]+$'::text)) NOT VALID;
 
         ALTER TABLE ONLY division
+            ADD CONSTRAINT division_id_branch_uidx UNIQUE (id, branch_id);
+
+        ALTER TABLE ONLY division
             ADD CONSTRAINT division_pkey PRIMARY KEY (id);
 
         ALTER TABLE ONLY document_sequence
@@ -1989,6 +1992,9 @@ class BuAdminDdl:
 
         ALTER TABLE ONLY job
             ADD CONSTRAINT job_customer_fk FOREIGN KEY (customer_contact_id) REFERENCES customer_contact(id) ON DELETE RESTRICT;
+
+        ALTER TABLE ONLY job
+            ADD CONSTRAINT job_division_branch_fk FOREIGN KEY (division_id, branch_id) REFERENCES division(id, branch_id);
 
         ALTER TABLE ONLY job
             ADD CONSTRAINT job_division_id_fkey FOREIGN KEY (division_id) REFERENCES division(id);

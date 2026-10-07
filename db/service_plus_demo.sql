@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict EW8Ipwn3XuNEwvlIXm4iR2tfaAWWZ8HIgU1YHFCftfiq2ALSf2ot2joFl5cV2mW
+\restrict Ligrsw4r6c3n8dnwSggKvG9rd6d6Bve5XPLaCjFcjPsB3Gbq9TfbErnWv2hWYsS
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
@@ -2271,6 +2271,14 @@ ALTER TABLE demo1.division
 
 
 --
+-- Name: division division_id_branch_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.division
+    ADD CONSTRAINT division_id_branch_uidx UNIQUE (id, branch_id);
+
+
+--
 -- Name: division division_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -3693,6 +3701,14 @@ ALTER TABLE ONLY demo1.job
 
 
 --
+-- Name: job job_division_branch_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_division_branch_fk FOREIGN KEY (division_id, branch_id) REFERENCES demo1.division(id, branch_id);
+
+
+--
 -- Name: job job_division_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -4336,5 +4352,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict EW8Ipwn3XuNEwvlIXm4iR2tfaAWWZ8HIgU1YHFCftfiq2ALSf2ot2joFl5cV2mW
+\unrestrict Ligrsw4r6c3n8dnwSggKvG9rd6d6Bve5XPLaCjFcjPsB3Gbq9TfbErnWv2hWYsS
 

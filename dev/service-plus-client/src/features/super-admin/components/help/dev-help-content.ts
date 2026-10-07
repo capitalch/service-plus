@@ -1987,6 +1987,8 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 						"Jobs → Accounts Posting (in addition to the existing postDataToAccounts app-setting condition). The same selectPostDataToAccounts flag also hides the Admin top-nav tab (its only item is Post / Unpost), the mobile Admin link in client-explorer-panel.tsx, and the 'Unposted documents' bell entry in client-top-nav.tsx; the /client/admin route itself is not guarded.",
 					],
 					["MASTERS_MENU", "The whole Masters top-level tab"],
+					["MASTERS_ORGANIZATION", "Masters → Organization group (Branch, Financial Year, State / Province)"],
+					["MASTERS_SERVICE_CONFIG", "Masters → Service Config group (the eight job/customer lookup lists)"],
 					["CONFIG_MENU", "The whole Configurations top-level tab"],
 					["ADMIN_MENU", "Client Mode's Admin tab (Post/Unpost) — not the separate /admin/* Admin Mode"],
 				],
@@ -1999,6 +2001,8 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					["JOBS_OPENING_JOBS", "✅", "❌", "✅"],
 					["JOBS_ACCOUNTS_POSTING", "✅", "❌", "✅"],
 					["MASTERS_MENU", "✅", "❌", "✅"],
+					["MASTERS_ORGANIZATION", "✅", "❌", "❌"],
+					["MASTERS_SERVICE_CONFIG", "✅", "❌", "❌"],
 					["CONFIG_MENU", "✅", "❌", "❌"],
 					["ADMIN_MENU", "✅", "❌", "❌"],
 				],
@@ -2020,6 +2024,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "warning",
 				text: "Universal UX rule: disabled + tooltip, never hide. Every gated menu/button always renders; when the current role lacks the right, it's visually disabled with an explanatory tooltip — this was a deliberate decision, not an oversight, so users always know a feature exists even if they can't currently use it.",
+			},
+			{
+				type: "warning",
+				text: "Disabling a TreeItem only blocks the click — it does not stop the page rendering that item when it is already selected. SECTION_DEFAULTS.masters is 'Branch', so until 2026-10-07 a Receptionist opening Masters got the full Branch screen (add/edit included) under a disabled sidebar entry. layout/masters-access.ts now holds MASTERS_ITEM_RIGHTS (item label → right) and canAccessMastersItem(user, label): client-layout.tsx has an effect, declared after the section-reset effect, that moves a restricted Masters selection (default or deep link) to MASTERS_FALLBACK (Entities > Customer), and client-masters-page.tsx returns null for a restricted label so the section never mounts for the one frame before that effect runs. A new restricted Masters item must be added to MASTERS_ITEM_RIGHTS as well as disabled in MastersExplorer; any other section whose SECTION_DEFAULTS entry is gated needs the same treatment.",
 			},
 		],
 		faqs: [
@@ -2409,7 +2417,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "warning",
-				text: "Never join job_internal_note into GET_JOB_DETAIL or any query that feeds a PDF, a WhatsApp send or a public route. Only GET_JOB_INTERNAL_NOTES and the internal_note_count column of GET_JOB_SEARCH_PAGED read it — tests/jobs/test_job_internal_notes.py asserts GET_JOB_DETAIL does not. On the client, InternalNotesPanel keeps its own state; nothing from it may reach a PDF builder.",
+				text: "Never join job_internal_note into GET_JOB_DETAIL or any query that feeds a PDF, a WhatsApp send or a public route. Only GET_JOB_INTERNAL_NOTES and the internal_note_count column of GET_JOB_SEARCH_PAGED, GET_JOB_PIPELINE_PAGED and GET_JOB_PIPELINE_ALL_PAGED read it — tests/jobs/test_job_internal_notes.py asserts GET_JOB_DETAIL does not. On the client, InternalNotesPanel keeps its own state; nothing from it may reach a PDF builder.",
 			},
 			{ type: "heading", text: "Table (every BU schema)" },
 			{
@@ -2453,11 +2461,11 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"Grid count",
-						"internal_note_count in GET_JOB_SEARCH_PAGED (Job Control), a correlated COUNT like file_count",
+						"internal_note_count in GET_JOB_SEARCH_PAGED (Job Control) and GET_JOB_PIPELINE_PAGED / GET_JOB_PIPELINE_ALL_PAGED (Job Pipeline drilldown), a correlated COUNT like file_count",
 					],
 					[
 						"Client",
-						"jobs/internal-notes/ — panel, dialog, form, zod schema (INTERNAL_NOTE_MAX 2000), mutation helpers. Shown in job-details-modal.tsx after Remarks and from Job Control's chip and row menu",
+						"jobs/internal-notes/ — panel, dialog, form, zod schema (INTERNAL_NOTE_MAX 2000), mutation helpers. Shown in job-details-modal.tsx after Remarks and from the chip and row menu of Job Control and the Job Pipeline drilldown",
 					],
 					[
 						"Dates",
@@ -2698,7 +2706,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		category: "Jobs",
 		title: "Job Control Set Technician Action — Implementation",
 		summary:
-			"The 'Set Technician' item in Job Control (⇄ menu, and the ⋮ menu of delivered rows) reassigns a job's technician without changing status — via updateJob for open jobs, a plain genericUpdate for finalised or closed ones.",
+			"The 'Set Technician' item in Job Control (⇄ menu, and the ⋮ menu of delivered rows) and the Job Pipeline drilldown (⇄ menu) reassigns a job's technician without changing status — via updateJob for open jobs, a plain genericUpdate for finalised or closed ones.",
 		tags: ["job control", "set technician", "updateJob", "job_transaction", "technician_id"],
 		content: [
 			{
@@ -2737,6 +2745,59 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "Why do finalised and delivered jobs skip updateJob?",
 				a: "Its transaction would carry the job's current status. On a delivered job that is a second DELIVERED_OK transaction — counted as another Deliver event in Event Tracking and the Job Transaction Ledger — and it becomes last_transaction_id, so Undo Delivery would undo the technician change instead of the delivery. The direct genericUpdate also leaves updated_at alone (no to_set_updated_at), so the job stays in its Jobs Summary / Technician Report 3 'Repaired' bucket. Reports attribute by job.technician_id, so they follow the change immediately. genericUpdate on 'job' has no table right in GENERIC_UPDATE_TABLE_RIGHTS, matching updateJob, which has none either.",
+			},
+		],
+	},
+
+	{
+		id: "dev-job-pipeline-technician-notes",
+		category: "Jobs",
+		title: "Job Pipeline Set Technician & Internal Notes — Implementation",
+		summary:
+			"The Job Pipeline drilldown reuses Job Control's SetTechnicianDialog and InternalNotesDialog, adds the 'N Notes' chip, and always shows the ⇄ menu.",
+		tags: [
+			"job pipeline",
+			"set technician",
+			"internal notes",
+			"internal_note_count",
+			"GET_JOB_PIPELINE_PAGED",
+			"GET_JOB_PIPELINE_ALL_PAGED",
+			"SetTechnicianDialog",
+			"InternalNotesDialog",
+		],
+		content: [
+			{
+				type: "para",
+				text: "job-pipeline-status-drilldown.tsx holds setTechnicianJob and notesJob state (both OpenJobRow) and renders the two Job Control dialogs unchanged. Behaviour, server effect and rights are exactly as in dev-job-control-set-technician and dev-job-internal-notes.",
+			},
+			{
+				type: "table",
+				headers: ["Concern", "Detail"],
+				rows: [
+					[
+						"Menu",
+						"Set Technician and Internal Notes sit at the end of every row's ⇄ menu. hasOtherActions only decides the separator above them. The old hasAnyAction / lock-icon branch is gone, because the menu is never empty",
+					],
+					[
+						"Dialog prop type",
+						"SetTechnicianDialog's job prop is a Pick<JobControlRow, …> of the nine fields it reads (amount, estimate_amount, id, is_closed, is_final, job_no, job_status_id, last_transaction_id, technician_id), so OpenJobRow fits too. Adding a field the dialog reads means widening that Pick",
+					],
+					[
+						"Note chip",
+						"OpenJobRow.internal_note_count, from a correlated COUNT on job_internal_note in GET_JOB_PIPELINE_PAGED and GET_JOB_PIPELINE_ALL_PAGED. The chip renders only when the count is above 0",
+					],
+					[
+						"Technician list",
+						"The technicians prop already passed down from job-pipeline-section.tsx (GET_ALL_TECHNICIANS)",
+					],
+					["Refresh", "Both dialogs call refreshGrid, which keeps the selected row and page"],
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "The Notes chip never appears in Job Pipeline — why?",
+				a: "The pipeline SQL is not returning internal_note_count. Check that both GET_JOB_PIPELINE_PAGED and GET_JOB_PIPELINE_ALL_PAGED on the server select it.",
 			},
 		],
 	},
@@ -3136,7 +3197,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					[
 						"division_branch_id_fkey ON DELETE CASCADE",
 						"BU_SCHEMA_DDL",
-						"Deleting a branch removes its divisions. CHECK_BRANCH_IN_USE plus the job/sales_invoice/purchase_invoice FKs to division still block a branch with history",
+						"Deleting a branch removes its divisions. CHECK_BRANCH_IN_USE plus the job/sales_invoice/purchase_invoice FKs to division still block a branch with history. job_division_branch_fk also refuses moving a division that has jobs to another branch (see 'Job Branch Always Matches Its Division')",
 					],
 					[
 						"HO's Main",
@@ -3205,6 +3266,85 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "Who may set is_default?",
 				a: "Only the seed, the upgrade script and addBranch; genericUpdate refuses any payload carrying is_default. The partial unique index rejects a second default in a branch at the database level.",
+			},
+		],
+	},
+
+	{
+		id: "dev-job-branch-matches-division",
+		category: "Configuration",
+		title: "Job Branch Always Matches Its Division",
+		summary:
+			"job keeps both branch_id and division_id; a composite foreign key makes the database refuse a job whose branch differs from its division's branch.",
+		tags: [
+			"job",
+			"branch_id",
+			"division_id",
+			"job_division_branch_fk",
+			"division_id_branch_uidx",
+			"foreign key",
+			"plan1",
+		],
+		content: [
+			{
+				type: "para",
+				text: "job.division_id is NOT NULL and a division belongs to exactly one branch, so job.branch_id is derivable. It is kept on purpose: job_no is unique per branch (job_branch_job_no_uidx UNIQUE (branch_id, job_no)), about 75 SQL filters in sql_jobs, sql_sales_accounts, sql_inventory, sql_job_internal_notes and sql_public read j.branch_id, and every job-creation screen writes it. Instead of removing it, the database guarantees it agrees with the division (plans/plan1.md).",
+			},
+			{
+				type: "table",
+				headers: ["Piece", "Where", "What it does"],
+				rows: [
+					[
+						"division_id_branch_uidx",
+						"BU_SCHEMA_DDL (sql_bu_admin_ddl.py)",
+						"UNIQUE (id, branch_id) on division. id is already unique, so this never rejects anything; it exists only as the target of the FK below",
+					],
+					[
+						"job_division_branch_fk",
+						"BU_SCHEMA_DDL",
+						"FOREIGN KEY job (division_id, branch_id) REFERENCES division (id, branch_id). Default ON UPDATE NO ACTION",
+					],
+					[
+						"DivisionServerSql.JOB_DIVISION_BRANCH_FK_DDL",
+						"app/db/sql/sql_divisions.py (not in SqlStore)",
+						"One-off, idempotent upgrade of an existing BU schema. Raises '<n> jobs whose branch differs from their division' and changes nothing when mismatched jobs exist; each ADD CONSTRAINT is guarded by a pg_constraint check",
+					],
+					[
+						"GET_JOB_DIVISION_BRANCH_FK",
+						"app/db/sql/sql_divisions.py",
+						"Lists the two constraint names in the current schema; the runner prints it as proof",
+					],
+					[
+						"run_job_division_branch_fk_ddl.py",
+						"service-plus-server/scripts/",
+						"Runs the DDL in every schema with a division table, in every client database plus service_plus_service when present; --dry-run lists targets. Run on 2026-10-08 in all live schemas",
+					],
+				],
+			},
+			{ type: "heading", text: "Consequences" },
+			{
+				type: "bullets",
+				items: [
+					"Inserting or updating a job with a division from another branch fails with ForeignKeyViolation on job_division_branch_fk. The client always sends currentBranch.id with a division from that branch's list, so this only fires on a bug or a hand-built payload; the generic save error is shown and no message mapping exists.",
+					"Changing division.branch_id is refused while any job references that division. A default division is already refused earlier by refuse_default_division_change; this extends the block to every division with jobs.",
+					"Deleting a branch behaves as before: the branch → division cascade already stops at job_division_id_fkey when jobs exist. job_division_id_fkey is kept although the composite FK covers it.",
+					"The plan-downgrade check (_blocking_branches, GET_BRANCH_FOREIGN_KEYS) reads FKs that point at branch; the new FK points at division and job_branch_fk is unchanged, so its counts are unaffected.",
+					"No query, report, screen, payload or generated db-schema-*.ts type changed.",
+				],
+			},
+			{
+				type: "note",
+				text: "Not yet guarded: purchase_invoice has the same branch_id + division_id NOT NULL pair, and document_sequence has branch_id with a nullable division_id. Both could reuse division_id_branch_uidx with their own composite FK and mismatch pre-check (default MATCH SIMPLE skips rows whose division_id is NULL).",
+			},
+		],
+		faqs: [
+			{
+				q: "Why not drop job.branch_id and join division instead?",
+				a: "Job-number uniqueness is per branch and cannot reference a column of another table, so it would need a trigger or a switch to (division_id, job_no); and every branch filter and report would need a join. The composite FK gives the same guarantee with no query changes.",
+			},
+			{
+				q: "The upgrade script refused a schema. What now?",
+				a: "That schema has jobs whose branch_id differs from their division's branch and was left untouched. Decide per job which of the two is right, fix the rows, then re-run the script; it skips what is already in place.",
 			},
 		],
 	},

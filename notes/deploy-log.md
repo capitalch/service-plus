@@ -3,6 +3,18 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-08 01:26 (main)
+Jobs: add Pipeline technician/notes actions; enforce job branch FK
+
+- Job Pipeline drilldown: every job's ⇄ menu now ends with Set Technician and Internal Notes, and jobs with notes show the 'N Notes' chip; the lock icon for action-less jobs is gone
+- Masters: Branch, Financial Year, State and Service Config items are gated by their access rights (new masters-access.ts); restricted users land on Customer instead of Branch
+- Database: composite FK job (division_id, branch_id) → division (id, branch_id) so a job's branch always matches its division's; new DDL in sql_divisions.py, run_job_division_branch_fk_ddl.py runner, regenerated BU DDL and schema dumps
+- Help: developer article "Job Branch Always Matches Its Division"; client help covers the new Pipeline actions and Masters rights
+- Portal: feature and workflow copy mention internal notes and Pipeline actions
+- Plans: add plan1.md, replace plan.md with the branch-contact-to-division plan, drop plan-claude.md and prompt2.md
+
+Files: 17 changed (+704 / -1264) — Base: d0f9352
+
 ## 2026-10-07 00:48 (main)
 Jobs: add staff-only internal notes on jobs
 

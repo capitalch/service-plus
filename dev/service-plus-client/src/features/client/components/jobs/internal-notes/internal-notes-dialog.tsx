@@ -11,7 +11,7 @@ type Props = {
 	onClose: () => void;
 };
 
-/** The Internal Notes panel on its own — opened from Job Control's chip and row menu. */
+/** The Internal Notes panel on its own — opened from the note chip and row menu in Job Control and Job Pipeline. */
 export const InternalNotesDialog = ({ branchId, jobId, jobNo, onChanged, onClose }: Props) => (
 	<Dialog onOpenChange={(open) => !open && onClose()} open>
 		<DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto bg-slate-50 sm:max-w-lg">

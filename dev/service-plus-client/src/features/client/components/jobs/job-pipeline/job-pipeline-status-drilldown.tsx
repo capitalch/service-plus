@@ -10,15 +10,16 @@ import {
 	Eye,
 	FileDown,
 	Loader2,
-	Lock,
 	Package,
 	Paperclip,
 	Pencil,
 	Receipt,
 	ReceiptText,
 	Search,
+	StickyNote,
 	Truck,
 	Undo2,
+	UserCog,
 	X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -69,6 +70,8 @@ import { useGridRowRetention } from "../use-grid-row-retention";
 import { JobPdfModal } from "../job-control/job-pdf-modal";
 import { JobProformaInvoiceModal } from "../job-control/job-proforma-invoice-modal";
 import { FinalJobDialog } from "../job-control/final-job-dialog";
+import { SetTechnicianDialog } from "../job-control/set-technician-dialog";
+import { InternalNotesDialog } from "../internal-notes/internal-notes-dialog";
 import { DeliveryModal } from "../deliver-job/delivery-modal";
 import type { JobDeliveryFullDetail } from "../deliver-job/deliver-job-schema";
 import {
@@ -182,6 +185,8 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 	const [pdfJobId, setPdfJobId] = useState<number | null>(null);
 	const [proformaJobId, setProformaJobId] = useState<number | null>(null);
 	const [finalJobId, setFinalJobId] = useState<number | null>(null);
+	const [notesJob, setNotesJob] = useState<OpenJobRow | null>(null);
+	const [setTechnicianJob, setSetTechnicianJob] = useState<OpenJobRow | null>(null);
 
 	const [chargesReadonlyOpen, setChargesReadonlyOpen] = useState(false);
 	const [chargesReadonlyJobNo, setChargesReadonlyJobNo] = useState("");
@@ -618,13 +623,15 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 									const showFinalJob = row.job_status_code === "COMPLETED_OK" && !row.is_final;
 									const showUndoFinal = row.job_status_code === "COMPLETED_OK" && row.is_final;
 									const showDeliverJob = row.is_final && !row.is_closed;
-									const hasAnyAction =
+									// Set Technician / Internal Notes apply to every job, so the menu is never
+									// empty; this only decides whether they need a separator above them.
+									const hasOtherActions =
 										!isNoAction ||
 										rowCanUndo ||
 										showCharges ||
+										showDeliverJob ||
 										showFinalJob ||
-										showUndoFinal ||
-										showDeliverJob;
+										showUndoFinal;
 									const batchColor =
 										row.batch_no != null ? BATCH_COLORS[row.batch_no % BATCH_COLORS.length] : null;
 									const isBatchStart =
@@ -709,6 +716,23 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 															<Paperclip className="h-2.5 w-2.5 text-slate-600" />
 															<span>
 																{row.file_count} File{row.file_count !== 1 ? "s" : ""}
+															</span>
+														</button>
+													)}
+													{row.internal_note_count > 0 && (
+														<button
+															type="button"
+															className="flex items-center gap-1 text-[10px] text-indigo-600 dark:text-indigo-400 font-medium hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer bg-indigo-50 dark:bg-indigo-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
+															onClick={(e) => {
+																e.stopPropagation();
+																setSelectedRowId(row.id);
+																setNotesJob(row);
+															}}
+														>
+															<StickyNote className="h-2.5 w-2.5 text-slate-600" />
+															<span>
+																{row.internal_note_count} Note
+																{row.internal_note_count !== 1 ? "s" : ""}
 															</span>
 														</button>
 													)}
@@ -803,194 +827,200 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 													>
 														<Eye className="h-4 w-4 text-muted-foreground" />
 													</Button>
-													{/* No remaining actions → lock icon */}
-													{!hasAnyAction ? (
-														<span className="flex h-7 w-7 items-center justify-center">
-															<Lock className="h-3.5 w-3.5 text-(--cl-text-muted) opacity-40" />
-														</span>
-													) : (
-														<DropdownMenu>
-															<DropdownMenuTrigger asChild>
-																<Button
-																	className="h-8 w-8 p-0 text-(--cl-accent) hover:text-white hover:bg-(--cl-accent) rounded-lg transition-colors"
-																	disabled={submitting || loadingDelivery === row.id}
-																	size="icon"
-																	title="Actions"
-																	variant="ghost"
-																>
-																	<ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
-																</Button>
-															</DropdownMenuTrigger>
-															<DropdownMenuContent
-																align="end"
-																className="min-w-[220px] bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-xl rounded-xl p-1 z-50"
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<Button
+																className="h-8 w-8 p-0 text-(--cl-accent) hover:text-white hover:bg-(--cl-accent) rounded-lg transition-colors"
+																disabled={submitting || loadingDelivery === row.id}
+																size="icon"
+																title="Actions"
+																variant="ghost"
 															>
-																{!isNoAction && (
-																	<>
-																		<DropdownMenuLabel className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-																			Move job to
-																		</DropdownMenuLabel>
+																<ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+															</Button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent
+															align="end"
+															className="min-w-[220px] bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-xl rounded-xl p-1 z-50"
+														>
+															{!isNoAction && (
+																<>
+																	<DropdownMenuLabel className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+																		Move job to
+																	</DropdownMenuLabel>
+																	<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+																	{transitions.length === 0 ? (
+																		<DropdownMenuItem
+																			disabled
+																			className="rounded-lg text-sm text-zinc-400 py-2.5 px-3 italic"
+																		>
+																			No transitions available
+																		</DropdownMenuItem>
+																	) : (
+																		transitions.map((t) => {
+																			const dotBg =
+																				STATUS_COLORS[t.targetCode]
+																					?.trim()
+																					.split(/\s+/)[0] ?? "bg-slate-400";
+																			return (
+																				<DropdownMenuItem
+																					key={`${t.targetId}-${t.targetName}`}
+																					className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
+																					onClick={() =>
+																						setPendingTran({
+																							job: row,
+																							transition: t,
+																						})
+																					}
+																				>
+																					<span
+																						className={`h-3 w-3 shrink-0 rounded-full ${dotBg} shadow-sm`}
+																					/>
+																					<span className="flex-1 text-zinc-700 dark:text-zinc-300">
+																						{t.targetName}
+																					</span>
+																					<span className="text-zinc-300 dark:text-zinc-600">
+																						›
+																					</span>
+																				</DropdownMenuItem>
+																			);
+																		})
+																	)}
+																</>
+															)}
+															{rowCanUndo && (
+																<>
+																	{!isNoAction && (
 																		<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
-																		{transitions.length === 0 ? (
-																			<DropdownMenuItem
-																				disabled
-																				className="rounded-lg text-sm text-zinc-400 py-2.5 px-3 italic"
-																			>
-																				No transitions available
-																			</DropdownMenuItem>
-																		) : (
-																			transitions.map((t) => {
-																				const dotBg =
-																					STATUS_COLORS[t.targetCode]
-																						?.trim()
-																						.split(/\s+/)[0] ??
-																					"bg-slate-400";
-																				return (
-																					<DropdownMenuItem
-																						key={`${t.targetId}-${t.targetName}`}
-																						className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
-																						onClick={() =>
-																							setPendingTran({
-																								job: row,
-																								transition: t,
-																							})
-																						}
-																					>
-																						<span
-																							className={`h-3 w-3 shrink-0 rounded-full ${dotBg} shadow-sm`}
-																						/>
-																						<span className="flex-1 text-zinc-700 dark:text-zinc-300">
-																							{t.targetName}
-																						</span>
-																						<span className="text-zinc-300 dark:text-zinc-600">
-																							›
-																						</span>
-																					</DropdownMenuItem>
-																				);
+																	)}
+																	<DropdownMenuItem
+																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
+																		onClick={() => setUndoPendingJob(row)}
+																	>
+																		<Undo2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+																		Undo Last Transaction
+																	</DropdownMenuItem>
+																</>
+															)}
+															{showCharges && (
+																<>
+																	<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+																	<DropdownMenuItem
+																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
+																		onClick={() =>
+																			setChargesJob({
+																				id: row.id,
+																				job_no: row.job_no,
+																				customer_name: row.customer_name,
+																				job_status_name: row.job_status_name,
+																				job_status_code: row.job_status_code,
+																				job_type_code: row.job_type_code,
 																			})
+																		}
+																	>
+																		<Package className="h-3.5 w-3.5 shrink-0 text-slate-600" />
+																		Parts &amp; Charges
+																	</DropdownMenuItem>
+																</>
+															)}
+															{showFinalJob && (
+																<>
+																	<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+																	<DropdownMenuItem
+																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
+																		onClick={() => setFinalJobId(row.id)}
+																	>
+																		<CheckSquare className="h-3.5 w-3.5 shrink-0" />
+																		Final the Job
+																	</DropdownMenuItem>
+																</>
+															)}
+															{showUndoFinal && (
+																<>
+																	<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+																	<DropdownMenuItem
+																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50 dark:focus:bg-orange-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
+																		disabled={row.invoice_is_posted === true}
+																		title={
+																			row.invoice_is_posted === true
+																				? "Cannot revise a posted job"
+																				: undefined
+																		}
+																		onClick={() => setFinalJobId(row.id)}
+																	>
+																		<Pencil className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+																		Revise Final
+																	</DropdownMenuItem>
+																	<DropdownMenuItem
+																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50 dark:focus:bg-amber-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
+																		disabled={row.invoice_is_posted === true}
+																		title={
+																			row.invoice_is_posted === true
+																				? "Cannot undo a posted job"
+																				: undefined
+																		}
+																		onClick={() => setUndoFinalPendingJob(row)}
+																	>
+																		<Undo2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+																		Undo Final
+																	</DropdownMenuItem>
+																</>
+															)}
+															{showDeliverJob && (
+																<>
+																	<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+																	<DropdownMenuItem
+																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
+																		onClick={() => void handleOpenDelivery(row.id)}
+																	>
+																		<Truck className="h-3.5 w-3.5 shrink-0 text-orange-600" />
+																		Deliver Job
+																	</DropdownMenuItem>
+																	{Number(row.amount) > 0 && (
+																		<DropdownMenuItem
+																			className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-purple-700 focus:text-purple-700 focus:bg-purple-50 dark:focus:bg-purple-950/30"
+																			onClick={() => setProformaJobId(row.id)}
+																		>
+																			<Receipt className="h-3.5 w-3.5 shrink-0 text-green-600" />
+																			Proforma Invoice
+																		</DropdownMenuItem>
+																	)}
+																	<DropdownMenuItem
+																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-teal-700 focus:text-teal-700 focus:bg-teal-50 dark:focus:bg-teal-950/30"
+																		disabled={chargesReadonlyLoading === row.id}
+																		onClick={() =>
+																			void handleOpenChargesReadonly(row)
+																		}
+																	>
+																		{chargesReadonlyLoading === row.id ? (
+																			<Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+																		) : (
+																			<ReceiptText className="h-3.5 w-3.5 shrink-0 text-green-600" />
 																		)}
-																	</>
-																)}
-																{rowCanUndo && (
-																	<>
-																		{!isNoAction && (
-																			<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
-																		)}
-																		<DropdownMenuItem
-																			className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
-																			onClick={() => setUndoPendingJob(row)}
-																		>
-																			<Undo2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
-																			Undo Last Transaction
-																		</DropdownMenuItem>
-																	</>
-																)}
-																{showCharges && (
-																	<>
-																		<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
-																		<DropdownMenuItem
-																			className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
-																			onClick={() =>
-																				setChargesJob({
-																					id: row.id,
-																					job_no: row.job_no,
-																					customer_name: row.customer_name,
-																					job_status_name:
-																						row.job_status_name,
-																					job_status_code:
-																						row.job_status_code,
-																					job_type_code: row.job_type_code,
-																				})
-																			}
-																		>
-																			<Package className="h-3.5 w-3.5 shrink-0 text-slate-600" />
-																			Parts &amp; Charges
-																		</DropdownMenuItem>
-																	</>
-																)}
-																{showFinalJob && (
-																	<>
-																		<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
-																		<DropdownMenuItem
-																			className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
-																			onClick={() => setFinalJobId(row.id)}
-																		>
-																			<CheckSquare className="h-3.5 w-3.5 shrink-0" />
-																			Final the Job
-																		</DropdownMenuItem>
-																	</>
-																)}
-																{showUndoFinal && (
-																	<>
-																		<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
-																		<DropdownMenuItem
-																			className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50 dark:focus:bg-orange-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
-																			disabled={row.invoice_is_posted === true}
-																			title={
-																				row.invoice_is_posted === true
-																					? "Cannot revise a posted job"
-																					: undefined
-																			}
-																			onClick={() => setFinalJobId(row.id)}
-																		>
-																			<Pencil className="h-3.5 w-3.5 shrink-0 text-blue-600" />
-																			Revise Final
-																		</DropdownMenuItem>
-																		<DropdownMenuItem
-																			className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50 dark:focus:bg-amber-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
-																			disabled={row.invoice_is_posted === true}
-																			title={
-																				row.invoice_is_posted === true
-																					? "Cannot undo a posted job"
-																					: undefined
-																			}
-																			onClick={() => setUndoFinalPendingJob(row)}
-																		>
-																			<Undo2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
-																			Undo Final
-																		</DropdownMenuItem>
-																	</>
-																)}
-																{showDeliverJob && (
-																	<>
-																		<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
-																		<DropdownMenuItem
-																			className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
-																			onClick={() =>
-																				void handleOpenDelivery(row.id)
-																			}
-																		>
-																			<Truck className="h-3.5 w-3.5 shrink-0 text-orange-600" />
-																			Deliver Job
-																		</DropdownMenuItem>
-																		{Number(row.amount) > 0 && (
-																			<DropdownMenuItem
-																				className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-purple-700 focus:text-purple-700 focus:bg-purple-50 dark:focus:bg-purple-950/30"
-																				onClick={() => setProformaJobId(row.id)}
-																			>
-																				<Receipt className="h-3.5 w-3.5 shrink-0 text-green-600" />
-																				Proforma Invoice
-																			</DropdownMenuItem>
-																		)}
-																		<DropdownMenuItem
-																			className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-teal-700 focus:text-teal-700 focus:bg-teal-50 dark:focus:bg-teal-950/30"
-																			disabled={chargesReadonlyLoading === row.id}
-																			onClick={() =>
-																				void handleOpenChargesReadonly(row)
-																			}
-																		>
-																			{chargesReadonlyLoading === row.id ? (
-																				<Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-																			) : (
-																				<ReceiptText className="h-3.5 w-3.5 shrink-0 text-green-600" />
-																			)}
-																			Charges
-																		</DropdownMenuItem>
-																	</>
-																)}
-															</DropdownMenuContent>
-														</DropdownMenu>
-													)}
+																		Charges
+																	</DropdownMenuItem>
+																</>
+															)}
+															{hasOtherActions && (
+																<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+															)}
+															<DropdownMenuItem
+																className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer"
+																onClick={() => setSetTechnicianJob(row)}
+															>
+																<UserCog className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+																Set Technician
+															</DropdownMenuItem>
+															{/* Everyone may append a note; edit / delete is gated inside the panel. */}
+															<DropdownMenuItem
+																className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-indigo-700 dark:text-indigo-400 focus:bg-indigo-50 dark:focus:bg-indigo-950/40"
+																onClick={() => setNotesJob(row)}
+															>
+																<StickyNote className="h-3.5 w-3.5 shrink-0 text-slate-600" />
+																Internal Notes
+															</DropdownMenuItem>
+														</DropdownMenuContent>
+													</DropdownMenu>
 													{/* PDF / Print */}
 													<Button
 														className="h-8 w-8 p-0 text-(--cl-text-muted) hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
@@ -1083,6 +1113,25 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 				}}
 				onFilesChanged={() => void loadData()}
 			/>
+
+			{notesJob && branchId && (
+				<InternalNotesDialog
+					branchId={branchId}
+					jobId={notesJob.id}
+					jobNo={notesJob.job_no}
+					onChanged={refreshGrid}
+					onClose={() => setNotesJob(null)}
+				/>
+			)}
+
+			{setTechnicianJob && (
+				<SetTechnicianDialog
+					job={setTechnicianJob}
+					technicians={technicians}
+					onClose={() => setSetTechnicianJob(null)}
+					onSuccess={refreshGrid}
+				/>
+			)}
 
 			{viewJobId !== null && (
 				<JobDetailsModal

@@ -1,7 +1,9 @@
 import { motion } from "framer-motion";
 
+import { selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ClientLayout } from "@/features/client/components/layout/client-layout";
 import { useClientSelection } from "@/features/client/components/layout/client-layout";
+import { canAccessMastersItem } from "@/features/client/components/layout/masters-access";
 import { AdditionalChargeSection } from "@/features/client/components/masters/additional-charge/additional-charge-section";
 import { BranchSection } from "@/features/client/components/masters/branch/branch-section";
 import { CustomerSection } from "@/features/client/components/masters/customer/customer-section";
@@ -25,6 +27,7 @@ import {
 	JOB_STATUS_CONFIG,
 	JOB_TYPE_CONFIG,
 } from "@/features/client/config/lookup-configs";
+import { useAppSelector } from "@/store/hooks";
 
 // ─── Coming Soon ──────────────────────────────────────────────────────────────
 
@@ -48,7 +51,10 @@ function ComingSoon({ label }: { label: string }) {
 
 function MastersContent() {
 	const { selected } = useClientSelection();
+	const currentUser = useAppSelector(selectCurrentUser);
 
+	// The layout redirects off restricted items; render nothing for the one frame before it does.
+	if (!canAccessMastersItem(currentUser, selected)) return null;
 	if (selected === "Job Additional Charges") return <AdditionalChargeSection />;
 	if (selected === "Brand") return <LookupSection config={BRAND_CONFIG} />;
 	if (selected === "Branch") return <BranchSection />;

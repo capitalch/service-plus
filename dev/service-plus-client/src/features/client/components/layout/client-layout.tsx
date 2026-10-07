@@ -21,6 +21,7 @@ import { HelpFab } from "@/components/shared/help/help-fab";
 import { BuBranchDivisionGate } from "@/features/admin/components/bu-branch-division-gate";
 import { ClientActivityBar } from "./client-activity-bar";
 import { getVisibleCustomMenuItems } from "./custom-menu-registry";
+import { MASTERS_FALLBACK, canAccessMastersItem } from "./masters-access";
 import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
 import { ClientTopNav } from "./client-top-nav";
@@ -150,6 +151,14 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 		if (activeSection !== "custom" || selected || !customDefault) return;
 		setSelected(customDefault);
 	}, [activeSection, customDefault, selected]);
+
+	// Masters defaults to Branch, which roles without MASTERS_ORGANIZATION (e.g. Receptionist)
+	// may not open. Move such users — and any deep link to a restricted item — to Customer.
+	useEffect(() => {
+		if (activeSection !== "masters" || canAccessMastersItem(currentUser, selected)) return;
+		setSelected(MASTERS_FALLBACK.item);
+		setSelectedGroup(MASTERS_FALLBACK.group);
+	}, [activeSection, currentUser, selected]);
 
 	// Deep links (e.g. the notification bell) can request a specific sub-item via
 	// navigation state. Runs after the section-default reset above so it wins on
