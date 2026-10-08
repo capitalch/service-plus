@@ -144,7 +144,9 @@ export const JobsCombinedSection = () => {
 					</button>
 				);
 			},
-			header: b.label,
+			group: b.group,
+			header: b.header,
+			headerTitle: matrix.bucketTitles[b.field],
 			id: b.field,
 			sortable: false,
 		})),
@@ -183,15 +185,15 @@ export const JobsCombinedSection = () => {
 	function handlePdfExport() {
 		try {
 			exportReportPdf({
-				// Sized to fit landscape A4 (273 mm between the 12 mm margins): 2 × 22 + 13 × 17.5 mm.
+				// Sized to fit landscape A4 (273 mm between the 12 mm margins): 2 × 15 + 20 × 12 mm.
 				columns: [
-					{ dataKey: "category", header: "Category", width: 22 },
-					{ dataKey: "stage", header: "Stage", width: 22 },
+					{ dataKey: "category", header: "Category", width: 15 },
+					{ dataKey: "stage", header: "Stage", width: 15 },
 					...CATEGORY_BUCKET_COLUMNS.map((b) => ({
 						align: "right" as const,
 						dataKey: b.field,
 						header: b.label,
-						width: 17.5,
+						width: 12,
 					})),
 				],
 				fileName: "jobs-combined-summary",

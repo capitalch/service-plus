@@ -143,7 +143,7 @@ const StageChart = ({ data, showProfit, showRevenue, xLabel }: StageChartProps) 
 
 export const JobsCombinedChartSection = () => {
 	const matrix = useJobsCombinedMatrix();
-	const [bucket, setBucket] = useState<CategoryBucketFieldType>("ytd");
+	const [bucket, setBucket] = useState<CategoryBucketFieldType>("thisYear");
 	const [showRevenue, setShowRevenue] = useState(true);
 	const [showProfit, setShowProfit] = useState(true);
 
@@ -281,7 +281,7 @@ export const JobsCombinedChartSection = () => {
 					</Label>
 					<Select onValueChange={(v) => setBucket(v as CategoryBucketFieldType)} value={bucket}>
 						<SelectTrigger className="h-9 w-40">
-							<SelectValue placeholder="Year-to-Date" />
+							<SelectValue placeholder="This Year" />
 						</SelectTrigger>
 						<SelectContent>
 							{CATEGORY_BUCKET_COLUMNS.map((b) => (

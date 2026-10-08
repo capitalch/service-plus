@@ -17,46 +17,13 @@ import { exportReportPdf } from "../common/pdf-export";
 import { exportReportXlsx } from "../common/xlsx-export";
 import type { EventTrackingRowType } from "../common/use-event-tracking-matrix";
 import { useEventTrackingMatrix } from "../common/use-event-tracking-matrix";
+import { REPORT_BUCKETS, bucketExportHeader } from "../common/report-buckets";
 import { useFiscalSetting } from "../common/use-fiscal-setting";
 import { EventTrackingCellDialog } from "./event-tracking-cell-dialog";
 import type { EventTrackingCellType } from "./event-tracking-cell-dialog";
 
 const TITLE = "Event Tracking";
 const DESCRIPTION = "Job lifecycle event counts across standard fiscal date ranges.";
-
-type BucketColumnDefType = { field: keyof Omit<EventTrackingRowType, "eventName">; group: string; header: string };
-
-// Grid shows a Day / Week / Month / Quarter / Year group row over these short headers.
-const BUCKET_COLUMNS: BucketColumnDefType[] = [
-	{ field: "today", group: "Day", header: "Today" },
-	{ field: "yesterday", group: "Day", header: "-1" },
-	{ field: "dayBeforeYesterday", group: "Day", header: "-2" },
-	{ field: "threeDaysAgo", group: "Day", header: "-3" },
-	{ field: "thisWeek", group: "Week", header: "This" },
-	{ field: "lastWeek", group: "Week", header: "-1" },
-	{ field: "twoWeeksAgo", group: "Week", header: "-2" },
-	{ field: "threeWeeksAgo", group: "Week", header: "-3" },
-	{ field: "thisMonth", group: "Month", header: "This" },
-	{ field: "lastMonth", group: "Month", header: "-1" },
-	{ field: "twoMonthsAgo", group: "Month", header: "-2" },
-	{ field: "threeMonthsAgo", group: "Month", header: "-3" },
-	{ field: "thisQuarter", group: "Quarter", header: "This" },
-	{ field: "lastQuarter", group: "Quarter", header: "-1" },
-	{ field: "twoQuartersAgo", group: "Quarter", header: "-2" },
-	{ field: "threeQuartersAgo", group: "Quarter", header: "-3" },
-	{ field: "thisYear", group: "Year", header: "This" },
-	{ field: "lastYear", group: "Year", header: "-1" },
-	{ field: "twoYearsAgo", group: "Year", header: "-2" },
-	{ field: "threeYearsAgo", group: "Year", header: "-3" },
-];
-
-// Flat name for places with a single header row (PDF, Excel, drill-down title):
-// "Today", "This Week", "Week -1".
-function exportHeader(b: BucketColumnDefType): string {
-	if (b.header === "Today") return b.header;
-	if (b.header === "This") return `This ${b.group}`;
-	return `${b.group} ${b.header}`;
-}
 
 export const EventTrackingSection = () => {
 	const { fyStartMonth, isReady } = useFiscalSetting();
@@ -72,7 +39,7 @@ export const EventTrackingSection = () => {
 			value: (r) => r.eventName,
 			width: "160px",
 		},
-		...BUCKET_COLUMNS.map<ReportColumnType<EventTrackingRowType>>((b) => ({
+		...REPORT_BUCKETS.map<ReportColumnType<EventTrackingRowType>>((b) => ({
 			align: "right",
 			cell: (r) => {
 				const count = r[b.field];
@@ -89,7 +56,7 @@ export const EventTrackingSection = () => {
 						onClick={() =>
 							range &&
 							setCell({
-								bucketLabel: exportHeader(b),
+								bucketLabel: bucketExportHeader(b),
 								eventName: r.eventName,
 								from: range.from,
 								to: range.to,
@@ -114,10 +81,10 @@ export const EventTrackingSection = () => {
 			exportReportPdf({
 				columns: [
 					{ dataKey: "eventName", header: "Event", width: 30 },
-					...BUCKET_COLUMNS.map((b) => ({
+					...REPORT_BUCKETS.map((b) => ({
 						align: "right" as const,
 						dataKey: b.field,
-						header: exportHeader(b),
+						header: bucketExportHeader(b),
 						// 20 buckets × 12 + 30 = 270 mm, inside A4 landscape's 273 mm print width.
 						width: 12,
 					})),
@@ -127,7 +94,7 @@ export const EventTrackingSection = () => {
 				orientation: "landscape",
 				rows: matrix.rows.map((r) => {
 					const row: Record<string, number | string> = { eventName: r.eventName };
-					BUCKET_COLUMNS.forEach((b) => {
+					REPORT_BUCKETS.forEach((b) => {
 						row[b.field] = formatNumber(r[b.field]);
 					});
 					return row;
@@ -135,7 +102,7 @@ export const EventTrackingSection = () => {
 				title: TITLE,
 				totalsRow: (() => {
 					const row: Record<string, number | string> = { eventName: "TOTAL" };
-					BUCKET_COLUMNS.forEach((b) => {
+					REPORT_BUCKETS.forEach((b) => {
 						row[b.field] = formatNumber(matrix.rows.reduce((s, r) => s + r[b.field], 0));
 					});
 					return row;
@@ -156,8 +123,8 @@ export const EventTrackingSection = () => {
 						name: TITLE.slice(0, 28),
 						rows: matrix.rows.map((r) => {
 							const row: Record<string, number | string> = { Event: r.eventName };
-							BUCKET_COLUMNS.forEach((b) => {
-								row[exportHeader(b)] = r[b.field];
+							REPORT_BUCKETS.forEach((b) => {
+								row[bucketExportHeader(b)] = r[b.field];
 							});
 							return row;
 						}),

@@ -3,6 +3,18 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-08 20:02 (main)
+Reports: use Event Tracking period columns on all Jobs Summary tabs
+
+- report-buckets.ts: new shared REPORT_BUCKETS (20 buckets grouped Day/Week/Month/Quarter/Year) and bucketExportHeader
+- use-category-range-matrix.ts: replace the 13 old buckets with the shared 20, add bucketTitles tooltips and q13-q19 queries
+- use-event-tracking-matrix.ts / event-tracking-section.tsx: read buckets from the shared file instead of local copies
+- category-range-matrix-section, jobs-combined-section: grouped headers, tooltips, narrower PDF columns
+- jobs-combined-chart-section.tsx: default period is now thisYear
+- help-content.ts / dev-help-content.ts: updated Jobs Summary and Event Tracking articles
+
+Files: 10 changed (+105 / -147) — Base: 00ff5ad
+
 ## 2026-10-08 15:34 (main)
 Docs: draft subscription plan tiers and add todo items
 

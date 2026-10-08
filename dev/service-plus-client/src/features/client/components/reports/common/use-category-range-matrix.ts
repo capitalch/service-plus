@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 
-import { formatIsoDate, getRange } from "./fiscal";
-import type { DateRangeType, RangeKeyType } from "./fiscal";
+import { formatIsoDate, formatRangeLabel, formatShortDate } from "./fiscal";
+import type { DateRangeType } from "./fiscal";
+import { REPORT_BUCKETS, bucketExportHeader } from "./report-buckets";
+import type { BucketFieldType } from "./report-buckets";
 import { useGenericQuery } from "./use-generic-query";
 
 export type CategorySplitType = {
@@ -11,20 +13,7 @@ export type CategorySplitType = {
 	warranty_count: number;
 };
 
-export type CategoryBucketFieldType =
-	| "today"
-	| "yesterday"
-	| "thisWeek"
-	| "prevWeek"
-	| "thisMonth"
-	| "lastMonth"
-	| "monthBeforeLast"
-	| "q1"
-	| "q2"
-	| "q3"
-	| "q4"
-	| "ytd"
-	| "lastYear";
+export type CategoryBucketFieldType = BucketFieldType;
 
 export type CategoryBucketRangeType = { from: string; to: string };
 
@@ -41,35 +30,21 @@ type CategoryCountRowType = {
 
 const ZERO_SPLIT: CategorySplitType = { oow_count: 0, profit_amount: 0, revenue_amount: 0, warranty_count: 0 };
 
-const BUCKETS: { key: RangeKeyType; label: string }[] = [
-	{ key: "today", label: "Today" },
-	{ key: "yesterday", label: "Yesterday" },
-	{ key: "thisWeek", label: "This Week" },
-	{ key: "prevWeek", label: "Previous Week" },
-	{ key: "thisMonth", label: "This Month" },
-	{ key: "lastMonth", label: "Last Month" },
-	{ key: "monthBeforeLast", label: "2 Months Ago" },
-	{ key: "q1", label: "Q1" },
-	{ key: "q2", label: "Q2" },
-	{ key: "q3", label: "Q3" },
-	{ key: "q4", label: "Q4" },
-	{ key: "ytd", label: "Year-to-Date" },
-	{ key: "lastYear", label: "Last Year" },
-];
-
-export const CATEGORY_BUCKET_COLUMNS: { field: CategoryBucketFieldType; label: string }[] = BUCKETS.map((b) => ({
-	field: b.key as CategoryBucketFieldType,
-	label: b.label,
-}));
+export const CATEGORY_BUCKET_COLUMNS: {
+	field: CategoryBucketFieldType;
+	group: string;
+	header: string;
+	label: string;
+}[] = REPORT_BUCKETS.map((b) => ({ field: b.field, group: b.group, header: b.header, label: bucketExportHeader(b) }));
 
 export function useCategoryRangeMatrix(sqlId: string, fyStartMonth: number, enabled: boolean, rowOrder?: string[]) {
-	const ranges = useMemo<{ key: RangeKeyType; label: string; range: DateRangeType }[]>(
-		() => BUCKETS.map((b) => ({ ...b, range: getRange(b.key, new Date(), fyStartMonth) })),
+	const ranges = useMemo<{ field: CategoryBucketFieldType; range: DateRangeType }[]>(
+		() => REPORT_BUCKETS.map((b) => ({ field: b.field, range: b.range(new Date(), fyStartMonth) })),
 		[fyStartMonth],
 	);
 
 	// React hooks can't be called in a loop — same constraint use-event-tracking-matrix.ts
-	// works around: one query per bucket, 13 of them, in BUCKETS order.
+	// works around: one query per bucket, 20 of them, in REPORT_BUCKETS order.
 	const q0 = useGenericQuery<CategoryCountRowType>({
 		enabled,
 		sqlArgs: { from: formatIsoDate(ranges[0].range.from), to: formatIsoDate(ranges[0].range.to) },
@@ -136,11 +111,46 @@ export function useCategoryRangeMatrix(sqlId: string, fyStartMonth: number, enab
 		sqlArgs: { from: formatIsoDate(ranges[12].range.from), to: formatIsoDate(ranges[12].range.to) },
 		sqlId,
 	});
+	const q13 = useGenericQuery<CategoryCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[13].range.from), to: formatIsoDate(ranges[13].range.to) },
+		sqlId,
+	});
+	const q14 = useGenericQuery<CategoryCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[14].range.from), to: formatIsoDate(ranges[14].range.to) },
+		sqlId,
+	});
+	const q15 = useGenericQuery<CategoryCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[15].range.from), to: formatIsoDate(ranges[15].range.to) },
+		sqlId,
+	});
+	const q16 = useGenericQuery<CategoryCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[16].range.from), to: formatIsoDate(ranges[16].range.to) },
+		sqlId,
+	});
+	const q17 = useGenericQuery<CategoryCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[17].range.from), to: formatIsoDate(ranges[17].range.to) },
+		sqlId,
+	});
+	const q18 = useGenericQuery<CategoryCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[18].range.from), to: formatIsoDate(ranges[18].range.to) },
+		sqlId,
+	});
+	const q19 = useGenericQuery<CategoryCountRowType>({
+		enabled,
+		sqlArgs: { from: formatIsoDate(ranges[19].range.from), to: formatIsoDate(ranges[19].range.to) },
+		sqlId,
+	});
 
-	const queries = [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12];
+	const queries = [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13, q14, q15, q16, q17, q18, q19];
 
 	// Row axis is dynamic (product categories are tenant-managed, not a fixed enum) —
-	// derived from the union of category names seen across all 13 bucket results. Sorted
+	// derived from the union of category names seen across all 20 bucket results. Sorted
 	// alphabetically by default, or per `rowOrder` when the caller has a fixed, meaningfully
 	// ordered enum instead (e.g. job_status.display_order) — either way, a category with
 	// zero jobs in every bucket never appears as a row.
@@ -154,9 +164,9 @@ export function useCategoryRangeMatrix(sqlId: string, fyStartMonth: number, enab
 
 	const rows: CategoryRangeRowType[] = categories.map((category) => {
 		const row = { category } as CategoryRangeRowType;
-		BUCKETS.forEach((bucket, idx) => {
+		REPORT_BUCKETS.forEach((bucket, idx) => {
 			const match = queries[idx].data.find((r) => r.category_name === category);
-			row[bucket.key as CategoryBucketFieldType] = match
+			row[bucket.field] = match
 				? {
 						oow_count: Number(match.oow_count ?? 0),
 						profit_amount: Number(match.profit_amount ?? 0),
@@ -178,8 +188,18 @@ export function useCategoryRangeMatrix(sqlId: string, fyStartMonth: number, enab
 	// Per-bucket date bounds, keyed by field — lets a drill-down dialog re-query
 	// the exact same range a clicked cell's count came from.
 	const bucketRanges = Object.fromEntries(
-		ranges.map((r) => [r.key, { from: formatIsoDate(r.range.from), to: formatIsoDate(r.range.to) }]),
+		ranges.map((r) => [r.field, { from: formatIsoDate(r.range.from), to: formatIsoDate(r.range.to) }]),
 	) as Record<CategoryBucketFieldType, CategoryBucketRangeType>;
 
-	return { bucketRanges, error, loading, refetch, rows };
+	// Header tooltips: the exact dates behind each column, one date for a single day.
+	const bucketTitles = Object.fromEntries(
+		ranges.map((r) => [
+			r.field,
+			formatIsoDate(r.range.from) === formatIsoDate(r.range.to)
+				? formatShortDate(r.range.from)
+				: formatRangeLabel(r.range.from, r.range.to),
+		]),
+	) as Record<CategoryBucketFieldType, string>;
+
+	return { bucketRanges, bucketTitles, error, loading, refetch, rows };
 }

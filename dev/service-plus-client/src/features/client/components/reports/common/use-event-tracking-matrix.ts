@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 
-import { formatIsoDate, formatRangeLabel, formatShortDate, getPeriodsAgoRange, getRange } from "./fiscal";
-import type { DateRangeType, PeriodUnitType, RangeKeyType } from "./fiscal";
+import { formatIsoDate, formatRangeLabel, formatShortDate } from "./fiscal";
+import { REPORT_BUCKETS as BUCKETS } from "./report-buckets";
+import type { BucketFieldType } from "./report-buckets";
 import { useGenericQuery } from "./use-generic-query";
 
 export type EventTrackingRowType = {
@@ -29,47 +30,11 @@ export type EventTrackingRowType = {
 };
 
 type EventCountRowType = { count: number; event_name: string };
-export type BucketFieldType = keyof Omit<EventTrackingRowType, "eventName">;
 export type BucketRangeType = { from: string; to: string };
-
-type BucketDefType = { field: BucketFieldType; range: (today: Date, fyStart: number) => DateRangeType };
 
 // Fixed row order — Return/Cancel/Disposed are intentionally not tracked as events
 // (see plans/plan.md §2), so they never appear here.
 const EVENT_ORDER = ["Received", "Status Change", "Finalize", "Deliver"];
-
-function byKey(key: RangeKeyType) {
-	return (today: Date, fyStart: number) => getRange(key, today, fyStart);
-}
-
-function periodsAgo(unit: PeriodUnitType, offset: number) {
-	return (today: Date, fyStart: number) => getPeriodsAgoRange(offset, today, fyStart, unit);
-}
-
-// Same order as the report's columns. The -2 and -3 buckets (other than -2 days) have no
-// RangeKeyType, so they come from getPeriodsAgoRange instead of getRange.
-const BUCKETS: BucketDefType[] = [
-	{ field: "today", range: byKey("today") },
-	{ field: "yesterday", range: byKey("yesterday") },
-	{ field: "dayBeforeYesterday", range: byKey("dayBeforeYesterday") },
-	{ field: "threeDaysAgo", range: periodsAgo("day", 3) },
-	{ field: "thisWeek", range: byKey("thisWeek") },
-	{ field: "lastWeek", range: byKey("prevWeek") },
-	{ field: "twoWeeksAgo", range: periodsAgo("week", 2) },
-	{ field: "threeWeeksAgo", range: periodsAgo("week", 3) },
-	{ field: "thisMonth", range: byKey("thisMonth") },
-	{ field: "lastMonth", range: byKey("lastMonth") },
-	{ field: "twoMonthsAgo", range: periodsAgo("month", 2) },
-	{ field: "threeMonthsAgo", range: periodsAgo("month", 3) },
-	{ field: "thisQuarter", range: byKey("thisQuarter") },
-	{ field: "lastQuarter", range: byKey("lastQuarter") },
-	{ field: "twoQuartersAgo", range: periodsAgo("quarter", 2) },
-	{ field: "threeQuartersAgo", range: periodsAgo("quarter", 3) },
-	{ field: "thisYear", range: byKey("ytd") },
-	{ field: "lastYear", range: byKey("lastYear") },
-	{ field: "twoYearsAgo", range: periodsAgo("year", 2) },
-	{ field: "threeYearsAgo", range: periodsAgo("year", 3) },
-];
 
 export function useEventTrackingMatrix(sqlId: string, fyStartMonth: number, enabled: boolean) {
 	const ranges = useMemo(

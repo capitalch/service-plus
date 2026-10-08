@@ -3357,7 +3357,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"Jobs Summary",
-						"Six tabs — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Combined, Combined Chart, Job Transactions — each one row per product category (Job Transactions: one row per job status, in workflow order) and one column per fixed period (Today, Yesterday, This Week, Previous Week, This Month, Last Month, 2 Months Ago, Q1–Q4, Year-to-Date, Last Year); each cell shows the total with an orange Warranty / emerald Out-of-Warranty split below it, plus a Total row summing each period across categories",
+						"Six tabs — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Combined, Combined Chart, Job Transactions — each one row per product category (Job Transactions: one row per job status, in workflow order) and one column per fixed period, grouped under Day / Week / Month / Quarter / Year headings exactly as in Event Tracking (Today, -1, -2, -3 days; This, -1, -2, -3 for weeks, months, quarters and years — hover a column heading to see its dates); each cell shows the total with an orange Warranty / emerald Out-of-Warranty split below it, plus a Total row summing each period across categories",
 						"Monitor inflow, repair output, delivery volume, and status-change activity",
 					],
 					[

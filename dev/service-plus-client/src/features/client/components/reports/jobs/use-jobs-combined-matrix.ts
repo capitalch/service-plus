@@ -24,6 +24,7 @@ export type StageCellsType = Record<CategoryBucketFieldType, CategorySplitType>;
 
 export type JobsCombinedMatrixType = {
 	bucketRanges: Record<CategoryBucketFieldType, CategoryBucketRangeType>;
+	bucketTitles: Record<CategoryBucketFieldType, string>;
 	categories: string[];
 	error: Error | null;
 	loading: boolean;
@@ -107,6 +108,7 @@ export const useJobsCombinedMatrix = (): JobsCombinedMatrixType => {
 	return {
 		// Date math only, identical across all three source queries — any one will do.
 		bucketRanges: received.bucketRanges,
+		bucketTitles: received.bucketTitles,
 		categories,
 		error: received.error ?? repaired.error ?? delivered.error,
 		loading: received.loading || repaired.loading || delivered.loading,

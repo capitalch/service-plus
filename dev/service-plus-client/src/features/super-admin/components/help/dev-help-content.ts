@@ -1423,7 +1423,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					[
 						"EventTrackingCellDialog (reports/jobs/)",
 						"EventTrackingCellType",
-						'Event Tracking — Cost/Sale/Profit columns shown only for Finalize/Deliver events (COST_EVENTS set). 20 period buckets (Today/This plus -1, -2, -3 in each of Day, Week, Month, Quarter, Year). Column headers come from BUCKET_COLUMNS in event-tracking-section.tsx, not from RANGE_LABELS in fiscal.ts, so changing one does not change the other. Each entry has a group (Day/Week/Month/Quarter/Year, drawn as ReportTable\'s merged top header row) and a short header (Today/This, -1, -2, -3). exportHeader() turns that into the flat name ("Today", "This Week", "Week -1") used for the PDF/XLSX column names and passed as bucketLabel to the drill-down dialog title. Header tooltips (headerTitle) come from bucketTitles returned by useEventTrackingMatrix — formatRangeLabel / formatShortDate of each bucket\'s range. Date ranges come from BUCKETS in use-event-tracking-matrix.ts: buckets with a RangeKeyType use getRange, the nine older ones (threeDaysAgo and the two…/three… Weeks/Months/Quarters/YearsAgo fields) use getPeriodsAgoRange(offset, today, fyStart, unit) in fiscal.ts — whole periods, quarters and years fiscal. GET_EVENT_TRACKING_COUNTS just takes from/to, so no server change; one query per bucket (20 round trips, hand-unrolled q0–q19 because hooks can\'t run in a loop). Adding a bucket means the row type, BUCKETS, another qN line and BUCKET_COLUMNS; the PDF bucket width (12 mm) is sized so 20 columns fit A4 landscape',
+						'Event Tracking — Cost/Sale/Profit columns shown only for Finalize/Deliver events (COST_EVENTS set). 20 period buckets (Today/This plus -1, -2, -3 in each of Day, Week, Month, Quarter, Year). Column headers come from REPORT_BUCKETS in reports/common/report-buckets.ts (shared with every Jobs Summary tab), not from RANGE_LABELS in fiscal.ts, so changing one does not change the other. Each entry has a group (Day/Week/Month/Quarter/Year, drawn as ReportTable\'s merged top header row) and a short header (Today/This, -1, -2, -3). bucketExportHeader() (same file) turns that into the flat name ("Today", "This Week", "Week -1") used for the PDF/XLSX column names and passed as bucketLabel to the drill-down dialog title. Header tooltips (headerTitle) come from bucketTitles returned by useEventTrackingMatrix — formatRangeLabel / formatShortDate of each bucket\'s range. Date ranges come from the range function on each REPORT_BUCKETS entry: buckets with a RangeKeyType use getRange, the nine older ones (threeDaysAgo and the two…/three… Weeks/Months/Quarters/YearsAgo fields) use getPeriodsAgoRange(offset, today, fyStart, unit) in fiscal.ts — whole periods, quarters and years fiscal. GET_EVENT_TRACKING_COUNTS just takes from/to, so no server change; one query per bucket (20 round trips, hand-unrolled q0–q19 because hooks can\'t run in a loop). Adding a bucket means the row type, REPORT_BUCKETS and another qN line in both use-event-tracking-matrix.ts and use-category-range-matrix.ts; the PDF bucket width (12 mm) is sized so 20 columns fit A4 landscape',
 					],
 					[
 						"TechnicianProductCellDialog (reports/technician/)",
@@ -1535,36 +1535,36 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		category: "Client (Frontend)",
 		title: "Jobs Summary Period Columns (Date Buckets)",
 		summary:
-			"Where the 13 fixed period columns of every Jobs Summary tab come from, and what to touch to add or change one.",
+			"Where the 20 fixed period columns of every Jobs Summary tab come from, and what to touch to add or change one.",
 		tags: [
 			"jobs summary",
 			"buckets",
 			"periods",
-			"2 months ago",
-			"monthBeforeLast",
+			"periods ago",
+			"report-buckets",
 			"fiscal",
 			"category range matrix",
 		],
 		content: [
 			{
 				type: "para",
-				text: "Every Jobs Summary tab — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Combined, Combined Chart and Job Transactions — shows the same 13 period columns, in this order: Today, Yesterday, This Week, Previous Week, This Month, Last Month, 2 Months Ago, Q1, Q2, Q3, Q4, Year-to-Date, Last Year. They are defined once, in the BUCKETS array of src/features/client/components/reports/common/use-category-range-matrix.ts; CATEGORY_BUCKET_COLUMNS, the drill-down ranges (bucketRanges), the Combined tabs (use-jobs-combined-matrix.ts) and the Excel/PDF exports all derive from it, so a new entry there reaches every tab.",
+				text: "Every Jobs Summary tab — Jobs Received, Jobs Repaired (OK), Jobs Delivered (OK), Combined, Combined Chart and Job Transactions — shows the same 20 period columns as Event Tracking, grouped Day / Week / Month / Quarter / Year over Today|This, -1, -2, -3. They are defined once, in REPORT_BUCKETS in src/features/client/components/reports/common/report-buckets.ts, shared with use-event-tracking-matrix.ts. CATEGORY_BUCKET_COLUMNS (field, group, header, flat export label), the drill-down ranges (bucketRanges), header tooltips (bucketTitles), the Combined tabs (use-jobs-combined-matrix.ts) and the Excel/PDF exports all derive from it, so a new entry there reaches every tab and Event Tracking.",
 			},
 			{
 				type: "bullets",
 				items: [
 					"Dates are computed in the browser by getRange (reports/common/fiscal.ts) and sent as plain from/to arguments to the server sql ids (GET_JOBS_RECEIVED_BY_CATEGORY_RANGE_SPLIT and siblings). A new bucket needs no server or SQL change.",
-					'"2 Months Ago" is the RangeKeyType monthBeforeLast: the whole calendar month two months before the current one (in October, all of August).',
-					"Each bucket is its own useGenericQuery call — 13 hand-written calls (q0…q12), because hooks cannot run in a loop. Adding a bucket means adding to BUCKETS, to the CategoryBucketFieldType union, and one more qN call, keeping them in BUCKETS order; the queries array must list every qN.",
-					"PDF exports are landscape A4 with 273 mm between the margins. Column widths in category-range-matrix-section.tsx (28 + 13 × 18.5 mm) and jobs-combined-section.tsx (2 × 22 + 13 × 17.5 mm) are budgeted to fit; adding a column means shrinking those widths, or the right-hand columns run off the page.",
-					"useCategoryRangeMatrix is used only by Jobs Summary, so changing BUCKETS affects no other report. Event Tracking has its own period set (use-event-tracking-matrix.ts).",
+					"The -2 and -3 buckets (other than -2 days) have no RangeKeyType; they come from getPeriodsAgoRange. thisYear is the fiscal year-to-date (RangeKeyType ytd); the old Q1–Q4 fiscal-quarter columns were replaced by This/-1/-2/-3 quarters.",
+					"Each bucket is its own useGenericQuery call — 20 hand-written calls (q0…q19), because hooks cannot run in a loop. Adding a bucket means adding to REPORT_BUCKETS, to the BucketFieldType union (and EventTrackingRowType), and one more qN call in both hooks, keeping them in REPORT_BUCKETS order; the queries array must list every qN.",
+					"PDF exports are landscape A4 with 273 mm between the margins. Column widths in category-range-matrix-section.tsx (30 + 20 × 12 mm) and jobs-combined-section.tsx (2 × 15 + 20 × 12 mm) are budgeted to fit; adding a column means shrinking those widths, or the right-hand columns run off the page.",
+					"useCategoryRangeMatrix is used only by Jobs Summary, but REPORT_BUCKETS is also Event Tracking's column set, so changing it affects both.",
 				],
 			},
 		],
 		faqs: [
 			{
 				q: "I added a bucket and its column is empty on every tab.",
-				a: "The qN call is missing or out of order. BUCKETS index n must line up with qN, and qN must be in the queries array — rows are filled by position, so a skipped call leaves that column at zero.",
+				a: "The qN call is missing or out of order. REPORT_BUCKETS index n must line up with qN, and qN must be in the queries array — rows are filled by position, so a skipped call leaves that column at zero.",
 			},
 		],
 	},

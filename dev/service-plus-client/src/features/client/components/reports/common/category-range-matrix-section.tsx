@@ -136,7 +136,9 @@ export const CategoryRangeMatrixSection = ({
 					split={sumSplit(rows, b.field)}
 				/>
 			),
-			header: b.label,
+			group: b.group,
+			header: b.header,
+			headerTitle: matrix.bucketTitles[b.field],
 			id: b.field,
 			value: (r) => r[b.field].warranty_count + r[b.field].oow_count,
 		})),
@@ -145,15 +147,15 @@ export const CategoryRangeMatrixSection = ({
 	function handlePdfExport() {
 		try {
 			exportReportPdf({
-				// Sized to fit landscape A4 (273 mm between the 12 mm margins): 28 + 13 × 18.5 mm.
+				// Sized to fit landscape A4 (273 mm between the 12 mm margins): 30 + 20 × 12 mm.
 				// Long cells such as "12 (W:3 OW:9)" wrap onto a second line rather than overflow.
 				columns: [
-					{ dataKey: "category", header: rowLabel, width: 28 },
+					{ dataKey: "category", header: rowLabel, width: 30 },
 					...CATEGORY_BUCKET_COLUMNS.map((b) => ({
 						align: "right" as const,
 						dataKey: b.field,
 						header: b.label,
-						width: 18.5,
+						width: 12,
 					})),
 				],
 				fileName: fileSlug,
