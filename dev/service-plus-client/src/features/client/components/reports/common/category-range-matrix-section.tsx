@@ -260,17 +260,11 @@ export const CategoryRangeMatrixSection = ({
 
 			<ChartCard description={matrixDescription ?? DEFAULT_MATRIX_DESCRIPTION}>
 				{(showSplit || showRevenue || showProfit) && (
-					<div className="mb-2 flex flex-wrap items-center gap-4 text-[11px] font-semibold text-(--cl-text-muted)">
+					<div className="mb-2 flex flex-wrap items-center gap-4 text-xs font-semibold text-(--cl-text-muted)">
 						{showSplit && (
 							<>
-								<span className="inline-flex items-center gap-1.5">
-									<span className="h-2 w-2 rounded-full bg-orange-500" />
-									Warranty
-								</span>
-								<span className="inline-flex items-center gap-1.5">
-									<span className="h-2 w-2 rounded-full bg-emerald-500" />
-									Out of Warranty
-								</span>
+								<span className="text-blue-600 dark:text-blue-400">Out of warranty</span>
+								<span className="text-orange-700 dark:text-orange-300">Warranty</span>
 							</>
 						)}
 						{showProfit && (

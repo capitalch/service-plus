@@ -1558,6 +1558,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"Each bucket is its own useGenericQuery call — 20 hand-written calls (q0…q19), because hooks cannot run in a loop. Adding a bucket means adding to REPORT_BUCKETS, to the BucketFieldType union (and EventTrackingRowType), and one more qN call in both hooks, keeping them in REPORT_BUCKETS order; the queries array must list every qN.",
 					"PDF exports are landscape A4 with 273 mm between the margins. Column widths in category-range-matrix-section.tsx (30 + 20 × 12 mm) and jobs-combined-section.tsx (2 × 15 + 20 × 12 mm) are budgeted to fit; adding a column means shrinking those widths, or the right-hand columns run off the page.",
 					"useCategoryRangeMatrix is used only by Jobs Summary, but REPORT_BUCKETS is also Event Tracking's column set, so changing it affects both.",
+					"The Warranty / OOW split inside each cell is common/warranty-split-cell.tsx: Out-of-Warranty blue then Warranty orange (text-xs bold, no dots), the same look as Technician Report 2's CellFigures. When the cell total is 0 the split line is kept but invisible, so the 0 stays aligned with neighbouring cells. The legends in category-range-matrix-section.tsx and jobs-combined-section.tsx use the same two colors.",
 				],
 			},
 		],

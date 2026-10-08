@@ -3,6 +3,16 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-08 20:11 (main)
+Reports: match Technician Report 2 warranty split style in Jobs Summary
+
+- warranty-split-cell.tsx: show Out-of-Warranty (blue) then Warranty (orange) side by side, no dots, small bold text
+- warranty-split-cell.tsx: keep the split line invisible when a total is 0 so the 0 stays aligned
+- category-range-matrix-section, jobs-combined-section: legends use the same blue/orange labels without dots
+- help-content.ts / dev-help-content.ts: describe the new split style
+
+Files: 5 changed (+21 / -31) — Base: 4da717e
+
 ## 2026-10-08 20:02 (main)
 Reports: use Event Tracking period columns on all Jobs Summary tabs
 

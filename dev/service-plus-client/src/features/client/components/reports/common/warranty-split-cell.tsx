@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+
 import { formatInr, formatNumber } from "./formatters";
 import type { CategorySplitType } from "./use-category-range-matrix";
 
@@ -9,9 +11,9 @@ type Props = {
 	split: CategorySplitType;
 };
 
-// Orange = Warranty — matches JOB_TYPE_COLORS.UNDER_WARRANTY in job-badges.tsx, the badge
-// color already shown for warranty jobs in every job grid (Job Control, Single Job, Job
-// Pipeline). Emerald = Out-of-Warranty, for clear contrast against the orange.
+// Same look as Technician Report 2 (technician-monthly-report.tsx CellFigures): Out-of-Warranty in
+// blue on the left, Warranty in orange on its right, no dots, small bold figures. Both are named
+// by the legend above the grid.
 // Profit/Revenue follow technician-profit-revenue-section.tsx's own hierarchy: Profit is the
 // prominent bold emerald figure — colored text only, no filled pill — and Revenue is plain
 // de-emphasized text (there, an unstyled table cell), shown smaller and parenthesized below it.
@@ -33,15 +35,14 @@ export function WarrantySplitCell({
 				{formatNumber(total)}
 			</span>
 			{showSplit && (
-				<span className="inline-flex items-center gap-2 text-[10px] font-normal tabular-nums">
-					<span className="inline-flex items-center gap-1 text-orange-500/70 dark:text-orange-300/60">
-						<span className="h-1.5 w-1.5 rounded-full bg-orange-500/70" />
-						{formatNumber(split.warranty_count)}
-					</span>
-					<span className="inline-flex items-center gap-1 text-emerald-500/70 dark:text-emerald-400/60">
-						<span className="h-1.5 w-1.5 rounded-full bg-emerald-500/70" />
-						{formatNumber(split.oow_count)}
-					</span>
+				<span
+					className={cn(
+						"inline-flex items-baseline gap-2 text-xs font-bold whitespace-nowrap tabular-nums",
+						total === 0 && "invisible",
+					)}
+				>
+					<span className="text-blue-600 dark:text-blue-400">{formatNumber(split.oow_count)}</span>
+					<span className="text-orange-700 dark:text-orange-300">{formatNumber(split.warranty_count)}</span>
 				</span>
 			)}
 			{showProfit && (
