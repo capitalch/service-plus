@@ -3,6 +3,14 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-08 15:34 (main)
+Docs: draft subscription plan tiers and add todo items
+
+- notes/Marketting.md: outline Lite, Basic, Standard and Enterprise plans with user, BU, branch, monthly job and WhatsApp limits (Enterprise left blank)
+- notes/todo.md: add portal/help hierarchy, user rights in help, and an AI interface to enhancements
+
+Files: 2 changed (+29 / -0) — Base: e8a4088
+
 ## 2026-10-08 01:26 (main)
 Jobs: add Pipeline technician/notes actions; enforce job branch FK
 

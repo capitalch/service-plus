@@ -4,6 +4,9 @@ Enhancements
 	- One internal remarks, not printable, for internal working
 	- Intimation for immediate collection of your set
 	- Creation of CRM for subscription for sales team
+	- Define hierarchy in portal and help system
+	- Define user rights in help system
+	- AI interface
 	- Subscription
 		- Live demo and practice in demo site which is fully functional for demo purposes. You can make entry and see the results
 			- Demo user name and password available on demand
