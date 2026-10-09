@@ -14,6 +14,7 @@ import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -722,6 +723,8 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(funct
 									<Input
 										{...form.register("invoice_date")}
 										className={`bg-(--cl-surface-2) ${!invoiceDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+										max={DATE_INPUT_MAX}
+										min={DATE_INPUT_MIN}
 										type="date"
 									/>
 								</div>

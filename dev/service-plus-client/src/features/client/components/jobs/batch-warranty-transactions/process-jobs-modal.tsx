@@ -9,6 +9,7 @@ import type { TechnicianRow, WarrantyBatchJobRow } from "@/features/client/types
 import { TechnicianPicker } from "./technician-picker";
 import { TransactionPicker } from "./transaction-picker";
 import { getEligibleKinds, type TransactionKind } from "./transaction-eligibility";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 
 export type ProcessJobsArgs = {
 	checkedKinds: Set<TransactionKind>;
@@ -113,6 +114,8 @@ export function ProcessJobsModal({ jobs, technicians, executing, onCancel, onRem
 								id="pjm-date"
 								className="h-9 w-40"
 								required
+								max={DATE_INPUT_MAX}
+								min={DATE_INPUT_MIN}
 								type="date"
 								value={transactionDate}
 								onChange={(e) => setTransactionDate(e.target.value)}

@@ -63,6 +63,8 @@ function recommend(answers: AnswersType): { plan: PlanType; reasons: string[] } 
 	const needsInventory = (answers.inventory ?? 0) > 0;
 	const needsMultiUser = (answers.team ?? 1) > 1;
 	const needsWhatsapp = (answers.whatsapp ?? 0) > 0;
+	// "Most jobs" needs messages for at least half of the plan's job limit.
+	const needsWhatsappPerJob = (answers.whatsapp ?? 0) > 1;
 	const branches = answers.branches ?? 0;
 
 	const reasons: string[] = [];
@@ -80,6 +82,8 @@ function recommend(answers: AnswersType): { plan: PlanType; reasons: string[] } 
 		if (needsInventory && !plan.inventory) return false;
 		if (needsMultiUser && plan.users === "single") return false;
 		if (needsWhatsapp && plan.whatsappPerMonth === 0) return false;
+		if (needsWhatsappPerJob && plan.jobsPerMonth !== null && plan.whatsappPerMonth * 2 < plan.jobsPerMonth)
+			return false;
 		if (branches >= 2 && plan.branches !== null) return false;
 		if (branches >= 3 && plan.businessUnits < 2) return false;
 		return true;

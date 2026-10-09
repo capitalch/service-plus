@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { JobLookupForReceiptType, JobReceiptDetailType } from "@/features/client/types/receipt";
 import { JobLookupCombobox } from "./job-lookup-combobox";
 import { type ReceiptFormValues, PAYMENT_MODES } from "./receipt-form-schema";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,8 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
 					<Input
 						className="h-9 border-(--cl-border) bg-white text-sm"
 						id="receipt-payment-date"
+						max={DATE_INPUT_MAX}
+						min={DATE_INPUT_MIN}
 						type="date"
 						{...form.register("payment_date")}
 					/>

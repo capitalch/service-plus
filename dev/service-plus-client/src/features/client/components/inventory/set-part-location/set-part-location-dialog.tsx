@@ -17,6 +17,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import type { LocationOptionType, SetLocationLineType } from "@/features/client/types/set-part-location";
 import { emptyLine } from "@/features/client/types/set-part-location";
 import { apolloClient } from "@/lib/apollo-client";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
@@ -297,7 +298,13 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
 							<Label htmlFor="spl_date">
 								Date <span className="text-red-500">*</span>
 							</Label>
-							<Input id="spl_date" type="date" {...form.register("txn_date")} />
+							<Input
+								id="spl_date"
+								max={DATE_INPUT_MAX}
+								min={DATE_INPUT_MIN}
+								type="date"
+								{...form.register("txn_date")}
+							/>
 						</div>
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="spl_refno">Ref No</Label>

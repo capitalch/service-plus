@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MESSAGES } from "@/constants/messages";
+import { optionalPastDateSchema } from "@/lib/date-utils";
 
 export const openingJobFormSchema = z.object({
 	alternate_job_no: z.string().min(1, MESSAGES.ERROR_OPENING_JOB_NO_REQUIRED),
@@ -10,7 +11,7 @@ export const openingJobFormSchema = z.object({
 	customer_name: z.string().optional().default(""),
 	mobile: z.string().optional().default(""),
 	job_date: z.string().min(1),
-	purchase_date: z.string().optional().default(""),
+	purchase_date: optionalPastDateSchema.optional().default(""),
 	job_type_id: z.number({ error: MESSAGES.ERROR_JOB_TYPE_REQUIRED }).int().positive(MESSAGES.ERROR_JOB_TYPE_REQUIRED),
 	receive_manner_id: z
 		.number({ error: MESSAGES.ERROR_JOB_RECEIVE_MANNER_REQUIRED })

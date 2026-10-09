@@ -284,6 +284,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				a: "No. Create one job per device type. Use the Quantity field only for identical units of the same model.",
 			},
 			{
+				q: "Why does the Purchase Date show 'Enter a valid date' or 'cannot be in the future'?",
+				a: "Purchase Date is optional, but when you fill it in it must be a real date with a 4-digit year from 1900 onwards, and not later than today. The same rule applies on Single Job, Batch Job, Opening Job and Extended Warranty leads. Other date boxes across the app also only take a 4-digit year. Save stays disabled until the date is fixed or cleared.",
+			},
+			{
 				q: "Can I edit a finalized job?",
 				a: "No. Jobs marked as Final are locked. Go to Final a Job → Finalized Jobs → click Undo to revert it (you must delete any existing invoice first).",
 			},

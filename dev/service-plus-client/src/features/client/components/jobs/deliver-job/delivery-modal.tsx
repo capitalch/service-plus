@@ -25,6 +25,7 @@ import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import type { UserInstanceType } from "@/lib/auth-service";
@@ -1053,6 +1054,8 @@ export function DeliveryModal({
 										Delivery Date <span className="text-red-500">*</span>
 									</Label>
 									<Input
+										max={DATE_INPUT_MAX}
+										min={DATE_INPUT_MIN}
 										type="date"
 										className="h-10 border-(--cl-border) bg-(--cl-surface) text-base shadow-sm"
 										disabled={flowBusy || flowDone}

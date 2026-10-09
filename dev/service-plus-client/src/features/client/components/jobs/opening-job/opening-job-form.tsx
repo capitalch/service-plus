@@ -13,6 +13,7 @@ import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN, todayIso } from "@/lib/date-utils";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -222,7 +223,13 @@ export function OpeningJobForm({
 							{/* Job Date */}
 							<div className="space-y-1.5 md:col-span-3 lg:col-span-3">
 								<Label className={labelCls}>Job Date</Label>
-								<Input className="bg-(--cl-surface-2)" type="date" {...register("job_date")} />
+								<Input
+									className="bg-(--cl-surface-2)"
+									max={DATE_INPUT_MAX}
+									min={DATE_INPUT_MIN}
+									type="date"
+									{...register("job_date")}
+								/>
 							</div>
 
 							{/* Customer */}
@@ -464,7 +471,13 @@ export function OpeningJobForm({
 							{/* Purchase Date */}
 							<div className="space-y-1.5 md:col-span-3 lg:col-span-3">
 								<Label className={labelCls}>Purchase Date</Label>
-								<Input className="bg-(--cl-surface-2)" type="date" {...register("purchase_date")} />
+								<Input
+									className="bg-(--cl-surface-2)"
+									max={todayIso()}
+									min={DATE_INPUT_MIN}
+									type="date"
+									{...register("purchase_date")}
+								/>
 							</div>
 						</CardContent>
 					</Card>

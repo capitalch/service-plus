@@ -48,10 +48,10 @@ export const MESSAGES = {
 	reasonBranches: "You run more than one branch, which needs the Standard plan or above",
 	reasonBusinessUnits:
 		"You run more than five branches or several businesses, so you need more than one business unit",
-	reasonInventory: "You stock spare parts, which the Lite and Basic plans do not include",
+	reasonInventory: "You stock spare parts, so your plan includes spare-parts inventory",
 	reasonStarter: "A single-user shop with no extra needs, so the free Lite plan covers you",
 	reasonTeam: "More than one person needs their own login, which Lite and Basic do not allow",
-	reasonWhatsapp: "You want customers updated on WhatsApp, which is not in the Lite plan",
+	reasonWhatsapp: "You update customers on WhatsApp, so your plan has enough messages for your jobs",
 	recommenderEyebrow: "Not sure?",
 	recommenderIntro:
 		"Answer four questions about your workshop and we will point you at the plan that fits — you can still change it later.",

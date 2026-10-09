@@ -20,25 +20,48 @@ from app.db.connection.pool_manager import pool_manager
 _MAX_BULK_PLACEHOLDERS: int = 2000
 
 
+def _load_iso(loader: Any, data: bytes) -> str:
+    """ISO string for a date/timestamp; raw Postgres text when Python can't represent it.
+
+    Python dates stop at year 9999, so a typo like '12024-01-10' would otherwise raise
+    DataError inside fetchall() and fail the whole query, not just that row.
+    """
+    try:
+        return loader.load_value(data).isoformat()
+    except psycopg.DataError:
+        raw = bytes(data).decode()
+        logger.warning("Out-of-range date returned as raw text: %r", raw)
+        return raw
+
+
 class _IsoDateLoader(DateLoader):  # pylint: disable=too-few-public-methods
     """Returns date values as ISO-formatted strings instead of date objects."""
 
     def load(self, data: bytes) -> str:
-        return super().load(data).isoformat()
+        return _load_iso(self, data)
+
+    def load_value(self, data: bytes) -> Any:
+        return super().load(data)
 
 
 class _IsoTimestampLoader(TimestampLoader):  # pylint: disable=too-few-public-methods
     """Returns timestamp values as ISO-formatted strings instead of datetime objects."""
 
     def load(self, data: bytes) -> str:
-        return super().load(data).isoformat()
+        return _load_iso(self, data)
+
+    def load_value(self, data: bytes) -> Any:
+        return super().load(data)
 
 
 class _IsoTimestamptzLoader(TimestamptzLoader):  # pylint: disable=too-few-public-methods
     """Returns timestamptz values as ISO-formatted strings instead of datetime objects."""
 
     def load(self, data: bytes) -> str:
-        return super().load(data).isoformat()
+        return _load_iso(self, data)
+
+    def load_value(self, data: bytes) -> Any:
+        return super().load(data)
 
 
 class _FloatNumericLoader(FloatLoader):  # pylint: disable=too-few-public-methods

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MESSAGES } from "@/constants/messages";
+import { optionalPastDateSchema } from "@/lib/date-utils";
 import { isValidGstin } from "@/lib/gstin";
 
 export const singleJobFormSchema = z.object({
@@ -20,7 +21,7 @@ export const singleJobFormSchema = z.object({
 	job_status_id: z.number().nullable().optional(),
 	model_id: z.number({ error: MESSAGES.ERROR_JOB_MODEL_REQUIRED }).int().positive(MESSAGES.ERROR_JOB_MODEL_REQUIRED),
 	alternate_job_no: z.string().optional().default(""),
-	purchase_date: z.string().optional().default(""),
+	purchase_date: optionalPastDateSchema.optional().default(""),
 	serial_no: z.string().optional().default(""),
 	qty: z.coerce.number().int().min(1),
 	problem_reported: z.string().optional().default(""),

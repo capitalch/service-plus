@@ -27,6 +27,7 @@ export const MESSAGES = {
 	// Login Success/Error
 	ERROR_ACCOUNT_LOCKED: "Your account has been locked. Please contact support.",
 	ERROR_INVALID_CREDENTIALS: "Invalid username or password",
+	ERROR_INVALID_DATE: "Enter a valid date (year 1900 or later).",
 	ERROR_LOGIN_FAILED: "Login failed. Please check your credentials.",
 	ERROR_SESSION_EXPIRED: "Your session has expired. Please login again.",
 	SUCCESS_GRAPHQL_TEST: "GraphQL test query executed successfully.",
@@ -374,6 +375,7 @@ export const MESSAGES = {
 	ERROR_PURCHASE_SUPPLIER_REQUIRED: "Please select a supplier.",
 	ERROR_PURCHASE_INVOICE_NO_REQUIRED: "Invoice number is required.",
 	ERROR_PURCHASE_DATE_REQUIRED: "Invoice date is required.",
+	ERROR_PURCHASE_DATE_FUTURE: "Purchase date cannot be in the future.",
 	ERROR_PURCHASE_LINES_REQUIRED: "At least one line item is required.",
 	ERROR_PURCHASE_INVOICE_EXISTS: "This invoice number already exists for the selected supplier.",
 	ERROR_PURCHASE_LINE_FIELDS_REQUIRED:

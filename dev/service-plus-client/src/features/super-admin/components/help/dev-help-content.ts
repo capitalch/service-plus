@@ -5024,6 +5024,53 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 		],
 	},
+	{
+		id: "dev-date-input-limits",
+		category: "Client (Frontend)",
+		title: "Date Input Limits",
+		summary:
+			'Every raw <input type="date"> that saves data carries min/max from lib/date-utils.ts, because a 5-digit year saved to Postgres cannot be loaded back by psycopg.',
+		tags: [
+			"date",
+			"type=date",
+			"DATE_INPUT_MAX",
+			"DATE_INPUT_MIN",
+			"isValidIsoDate",
+			"optionalPastDateSchema",
+			"psycopg",
+			"DataError",
+			"year 10K",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Chrome lets the year box of a native date input take up to 6 digits when the input has no max, so a typo like 1 + 2024 is saved as 12024-01-10, and typing only 25 saves 0025. Postgres accepts both. Python dates stop at year 9999, so psycopg raises DataError ('date too large (after year 10K)') while loading such a row — inside fetchall(), which fails the whole query, not just that row.",
+			},
+			{ type: "heading", text: "Client guard" },
+			{
+				type: "bullets",
+				items: [
+					"lib/date-utils.ts: DATE_INPUT_MIN ('1900-01-01'), DATE_INPUT_MAX ('9999-12-31'), isValidIsoDate (empty is valid; otherwise YYYY-MM-DD, year ≥ 1900, a real calendar date), todayIso (local date) and optionalPastDateSchema (zod: valid date and not in the future).",
+					"A 4-digit max also makes Chrome cap the year box at 4 digits, which blocks the typo at the keyboard.",
+					"Write forms put max={DATE_INPUT_MAX} min={DATE_INPUT_MIN} on every raw date input. Job purchase dates (single, batch, opening job) use max={todayIso()} and optionalPastDateSchema, as does the Extended Warranty lead's purchase date.",
+					"List filters (*-section.tsx), report range pickers and audit-log filters are left without limits — they only query.",
+					"components/ui/locale-date-input.tsx already restricts the year to 4 digits and ≥ 1900.",
+					"Any new raw date input in a form that saves data must carry the same min/max.",
+				],
+			},
+			{ type: "heading", text: "Server fallback" },
+			{
+				type: "para",
+				text: "In app/db/connection/psycopg_driver.py, the text_dates loaders (_IsoDateLoader, _IsoTimestampLoader, _IsoTimestamptzLoader) go through _load_iso(): a value psycopg cannot load comes back as its raw Postgres text (for example '12024-01-10'), and a warning is logged, instead of failing the query. Valid values come back exactly as before. This only covers text_dates=True reads, which is what genericQuery uses.",
+			},
+		],
+		faqs: [
+			{
+				q: "A screen fails with 'date too large (after year 10K)' — how do I find the row?",
+				a: "Query each date/timestamp column for extract(year from col) > 9999 or < 1900 in the tenant DB, then correct the value with an UPDATE. With the loader fallback the screen should load anyway and show the odd date.",
+			},
+		],
+	},
 ];
 
 // ─── Category style map ────────────────────────────────────────────────────────

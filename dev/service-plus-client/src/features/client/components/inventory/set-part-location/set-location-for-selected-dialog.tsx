@@ -16,6 +16,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import type { LocationOptionType, StockBalanceWithLocationType } from "@/features/client/types/set-part-location";
 import { apolloClient } from "@/lib/apollo-client";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 import { encodeObj } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
@@ -129,7 +130,13 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
 							<Label htmlFor="slfs_date">
 								Date <span className="text-red-500">*</span>
 							</Label>
-							<Input id="slfs_date" type="date" {...form.register("txn_date")} />
+							<Input
+								id="slfs_date"
+								max={DATE_INPUT_MAX}
+								min={DATE_INPUT_MIN}
+								type="date"
+								{...form.register("txn_date")}
+							/>
 						</div>
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="slfs_refno">Ref No</Label>

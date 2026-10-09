@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { addReceiptSchema, getAddReceiptDefaults, type AddReceiptFormValues } from "./deliver-job-schema";
 import { PAYMENT_MODES } from "./deliver-job-helpers";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,8 @@ export function AddReceiptModal({ open, defaultAmount = 0, subtitle, onClose, on
 						</Label>
 						<Input
 							id="ar-date"
+							max={DATE_INPUT_MAX}
+							min={DATE_INPUT_MIN}
 							type="date"
 							className="h-9 text-sm border-(--cl-border)"
 							{...form.register("payment_date")}

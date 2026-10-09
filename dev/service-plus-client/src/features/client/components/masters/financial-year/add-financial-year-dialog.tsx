@@ -15,6 +15,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -229,7 +230,13 @@ export const AddFinancialYearDialog = ({ onOpenChange, onSuccess, open }: AddFin
 							<Label htmlFor="fy_start">
 								Start Date <span className="text-red-500">*</span>
 							</Label>
-							<Input id="fy_start" type="date" {...form.register("start_date")} />
+							<Input
+								id="fy_start"
+								max={DATE_INPUT_MAX}
+								min={DATE_INPUT_MIN}
+								type="date"
+								{...form.register("start_date")}
+							/>
 							<FieldError message={errors.start_date?.message} />
 						</div>
 
@@ -239,7 +246,13 @@ export const AddFinancialYearDialog = ({ onOpenChange, onSuccess, open }: AddFin
 								End Date <span className="text-red-500">*</span>
 							</Label>
 							<div className="relative">
-								<Input id="fy_end" type="date" {...form.register("end_date")} />
+								<Input
+									id="fy_end"
+									max={DATE_INPUT_MAX}
+									min={DATE_INPUT_MIN}
+									type="date"
+									{...form.register("end_date")}
+								/>
 								{checkingOverlap && (
 									<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
 								)}

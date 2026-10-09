@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MESSAGES } from "@/constants/messages";
+import { optionalPastDateSchema } from "@/lib/date-utils";
 import { isValidGstin } from "@/lib/gstin";
 
 const batchJobRowSchema = z.object({
@@ -10,7 +11,7 @@ const batchJobRowSchema = z.object({
 		.number({ error: MESSAGES.ERROR_JOB_MODEL_REQUIRED })
 		.int()
 		.positive(MESSAGES.ERROR_JOB_MODEL_REQUIRED),
-	purchase_date: z.string().default(""),
+	purchase_date: optionalPastDateSchema.default(""),
 	alternate_job_no: z.string().default(""),
 	serial_no: z.string().default(""),
 	problem_reported: z.string().default(""),

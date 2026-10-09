@@ -6,6 +6,7 @@
 import { z } from "zod";
 
 import { MESSAGES } from "@/constants/messages";
+import { optionalPastDateSchema } from "@/lib/date-utils";
 import { isValidMobile } from "@/lib/mobile";
 
 import { EW_NOTES_MAX, EW_WARRANTY_END_BACKDATE_MONTHS, isCompleteMobile } from "./ew-state-machine";
@@ -54,7 +55,7 @@ export function buildEwLeadSchema(isEdit: boolean) {
 			mobile: z.string().refine((v) => isCompleteMobile(v), MESSAGES.ERROR_MOBILE_INVALID),
 			model_name: z.string(),
 			product_id: z.number().int().nonnegative(),
-			purchase_date: z.string(),
+			purchase_date: optionalPastDateSchema,
 			remarks: z.string(),
 			serial_no: z.string(),
 			warranty_end_date: z.string().min(1, MESSAGES.ERROR_EW_WARRANTY_END_REQUIRED),

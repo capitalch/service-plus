@@ -3,6 +3,25 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-09 15:59 (main)
+Jobs: block impossible years in date inputs; survive bad stored dates
+
+- service-plus-server psycopg_driver: date/timestamp loaders return the raw
+  text for values Python cannot represent (year > 9999) instead of failing
+  the whole query, and log a warning
+- client lib/date-utils: shared DATE_INPUT_MIN/MAX, isValidIsoDate, todayIso
+  and optionalPastDateSchema
+- client job forms + extended warranty: purchase date must be a real date,
+  year 1900+, not in the future; input capped at today
+- client write forms (inventory, receipts, delivery, pipeline, masters):
+  min/max on raw date inputs so Chrome only takes a 4-digit year
+- service-plus-portal pricing: Lite now 100 jobs, 20 WhatsApp/month with
+  inventory; Basic 200/200; recommender requires WhatsApp for half the jobs
+- Docs: help + dev help "Date Input Limits"; plan.md rewritten, plan1.md
+  removed, Lite limits/workflow plans added
+
+Files: 33 changed (+304 / -314) — Base: c640cc2
+
 ## 2026-10-08 20:11 (main)
 Reports: match Technician Report 2 warranty split style in Jobs Summary
 

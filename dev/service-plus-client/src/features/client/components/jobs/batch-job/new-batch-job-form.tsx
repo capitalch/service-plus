@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { AddModelDialog } from "@/features/client/components/shared/model";
 import { CustomerInput } from "@/features/client/components/shared/customer-select";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN, todayIso } from "@/lib/date-utils";
 import { normalizeGstin } from "@/lib/gstin";
 
 import type { CustomerSearchRow } from "@/features/client/types/sales";
@@ -194,6 +195,8 @@ export function NewBatchJobForm({
 					<div className="space-y-0.5 shrink-0">
 						<Label className={labelCls}>Date</Label>
 						<Input
+							max={DATE_INPUT_MAX}
+							min={DATE_INPUT_MIN}
 							type="date"
 							className="h-8 w-36 bg-(--cl-surface-2) text-xs"
 							{...form.register("batch_date")}
@@ -377,6 +380,8 @@ export function NewBatchJobForm({
 										{/* Purchase Date */}
 										<Input
 											className="h-8 text-xs bg-(--cl-surface-2) hidden md:block"
+											max={todayIso()}
+											min={DATE_INPUT_MIN}
 											type="date"
 											{...register(`rows.${idx}.purchase_date`)}
 										/>
@@ -510,6 +515,8 @@ export function NewBatchJobForm({
 														<Label className={labelCls}>Purchase Date</Label>
 														<Input
 															className="h-8 text-xs bg-(--cl-surface-2)"
+															max={todayIso()}
+															min={DATE_INPUT_MIN}
 															type="date"
 															{...register(`rows.${idx}.purchase_date`)}
 														/>

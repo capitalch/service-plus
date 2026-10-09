@@ -16,6 +16,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
@@ -292,7 +293,13 @@ export const AddTechnicianDialog = ({ branches, onOpenChange, onSuccess, open }:
 					{/* Leaving Date */}
 					<div className="flex flex-col gap-1.5">
 						<Label htmlFor="at_leaving">Leaving Date</Label>
-						<Input id="at_leaving" type="date" {...form.register("leaving_date")} />
+						<Input
+							id="at_leaving"
+							max={DATE_INPUT_MAX}
+							min={DATE_INPUT_MIN}
+							type="date"
+							{...form.register("leaving_date")}
+						/>
 					</div>
 
 					<DialogFooter className="pt-2">

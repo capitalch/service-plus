@@ -15,6 +15,7 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
@@ -270,6 +271,8 @@ export const StatusTransitionModal = ({ divisions, job, transition, technicians,
 										<Input
 											className="h-9"
 											id="stm-date"
+											max={DATE_INPUT_MAX}
+											min={DATE_INPUT_MIN}
 											type="date"
 											{...form.register("transaction_date")}
 										/>
@@ -324,6 +327,8 @@ export const StatusTransitionModal = ({ divisions, job, transition, technicians,
 									<Input
 										className="h-9"
 										id="stm-date"
+										max={DATE_INPUT_MAX}
+										min={DATE_INPUT_MIN}
 										type="date"
 										{...form.register("transaction_date")}
 									/>

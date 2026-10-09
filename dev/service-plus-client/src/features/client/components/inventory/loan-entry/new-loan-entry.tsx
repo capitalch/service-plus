@@ -12,6 +12,7 @@ import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
+import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -186,7 +187,13 @@ export function NewLoanEntry({
 									<Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
 										Loan Date <span className="text-red-500 ml-0.5">*</span>
 									</Label>
-									<Input className="bg-(--cl-surface-2)" type="date" {...register("loan_date")} />
+									<Input
+										className="bg-(--cl-surface-2)"
+										max={DATE_INPUT_MAX}
+										min={DATE_INPUT_MIN}
+										type="date"
+										{...register("loan_date")}
+									/>
 								</div>
 
 								{/* Ref No */}
