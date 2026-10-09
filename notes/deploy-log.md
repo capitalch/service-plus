@@ -3,6 +3,15 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-09 21:18 (main)
+Chore: git-deploy raises the client patch version on every deploy
+
+- finish-deploy.sh: bump the patch number in dev/service-plus-client/package.json before staging, so it ships in the same commit; keep a version already changed by hand; restore package.json if the commit fails
+- finish-deploy.sh: add a Version line to the deploy-log entry and print VERSION= with the result
+- SKILL.md: document the version bump, the new VERSION= output and the manual minor/major rule
+Files: 2 changed (+50 / -6) — Base: a11429a
+Version: 0.24.2 → 0.24.3
+
 ## 2026-10-09 19:57 (main)
 Sign-up: shorter BU codes, name-based Manager username, editable Manager mobile
 

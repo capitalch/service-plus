@@ -71,8 +71,9 @@ bash "$ROOT/.claude/skills/git-deploy/scripts/finish-deploy.sh" <msg-file> <log-
 
 Outcomes:
 
-- **`DEPLOYED sha=… base=… branch=… files=…`** plus `URL=…` — relay the subject, sha,
-  branch, file count and the commit URL to the user.
+- **`DEPLOYED sha=… base=… branch=… files=…`** plus `VERSION=…` and `URL=…` — relay the
+  subject, sha, branch, file count, the version (`BUMPED 0.24.2 -> 0.24.3`, or `KEPT …`
+  when `package.json` already had an uncommitted version change) and the commit URL.
 - **`PUSH_FAILED`** (exit 4) — the commit landed locally but the push was rejected.
   Report it and stop. Do **not** pull, rebase, merge or force.
 - **exit 3** — the commit failed; the script already rolled the log entry back.
@@ -88,5 +89,11 @@ Outcomes:
 - Never resolve conflicts or auto-pull. A rejected push is reported back to the user.
 - Staging is `git add -A`: scratch files (`plans/*.md`, `CLAUDE.md`) go up with the code.
   The secret guard is the only filter.
+- **Every deploy raises the client's patch version first.** `finish-deploy.sh` bumps
+  `dev/service-plus-client/package.json` (`0.24.2` → `0.24.3`, the number the app's status
+  bar shows) before staging, so the bump is part of the same commit and the log entry
+  gets a `Version:` line. Do not bump it yourself. If the version was already changed by
+  hand and is uncommitted, the script keeps it (no double bump). A failed commit restores
+  `package.json`. Minor and major bumps stay manual. `--dry-run` bumps nothing.
 - One commit per deploy. The log entry ships inside the commit it describes, so
   `git log --oneline -- notes/deploy-log.md` maps entries to commits one for one.

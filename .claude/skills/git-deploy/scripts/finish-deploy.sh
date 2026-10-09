@@ -3,8 +3,10 @@
 #
 #   finish-deploy.sh <commit-message-file> <log-body-file>
 #
-# The log entry is written before staging, so it lands inside the same commit as
-# the code it describes: one commit, one push per deploy.
+# The client's patch version (dev/service-plus-client/package.json, shown in the app's
+# status bar) is raised first, and the log entry is written before staging, so both land
+# inside the same commit as the code they describe: one commit, one push per deploy.
+# If package.json's version already differs from HEAD's (bumped by hand), it is kept.
 #
 # Exit codes: 0 = deployed (or NO_CHANGES), 1 = guard/arg failure,
 #             3 = commit failed, 4 = push rejected (commit is local).
@@ -36,6 +38,36 @@ if [ -z "$(git status --porcelain)" ]; then
     exit 0
 fi
 
+# --- patch version bump ----------------------------------------------------
+PKG=dev/service-plus-client/package.json
+PKG_BACKUP=$(mktemp)
+cp "$PKG" "$PKG_BACKUP" || fail "cannot read $PKG"
+VERSION_LINE=$(python3 - "$PKG" <<'PY'
+import json, re, subprocess, sys
+
+path = sys.argv[1]
+text = open(path, encoding="utf-8").read()
+current = json.loads(text)["version"]
+try:
+    head = json.loads(subprocess.check_output(["git", "show", "HEAD:" + path], text=True))["version"]
+except subprocess.CalledProcessError:
+    head = current
+if current != head:
+    print("KEPT %s (already changed from %s)" % (current, head))
+    sys.exit(0)
+m = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", current)
+if not m:
+    sys.exit("version %r is not MAJOR.MINOR.PATCH" % current)
+new = "%s.%s.%d" % (m.group(1), m.group(2), int(m.group(3)) + 1)
+text, n = re.subn(r'("version"\s*:\s*")%s(")' % re.escape(current), r"\g<1>%s\g<2>" % new, text, count=1)
+if n != 1:
+    sys.exit("could not find the version line in " + path)
+open(path, "w", encoding="utf-8").write(text)
+print("BUMPED %s -> %s" % (current, new))
+PY
+) || { cp "$PKG_BACKUP" "$PKG"; rm -f "$PKG_BACKUP"; fail "version bump failed"; }
+echo "VERSION: $VERSION_LINE"
+
 BASE=$(git rev-parse --short HEAD)
 WHEN=$(date '+%Y-%m-%d %H:%M')
 BR=$(git rev-parse --abbrev-ref HEAD)
@@ -45,18 +77,20 @@ LOG_EXISTED=0
 
 # --- insert the entry directly beneath the H1, newest first ----------------
 mkdir -p notes
-python3 - "$LOG" "$BODY_FILE" "$WHEN" "$BR" "$BASE" <<'PY'
+python3 - "$LOG" "$BODY_FILE" "$WHEN" "$BR" "$BASE" "$VERSION_LINE" <<'PY'
 import os, sys
 
-log, body_path, when, br, base = sys.argv[1:6]
+log, body_path, when, br, base, version = sys.argv[1:7]
 
 body = open(body_path, encoding="utf-8").read().rstrip("\n").split("\n")
 for i, line in enumerate(body):
     if line.startswith("Files:"):
         body[i] = line.rstrip() + " — Base: " + base
+        body.insert(i + 1, "Version: " + version.replace("BUMPED ", "").replace(" -> ", " → "))
         break
 else:
     body.append("Base: " + base)
+    body.append("Version: " + version)
 
 entry = "## %s (%s)\n%s\n" % (when, br, "\n".join(body))
 
@@ -79,6 +113,7 @@ open(log, "w", encoding="utf-8").write(text)
 PY
 
 restore_log() {
+    cp "$PKG_BACKUP" "$PKG" 2>/dev/null || true
     if [ "$LOG_EXISTED" = "1" ]; then
         git reset -q -- "$LOG" 2>/dev/null || true
         git checkout -q -- "$LOG" 2>/dev/null || true
@@ -110,7 +145,9 @@ if ! "${PUSH_CMD[@]}"; then
     exit 4
 fi
 
+rm -f "$PKG_BACKUP"
 echo "DEPLOYED sha=$SHA base=$BASE branch=$BR files=$FILES"
+echo "VERSION=$VERSION_LINE"
 # git@host:owner/repo.git and https://host/owner/repo.git both -> https://host/owner/repo
 WEB=$(printf '%s' "$ORIGIN" | sed -e 's|^git@\([^:]*\):|https://\1/|' -e 's|\.git$||')
 case "$WEB" in
