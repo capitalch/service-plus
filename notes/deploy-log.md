@@ -4,6 +4,14 @@ Entries are written by `/git-deploy`, newest first. Each entry describes one com
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
 ## 2026-10-09 15:59 (main)
+Docs: remove completed date-input-limits plan
+
+- plans/plan.md: delete the finished plan for the "date too large" fix;
+  all its steps shipped in 7ac8f1f
+
+Files: 1 changed (+0 / -81) — Base: 7ac8f1f
+
+## 2026-10-09 15:59 (main)
 Jobs: block impossible years in date inputs; survive bad stored dates
 
 - service-plus-server psycopg_driver: date/timestamp loaders return the raw
