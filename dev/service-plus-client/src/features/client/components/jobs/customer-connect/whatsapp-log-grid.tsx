@@ -6,7 +6,7 @@ import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { WhatsappStatusCell } from "../whatsapp-status-cell";
 import { PAGE_SIZE } from "./customer-connect-helpers";
 import type { CustomerConnectJobRow } from "./customer-connect-schema";
-import { DeviceCell } from "@/features/client/components/shared/device-cell";
+import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
 
 // Read-only counterpart to customer-connect-grid.tsx (plans/plan.md) — same
 // visual chrome (sticky header, pagination footer, loading skeleton, empty
@@ -90,7 +90,7 @@ export function WhatsappLogGrid({ rows, loading, total, page, setPage, eventKey,
 						<tbody>
 							{Array.from({ length: 8 }).map((_, i) => (
 								<tr key={i} className="animate-pulse">
-									{Array.from({ length: 11 }).map((__, j) => (
+									{Array.from({ length: 10 }).map((__, j) => (
 										<td key={j} className={tdClass}>
 											<div className="h-4 w-16 rounded bg-(--cl-border)" />
 										</td>
@@ -111,7 +111,6 @@ export function WhatsappLogGrid({ rows, loading, total, page, setPage, eventKey,
 								<th className={`${thClass} whitespace-nowrap`}>Date</th>
 								<th className={thClass}>Job No</th>
 								<th className={thClass}>Customer</th>
-								<th className={thClass}>Mobile</th>
 								<th className={`${thClass} w-40`}>Device</th>
 								<th className={thClass}>Job Type</th>
 								<th className={thClass}>Status</th>
@@ -154,8 +153,12 @@ export function WhatsappLogGrid({ rows, loading, total, page, setPage, eventKey,
 											)}
 										</div>
 									</td>
-									<td className={tdClass}>{row.customer_name}</td>
-									<td className={`${tdClass} font-mono text-xs`}>{row.mobile || "—"}</td>
+									<td className={tdClass}>
+										<div className="flex flex-col gap-0.5">
+											<span>{row.customer_name}</span>
+											<MobileLine mobile={row.mobile} />
+										</div>
+									</td>
 									<td className={`${tdClass} max-w-40 text-xs`}>
 										<DeviceCell deviceDetails={row.device_details} serialNo={row.serial_no} />
 									</td>

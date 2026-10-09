@@ -4394,7 +4394,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"app/signup-status/page.tsx + components/signup/signup-status-form.tsx",
-						"Static page (in the sitemap) that looks a sign-up up in the browser by mobile + email: pending, approved (login email, client to pick, Log in button to siteConfig.appUrl) or not approved (reason).",
+						"Static page (in the sitemap; linked from the footer 'Sign-up status', the mobile menu 'Check sign-up status' (components/layout/site-footer.tsx, site-header.tsx) and a 'Sign-up status' button beside the 'Start your subscription' heading in components/pricing/pricing-section.tsx) that looks a sign-up up in the browser by mobile + email: pending, approved (login email, client to pick, Log in button to siteConfig.appUrl) or not approved (reason).",
 					],
 				],
 			},
@@ -4506,9 +4506,9 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"Plan must be lite|basic|standard, else SIGNUP_WRONG_ENDPOINT.",
 					"get_default_customer_client(); if DEFAULT_CUSTOMER_DB_NAME is unset or matches no active client → DEFAULT_DB_NOT_CONFIGURED and nothing is written.",
 					"business_name must pass BU_NAME_PATTERN (the Step 3 rule); Lite and Basic must ask for exactly 1 branch (SIGNUP_BRANCHES_ONE).",
-					"CHECK_LT_SIGNUP_DUPLICATE: a pending/approved request with that mobile or email, or a security.user with that email → one SIGNUP_DUPLICATE message whatever matched, so the endpoint cannot reveal which emails have accounts. Emails are stored lower-case.",
+					"CHECK_LT_SIGNUP_DUPLICATE: a pending/approved request with that mobile or email, or a security.user with that email or mobile (user_mobile_unique_idx would otherwise fail the Manager insert at approval) → one SIGNUP_DUPLICATE message whatever matched, so the endpoint cannot reveal which emails or mobiles have accounts. resolve_create_business_user_helper also pre-checks the mobile (CHECK_BUSINESS_USER_MOBILE_EXISTS → BUSINESS_USER_MOBILE_EXISTS), so approval shows a readable message instead of a raw database error. Emails are stored lower-case.",
 					"bu_name = business name, plus ' (city)' when CHECK_LT_BU_NAME_TAKEN finds a BU or open request with that name (kept only if it still passes the name rule).",
-					"bu_code via derive_bu_code(name, is_taken) — shared with Steps 9 and 10, which pass their own is_taken. bu_code_base: lower-case, other characters → '_', trimmed, cut to 26, short codes padded to bu_…, 'bu_' in front of 'pg_…' or a leading digit; then _2, _3 … while reserved (public, security, information_schema, demo1) or CHECK_LT_BU_CODE_TAKEN (BU, schema, open request).",
+					"bu_code via derive_bu_code(name, is_taken, city) — shared with Steps 9 and 10, which pass their own is_taken. bu_code_base: lower-case, other characters → '_', trailing company-form words dropped (LEGAL_SUFFIXES: pvt, ltd, llp, … — 'ABC Pvt Ltd' → abc; kept whole if that leaves under 3 characters), trimmed, cut to 26, short codes padded to bu_…, 'bu_' in front of 'pg_…' or a leading digit; then, if reserved or taken, <base>_<city> (city slug max 10 characters) and only then _2, _3 … on that — reserved (public, security, information_schema, demo1) or CHECK_LT_BU_CODE_TAKEN (BU, schema, open request).",
 					"INSERT_LT_ENQUIRY with a random reference (SP- + 8 of A–Z/2–9 without O/I/0/1), the plan's setup fee and payment_status 'not_required' when that fee is 0 (Lite), else 'pending'. A clash on the open email/mobile index → SIGNUP_DUPLICATE; on reference or bu_code → new values, up to 3 attempts.",
 					"Push GET_LT_PENDING_COUNT (salesEnquiryCount, kind LT, the default database's name); email the applicant's thank-you; email every GET_ACTIVE_ADMIN_EMAILS admin plus lite_basic_standard_enquiry_notify_email. Returns {status: 'pending', reference}.",
 				],
@@ -4517,7 +4517,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "bullets",
 				items: [
-					"Wording: AppMessages.SIGNUP_EMAIL_* (subject + plain-text template each). signup_emails.build_html turns the same text into the HTML version (escaped, paragraphs kept, URLs linked). send_text_email never raises.",
+					"Wording: AppMessages.SIGNUP_EMAIL_* (subject + plain-text template each). signup_emails.build_html(text, title) turns the same text into the HTML version (escaped, paragraphs kept, URLs linked; the subject is the heading). Layout is driven by the text: a block whose every line is 'Label: value' (label letters/spaces only, max 29 chars) becomes a details table, and a lone single-line block 'Label: https://…' becomes a button, so keep reference/plan/fee lines in their own block and a call-to-action link on its own line. Billing receipts and reminders use the same builder. send_text_email never raises.",
 					"thank_you_email: Lite — pending approval, reference, status link; Basic/Standard — sales team will contact, reference, setup cost, account created once received, monthly fee separate; Enterprise — sales team will contact, reference.",
 					"rejection_email (used by rejectSalesEnquiry and rejectEnterpriseEnquiry): reason and the status link. approver_email: plan, applicant, setup status and a link to <frontend_url>/admin/enquiries (the page Step 9 builds).",
 					"The status link is <portal_url>/signup-status/. portal_url (api_settings.py, computed) is http://localhost:3005 while DEBUG is on, else PORTAL_URL_PRODUCTION (default https://myserviceplus.in, trailing slash stripped). Amounts are shown as ₹ with Indian grouping (rupees()).",
@@ -4598,7 +4598,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"Schema (if bu_schema_ready_at empty): build_bu_schema drops a same-named half-built schema (CASCADE), then runs the BU helper's repair path with the stored id; SET_LT_SCHEMA_READY.",
 					"Plan: set_bu_plan — branch_limit 1 for Lite/Basic, billing_required except Lite, monthly fee from the price list, paid_through NULL; clears the billing cache.",
 					"Head office: SET_HEAD_OFFICE_CITY_GSTIN and SET_MAIN_DIVISION_CITY_GSTIN in the new schema (plans/plan2.md).",
-					"User (if user_id empty): free_username (letters/digits, ≥5, numbered), MANAGER role, resolve_create_business_user_helper with signup_client_name → the EMAIL_SIGNUP_USER_LINK template; stores user_id and login_email_sent.",
+					"User (if user_id empty): mobile = payload.mobile or the enquiry's (MOBILE_PATTERN-checked; the approval dialog's Manager mobile field live-checks CHECK_BUSINESS_USER_MOBILE_EXISTS; the sales_enquiry row keeps the applicant's mobile, which the status page matches on), username = payload.username or default_username(name, email) (applicant's name as letters/digits without a leading title, max 20; under 5 characters it falls back to a non-generic email local part — GENERIC_EMAIL_NAMES such as admin/info/sales are skipped; approve-enquiry-dialog.tsx baseUsername must mirror it), then free_username (letters/digits, ≥5, numbered), MANAGER role, resolve_create_business_user_helper with signup_client_name → the EMAIL_SIGNUP_USER_LINK template; stores user_id and login_email_sent.",
 					"Finish: FINISH_LT_APPROVAL, audit APPROVE_SALES_ENQUIRY, publish the count. Any failure: RELEASE_LT_CLAIM and re-raise, keeping every stored id.",
 				],
 			},
@@ -4970,7 +4970,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "warning",
-				text: "A new grid fed by a CONCAT_WS(..., j.serial_no) query must use DeviceCell (which strips), not a bare SerialNoLine next to device_details — otherwise the serial shows twice. A new query behind a Device column must select j.serial_no separately, or the SN line silently never appears. A query with UNION ALL needs the column in every branch.",
+				text: "MobileLine({ mobile, className? }) in the same file renders 'Mob: <mobile>' in blue (text-blue-700) with the SN line's layout; job grids put it under the customer name inside the customer cell and have no Mobile column (skeleton counts and colSpan totals were reduced by one). The report job lists and drill-down dialogs use it too: every job-list query in sql_reports_audit.py (dashboard lists, warranty, event tracking, category-range details, pipeline cell, technician month/product, delivered detailed, cash register) selects cc.mobile AS mobile, and the row types carry an optional mobile. A new job-list query must select it or the blue line silently never appears. A new grid fed by a CONCAT_WS(..., j.serial_no) query must use DeviceCell (which strips), not a bare SerialNoLine next to device_details — otherwise the serial shows twice. A new query behind a Device column must select j.serial_no separately, or the SN line silently never appears. A query with UNION ALL needs the column in every branch.",
 			},
 			{ type: "heading", text: "Exports" },
 			{

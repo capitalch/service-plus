@@ -20,12 +20,13 @@ import { exportReportPdf } from "../common/pdf-export";
 import { exportReportXlsx } from "../common/xlsx-export";
 import { useFiscalSetting } from "../common/use-fiscal-setting";
 import { useGenericQuery } from "../common/use-generic-query";
-import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
+import { SerialNoLine, serialNoText, MobileLine } from "@/features/client/components/shared/device-cell";
 
 type RowType = {
 	brand_name: string | null;
 	charges_cost: number;
 	customer_name: string;
+	mobile?: string | null;
 	delivery_date: string;
 	gst: number;
 	id: number;
@@ -56,6 +57,12 @@ const COLUMNS: ReportColumnType<RowType>[] = [
 		width: "110px",
 	},
 	{
+		cell: (r) => (
+			<div className="flex flex-col">
+				<span>{r.customer_name}</span>
+				<MobileLine mobile={r.mobile} />
+			</div>
+		),
 		header: "Customer",
 		id: "customer",
 		value: (r) => r.customer_name,

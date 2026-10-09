@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { MobileLine } from "@/features/client/components/shared/device-cell";
 
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -25,6 +26,7 @@ import { useGenericQuery } from "../common/use-generic-query";
 type RowType = {
 	amount: number;
 	customer_name: string;
+	mobile?: string | null;
 	job_no: string;
 	payment_date: string;
 	payment_mode: string;
@@ -57,6 +59,12 @@ const COLUMNS: ReportColumnType<RowType>[] = [
 		width: "100px",
 	},
 	{
+		cell: (r) => (
+			<div className="flex flex-col">
+				<span>{r.customer_name}</span>
+				<MobileLine mobile={r.mobile} />
+			</div>
+		),
 		header: "Customer",
 		id: "customer",
 		value: (r) => r.customer_name,

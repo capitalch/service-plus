@@ -21,7 +21,7 @@ import { ReportError } from "../common/report-error";
 import { ReportLoading } from "../common/report-loading";
 import { ReportTable } from "../common/report-table";
 import type { ReportColumnType } from "../common/report-table";
-import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
+import { SerialNoLine, serialNoText, MobileLine } from "@/features/client/components/shared/device-cell";
 
 /** One clicked cell of Technician Report 3. technicianId / productName are null for the Total
  *  column / Total row (and both for the grand total); the rest repeats the report's filters. */
@@ -39,6 +39,7 @@ export type TechnicianProductCellType = {
 type CellJobType = {
 	brand_name: string | null;
 	customer_name: string;
+	mobile?: string | null;
 	division_code: string | null;
 	event_date: string;
 	id: number;
@@ -130,7 +131,17 @@ export const TechnicianProductCellDialog = ({ cell, onClose }: Props) => {
 			value: (r) => r.job_no,
 			width: "120px",
 		},
-		{ header: "Customer", id: "customer", value: (r) => r.customer_name },
+		{
+			cell: (r) => (
+				<div className="flex flex-col">
+					<span>{r.customer_name}</span>
+					<MobileLine mobile={r.mobile} />
+				</div>
+			),
+			header: "Customer",
+			id: "customer",
+			value: (r) => r.customer_name,
+		},
 		// Only for a Total-column / grand-total cell, where the jobs span technicians.
 		...(cell?.technicianId == null
 			? [{ header: "Technician", id: "technician", value: (r: CellJobType) => r.technician_name }]
@@ -148,7 +159,7 @@ export const TechnicianProductCellDialog = ({ cell, onClose }: Props) => {
 			header: "Device",
 			id: "device",
 			value: (r) =>
-`${r.product_name} ${r.brand_name ?? ""} ${r.model_name ?? ""} ${serialNoText(r.serial_no)}`.trim(),
+				`${r.product_name} ${r.brand_name ?? ""} ${r.model_name ?? ""} ${serialNoText(r.serial_no)}`.trim(),
 		},
 		// Always shown, even when the list is one side only, so each job states its type.
 		{

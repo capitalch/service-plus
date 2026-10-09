@@ -28,7 +28,7 @@ import type { DivisionContextType } from "@/features/client/types/division";
 import { StatusBadge } from "../job-badges";
 import { buildDeliveryNotePdf } from "../deliver-job/deliver-job-pdf";
 import { fetchDeliveryNoteJobsByIds } from "../deliver-job/fetch-delivery-note-jobs";
-import { SerialNoLine } from "@/features/client/components/shared/device-cell";
+import { MobileLine, SerialNoLine } from "@/features/client/components/shared/device-cell";
 
 const PAGE_SIZE = 20;
 
@@ -289,9 +289,6 @@ export function ReprintDeliveryNoteModal({ branchId, branchName, availableDivisi
 											Customer
 										</th>
 										<th className="border-b border-(--cl-surface-3) bg-(--cl-surface-2) p-2 text-left text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)">
-											Mobile
-										</th>
-										<th className="border-b border-(--cl-surface-3) bg-(--cl-surface-2) p-2 text-left text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)">
 											Jobs
 										</th>
 									</tr>
@@ -299,13 +296,13 @@ export function ReprintDeliveryNoteModal({ branchId, branchName, availableDivisi
 								<tbody>
 									{loading ? (
 										<tr>
-											<td className="p-4 text-center text-sm text-(--cl-text-muted)" colSpan={4}>
+											<td className="p-4 text-center text-sm text-(--cl-text-muted)" colSpan={3}>
 												Loading…
 											</td>
 										</tr>
 									) : groupedByDate.length === 0 ? (
 										<tr>
-											<td className="p-4 text-center text-sm text-(--cl-text-muted)" colSpan={4}>
+											<td className="p-4 text-center text-sm text-(--cl-text-muted)" colSpan={3}>
 												No delivered warranty jobs found.
 											</td>
 										</tr>
@@ -315,7 +312,7 @@ export function ReprintDeliveryNoteModal({ branchId, branchName, availableDivisi
 												<tr>
 													<td
 														className={`bg-(--cl-accent)/10 px-3 py-1.5 text-xs font-bold text-(--cl-accent) ${groupIdx > 0 ? "border-t border-(--cl-surface-3)" : ""}`}
-														colSpan={4}
+														colSpan={3}
 													>
 														{date}
 													</td>
@@ -351,6 +348,7 @@ export function ReprintDeliveryNoteModal({ branchId, branchName, availableDivisi
 																	>
 																		{row.customer_name ?? "No name"}
 																	</span>
+																	<MobileLine mobile={row.mobile} />
 																	{address && (
 																		<span
 																			className="truncate text-[10px] text-(--cl-text-muted)"
@@ -359,11 +357,6 @@ export function ReprintDeliveryNoteModal({ branchId, branchName, availableDivisi
 																			{address}
 																		</span>
 																	)}
-																</div>
-															</td>
-															<td className="p-2">
-																<div className="font-mono text-xs leading-5 text-(--cl-text-muted)">
-																	{row.mobile}
 																</div>
 															</td>
 															<td className="p-2">

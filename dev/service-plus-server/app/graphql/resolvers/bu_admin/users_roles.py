@@ -165,6 +165,21 @@ async def resolve_create_business_user_helper(
             extensions={"field": "email"},
         )
 
+    # Check mobile uniqueness (a partial unique index backs this; checking first gives a
+    # readable message instead of a raw database error)
+    if mobile:
+        mobile_rows = await exec_sql(
+            db_name=db_name,
+            schema=schema_name,
+            sql=SqlStore.CHECK_BUSINESS_USER_MOBILE_EXISTS,
+            sql_args={"mobile": mobile},
+        )
+        if mobile_rows and mobile_rows[0].get("exists"):
+            raise ValidationException(
+                message=AppMessages.BUSINESS_USER_MOBILE_EXISTS,
+                extensions={"field": "mobile"},
+            )
+
     # Store a random unusable hash — user cannot log in until they set a password via reset link
     password_hash = hash_password(secrets.token_urlsafe(32))
 

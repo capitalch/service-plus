@@ -4,6 +4,7 @@ import { ReportEmpty } from "../common/report-empty";
 
 export type OverdueRowType = {
 	customer_name: string;
+	mobile?: string | null;
 	days_old: number;
 	id: number;
 	job_date: string;

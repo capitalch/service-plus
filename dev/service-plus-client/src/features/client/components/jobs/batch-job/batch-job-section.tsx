@@ -78,7 +78,7 @@ import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { deleteJobFiles } from "@/lib/image-service";
 import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
-import { DeviceCell } from "@/features/client/components/shared/device-cell";
+import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -949,7 +949,7 @@ export const BatchJobSection = ({
 									<tbody>
 										{Array.from({ length: 8 }).map((_, i) => (
 											<tr key={i} className="animate-pulse">
-												{Array.from({ length: 11 }).map((__, j) => (
+												{Array.from({ length: 10 }).map((__, j) => (
 													<td key={j} className={tdClass}>
 														<div className="h-4 w-16 rounded bg-(--cl-border)" />
 													</td>
@@ -970,7 +970,6 @@ export const BatchJobSection = ({
 											<th className={`${thClass} whitespace-nowrap`}>Date</th>
 											<th className={thClass}>Job</th>
 											<th className={thClass}>Customer</th>
-											<th className={thClass}>Mobile</th>
 											<th className={`${thClass} w-[10rem]`}>Device</th>
 											<th className={thClass}>Job Type</th>
 											<th className={thClass}>Status</th>
@@ -1359,7 +1358,7 @@ function BatchGroupRow({
 		<>
 			{/* Batch Header Row */}
 			<tr className="bg-(--cl-surface-2)">
-				<td colSpan={10} className={`${tdClass} font-bold`}>
+				<td colSpan={9} className={`${tdClass} font-bold`}>
 					<div className="flex items-center gap-3">
 						<span className="font-mono text-sm font-bold text-(--cl-accent)">#{batch.batch_no}</span>
 						<span className="text-xs text-(--cl-text-muted)">{batch.batch_date}</span>
@@ -1480,8 +1479,12 @@ function BatchGroupRow({
 							) : null}
 						</div>
 					</td>
-					<td className={`${tdClass} text-xs`}>{job.customer_name ?? "—"}</td>
-					<td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
+					<td className={`${tdClass} text-xs`}>
+						<div className="flex flex-col gap-0.5">
+							<span>{job.customer_name ?? "—"}</span>
+							<MobileLine mobile={job.mobile} />
+						</div>
+					</td>
 					<td className={`${tdClass} text-xs`}>
 						<DeviceCell deviceDetails={job.device_details} serialNo={job.serial_no} />
 					</td>

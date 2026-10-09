@@ -118,6 +118,21 @@ def test_rejection_needs_a_reason(monkeypatch):
     assert calls == []
 
 
+@pytest.mark.parametrize(
+    "name, email, expected",
+    [
+        ("Asha Roy", "admin@abc.com", "asharoy"),
+        ("Dr. Asha Roy", "info@abc.com", "asharoy"),
+        ("Raj Ko", "x@abc.com", "rajko"),
+        ("Al Li", "ownerali@abc.com", "ownerali"),
+        ("Al Li", "admin@abc.com", "alli"),
+        ("Subramaniam Venkataraman Iyer", "a@b.com", "subramaniamvenkatara"),
+    ],
+)
+def test_default_username(name, email, expected):
+    assert approval.default_username(name, email) == expected
+
+
 def test_free_username_follows_the_client_rule(monkeypatch):
     taken = {"ab0user", "owner"}
 

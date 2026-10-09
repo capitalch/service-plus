@@ -5,6 +5,7 @@ import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { WhatsappStatusCell } from "../whatsapp-status-cell";
 import { PAGE_SIZE } from "./customer-connect-helpers";
 import type { MoneyReceiptLogRow } from "./customer-connect-schema";
+import { MobileLine } from "@/features/client/components/shared/device-cell";
 
 // Read-only counterpart to whatsapp-log-grid.tsx (plans/plan.md, Step 5) —
 // same visual chrome (sticky header, pagination footer, loading skeleton,
@@ -89,7 +90,7 @@ export function MoneyReceiptLogGrid({ rows, loading, total, page, setPage, empty
 						<tbody>
 							{Array.from({ length: 8 }).map((_, i) => (
 								<tr key={i} className="animate-pulse">
-									{Array.from({ length: 10 }).map((__, j) => (
+									{Array.from({ length: 9 }).map((__, j) => (
 										<td key={j} className={tdClass}>
 											<div className="h-4 w-16 rounded bg-(--cl-border)" />
 										</td>
@@ -111,7 +112,6 @@ export function MoneyReceiptLogGrid({ rows, loading, total, page, setPage, empty
 								<th className={thClass}>Receipt No</th>
 								<th className={thClass}>Job No</th>
 								<th className={thClass}>Customer</th>
-								<th className={thClass}>Mobile</th>
 								<th className={`${thClass} text-right`}>Amount</th>
 								<th className={thClass}>Mode</th>
 								<th className={thClass}>
@@ -152,8 +152,12 @@ export function MoneyReceiptLogGrid({ rows, loading, total, page, setPage, empty
 											)}
 										</div>
 									</td>
-									<td className={tdClass}>{row.customer_name}</td>
-									<td className={`${tdClass} font-mono text-xs`}>{row.mobile || "—"}</td>
+									<td className={tdClass}>
+										<div className="flex flex-col gap-0.5">
+											<span>{row.customer_name}</span>
+											<MobileLine mobile={row.mobile} />
+										</div>
+									</td>
 									<td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.amount)}</td>
 									<td className={tdClass}>{row.payment_mode}</td>
 									<td className={tdClass}>

@@ -59,6 +59,7 @@ export const MESSAGES = {
 	ERROR_BUSINESS_USER_MAIL_CREDENTIALS_FAILED: "Failed to send the reset link. Please try again.",
 	ERROR_BUSINESS_USER_ROLE_REQUIRED: "Please select a role.",
 	ERROR_BUSINESS_USER_UPDATE_FAILED: "Failed to update business user. Please try again.",
+	ERROR_BUSINESS_USER_MOBILE_EXISTS: "This mobile number is already used by another user. Enter a different one.",
 	ERROR_BUSINESS_USER_USERNAME_EXISTS: "This username is already taken.",
 	ERROR_BUSINESS_USER_USERNAME_EXISTS_EDIT: "This username is already used by another user.",
 	SUCCESS_BUSINESS_USER_ACTIVATED: "Business user has been activated.",

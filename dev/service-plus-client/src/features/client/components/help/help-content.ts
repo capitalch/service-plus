@@ -339,7 +339,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "The Device column in job lists" },
 			{
 				type: "para",
-				text: "Every job list and report that shows the device uses the same column, headed Device. It shows the product, brand and model, and when the job has a serial number, a line 'SN: <serial number>' underneath. A job saved without a serial number has no SN line. The SN line is dark teal, bold and letter-spaced, and always stays on one line, so the serial number is easy to read off the screen when matching a device in hand. The Job Details window and the Extended Warranty lead details show it the same way. This is the same on Job Control, Single Job, Opening Jobs, Batch Job, Receipts, Job Pipeline, Final a Job, Deliver Job, Batch Warranty, Customer Connect, the WhatsApp Log, the Extended Warranty lead list and the job lists inside Reports. The Warranty Jobs and Delivered Jobs (Detailed) exports carry the serial number too — as 'SN: …' in the PDF's Device text and as a Serial No column in Excel.",
+				text: "In every job grid the customer's mobile number now sits in blue under the customer name as 'Mob: <number>', in the same bold letter-spaced style as the SN line — the job lists and drill-down windows inside Reports show it the same way; there is no separate Mobile column any more (exports still carry Mobile). Every job list and report that shows the device uses the same column, headed Device. It shows the product, brand and model, and when the job has a serial number, a line 'SN: <serial number>' underneath. A job saved without a serial number has no SN line. The SN line is dark teal, bold and letter-spaced, and always stays on one line, so the serial number is easy to read off the screen when matching a device in hand. The Job Details window and the Extended Warranty lead details show it the same way. This is the same on Job Control, Single Job, Opening Jobs, Batch Job, Receipts, Job Pipeline, Final a Job, Deliver Job, Batch Warranty, Customer Connect, the WhatsApp Log, the Extended Warranty lead list and the job lists inside Reports. The Warranty Jobs and Delivered Jobs (Detailed) exports carry the serial number too — as 'SN: …' in the PDF's Device text and as a Serial No column in Excel.",
 			},
 		],
 		faqs: [
@@ -707,7 +707,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "para",
-				text: "The Opening Jobs list (grid view) shows date, job no, customer, mobile, Device, job type, status, technician and amount. Under each job no is its alternate job no (the teal 'Alt: …' tag) and, when entered, the purchase date ('PUR: …'). Device shows the product, brand and model with the serial number as 'SN: …' underneath, the same as on Single Job.",
+				text: "The Opening Jobs list (grid view) shows date, job no, customer (with the mobile number in blue beneath the name), Device, job type, status, technician and amount. Under each job no is its alternate job no (the teal 'Alt: …' tag) and, when entered, the purchase date ('PUR: …'). Device shows the product, brand and model with the serial number as 'SN: …' underneath, the same as on Single Job.",
 			},
 			{ type: "heading", text: "Editing an Opening Job" },
 			{
@@ -4512,7 +4512,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "steps",
 				items: [
-					"Lite: click Create BU & Manager. Check the business unit name, its code and the Manager's username (all pre-filled and checked as you type), then confirm. The business unit, its Head Office and Main division, and the Manager user are created, and the Manager is emailed a set-password link naming the client to pick at login.",
+					"Lite: click Create BU & Manager. Check the business unit name, its code, the Manager's mobile and the Manager's username (all pre-filled and checked as you type), then confirm. If the applicant's mobile already belongs to another user it is flagged here: type a different mobile for the Manager (the request keeps the applicant's original number). The username is suggested from the applicant's name (for example Asha Roy becomes asharoy), so change it now if you want something else: it cannot be changed once the Manager is created. The business unit, its Head Office and Main division, and the Manager user are created, and the Manager is emailed a set-password link naming the client to pick at login.",
 					"Basic / Standard: first record the one-time setup payment from the ⋯ menu (amount, mode, reference, date). Until it is recorded, Create BU & Manager stays disabled with 'Setup payment not received'. If a payment bounced, use Mark payment failed with a note — the request stays pending.",
 					"After approving a Basic or Standard request, record the first monthly payment on the Subscriptions page. Until then that customer can only view.",
 					"Reject (⋯ menu) needs a reason, which is emailed to the applicant. It is possible only before the business unit exists. If a payment was received, the dialog reminds you to refund it outside the system.",

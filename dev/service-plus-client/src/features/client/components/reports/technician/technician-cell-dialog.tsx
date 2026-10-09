@@ -19,7 +19,7 @@ import { ReportLoading } from "../common/report-loading";
 import { ReportTable } from "../common/report-table";
 import type { ReportColumnType } from "../common/report-table";
 import { formatNumber } from "../common/formatters";
-import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
+import { SerialNoLine, serialNoText, MobileLine } from "@/features/client/components/shared/device-cell";
 
 export type TechnicianCellType = {
 	technicianId: number;
@@ -35,6 +35,7 @@ type CellJobType = {
 	division_code: string | null;
 	delivery_date: string;
 	customer_name: string;
+	mobile?: string | null;
 	brand_name: string | null;
 	model_name: string | null;
 	serial_no: string | null;
@@ -80,7 +81,17 @@ export const TechnicianCellDialog = ({ cell, onClose }: Props) => {
 			value: (r) => r.job_no,
 			width: "120px",
 		},
-		{ header: "Customer", id: "customer", value: (r) => r.customer_name },
+		{
+			cell: (r) => (
+				<div className="flex flex-col">
+					<span>{r.customer_name}</span>
+					<MobileLine mobile={r.mobile} />
+				</div>
+			),
+			header: "Customer",
+			id: "customer",
+			value: (r) => r.customer_name,
+		},
 		{
 			cell: (r) => (
 				<div className="flex flex-col">

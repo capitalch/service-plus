@@ -7,7 +7,7 @@ import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { useAppSelector } from "@/store/hooks";
 import { selectAvailableDivisions } from "@/store/context-slice";
-import { DeviceCell } from "@/features/client/components/shared/device-cell";
+import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
 
 const thClass =
 	"sticky top-0 z-10 text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted) p-2.5 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
@@ -82,7 +82,6 @@ export const BatchJobViewModal = ({
 											<th className={`${thClass} whitespace-nowrap`}>Date</th>
 											<th className={thClass}>Job No</th>
 											<th className={thClass}>Customer</th>
-											<th className={thClass}>Mobile</th>
 											<th className={`${thClass} w-[10rem]`}>Device</th>
 											<th className={thClass}>Job Type</th>
 											<th className={thClass}>Status</th>
@@ -127,6 +126,7 @@ export const BatchJobViewModal = ({
 												<td className={`${tdClass} text-xs`}>
 													<div className="flex flex-col gap-0.5">
 														<span>{job.customer_name ?? "—"}</span>
+														<MobileLine mobile={job.mobile} />
 														{job.customer_gstin && (
 															<span className="font-mono text-[10px] text-(--cl-text-muted)">
 																GSTIN: {job.customer_gstin}
@@ -134,7 +134,6 @@ export const BatchJobViewModal = ({
 														)}
 													</div>
 												</td>
-												<td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
 												<td className={`${tdClass} text-xs`}>
 													<DeviceCell
 														deviceDetails={[
@@ -182,7 +181,7 @@ export const BatchJobViewModal = ({
 									</tbody>
 									<tfoot>
 										<tr className="bg-(--cl-surface-2)">
-											<td colSpan={9} className={`${tdClass} font-bold text-right text-xs`}>
+											<td colSpan={8} className={`${tdClass} font-bold text-right text-xs`}>
 												Total
 											</td>
 											<td className={`${tdClass} text-right font-bold text-xs`}>

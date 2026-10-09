@@ -1,5 +1,7 @@
 "use client";
 
+import { ClipboardCheck } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { Reveal } from "@/components/layout/reveal";
@@ -7,6 +9,7 @@ import { SectionHeading } from "@/components/layout/section-heading";
 import { PlanCard } from "@/components/pricing/plan-card";
 import { PlanRecommender } from "@/components/pricing/plan-recommender";
 import { SalesEnquiryForm } from "@/components/pricing/sales-enquiry-form";
+import { Button } from "@/components/ui/button";
 import { MESSAGES } from "@/constants/messages";
 import { findPlan, type PlanCodeType } from "@/content/pricing";
 import { usePlanPrices } from "@/lib/plan-prices";
@@ -60,7 +63,21 @@ export const PricingSection = () => {
 				id="enquire"
 				ref={formRef}
 			>
-				<SectionHeading intro={MESSAGES.enquiryIntro} title={MESSAGES.enquiryTitle} />
+				<div className="relative">
+					<SectionHeading intro={MESSAGES.enquiryIntro} title={MESSAGES.enquiryTitle} />
+					{/* Beside the title from md up; under the intro on narrow screens. */}
+					<Button
+						asChild
+						className="flex mx-auto mt-4 w-fit md:absolute md:mt-0 md:right-0 md:top-2"
+						size="sm"
+						variant="outline"
+					>
+						<Link href="/signup-status">
+							<ClipboardCheck />
+							Sign-up status
+						</Link>
+					</Button>
+				</div>
 				<div className="relative mt-8 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-8">
 					<SalesEnquiryForm selectedPlan={selectedPlan} />
 				</div>

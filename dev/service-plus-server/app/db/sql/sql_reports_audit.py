@@ -80,6 +80,7 @@ class ReportsAuditSql:
         SELECT
             j.id, j.job_no, j.job_date,
             cc.full_name              AS customer_name,
+            cc.mobile                 AS mobile,
             p.name                    AS product_name,
             b.name                    AS brand_name,
             pbm.model_name            AS model_name,
@@ -132,6 +133,7 @@ class ReportsAuditSql:
         SELECT
             j.id, j.job_no, j.job_date,
             cc.full_name              AS customer_name,
+            cc.mobile                 AS mobile,
             p.name                    AS product_name,
             b.name                    AS brand_name,
             pbm.model_name            AS model_name,
@@ -158,6 +160,7 @@ class ReportsAuditSql:
         SELECT
             j.id, j.job_no, j.job_date,
             cc.full_name              AS customer_name,
+            cc.mobile                 AS mobile,
             (CURRENT_DATE - j.job_date) AS days_old,
             js.code                   AS status_code,
             js.name                   AS status_name,
@@ -180,6 +183,7 @@ class ReportsAuditSql:
         SELECT
             j.id, j.job_no, j.job_date,
             cc.full_name              AS customer_name,
+            cc.mobile                 AS mobile,
             p.name                    AS product_name,
             b.name                    AS brand_name,
             pbm.model_name            AS model_name,
@@ -210,6 +214,7 @@ class ReportsAuditSql:
         SELECT
             j.id, j.job_no, j.job_date,
             cc.full_name              AS customer_name,
+            cc.mobile                 AS mobile,
             p.name                    AS product_name,
             b.name                    AS brand_name,
             pbm.model_name            AS model_name,
@@ -240,6 +245,7 @@ class ReportsAuditSql:
             ji.invoice_date,
             ji.amount,
             cc.full_name              AS customer_name,
+            cc.mobile                 AS mobile,
             p.name                    AS product_name,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS is_warranty
         FROM job_invoice ji
@@ -325,6 +331,7 @@ class ReportsAuditSql:
             j.job_date,
             j.delivery_date,
             cc.full_name              AS customer_name,
+            cc.mobile                 AS mobile,
             p.name                    AS product_name,
             b.name                    AS brand_name,
             pbm.model_name            AS model_name,
@@ -346,7 +353,7 @@ class ReportsAuditSql:
         WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
           AND COALESCE(j.delivery_date, j.job_date) BETWEEN (table "p_from") AND (table "p_to")
         GROUP BY j.id, j.job_no, j.job_date, j.delivery_date, j.warranty_card_no,
-                 cc.full_name, p.name, b.name, pbm.model_name, j.serial_no, t.name,
+                 cc.full_name, cc.mobile, p.name, b.name, pbm.model_name, j.serial_no, t.name,
                  js.code, js.name
         ORDER BY COALESCE(j.delivery_date, j.job_date) DESC, j.id DESC
     """
@@ -469,7 +476,7 @@ class ReportsAuditSql:
             "p_category" as (values(%(category_name)s::text))
         SELECT
             'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, j.created_at as event_time,
-            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
+            cc.full_name as customer_name, cc.mobile as mobile, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
         FROM job j
         LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
@@ -554,7 +561,7 @@ class ReportsAuditSql:
         (
             select
                 'j-' || j.id as row_key, j.id, j.job_no, j.job_date as event_date, j.created_at as event_time, cur_js.name as status_label,
-                cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
+                cc.full_name as customer_name, cc.mobile as mobile, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
                 (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
                 d.code as division_code,
                 COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
@@ -577,7 +584,7 @@ class ReportsAuditSql:
         (
             select
                 't-' || jt.id as row_key, j.id, j.job_no, jt.transaction_date as event_date, jt.performed_at as event_time, js.name as status_label,
-                cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
+                cc.full_name as customer_name, cc.mobile as mobile, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
                 (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
                 d.code as division_code,
                 COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
@@ -634,7 +641,7 @@ class ReportsAuditSql:
             "p_category" as (values(%(category_name)s::text))
         SELECT
             'j-' || j.id as row_key, j.id, j.job_no, j.updated_at::date as event_date, j.updated_at as event_time,
-            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
+            cc.full_name as customer_name, cc.mobile as mobile, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
         FROM job j
         JOIN job_status js ON js.id = j.job_status_id
@@ -694,7 +701,7 @@ class ReportsAuditSql:
             )
         SELECT
             'j-' || j.id as row_key, j.id, j.job_no, j.delivery_date as event_date, dt.performed_at as event_time,
-            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
+            cc.full_name as customer_name, cc.mobile as mobile, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty,
             COALESCE(parts.parts_cost, 0) + COALESCE(charges.charges_cost, 0) as total_cost,
             COALESCE(ji.aggregate, 0) as total_charges,
@@ -753,7 +760,7 @@ class ReportsAuditSql:
             "p_category" as (values(%(category_name)s::text))
         SELECT
             't-' || jt.id as row_key, j.id, j.job_no, jt.transaction_date as event_date, jt.performed_at as event_time,
-            cc.full_name as customer_name, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
+            cc.full_name as customer_name, cc.mobile as mobile, b.name as brand_name, pbm.model_name as model_name, p.name as product_name, j.serial_no as serial_no,
             (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) as is_warranty
         FROM job_transaction jt
         JOIN job_status js ON js.id = jt.status_id
@@ -774,6 +781,7 @@ class ReportsAuditSql:
         SELECT
             j.id, j.job_no, j.delivery_date,
             cc.full_name                        AS customer_name,
+            cc.mobile                 AS mobile,
             b.name                              AS brand_name,
             pbm.model_name                      AS model_name,
             j.serial_no                         AS serial_no,
@@ -855,6 +863,7 @@ class ReportsAuditSql:
             j.id, j.job_no, j.job_date,
             (CURRENT_DATE - j.job_date) AS days_old,
             cc.full_name              AS customer_name,
+            cc.mobile                 AS mobile,
             p.name                    AS product_name,
             b.name                    AS brand_name,
             pbm.model_name            AS model_name,
@@ -988,6 +997,7 @@ class ReportsAuditSql:
             jp.receipt_no,
             j.job_no,
             cc.full_name              AS customer_name,
+            cc.mobile                 AS mobile,
             jp.payment_mode,
             jp.amount,
             jp.reference_no,
@@ -1298,6 +1308,7 @@ class ReportsAuditSql:
             CASE WHEN (table "p_mode") = 'repaired'
                  THEN j.updated_at::date ELSE j.delivery_date END  AS event_date,
             cc.full_name                                           AS customer_name,
+            cc.mobile                 AS mobile,
             t.name                                                 AS technician_name,
             b.name                                                 AS brand_name,
             pbm.model_name                                         AS model_name,
@@ -1405,6 +1416,7 @@ class ReportsAuditSql:
             d.code                                                 AS division_code,
             j.delivery_date                                        AS delivery_date,
             cc.full_name                                           AS customer_name,
+            cc.mobile                 AS mobile,
             b.name                                                 AS brand_name,
             pbm.model_name                                         AS model_name,
             j.serial_no                                            AS serial_no,

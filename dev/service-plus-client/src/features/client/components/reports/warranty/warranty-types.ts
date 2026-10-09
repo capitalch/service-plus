@@ -13,6 +13,7 @@ export type WarrantyDetailLineType = {
 export type WarrantyJobRowType = {
 	brand_name: string | null;
 	customer_name: string;
+	mobile?: string | null;
 	delivery_date: string | null;
 	id: number;
 	job_date: string;

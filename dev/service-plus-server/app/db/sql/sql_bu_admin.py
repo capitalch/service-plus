@@ -321,6 +321,12 @@ class BuAdminSql(BuAdminDdl):
         ) AS exists
     """
 
+    CHECK_BUSINESS_USER_MOBILE_EXISTS = """
+        SELECT EXISTS(
+            SELECT 1 FROM security."user" WHERE mobile = %(mobile)s
+        ) AS exists
+    """
+
     CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID = """
         with
             "p_email" as (values(%(email)s::text)),

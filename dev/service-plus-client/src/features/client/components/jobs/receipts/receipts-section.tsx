@@ -69,7 +69,7 @@ import type { JobDetailType } from "@/features/client/types/job";
 import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
 import { useSendWhatsappMoneyReceipt } from "./use-send-whatsapp-money-receipt";
 import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
-import { DeviceCell } from "@/features/client/components/shared/device-cell";
+import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -548,7 +548,6 @@ export const ReceiptsSection = () => {
 									<th className={thClass}>Receipt No</th>
 									<th className={thClass}>Job No</th>
 									<th className={thClass}>Customer</th>
-									<th className={thClass}>Mobile</th>
 									<th className={`${thClass} w-[10rem]`}>Device</th>
 									<th className={thClass}>Job Type</th>
 									<th className={thClass}>Status</th>
@@ -630,6 +629,7 @@ export const ReceiptsSection = () => {
 										<td className={tdClass}>
 											<div className="flex flex-col gap-0.5">
 												<span className="font-medium">{row.customer_name}</span>
+												<MobileLine mobile={row.mobile} />
 												{row.customer_gstin && (
 													<span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded px-1.5 py-0.5 w-fit">
 														GSTIN: {row.customer_gstin}
@@ -637,7 +637,6 @@ export const ReceiptsSection = () => {
 												)}
 											</div>
 										</td>
-										<td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 										<td className={`${tdClass} text-xs`}>
 											<DeviceCell deviceDetails={row.device_details} serialNo={row.serial_no} />
 										</td>

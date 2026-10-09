@@ -156,7 +156,8 @@ class SignupServerSql:
             WHERE status IN ('pending', 'approved')
               AND (mobile = %(mobile)s OR email = %(email)s)
         ) OR EXISTS (
-            SELECT 1 FROM security."user" WHERE LOWER(email) = %(email)s
+            SELECT 1 FROM security."user"
+            WHERE LOWER(email) = %(email)s OR mobile = %(mobile)s
         )
     """
 

@@ -2,6 +2,7 @@ import { IndianRupee } from "lucide-react";
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SQL_MAP } from "@/constants/sql-map";
+import { MobileLine } from "@/features/client/components/shared/device-cell";
 
 import { formatInr } from "../common/formatters";
 import { ReportEmpty } from "../common/report-empty";
@@ -14,6 +15,7 @@ import { useGenericQuery } from "../common/use-generic-query";
 type RevenueRowType = {
 	amount: number;
 	customer_name: string;
+	mobile?: string | null;
 	invoice_date: string;
 	invoice_id: number;
 	is_warranty: boolean;
@@ -42,7 +44,17 @@ const columns: ReportColumnType<RevenueRowType>[] = [
 		value: (r) => r.job_no,
 		width: "110px",
 	},
-	{ header: "Customer", id: "customer_name", value: (r) => r.customer_name },
+	{
+		cell: (r) => (
+			<div className="flex flex-col">
+				<span>{r.customer_name}</span>
+				<MobileLine mobile={r.mobile} />
+			</div>
+		),
+		header: "Customer",
+		id: "customer_name",
+		value: (r) => r.customer_name,
+	},
 	{ header: "Product", id: "product_name", value: (r) => r.product_name ?? "—" },
 	{
 		cell: (r) => (r.is_warranty ? "Warranty" : "OOW"),

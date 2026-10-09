@@ -47,33 +47,92 @@ def rupees(paise: int) -> str:
     return ",".join(groups) + "," + tail
 
 
-def build_html(text: str) -> str:
-    """The HTML version of a plain-text email: escaped, paragraphs and line breaks kept,
-    URLs as links."""
-    paragraphs = []
+# "Label: value" lines become a details table; a single "Label: https://…" line becomes a button.
+_BUTTON_RE = re.compile(r"^(.{1,60}?):\s+(https?://\S+)$")
+_DETAIL_RE = re.compile(r"^([A-Za-z][A-Za-z '&/+-]{0,28}):\s+(\S.*)$")
+
+_FONT = "-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif"
+
+
+def _paragraph_html(block: str) -> str:
+    escaped = html.escape(block)
+    linked = _URL_RE.sub(r'<a href="\1" style="color:#2563eb;">\1</a>', escaped)
+    return (
+        '<p style="margin:0 0 16px 0;color:#0f172a;font-size:15px;line-height:1.65;">'
+        f"{linked.replace(chr(10), '<br>')}</p>"
+    )
+
+
+def _details_html(rows: list[tuple[str, str]]) -> str:
+    cells = "".join(
+        '<tr>'
+        f'<td style="padding:8px 14px;color:#64748b;font-size:13px;white-space:nowrap;vertical-align:top;">{html.escape(label)}</td>'
+        f'<td style="padding:8px 14px;color:#0f172a;font-size:14px;font-weight:600;">{html.escape(value)}</td>'
+        "</tr>"
+        for label, value in rows
+    )
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="margin:0 0 20px 0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">'
+        f"{cells}</table>"
+    )
+
+
+def _button_html(label: str, url: str) -> str:
+    href = html.escape(url, quote=True)
+    return (
+        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 20px 0;"><tr>'
+        '<td style="background:#2563eb;border-radius:8px;">'
+        f'<a href="{href}" style="display:inline-block;padding:12px 22px;color:#ffffff;font-size:15px;'
+        f'font-weight:600;text-decoration:none;">{html.escape(label)}</a></td></tr></table>'
+        f'<p style="margin:0 0 16px 0;color:#64748b;font-size:12px;line-height:1.5;">'
+        f'If the button does not work, copy this link into your browser:<br>'
+        f'<a href="{href}" style="color:#2563eb;word-break:break-all;">{html.escape(url)}</a></p>'
+    )
+
+
+def build_html(text: str, title: str | None = None) -> str:
+    """The HTML version of a plain-text email: escaped, paragraphs kept, URLs as links.
+    Blocks of 'Label: value' lines become a details table, a lone 'Label: URL' line becomes
+    a button, and `title` (the subject) is shown as the heading."""
+    parts = []
     for block in text.split("\n\n"):
-        escaped = html.escape(block)
-        linked = _URL_RE.sub(r'<a href="\1" style="color:#2563eb;">\1</a>', escaped)
-        paragraphs.append(
-            f'<p style="margin:0 0 14px 0;color:#0f172a;font-size:14px;line-height:1.6;">'
-            f"{linked.replace(chr(10), '<br>')}</p>"
-        )
-    body = "".join(paragraphs)
+        lines = block.split("\n")
+        button = _BUTTON_RE.match(block) if len(lines) == 1 else None
+        details = [_DETAIL_RE.match(line) for line in lines]
+        if button:
+            parts.append(_button_html(button.group(1), button.group(2)))
+        elif all(details) and not any(d.group(2).startswith("http") for d in details):
+            parts.append(_details_html([(d.group(1), d.group(2)) for d in details]))
+        else:
+            parts.append(_paragraph_html(block))
+    body = "".join(parts)
+    heading = (
+        f'<h1 style="margin:0 0 18px 0;color:#0f172a;font-size:20px;line-height:1.3;">{html.escape(title)}</h1>'
+        if title
+        else ""
+    )
     return f"""\
 <!DOCTYPE html>
 <html>
-  <body style="margin:0;padding:0;background:#f4f6fb;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <body style="margin:0;padding:0;background:#f4f6fb;font-family:{_FONT};">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 16px;">
       <tr>
         <td align="center">
           <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
             <tr>
-              <td style="background:#2563eb;padding:24px 32px;">
-                <div style="color:#ffffff;font-size:18px;font-weight:700;">Service+</div>
+              <td style="background:#2563eb;padding:22px 32px;">
+                <div style="color:#ffffff;font-size:20px;font-weight:700;">Service+</div>
+                <div style="color:#dbeafe;font-size:12px;margin-top:2px;">Repair workshop management</div>
               </td>
             </tr>
             <tr>
-              <td style="padding:28px 32px 14px 32px;">{body}</td>
+              <td style="padding:28px 32px 10px 32px;">{heading}{body}</td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px 24px 32px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:12px;line-height:1.6;">
+                This is an automated message from Service+. Just reply to this email if you need help.
+              </td>
             </tr>
           </table>
         </td>
@@ -86,7 +145,7 @@ def build_html(text: str) -> str:
 async def send_text_email(to: str, subject: str, text: str, reply_to: str | None = None) -> bool:
     """Send one plain-text + HTML email; log and return False on failure, never raise."""
     try:
-        await send_email(to=to, subject=subject, body=text, html_body=build_html(text), reply_to=reply_to)
+        await send_email(to=to, subject=subject, body=text, html_body=build_html(text, subject), reply_to=reply_to)
         return True
     except Exception as e:  # pylint: disable=broad-except
         logger.warning("Failed to send sign-up email '%s' to %s: %s", subject, to, e)

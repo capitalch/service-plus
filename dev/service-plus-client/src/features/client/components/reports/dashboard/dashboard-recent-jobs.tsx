@@ -3,11 +3,12 @@ import { ShieldCheck } from "lucide-react";
 import { ReportTable } from "../common/report-table";
 import type { ReportColumnType } from "../common/report-table";
 import { formatDateShort } from "../common/formatters";
-import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
+import { SerialNoLine, serialNoText, MobileLine } from "@/features/client/components/shared/device-cell";
 
 export type JobRowType = {
 	brand_name: string | null;
 	customer_name: string;
+	mobile?: string | null;
 	id: number;
 	is_warranty: boolean;
 	job_date: string;
@@ -41,7 +42,12 @@ const COLUMNS: ReportColumnType<JobRowType>[] = [
 		width: "110px",
 	},
 	{
-		cell: (r) => r.customer_name,
+		cell: (r) => (
+			<div className="flex flex-col">
+				<span>{r.customer_name}</span>
+				<MobileLine mobile={r.mobile} />
+			</div>
+		),
 		header: "Customer",
 		id: "customer",
 		value: (r) => r.customer_name,

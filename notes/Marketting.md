@@ -1,10 +1,18 @@
 # Subscription plans
+- testing
+	- create lite request and see the implementation
+		- Request created and visible in requests
+		- Emails sent
+		- Rejection OK
+		- Approval OK
+			- New user as admin is created
+		- Curb the powers of manager for lite
 - Lite
 	- 1 user
 	- 1 bu
 	- 1 branch
 	- 100 jobs per month
-	- 100 whatsapp messages
+	- 50 whatsapp messages
 	- spare parts inventory
 	- company setup and GST details entry
 	- default hsn and gst rate

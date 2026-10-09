@@ -79,7 +79,7 @@ import {
 	type ChargesViewPartLine,
 	type ChargesViewChargeLine,
 } from "../final-a-job/job-charges-readonly-modal";
-import { DeviceCell } from "@/features/client/components/shared/device-cell";
+import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
 
 type Props = {
 	status: JobBoardStatusCount;
@@ -603,7 +603,6 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 									<th className={thClass}>Date</th>
 									<th className={thClass}>Job No</th>
 									<th className={thClass}>Customer</th>
-									<th className={thClass}>Mobile</th>
 									<th className={`${thClass} w-[10rem]`}>Device</th>
 									<th className={thClass}>Job Type</th>
 									<th className={thClass}>Status</th>
@@ -741,6 +740,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 											<td className={tdClass}>
 												<div className="flex flex-col gap-0.5">
 													<span>{row.customer_name}</span>
+													<MobileLine mobile={row.mobile} />
 													{row.customer_gstin && (
 														<span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded px-1.5 py-0.5 w-fit">
 															GSTIN: {row.customer_gstin}
@@ -748,7 +748,6 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 													)}
 												</div>
 											</td>
-											<td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 											<td className={`${tdClass} text-xs`}>
 												<DeviceCell
 													deviceDetails={row.device_details}

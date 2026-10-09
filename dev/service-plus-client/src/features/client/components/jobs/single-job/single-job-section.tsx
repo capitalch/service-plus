@@ -74,7 +74,7 @@ import { getJobSheetBlobUrl } from "../job-sheet-pdf";
 import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
-import { DeviceCell } from "@/features/client/components/shared/device-cell";
+import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -840,7 +840,7 @@ export const SingleJobSection = ({
 									<tbody>
 										{Array.from({ length: 12 }).map((_, i) => (
 											<tr key={i} className="animate-pulse">
-												{Array.from({ length: 11 }).map((__, j) => (
+												{Array.from({ length: 10 }).map((__, j) => (
 													<td key={j} className={tdClass}>
 														<div className="h-4 w-16 rounded bg-(--cl-border)" />
 													</td>
@@ -861,7 +861,6 @@ export const SingleJobSection = ({
 											<th className={`${thClass} whitespace-nowrap`}>Date</th>
 											<th className={thClass}>Job</th>
 											<th className={thClass}>Customer</th>
-											<th className={thClass}>Mobile</th>
 											<th className={`${thClass} w-[10rem]`}>Device</th>
 											<th className={thClass}>Job Type</th>
 											<th className={thClass}>Status</th>
@@ -946,6 +945,7 @@ export const SingleJobSection = ({
 												<td className={tdClass}>
 													<div className="flex flex-col gap-0.5">
 														<span>{job.customer_name ?? "—"}</span>
+														<MobileLine mobile={job.mobile} />
 														{job.customer_gstin && (
 															<span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded px-1.5 py-0.5 w-fit">
 																GSTIN: {job.customer_gstin}
@@ -953,7 +953,6 @@ export const SingleJobSection = ({
 														)}
 													</div>
 												</td>
-												<td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
 												<td className={`${tdClass} text-xs`}>
 													<DeviceCell
 														deviceDetails={job.device_details}

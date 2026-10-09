@@ -43,6 +43,7 @@ PAYMENT_MODES = frozenset({"bank_transfer", "cash", "other", "upi"})
 MANAGER_ROLE_CODE = "MANAGER"
 # Plans limited to the head office branch (plans/plan.md, Goal).
 ONE_BRANCH_PLAN_CODES = frozenset({"basic", "lite"})
+MOBILE_PATTERN = re.compile(r"^[6-9]\d{9}$")
 USERNAME_MAX_SUFFIX = 99
 USERNAME_MIN_LENGTH = 5
 
@@ -234,6 +235,35 @@ async def set_head_office_city_gstin(db_name: str, schema: str, city: str, gstin
     await exec_sql(db_name, schema, SignupServerSql.SET_MAIN_DIVISION_CITY_GSTIN, args)
 
 
+# Email local parts that name a mailbox, not a person; never used as a username.
+GENERIC_EMAIL_NAMES = frozenset(
+    {
+        "account", "accounts", "admin", "administrator", "billing", "contact", "enquiry", "hello", "help",
+        "info", "mail", "office", "sales", "service", "support", "team",
+    }
+)
+NAME_TITLES = frozenset({"dr", "mr", "mrs", "ms", "shri", "smt"})
+USERNAME_MAX_LENGTH = 20
+
+
+def default_username(name: str, email: str) -> str:
+    """The username offered to a new Manager: the applicant's name as letters and digits
+    ("Asha Roy" -> asharoy), without a leading title. When that is under 5 characters, the
+    email's local part if it names a person; otherwise the short name (free_username pads
+    it). The approver can still edit it, and it cannot be changed after the user exists.
+    Keep in step with baseUsername in approve-enquiry-dialog.tsx."""
+    words = [w for w in re.sub(r"[^a-z0-9]+", " ", name.lower()).split() if w]
+    while len(words) > 1 and words[0] in NAME_TITLES:
+        words.pop(0)
+    from_name = "".join(words)[:USERNAME_MAX_LENGTH]
+    if len(from_name) >= USERNAME_MIN_LENGTH:
+        return from_name
+    local = re.sub(r"[^a-z0-9]+", "", email.split("@")[0].lower())[:USERNAME_MAX_LENGTH]
+    if len(local) >= USERNAME_MIN_LENGTH and local not in GENERIC_EMAIL_NAMES:
+        return local
+    return from_name or local
+
+
 async def free_username(db_name: str, wanted: str) -> str:
     """`wanted` made a valid username (letters and digits, at least 5 — the client's rule),
     numbered 2, 3, … while a business user has it."""
@@ -268,7 +298,7 @@ async def _insert_bu_for_enquiry(db_name: str, enquiry: dict, code: str, name: s
 
 async def resolve_approve_sales_enquiry_helper(info, db_name: str, value: str) -> dict:
     """Create the BU and its Manager for a pending request, resumably (see module docstring).
-    Value: { id, bu_name?, bu_code?, username? } — the edits apply only while no BU exists."""
+    Value: { id, bu_name?, bu_code?, username?, mobile? } — the edits apply only while no BU exists."""
     # pylint: disable=too-many-locals
     payload = _decode_value(value, "approveSalesEnquiry")
     claimed = await exec_sql(db_name, "security", SignupServerSql.CLAIM_LT_ENQUIRY, {"id": payload.get("id")})
@@ -305,8 +335,13 @@ async def resolve_approve_sales_enquiry_helper(info, db_name: str, value: str) -
         user_id = enquiry["user_id"]
         login_email_sent = enquiry["login_email_sent"]
         if not user_id:
-            wanted = (payload.get("username") or enquiry["email"].split("@")[0]).strip()
+            wanted = (payload.get("username") or default_username(enquiry["name"], enquiry["email"])).strip()
             username = await free_username(db_name, wanted)
+            # The approver may give the Manager a different mobile than the applicant's (e.g. when
+            # the applicant's is already another user's); the sign-up row keeps the original.
+            mobile = (payload.get("mobile") or enquiry["mobile"]).strip()
+            if not MOBILE_PATTERN.match(mobile):
+                raise _invalid(AppMessages.INVALID_MOBILE, field="mobile")
             role = await exec_sql(db_name, "security", SignupServerSql.GET_ROLE_ID_BY_CODE, {"code": MANAGER_ROLE_CODE})
             if not role:
                 raise _invalid(AppMessages.RESOURCE_NOT_FOUND, detail="MANAGER role")
@@ -319,7 +354,7 @@ async def resolve_approve_sales_enquiry_helper(info, db_name: str, value: str) -
                         "bu_ids": [bu_id],
                         "email": enquiry["email"],
                         "full_name": enquiry["name"],
-                        "mobile": enquiry["mobile"],
+                        "mobile": mobile,
                         "role_id": role[0]["id"],
                         "signup_client_name": client["name"],
                         "username": username,

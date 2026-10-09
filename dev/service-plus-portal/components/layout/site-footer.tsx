@@ -35,6 +35,11 @@ export const SiteFooter = () => {
 								App login
 							</a>
 						</li>
+						<li>
+							<Link className="text-muted-foreground hover:text-foreground" href="/signup-status">
+								Sign-up status
+							</Link>
+						</li>
 					</ul>
 				</div>
 

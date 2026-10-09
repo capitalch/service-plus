@@ -28,7 +28,7 @@ import { WarrantyPeriodComparison } from "./warranty-period-comparison";
 import { WarrantyRangeTabs } from "./warranty-range-tabs";
 import { WarrantyTopPartsChart } from "./warranty-top-parts-chart";
 import type { WarrantyJobRowType, WarrantyPartRollupType, WarrantySummaryRowType } from "./warranty-types";
-import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
+import { SerialNoLine, serialNoText, MobileLine } from "@/features/client/components/shared/device-cell";
 
 const JOB_COLUMNS: ReportColumnType<WarrantyJobRowType>[] = [
 	{
@@ -46,6 +46,12 @@ const JOB_COLUMNS: ReportColumnType<WarrantyJobRowType>[] = [
 		width: "110px",
 	},
 	{
+		cell: (r) => (
+			<div className="flex flex-col">
+				<span>{r.customer_name}</span>
+				<MobileLine mobile={r.mobile} />
+			</div>
+		),
 		header: "Customer",
 		id: "customer",
 		value: (r) => r.customer_name,

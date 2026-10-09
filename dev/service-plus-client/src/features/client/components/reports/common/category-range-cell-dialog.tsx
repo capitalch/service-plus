@@ -19,7 +19,7 @@ import { ReportLoading } from "./report-loading";
 import { ReportTable } from "./report-table";
 import type { ReportColumnType } from "./report-table";
 import { formatDateShort, formatNumber, formatTimeShort } from "./formatters";
-import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
+import { SerialNoLine, serialNoText, MobileLine } from "@/features/client/components/shared/device-cell";
 
 export type CategoryRangeCellType = {
 	reportTitle: string;
@@ -39,6 +39,7 @@ type CellJobType = {
 	event_date: string;
 	event_time: string | null;
 	customer_name: string | null;
+	mobile?: string | null;
 	brand_name: string | null;
 	model_name: string | null;
 	serial_no: string | null;
@@ -89,7 +90,17 @@ export const CategoryRangeCellDialog = ({ cell, onClose }: Props) => {
 			value: (r) => r.job_no,
 			width: "110px",
 		},
-		{ header: "Customer", id: "customer", value: (r) => r.customer_name ?? "—" },
+		{
+			cell: (r) => (
+				<div className="flex flex-col">
+					<span>{r.customer_name ?? "—"}</span>
+					<MobileLine mobile={r.mobile} />
+				</div>
+			),
+			header: "Customer",
+			id: "customer",
+			value: (r) => r.customer_name ?? "—",
+		},
 		{
 			cell: (r) => (
 				<div className="flex flex-col">

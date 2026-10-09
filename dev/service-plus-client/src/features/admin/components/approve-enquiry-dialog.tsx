@@ -20,6 +20,7 @@ import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { BU_NAME_REGEX } from "@/lib/bu-name";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -34,7 +35,7 @@ type ApproveEnquiryDialogPropsType = {
 
 type ApproveResultType = { login_email_sent: boolean; plan_code: string };
 
-type CheckFieldType = "bu_code" | "bu_name" | "username";
+type CheckFieldType = "bu_code" | "bu_name" | "mobile" | "username";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ const approveSchema = z.object({
 		.regex(/^[a-z0-9_]{3,30}$/, MESSAGES.ERROR_BU_CODE_FORMAT)
 		.refine((v) => !RESERVED_CODES.includes(v) && !v.startsWith("pg_"), MESSAGES.ERROR_BU_CODE_FORMAT),
 	bu_name: z.string().trim().regex(BU_NAME_REGEX, MESSAGES.ERROR_BU_NAME_FORMAT),
+	mobile: z.string().regex(MOBILE_REGEX, MESSAGES.ERROR_MOBILE_INVALID),
 	username: z
 		.string()
 		.min(5, MESSAGES.ERROR_USERNAME_MIN_LENGTH)
@@ -60,6 +62,11 @@ type ApproveFormType = z.infer<typeof approveSchema>;
 const CHECKS: Record<CheckFieldType, { arg: string; message: string; sqlId: string }> = {
 	bu_code: { arg: "code", message: MESSAGES.ERROR_BU_CODE_EXISTS, sqlId: SQL_MAP.CHECK_BU_CODE_EXISTS },
 	bu_name: { arg: "name", message: MESSAGES.ERROR_BU_NAME_EXISTS, sqlId: SQL_MAP.CHECK_BU_NAME_EXISTS },
+	mobile: {
+		arg: "mobile",
+		message: MESSAGES.ERROR_BUSINESS_USER_MOBILE_EXISTS,
+		sqlId: SQL_MAP.CHECK_BUSINESS_USER_MOBILE_EXISTS,
+	},
 	username: {
 		arg: "username",
 		message: MESSAGES.ERROR_BUSINESS_USER_USERNAME_EXISTS,
@@ -67,12 +74,46 @@ const CHECKS: Record<CheckFieldType, { arg: string; message: string; sqlId: stri
 	},
 };
 
-/** Default username: the email's local part as letters and digits, padded to 5. */
-function baseUsername(email: string): string {
-	const base = email
+// Email local parts that name a mailbox, not a person; never offered as a username.
+const GENERIC_EMAIL_NAMES = [
+	"account",
+	"accounts",
+	"admin",
+	"administrator",
+	"billing",
+	"contact",
+	"enquiry",
+	"hello",
+	"help",
+	"info",
+	"mail",
+	"office",
+	"sales",
+	"service",
+	"support",
+	"team",
+];
+const NAME_TITLES = ["dr", "mr", "mrs", "ms", "shri", "smt"];
+const USERNAME_MAX_LENGTH = 20;
+
+/** Default username: the applicant's name as letters and digits ("Asha Roy" -> asharoy), without a
+ * leading title; under 5 characters, the email's local part if it names a person, else the short
+ * name padded to 5. Keep in step with default_username in the server's bu_admin/signups.py. */
+function baseUsername(name: string, email: string): string {
+	const words = name
+		.toLowerCase()
+		.split(/[^a-z0-9]+/)
+		.filter(Boolean);
+	while (words.length > 1 && NAME_TITLES.includes(words[0])) words.shift();
+	const fromName = words.join("").slice(0, USERNAME_MAX_LENGTH);
+	if (fromName.length >= 5) return fromName;
+	const local = email
 		.split("@")[0]
 		.toLowerCase()
-		.replace(/[^a-z0-9]/g, "");
+		.replace(/[^a-z0-9]/g, "")
+		.slice(0, USERNAME_MAX_LENGTH);
+	if (local.length >= 5 && !GENERIC_EMAIL_NAMES.includes(local)) return local;
+	const base = fromName || local;
 	return base.length >= 5 ? base : `${base}user`.padEnd(5, "0");
 }
 
@@ -83,11 +124,13 @@ export const ApproveEnquiryDialog = ({ enquiry, onOpenChange, onSuccess }: Appro
 	const [checking, setChecking] = useState<Record<CheckFieldType, boolean>>({
 		bu_code: false,
 		bu_name: false,
+		mobile: false,
 		username: false,
 	});
 	const [taken, setTaken] = useState<Record<CheckFieldType, boolean | null>>({
 		bu_code: null,
 		bu_name: null,
+		mobile: null,
 		username: null,
 	});
 
@@ -95,7 +138,7 @@ export const ApproveEnquiryDialog = ({ enquiry, onOpenChange, onSuccess }: Appro
 	const userExists = !!enquiry?.user_id;
 
 	const form = useForm<ApproveFormType>({
-		defaultValues: { bu_code: "", bu_name: "", username: "" },
+		defaultValues: { bu_code: "", bu_name: "", mobile: "", username: "" },
 		mode: "onChange",
 		resolver: zodResolver(approveSchema),
 	});
@@ -106,6 +149,7 @@ export const ApproveEnquiryDialog = ({ enquiry, onOpenChange, onSuccess }: Appro
 	const values = useWatch({ control: form.control });
 	const debouncedCode = useDebounce(values.bu_code ?? "", FIELD_VALIDATION_DEBOUNCE_MS);
 	const debouncedName = useDebounce(values.bu_name ?? "", FIELD_VALIDATION_DEBOUNCE_MS);
+	const debouncedMobile = useDebounce(values.mobile ?? "", FIELD_VALIDATION_DEBOUNCE_MS);
 	const debouncedUsername = useDebounce(values.username ?? "", FIELD_VALIDATION_DEBOUNCE_MS);
 
 	async function exists(field: CheckFieldType, value: string): Promise<boolean | null> {
@@ -130,12 +174,17 @@ export const ApproveEnquiryDialog = ({ enquiry, onOpenChange, onSuccess }: Appro
 	// Prefill on open: the stored BU name and code, and the first free username.
 	useEffect(() => {
 		if (!enquiry) return;
-		form.reset({ bu_code: enquiry.bu_code, bu_name: enquiry.bu_name, username: enquiry.username ?? "" });
-		setTaken({ bu_code: null, bu_name: null, username: null });
+		form.reset({
+			bu_code: enquiry.bu_code,
+			bu_name: enquiry.bu_name,
+			mobile: normalizeMobile(enquiry.mobile),
+			username: enquiry.username ?? "",
+		});
+		setTaken({ bu_code: null, bu_name: null, mobile: null, username: null });
 		if (enquiry.user_id) return;
 		let cancelled = false;
 		(async () => {
-			const base = baseUsername(enquiry.email);
+			const base = baseUsername(enquiry.name, enquiry.email);
 			for (let n = 1; n < 100; n++) {
 				const candidate = n === 1 ? base : `${base}${n}`;
 				if ((await exists("username", candidate)) !== true) {
@@ -173,6 +222,10 @@ export const ApproveEnquiryDialog = ({ enquiry, onOpenChange, onSuccess }: Appro
 	}, [debouncedName, buExists]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
+		runCheck("mobile", debouncedMobile, userExists);
+	}, [debouncedMobile, userExists]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	useEffect(() => {
 		runCheck("username", debouncedUsername, userExists);
 	}, [debouncedUsername, userExists]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -183,7 +236,13 @@ export const ApproveEnquiryDialog = ({ enquiry, onOpenChange, onSuccess }: Appro
 				GRAPHQL_MAP.approveSalesEnquiry,
 				"approveSalesEnquiry",
 				dbName,
-				{ bu_code: data.bu_code, bu_name: data.bu_name, id: enquiry.id, username: data.username },
+				{
+					bu_code: data.bu_code,
+					bu_name: data.bu_name,
+					id: enquiry.id,
+					mobile: data.mobile,
+					username: data.username,
+				},
 			);
 			if (result?.login_email_sent) toast.success(MESSAGES.ENQUIRY_APPROVED_LITE);
 			else toast.warning(MESSAGES.ENQUIRY_APPROVED_LOGIN_EMAIL_FAILED);
@@ -248,6 +307,23 @@ export const ApproveEnquiryDialog = ({ enquiry, onOpenChange, onSuccess }: Appro
 							<StatusIcon field="bu_code" />
 						</div>
 						<EnquiryFieldError message={errors.bu_code?.message} />
+					</div>
+					<div className="flex flex-col gap-1.5">
+						<Label htmlFor="ap_mobile">
+							Manager mobile <span className="text-red-500">*</span>
+						</Label>
+						<div className="relative">
+							<Input
+								className="pr-8"
+								disabled={userExists}
+								id="ap_mobile"
+								inputMode="numeric"
+								maxLength={10}
+								{...form.register("mobile", { setValueAs: (v: string) => normalizeMobile(v) })}
+							/>
+							<StatusIcon field="mobile" />
+						</div>
+						<EnquiryFieldError message={errors.mobile?.message} />
 					</div>
 					<div className="flex flex-col gap-1.5">
 						<Label htmlFor="ap_username">

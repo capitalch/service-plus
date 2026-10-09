@@ -136,6 +136,11 @@ export const SiteHeader = () => {
 										Login to the app
 									</a>
 								</Button>
+								<Button asChild className="w-full" variant="ghost">
+									<Link href="/signup-status" onClick={() => setMobileOpen(false)}>
+										Check sign-up status
+									</Link>
+								</Button>
 								<div className="grid grid-cols-2 gap-2 pt-1">
 									<Button asChild size="sm" variant="ghost">
 										<a href={`tel:${siteConfig.phoneE164}`}>

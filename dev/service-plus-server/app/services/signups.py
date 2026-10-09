@@ -50,11 +50,30 @@ def make_reference() -> str:
     return "SP-" + "".join(secrets.choice(_REFERENCE_ALPHABET) for _ in range(8))
 
 
+# Trailing company-form words left out of a BU code ("ABC Pvt Ltd" -> abc); the name keeps them.
+LEGAL_SUFFIXES = frozenset(
+    {"co", "company", "corp", "corporation", "inc", "limited", "llp", "ltd", "opc", "p", "private", "pvt"}
+)
+CITY_SLUG_MAX = 10
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+
+
 def bu_code_base(business_name: str) -> str:
     """The BU code a business name starts from, before clash suffixes: lower-case, other
-    characters to '_', trimmed, cut to 26; short codes padded with 'bu'; 'bu_' in front
+    characters to '_', trailing company-form words (pvt, ltd, llp, …) dropped unless that
+    leaves under 3 characters, cut to 26; short codes padded with 'bu'; 'bu_' in front
     of one starting with 'pg_' or a digit."""
-    code = re.sub(r"[^a-z0-9]+", "_", business_name.lower()).strip("_")[:BU_CODE_BASE_MAX].strip("_")
+    words = _slug(business_name).split("_")
+    kept = list(words)
+    while len(kept) > 1 and kept[-1] in LEGAL_SUFFIXES:
+        kept.pop()
+    code = "_".join(kept)
+    if len(code) < 3:
+        code = "_".join(words)
+    code = code[:BU_CODE_BASE_MAX].strip("_")
     if len(code) < 3:
         code = f"bu_{code}" if code else "bu_new"
     if code.startswith("pg_") or code[0].isdigit():
@@ -62,12 +81,23 @@ def bu_code_base(business_name: str) -> str:
     return code
 
 
-async def derive_bu_code(business_name: str, is_taken: Callable[[str], Awaitable[bool]]) -> str:
-    """bu_code_base, then '_2', '_3', … while the code is reserved or `is_taken` says so.
-    Shared with sign-up approval (Steps 9 and 10), which pass their own `is_taken`."""
+async def derive_bu_code(
+    business_name: str, is_taken: Callable[[str], Awaitable[bool]], city: str | None = None
+) -> str:
+    """bu_code_base; if reserved or taken, base_<city>; then '_2', '_3', … on the last one.
+    `is_taken` says whether a code is used; shared with sign-up approval (Steps 9 and 10)."""
     base = bu_code_base(business_name)
-    for n in range(1, BU_CODE_MAX_SUFFIX + 1):
-        code = base if n == 1 else f"{base}_{n}"
+    candidates = [base]
+    city_slug = _slug(city or "")[:CITY_SLUG_MAX].strip("_")
+    if city_slug:
+        stem = base[: BU_CODE_BASE_MAX - len(city_slug) - 1].rstrip("_")
+        candidates.append(f"{stem}_{city_slug}")
+    for code in candidates:
+        if code not in RESERVED_BU_CODES and not await is_taken(code):
+            return code
+    last = candidates[-1]
+    for n in range(2, BU_CODE_MAX_SUFFIX + 1):
+        code = f"{last}_{n}"
         if code not in RESERVED_BU_CODES and not await is_taken(code):
             return code
     raise SignupException(message=AppMessages.OPERATION_FAILED, code="BU_CODE_EXHAUSTED")
@@ -146,7 +176,7 @@ async def submit_lt_signup(payload: dict, ip: str | None) -> dict:
         "setup_fee_paise": price.setup_fee_paise,
     }
     for attempt in range(1, INSERT_ATTEMPTS + 1):
-        enquiry["bu_code"] = await derive_bu_code(data["business_name"], code_taken)
+        enquiry["bu_code"] = await derive_bu_code(data["business_name"], code_taken, data["city"])
         enquiry["reference"] = make_reference()
         try:
             await exec_sql(db_name, "security", SignupServerSql.INSERT_LT_ENQUIRY, enquiry)

@@ -32,7 +32,7 @@ import { type DivisionContextType, isGstDivision } from "@/features/client/types
 import { PAGE_SIZE, thClass, tdClass, fmtCurrency } from "./deliver-job-helpers";
 import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
-import { DeviceCell } from "@/features/client/components/shared/device-cell";
+import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -245,7 +245,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 							<tbody>
 								{Array.from({ length: 8 }).map((_, i) => (
 									<tr key={i} className="animate-pulse">
-										{Array.from({ length: 11 }).map((__, j) => (
+										{Array.from({ length: 10 }).map((__, j) => (
 											<td key={j} className={tdClass}>
 												<div className="h-4 w-16 rounded bg-(--cl-border)" />
 											</td>
@@ -267,7 +267,6 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 									<th className={thClass}>Delivered</th>
 									<th className={thClass}>Job No</th>
 									<th className={thClass}>Customer</th>
-									<th className={thClass}>Mobile</th>
 									<th className={`${thClass} w-40`}>Device</th>
 									<th className={thClass}>Technician</th>
 									<th className={thClass}>Status</th>
@@ -410,6 +409,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 											<td className={tdClass}>
 												<div className="flex flex-col gap-0.5">
 													<span>{row.customer_name}</span>
+													<MobileLine mobile={row.mobile} />
 													{row.customer_gstin && (
 														<span className="font-mono text-[10px] text-(--cl-text-muted)">
 															Gstin: {row.customer_gstin}
@@ -422,7 +422,6 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 													)}
 												</div>
 											</td>
-											<td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 
 											{/* Device */}
 											<td className={`${tdClass} max-w-40`}>

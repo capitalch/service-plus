@@ -31,7 +31,11 @@ LITE = {
 @pytest.mark.parametrize(
     "name, expected",
     [
-        ("Nav Technology Pvt. Ltd.", "nav_technology_pvt_ltd"),
+        ("Nav Technology Pvt. Ltd.", "nav_technology"),
+        ("ABC Pvt Ltd", "abc"),
+        ("Sharma & Co", "sharma"),
+        ("Pvt Ltd", "pvt"),
+        ("Ab Ltd", "ab_ltd"),
         ("A1", "bu_a1"),
         ("!!", "bu_new"),
         ("123 Repairs", "bu_123_repairs"),
@@ -48,12 +52,23 @@ def test_bu_code_base_is_a_valid_code_with_room_for_a_suffix():
 
 
 def test_same_business_name_gets_a_different_code_when_taken():
-    taken = {"nav_technology_pvt_ltd"}
+    taken = {"nav_technology"}
 
     async def is_taken(code):
         return code in taken
 
-    assert asyncio.run(derive_bu_code("Nav Technology Pvt. Ltd.", is_taken)) == "nav_technology_pvt_ltd_2"
+    assert asyncio.run(derive_bu_code("Nav Technology Pvt. Ltd.", is_taken)) == "nav_technology_2"
+
+
+def test_a_taken_code_tries_the_city_before_a_number():
+    taken = {"abc"}
+
+    async def is_taken(code):
+        return code in taken
+
+    assert asyncio.run(derive_bu_code("ABC Pvt Ltd", is_taken, "Kolkata")) == "abc_kolkata"
+    taken.add("abc_kolkata")
+    assert asyncio.run(derive_bu_code("ABC Pvt Ltd", is_taken, "Kolkata")) == "abc_kolkata_2"
 
 
 def test_reserved_names_are_never_used():
@@ -141,7 +156,7 @@ def test_lite_signup_is_saved_published_and_mailed(monkeypatch):
     (row,) = _inserts(calls, SignupServerSql.INSERT_LT_ENQUIRY)
     assert result == {"reference": row["reference"], "status": "pending"}
     assert row["email"] == "owner@example.com"
-    assert row["bu_code"] == "nav_technology_pvt_ltd"
+    assert row["bu_code"] == "nav_technology"
     assert (row["setup_fee_paise"], row["payment_status"]) == (0, "not_required")
     assert calls["published"] == [("service_plus_customers", "LT", 3)]
     assert "owner@example.com" in calls["emails"] and "admin@example.com" in calls["emails"]

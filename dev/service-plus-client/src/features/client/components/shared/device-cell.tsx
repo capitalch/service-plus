@@ -9,6 +9,11 @@ type DeviceCellPropsType = {
 	serialNo: string | null | undefined;
 };
 
+type MobileLinePropsType = {
+	className?: string;
+	mobile: string | null | undefined;
+};
+
 type SerialNoLinePropsType = {
 	className?: string;
 	serialNo: string | null | undefined;
@@ -41,6 +46,17 @@ export const SerialNoLine = ({ className, serialNo }: SerialNoLinePropsType) => 
 	return (
 		<span className={cn("mt-0.5 block whitespace-nowrap text-teal-800 text-xs dark:text-teal-300", className)}>
 			SN: <span className="font-mono font-semibold tracking-wider">{sn}</span>
+		</span>
+	);
+};
+
+// Customer mobile shown beneath the customer name: same layout as the SN line, in blue.
+export const MobileLine = ({ className, mobile }: MobileLinePropsType) => {
+	const value = mobile?.trim() ?? "";
+	if (!value) return null;
+	return (
+		<span className={cn("mt-0.5 block whitespace-nowrap text-blue-700 text-xs dark:text-blue-300", className)}>
+			Mob: <span className="font-mono font-semibold tracking-wider">{value}</span>
 		</span>
 	);
 };

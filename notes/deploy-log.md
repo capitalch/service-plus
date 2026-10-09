@@ -3,6 +3,18 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-09 19:57 (main)
+Sign-up: shorter BU codes, name-based Manager username, editable Manager mobile
+
+- BU code: drop trailing company words (pvt, ltd, llp…), try base_<city> before a numeric suffix (signups.py)
+- Manager: username suggested from the applicant name, generic email parts skipped; approval dialog gains a live-checked Manager mobile field and the server pre-checks mobile (approve-enquiry-dialog.tsx, bu_admin/signups.py, users_roles.py)
+- Sign-up duplicate check now also refuses a mobile that already belongs to a user (sql_signups.py)
+- Emails: new HTML layout (heading, details table, button, footer) and clearer wording for thank-you, rejection, approver and receipt emails (signup_emails.py, exceptions.py)
+- Portal: Sign-up status link in footer, mobile menu and beside the Start your subscription heading; plan.md rewritten for the Lite-not-saved investigation
+- Jobs UI: customer mobile shown under the name in job grids and report dialogs instead of a Mobile column (mobile added to report SQL)
+- Help files and notes updated; tests added for BU codes, usernames and the city fallback
+Files: 50 changed (+729 / -319) — Base: 78e2ca8
+
 ## 2026-10-09 15:59 (main)
 Docs: remove completed date-input-limits plan
 

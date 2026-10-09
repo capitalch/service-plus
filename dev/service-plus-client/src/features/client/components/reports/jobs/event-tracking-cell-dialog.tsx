@@ -20,7 +20,7 @@ import { ReportLoading } from "../common/report-loading";
 import { ReportTable } from "../common/report-table";
 import type { ReportColumnType } from "../common/report-table";
 import { formatDateShort, formatNumber, formatTimeShort } from "../common/formatters";
-import { SerialNoLine, serialNoText } from "@/features/client/components/shared/device-cell";
+import { SerialNoLine, serialNoText, MobileLine } from "@/features/client/components/shared/device-cell";
 
 // Cost/Sale/Profit only make sense once a job has been costed out — meaningful
 // for Finalize (COMPLETED_OK) and Deliver, not for Received/Status Change.
@@ -41,6 +41,7 @@ type CellJobType = {
 	event_time: string | null;
 	status_label: string;
 	customer_name: string | null;
+	mobile?: string | null;
 	brand_name: string | null;
 	model_name: string | null;
 	serial_no: string | null;
@@ -108,7 +109,17 @@ export const EventTrackingCellDialog = ({ cell, onClose }: Props) => {
 			value: (r) => r.status_label,
 			width: "140px",
 		},
-		{ header: "Customer", id: "customer", value: (r) => r.customer_name ?? "—" },
+		{
+			cell: (r) => (
+				<div className="flex flex-col">
+					<span>{r.customer_name ?? "—"}</span>
+					<MobileLine mobile={r.mobile} />
+				</div>
+			),
+			header: "Customer",
+			id: "customer",
+			value: (r) => r.customer_name ?? "—",
+		},
 		{
 			cell: (r) => (
 				<div className="flex flex-col">

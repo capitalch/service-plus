@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Timer } from "lucide-react";
+import { MobileLine } from "@/features/client/components/shared/device-cell";
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -32,6 +33,7 @@ type CellJobType = {
 	job_date: string;
 	days_old: number;
 	customer_name: string;
+	mobile?: string | null;
 	product_name: string | null;
 	brand_name: string | null;
 	model_name: string | null;
@@ -52,6 +54,12 @@ const COLUMNS: ReportColumnType<CellJobType>[] = [
 		width: "120px",
 	},
 	{
+		cell: (r) => (
+			<div className="flex flex-col">
+				<span>{r.customer_name}</span>
+				<MobileLine mobile={r.mobile} />
+			</div>
+		),
 		header: "Customer",
 		id: "customer",
 		value: (r) => r.customer_name,

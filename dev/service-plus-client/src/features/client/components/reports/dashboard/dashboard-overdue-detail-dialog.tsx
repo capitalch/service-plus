@@ -2,6 +2,7 @@ import { Timer } from "lucide-react";
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SQL_MAP } from "@/constants/sql-map";
+import { MobileLine } from "@/features/client/components/shared/device-cell";
 
 import { ReportEmpty } from "../common/report-empty";
 import { ReportError } from "../common/report-error";
@@ -28,7 +29,17 @@ const columns: ReportColumnType<OverdueRowType>[] = [
 		width: "110px",
 	},
 	{ header: "Date", id: "job_date", value: (r) => r.job_date, width: "100px" },
-	{ header: "Customer", id: "customer_name", value: (r) => r.customer_name },
+	{
+		cell: (r) => (
+			<div className="flex flex-col">
+				<span>{r.customer_name}</span>
+				<MobileLine mobile={r.mobile} />
+			</div>
+		),
+		header: "Customer",
+		id: "customer_name",
+		value: (r) => r.customer_name,
+	},
 	{
 		align: "right",
 		cell: (r) => <span className="font-bold text-amber-600">{r.days_old}d</span>,
