@@ -108,7 +108,7 @@ export const features: FeatureType[] = [
 	},
 	{
 		description:
-			"Run several branches and business units from one login, each with its own numbering and stock. Unlimited branches on Standard and Enterprise; Lite and Basic use the head office only.",
+			"Run several branches and business units from one login, each with its own numbering and stock. Unlimited branches on Enterprise; Lite, Basic and Standard use the head office only.",
 		detail: "One login covers every branch and business unit you run, and each keeps its own job numbering, stock and reports, so branches never see or affect each other's numbers.",
 		highlights: [
 			"One login across every branch and business unit",

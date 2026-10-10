@@ -26,7 +26,7 @@ from app.services.default_customer import get_default_customer_client, get_enter
 from app.services.signup_emails import approver_email, send_text_email, thank_you_email
 
 LT_PLAN_CODES = ("lite", "basic", "standard")
-ONE_BRANCH_PLAN_CODES = ("lite", "basic")
+ONE_BRANCH_PLAN_CODES = ("lite", "basic", "standard")
 
 # BU codes must match ^[a-z0-9_]{3,30}$; the base is cut to 26 so "_NN" still fits.
 BU_CODE_BASE_MAX = 26

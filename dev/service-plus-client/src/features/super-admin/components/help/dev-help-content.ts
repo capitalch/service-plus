@@ -147,7 +147,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Is genericUpdate authorization-checked at all?",
-				a: "Partially. mutation.py has a GENERIC_UPDATE_TABLE_RIGHTS allow-list covering the ~20 Masters/Configurations tables gated by MASTERS_MENU/CONFIG_MENU rights. Tables shared with unrestricted flows (job, job_payment, purchase_invoice, sales_invoice, job_invoice) are deliberately left unscoped — see 'Known Gaps'.",
+				a: "Partially. mutation.py has a GENERIC_UPDATE_TABLE_RIGHTS allow-list covering the ~20 Masters/Configurations tables gated by MASTERS_MENU/MASTERS_ORGANIZATION/CONFIG_MENU rights. Tables shared with unrestricted flows (job, job_payment, purchase_invoice, sales_invoice, job_invoice) are deliberately left unscoped — see 'Known Gaps'.",
 			},
 		],
 	},
@@ -179,7 +179,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"Branch add / edit / delete / toggle",
-						"masters/branch/branch-section.tsx handleChanged → loadBranches + refreshBuContext",
+						"configurations/branch/branch-section.tsx handleChanged → loadBranches + refreshBuContext",
 					],
 					[
 						"BU create / edit / (de)activate (Admin)",
@@ -1970,6 +1970,63 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
+		id: "dev-service-config-in-configurations",
+		category: "Access Control & Security",
+		title: "Service Config Lists Live Under Configurations",
+		summary:
+			"The eight Service Config lists moved from Masters to Configurations on 2026-10-10; the MASTERS_SERVICE_CONFIG right kept its name.",
+		tags: ["MASTERS_SERVICE_CONFIG", "service config", "lookup", "additional charge", "configurations"],
+		content: [
+			{
+				type: "para",
+				text: "Customer Type, Document Type, Job Type, Job Status, Job Receive Manner, Job Delivery Manner, Job Receive Condition and Job Additional Charges are the CollapsibleGroup 'Service Config' in ConfigurationsExplorer (client-explorer-panel.tsx), between Organization and System. client-configurations-page.tsx renders them and guards each label in ITEM_RIGHTS against MASTERS_SERVICE_CONFIG, beside the MASTERS_ORGANIZATION entries.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"components/masters/additional-charge → components/configurations/additional-charge.",
+					"components/masters/lookup → components/shared/lookup: LookupSection is used by both tabs — Masters → Brand (BRAND_CONFIG) and the seven Service Config lookups (lookup-configs.ts).",
+					"layout/masters-access.ts (MASTERS_ITEM_RIGHTS, canAccessMastersItem, MASTERS_FALLBACK) was deleted along with its redirect effect in client-layout.tsx: no Masters item is gated any more.",
+					"No server change: the right's code, its seed label 'Masters: Service Config' and seed-roles-dialog.tsx's entry are unchanged, the same choice as MASTERS_ORGANIZATION.",
+				],
+			},
+			{
+				type: "warning",
+				text: "A custom role with MASTERS_SERVICE_CONFIG but without CONFIG_MENU loses these screens — the whole Configurations tab is hidden. No seeded role is in that state (Manager has both, Receptionist neither).",
+			},
+		],
+		faqs: [],
+	},
+
+	{
+		id: "dev-organization-in-configurations",
+		category: "Access Control & Security",
+		title: "Organization Screens Live Under Configurations",
+		summary:
+			"Branch, Financial Year and State / Province moved from Masters to Configurations; the MASTERS_ORGANIZATION right kept its name.",
+		tags: ["MASTERS_ORGANIZATION", "branch", "financial year", "state", "configurations"],
+		content: [
+			{
+				type: "para",
+				text: "Branch, Financial Year and State / Province are a CollapsibleGroup 'Organization' in ConfigurationsExplorer (client-explorer-panel.tsx), beside Divisions; App Settings and Numbering / Auto Series form the 'System' group. Their code is in components/configurations/{branch,financial-year,state-province}. client-configurations-page.tsx renders them, guarded by its ITEM_RIGHTS map (item label → right) against MASTERS_ORGANIZATION; Divisions stays ungated beyond CONFIG_MENU.",
+			},
+			{
+				type: "para",
+				text: "The right is still called MASTERS_ORGANIZATION (label 'Masters: Organization') — renaming would touch the server seed, GENERIC_UPDATE_TABLE_RIGHTS, ACCESS_RIGHTS and seed-roles-dialog.tsx. Server-side, GENERIC_UPDATE_TABLE_RIGHTS maps branch, state and financial_year to it, and resolve_add_branch reuses the branch entry.",
+			},
+			{
+				type: "para",
+				text: "Masters now opens on Customer / Entities (SECTION_DEFAULTS, SECTION_DEFAULT_GROUPS in client-layout.tsx). The Service Config group followed on 2026-10-10 — see 'Service Config Lists Live Under Configurations'.",
+			},
+			{
+				type: "warning",
+				text: "A custom role with MASTERS_ORGANIZATION but without CONFIG_MENU can no longer reach these screens — the whole Configurations tab is hidden. No seeded role is in that state (Manager has both, Receptionist neither).",
+			},
+		],
+		faqs: [],
+	},
+
+	{
 		id: "dev-rbac-enforcement",
 		category: "Access Control & Security",
 		title: "Enforcement: Server Guard + Client Gating",
@@ -1988,8 +2045,14 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 						"Jobs → Accounts Posting (in addition to the existing postDataToAccounts app-setting condition). The same selectPostDataToAccounts flag also hides the Admin top-nav tab (its only item is Post / Unpost), the mobile Admin link in client-explorer-panel.tsx, and the 'Unposted documents' bell entry in client-top-nav.tsx; the /client/admin route itself is not guarded.",
 					],
 					["MASTERS_MENU", "The whole Masters top-level tab"],
-					["MASTERS_ORGANIZATION", "Masters → Organization group (Branch, Financial Year, State / Province)"],
-					["MASTERS_SERVICE_CONFIG", "Masters → Service Config group (the eight job/customer lookup lists)"],
+					[
+						"MASTERS_ORGANIZATION",
+						"Configurations → Organization group (Branch, Financial Year, State / Province; Divisions is not gated by it). Also enforced server-side: GENERIC_UPDATE_TABLE_RIGHTS maps branch, state and financial_year to this right (they were MASTERS_MENU, which let a Receptionist write them through the API), and addBranch inherits it",
+					],
+					[
+						"MASTERS_SERVICE_CONFIG",
+						"Configurations → Service Config group (the eight job/customer lookup lists; moved from Masters 2026-10-10, right kept its name)",
+					],
 					["CONFIG_MENU", "The whole Configurations top-level tab"],
 					["ADMIN_MENU", "Client Mode's Admin tab (Post/Unpost) — not the separate /admin/* Admin Mode"],
 				],
@@ -2028,7 +2091,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "warning",
-				text: "Disabling a TreeItem only blocks the click — it does not stop the page rendering that item when it is already selected. SECTION_DEFAULTS.masters is 'Branch', so until 2026-10-07 a Receptionist opening Masters got the full Branch screen (add/edit included) under a disabled sidebar entry. layout/masters-access.ts now holds MASTERS_ITEM_RIGHTS (item label → right) and canAccessMastersItem(user, label): client-layout.tsx has an effect, declared after the section-reset effect, that moves a restricted Masters selection (default or deep link) to MASTERS_FALLBACK (Entities > Customer), and client-masters-page.tsx returns null for a restricted label so the section never mounts for the one frame before that effect runs. A new restricted Masters item must be added to MASTERS_ITEM_RIGHTS as well as disabled in MastersExplorer; any other section whose SECTION_DEFAULTS entry is gated needs the same treatment.",
+				text: "Disabling a TreeItem only blocks the click — it does not stop the page rendering that item when it is already selected (a stale selection, or a section default). Until 2026-10-07 SECTION_DEFAULTS.masters was 'Branch', so a Receptionist opening Masters got the full Branch screen under a disabled sidebar entry. Today every gated item is in Configurations, whose default (Divisions) is ungated: client-configurations-page.tsx's ITEM_RIGHTS map makes the page return null for a restricted label. Masters has no gated items left, so layout/masters-access.ts and its redirect effect in client-layout.tsx were removed. A new gated item must be added to its page's guard as well as disabled in the explorer; a section whose SECTION_DEFAULTS entry is gated also needs a redirect effect.",
 			},
 		],
 		faqs: [
@@ -2061,7 +2124,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Gap 1 — The generic table-writer hole" },
 			{
 				type: "para",
-				text: "genericUpdate, genericUpdateScript, and genericQuery (see 'The Generic Query/Update Pattern') can, by construction, write to or read from almost any table by name. Only genericUpdate has any per-table check at all — a GENERIC_UPDATE_TABLE_RIGHTS allow-list covering the ~20 Masters/Configurations tables, gating them to MASTERS_MENU/CONFIG_MENU. genericUpdateScript and genericQuery have no per-table authorization at all today.",
+				text: "genericUpdate, genericUpdateScript, and genericQuery (see 'The Generic Query/Update Pattern') can, by construction, write to or read from almost any table by name. Only genericUpdate has any per-table check at all — a GENERIC_UPDATE_TABLE_RIGHTS allow-list covering the ~20 Masters/Configurations tables, gating them to MASTERS_MENU/MASTERS_ORGANIZATION/CONFIG_MENU. genericUpdateScript and genericQuery have no per-table authorization at all today.",
 			},
 			{
 				type: "heading",
@@ -3086,7 +3149,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					["default_hsn_for_spare_part / default_hsn_for_service_charge", "Fallback HSN codes"],
 					["no_of_job_sheets_per_print / no_of_job_invoices_per_print", "Print copy counts"],
 					["show_parts_in_job_invoice", "JSON controlling the merged-line invoice fallback label/HSN/GST"],
-					["markup_percent_over_cost", "Auto-markup for selling price = cost × (1 + markup%)"],
+					[
+						"markup_percent_over_cost",
+						"Auto-markup for a spare part's selling price = cost × (1 + markup%). The seed description (seed_bu_data.py, id 3) is applied ON CONFLICT DO NOTHING, so a changed wording reaches new BUs only — existing rows keep theirs until edited in App Settings",
+					],
 					[
 						"post_data_to_accounts",
 						"Feature-flags the whole Trace Plus integration (Jobs → Accounts Posting) — read client-side in layout/client-layout.tsx and dispatched into Redux at app load. Seeded false for new BUs (id 8 since default_division_id was retired); existing BUs keep their value",
@@ -3100,6 +3166,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 						"JSON {contact_phone, daily_send_cap, enabled, notify_email, staff_whatsapp_number, whatsapp_number}. enabled (strictly true) is read client-side in layout/client-layout.tsx into Redux (extendedWarrantyEnabled — shows Custom → Extended Warranty) and server-side by app/whatsapp/ew_sender.py; sending also needs whatsapp_notifications.EXTENDED_WARRANTY. Edited in its own dialog, edit-extended-warranty-dialog.tsx. See 'Extended Warranty — Lead State Machine'.",
 					],
 				],
+			},
+			{
+				type: "note",
+				text: "Generic editor (edit-app-setting-dialog.tsx): there is no Simple/JSON toggle — detectKind picks the editor from the stored jsonb value's type. Object/array → JSON textarea (must parse); JSON number (e.g. default_gst_rate, markup_percent_over_cost, no_of_*_per_print) → numeric input validated as a finite, non-negative number and saved unquoted; any other scalar → text input saved as a JSON string; boolean or \"true\"/\"false\" → Switch. So a setting's type is fixed by its seed in seed_bu_data.py: seeding a numeric key as '\"18\"' instead of '18' would silently drop numeric validation.",
 			},
 			{ type: "heading", text: "document_sequence" },
 			{
@@ -3218,7 +3288,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					[
 						"addBranch mutation",
 						"resolvers/masters/branches.py (resolve_add_branch_helper); schema.graphql",
-						"The only way to create a branch. Guards: require_own_tenant, require_bu_access, and MASTERS_MENU (the right genericUpdate demands for branch). One transaction: insert the branch (process_data), LOCK_DIVISION_TABLE, then INSERT_MAIN_DIVISION_FOR_BRANCH with id MAX(id)+1. Returns {branchId, divisionId}",
+						"The only way to create a branch. Guards: require_own_tenant, require_bu_access, and MASTERS_ORGANIZATION (the right genericUpdate demands for branch). One transaction: insert the branch (process_data), LOCK_DIVISION_TABLE, then INSERT_MAIN_DIVISION_FOR_BRANCH with id MAX(id)+1. Returns {branchId, divisionId}",
 					],
 					[
 						"refuse_branch_insert",
@@ -3597,7 +3667,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "para",
-				text: 'Client side: the generic App Settings editor (edit-app-setting-dialog.tsx) shows a Switch instead of the text/JSON value field whenever the stored value is a JSON boolean or the string "true"/"false" (isBooleanValue; e.g. post_data_to_accounts) — it writes "true"/"false" into the same form field, so encodeSimpleValue keeps the original type on save. For whatsapp_notifications it is bypassed for this one key — app-settings-section.tsx branches on record.setting_key === "whatsapp_notifications" to open edit-whatsapp-notifications-dialog.tsx instead, a purpose-built dialog with one Switch per event (src/components/ui/switch.tsx), still writing through the same genericUpdate mutation, no new resolver. Both sendWhatsappCompletion/sendWhatsappJobIntake\'s TS wrapper types (send-whatsapp-completion.ts / send-whatsapp-job-intake.ts) now return {results, disabled} instead of a bare array specifically so a disabled event isn\'t shown to staff as a send failure — use-send-whatsapp-job-intake.ts and customer-connect-section.tsx\'s handleConfirmSend both check disabled before falling into the existing empty-results/failure branches.',
+				text: 'Client side: the generic App Settings editor (edit-app-setting-dialog.tsx) shows a Switch instead of the text/JSON value field whenever the stored value is a JSON boolean or the string "true"/"false" (isBooleanValue; e.g. post_data_to_accounts) — it writes "true"/"false" into the same form field, so encodeValue keeps the original type on save. For whatsapp_notifications it is bypassed for this one key — app-settings-section.tsx branches on record.setting_key === "whatsapp_notifications" to open edit-whatsapp-notifications-dialog.tsx instead, a purpose-built dialog with one Switch per event (src/components/ui/switch.tsx), still writing through the same genericUpdate mutation, no new resolver. Both sendWhatsappCompletion/sendWhatsappJobIntake\'s TS wrapper types (send-whatsapp-completion.ts / send-whatsapp-job-intake.ts) now return {results, disabled} instead of a bare array specifically so a disabled event isn\'t shown to staff as a send failure — use-send-whatsapp-job-intake.ts and customer-connect-section.tsx\'s handleConfirmSend both check disabled before falling into the existing empty-results/failure branches.',
 			},
 			{ type: "heading", text: "Access rights" },
 			{
@@ -4430,8 +4500,8 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				type: "bullets",
 				items: [
 					"Enquiries are handled in Super Admin → Enquiries (Enterprise) and Admin → Enquiries of the default customer database (Lite/Basic/Standard) — see 'Sign-up Approval & Enterprise Provisioning'.",
-					"The Role-based access /features section has no screenshotFiles and renders the placeholder — no roles/access-rights screen was reachable from the client workspace to capture. Branches & business units uses the header's branch switcher and Inventory > Branch Transfer instead of the Masters > Branch or Configurations > Divisions list pages, which were deliberately excluded from marketing screenshots.",
-					"Enforced: the branch limit (Lite/Basic: head office only — addBranch), view-only for an unpaid month, and Enterprise's included BUs (extra BUs need confirmation and add a fee). Not enforced: jobs per month, WhatsApp quota and user count — the pricing page describes them; nothing gates them.",
+					"The Role-based access /features section has no screenshotFiles and renders the placeholder — no roles/access-rights screen was reachable from the client workspace to capture. Branches & business units uses the header's branch switcher and Inventory > Branch Transfer instead of the Configurations > Branch or Configurations > Divisions list pages, which were deliberately excluded from marketing screenshots.",
+					"Enforced: the branch limit (Lite/Basic/Standard: head office only — addBranch), view-only for an unpaid month, and Enterprise's included BUs (extra BUs need confirmation and add a fee). Not enforced: jobs per month, WhatsApp quota and user count — the pricing page describes them; nothing gates them.",
 					"Payment is a manual bank transfer. The enquiry success card's payment block (components/pricing/enquiry-success.tsx) is the one place to swap for a Razorpay checkout later.",
 				],
 			},
@@ -4505,7 +4575,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				items: [
 					"Plan must be lite|basic|standard, else SIGNUP_WRONG_ENDPOINT.",
 					"get_default_customer_client(); if DEFAULT_CUSTOMER_DB_NAME is unset or matches no active client → DEFAULT_DB_NOT_CONFIGURED and nothing is written.",
-					"business_name must pass BU_NAME_PATTERN (the Step 3 rule); Lite and Basic must ask for exactly 1 branch (SIGNUP_BRANCHES_ONE).",
+					"business_name must pass BU_NAME_PATTERN (the Step 3 rule); Lite, Basic and Standard must ask for exactly 1 branch (SIGNUP_BRANCHES_ONE).",
 					"CHECK_LT_SIGNUP_DUPLICATE: a pending/approved request with that mobile or email, or a security.user with that email or mobile (user_mobile_unique_idx would otherwise fail the Manager insert at approval) → one SIGNUP_DUPLICATE message whatever matched, so the endpoint cannot reveal which emails or mobiles have accounts. resolve_create_business_user_helper also pre-checks the mobile (CHECK_BUSINESS_USER_MOBILE_EXISTS → BUSINESS_USER_MOBILE_EXISTS), so approval shows a readable message instead of a raw database error. Emails are stored lower-case.",
 					"bu_name = business name, plus ' (city)' when CHECK_LT_BU_NAME_TAKEN finds a BU or open request with that name (kept only if it still passes the name rule).",
 					"bu_code via derive_bu_code(name, is_taken, city) — shared with Steps 9 and 10, which pass their own is_taken. bu_code_base: lower-case, other characters → '_', trailing company-form words dropped (LEGAL_SUFFIXES: pvt, ltd, llp, … — 'ABC Pvt Ltd' → abc; kept whole if that leaves under 3 characters), trimmed, cut to 26, short codes padded to bu_…, 'bu_' in front of 'pg_…' or a leading digit; then, if reserved or taken, <base>_<city> (city slug max 10 characters) and only then _2, _3 … on that — reserved (public, security, information_schema, demo1) or CHECK_LT_BU_CODE_TAKEN (BU, schema, open request).",
@@ -4596,7 +4666,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"Payment gate: PAYMENT_NOT_RECEIVED (CodedValidationException) unless received or not_required — before any work.",
 					"BU row (if bu_id empty): check_new_bu (format, reserved, BU/schema exists), then INSERT_BU + SET_LT_BU on one connection; an edited name/code is used only here.",
 					"Schema (if bu_schema_ready_at empty): build_bu_schema drops a same-named half-built schema (CASCADE), then runs the BU helper's repair path with the stored id; SET_LT_SCHEMA_READY.",
-					"Plan: set_bu_plan — branch_limit 1 for Lite/Basic, billing_required except Lite, monthly fee from the price list, paid_through NULL; clears the billing cache.",
+					"Plan: set_bu_plan — branch_limit 1 for Lite/Basic/Standard, billing_required except Lite, monthly fee from the price list, paid_through NULL; clears the billing cache.",
 					"Head office: SET_HEAD_OFFICE_CITY_GSTIN and SET_MAIN_DIVISION_CITY_GSTIN in the new schema (plans/plan2.md).",
 					"User (if user_id empty): mobile = payload.mobile or the enquiry's (MOBILE_PATTERN-checked; the approval dialog's Manager mobile field live-checks CHECK_BUSINESS_USER_MOBILE_EXISTS; the sales_enquiry row keeps the applicant's mobile, which the status page matches on), username = payload.username or default_username(name, email) (applicant's name as letters/digits without a leading title, max 20; under 5 characters it falls back to a non-generic email local part — GENERIC_EMAIL_NAMES such as admin/info/sales are skipped; approve-enquiry-dialog.tsx baseUsername must mirror it), then free_username (letters/digits, ≥5, numbered), MANAGER role, resolve_create_business_user_helper with signup_client_name → the EMAIL_SIGNUP_USER_LINK template; stores user_id and login_email_sent.",
 					"Finish: FINISH_LT_APPROVAL, audit APPROVE_SALES_ENQUIRY, publish the count. Any failure: RELEASE_LT_CLAIM and re-raise, keeping every stored id.",
@@ -4650,7 +4720,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"Guarded: genericUpdate, genericUpdateScript, addBranch and every BU-schema mutation (jobs, invoices, payments, inventory import/delete, accountsPosting, WhatsApp sends, delivery OTP/confirmation, the four EW mutations). Not guarded: provisioning, users/roles, mail credentials, Super Admin and enquiry/payment/plan mutations. tests/test_view_only_guard.py keeps every mutation in exactly one of the two lists — a new mutation fails the test until classified.",
 					"REST: image_router's _require_media_scope refuses uploads/deletes (403 detail.code SUBSCRIPTION_READ_ONLY); public /part-orders answers 409 PART_ORDER_UNAVAILABLE. Public job-intake/delivery/receipt pages are GET-only and stay readable; WhatsApp status callbacks and the stock snapshot are untouched.",
 					"Login: GET_USER_BUS returns the billing columns and each availableBus entry carries billing (the summary) with paid_through as ISO text. GET_ALL_BUS_WITH_SCHEMA_STATUS returns the billing columns too. New query buBillingStatus(db_name, schema) — guarded by tenant and BU access.",
-					"Client (Step 14): components/shared/billing/use-billing-sync.ts (mounted in client-layout.tsx) reads buBillingStatus on BU change, window focus and context.billingRefreshTick into context.billing; never computed in the browser. apollo-client.ts's error link turns SUBSCRIPTION_READ_ONLY / BRANCH_LIMIT_REACHED into showBillingNotice (read-only-dialog.tsx) + requestBillingRefresh. billing-banner.tsx shows due_soon (amber) / read_only. useIsReadOnly (selectIsReadOnly) disables the Masters Add buttons, Save on the job/receipt/sales/stock-adjustment/branch-transfer/loan/opening-stock screens, and DeleteConfirmDialog.",
+					"Client (Step 14): components/shared/billing/use-billing-sync.ts (mounted in client-layout.tsx) reads buBillingStatus on BU change, window focus and context.billingRefreshTick into context.billing; never computed in the browser. apollo-client.ts's error link turns SUBSCRIPTION_READ_ONLY / BRANCH_LIMIT_REACHED into showBillingNotice (read-only-dialog.tsx) + requestBillingRefresh. billing-banner.tsx shows due_soon (amber) / read_only. The plan badge just before the BU selector (bu-branch-switcher.tsx) reads context.billing.planCode through PLAN_NAMES (enquiry-types.ts) — so it shows only in client mode, where useBillingSync runs, is absent for a BU with a null plan_code, and is hidden below the sm breakpoint. useIsReadOnly (selectIsReadOnly) disables the Masters Add buttons, Save on the job/receipt/sales/stock-adjustment/branch-transfer/loan/opening-stock screens, and DeleteConfirmDialog.",
 				],
 			},
 		],
@@ -4732,7 +4802,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"Admin → Subscriptions (features/admin/pages/subscriptions-page.tsx, ROUTES.admin.subscriptions, default database only) with change-plan-dialog.tsx and payment-history-dialog.tsx (in features/admin because GET_BU_PAYMENTS is admin-only — tests/test_auth_guards.py fails if components/shared references it).",
 					"Super Admin → Clients → Subscription: features/super-admin/components/client-subscription-dialog.tsx (genericQuery with the client's db_name, schema security).",
 					"components/shared/billing/record-subscription-payment-dialog.tsx: Months/Years toggle, preview line 'fee × months = total · paid through <date>' (billing-dates.ts mirrors extend_paid_through; the server's date is what is stored), amount prefilled and never lower, note required above, 5-year cap.",
-					"branch-section.tsx disables Add Branch at billing.branchLimit (BILLING_BRANCH_LIMIT).",
+					"branch-section.tsx and division-section.tsx hide Add Branch / Add Division when billing.planCode is set and isn't 'enterprise' (useHasEnterpriseFeatures, components/shared/billing/use-has-enterprise-features.ts). The same hook drives app-settings-section.tsx's ENTERPRISE_SETTING_KEYS filter — extended_warranty, post_data_to_accounts, track_job_url and web_order_notify_email are dropped from the list (rows, count and search) on Lite / Basic / Standard; the rows stay in app_setting and are still read everywhere else, so a value set before a downgrade keeps applying. Hiding rather than disabling is a deliberate exception to the disabled-plus-tooltip rule, by request (2026-10-10). The division rule is client-side only: the server enforces no division limit per plan. A BU with a null planCode (not billed) keeps the button, matching the server, which has no branch_limit there. Where the button shows, it is still disabled at billing.branchLimit (BILLING_BRANCH_LIMIT) as a fallback.",
 				],
 			},
 		],
@@ -4892,6 +4962,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					[
 						"A new tenant's admin logs in and gets 'No business unit…' with only Logout",
 						"Fixed 2026-10-02 in bu-branch-division-gate.tsx: every non-S login starts in Client mode, whose blocking BU/Branch/Division gate covers the activity bar's Admin switch, and ProtectedRoute bounces /admin URLs on sessionMode — so with zero BUs an admin had no way to create one. For userType A with an empty list (which comes from GET_ALL_BUS_WITH_SCHEMA_STATUS, i.e. the tenant really has no BU) the gate now shows MESSAGES.INFO_NO_BU_CREATED_ADMIN and 'Go to Admin Mode' (setSessionMode('admin') → ROUTES.admin.businessUnits); business users keep INFO_NO_BU_ASSIGNED_USER + Logout. Don't move this to the login redirect: login's availableBus comes from GET_USER_BUS (user_bu_role rows), which is normally empty for admins whether or not BUs exist",
+					],
+					[
+						"Login gets stuck on the BU/Branch/Division gate with the Branch dropdown empty and disabled",
+						"The BU has no active branch: GET_BU_BRANCHES filters branch.is_active = true, so selectIsBuBranchDivisionComplete can never become true. Seen 2026-10-10 when a single-branch BU's Head Office had been deactivated from Configurations → Branch, and the gate itself blocks that screen, so it can't be undone in-app — set is_active = true on the row in <bu schema>.branch. Fixed in branch-section.tsx: Deactivate is disabled for is_head_office rows and handleToggleActive refuses them (MESSAGES.ERROR_BRANCH_DEACTIVATE_HEAD_OFFICE), mirroring the delete block. bu-branch-division-gate.tsx now shows MESSAGES.INFO_NO_ACTIVE_BRANCH plus Logout when a BU is chosen but availableBranches is empty. Nothing server-side stops a direct genericUpdate from deactivating HO",
 					],
 					[
 						"Adding a new shadcn component triggers an eslint error",

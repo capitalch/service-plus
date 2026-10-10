@@ -2,10 +2,13 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { BuildingIcon, GitBranchIcon, LayoutGridIcon } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PLAN_NAMES } from "@/components/shared/enquiries/enquiry-types";
+import type { EnquiryPlanCodeType } from "@/components/shared/enquiries/enquiry-types";
 import { MESSAGES } from "@/constants/messages";
-import { useAppDispatch } from "@/store/hooks";
-import { setIsResolvingContext } from "@/store/context-slice";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { selectBilling, setIsResolvingContext } from "@/store/context-slice";
 import { useBuBranchDivisionActions } from "@/features/admin/hooks/use-bu-branch-division-actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -38,6 +41,11 @@ const STYLES = {
 export const BuBranchSwitcher = ({ variant = "admin" }: BuBranchSwitcherPropsType) => {
 	const s = STYLES[variant];
 	const dispatch = useAppDispatch();
+	// The live billing summary (useBillingSync, client layout only); a BU that isn't billed has no plan.
+	const billing = useAppSelector(selectBilling);
+	const planName = billing?.planCode
+		? (PLAN_NAMES[billing.planCode as EnquiryPlanCodeType] ?? billing.planCode)
+		: null;
 	const {
 		availableBus,
 		availableBranches,
@@ -75,6 +83,17 @@ export const BuBranchSwitcher = ({ variant = "admin" }: BuBranchSwitcherPropsTyp
 
 	return (
 		<div className={`flex items-center gap-2 ${isClient ? "rounded-md bg-(--cl-surface-2) px-2.5 py-1" : ""}`}>
+			{/* Plan badge — ahead of the BU it belongs to */}
+			{planName && (
+				<Badge
+					className="hidden rounded-sm border-(--cl-accent)/40 bg-(--cl-accent)/10 text-[10px] text-(--cl-accent-text) sm:inline-flex"
+					title="Subscription plan"
+					variant="outline"
+				>
+					{planName}
+				</Badge>
+			)}
+
 			{/* BU selector */}
 			<div className={`flex items-center gap-1.5 ${isClient ? "" : "flex-col gap-0.5 items-start"}`}>
 				<span className={`flex shrink-0 items-center gap-1 font-medium ${s.labelSize} ${s.label}`}>

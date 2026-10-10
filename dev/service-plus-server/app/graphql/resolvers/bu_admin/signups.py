@@ -42,7 +42,7 @@ BU_CODE_PATTERN = re.compile(r"^[a-z0-9_]{3,30}$")
 PAYMENT_MODES = frozenset({"bank_transfer", "cash", "other", "upi"})
 MANAGER_ROLE_CODE = "MANAGER"
 # Plans limited to the head office branch (plans/plan.md, Goal).
-ONE_BRANCH_PLAN_CODES = frozenset({"basic", "lite"})
+ONE_BRANCH_PLAN_CODES = frozenset({"basic", "lite", "standard"})
 MOBILE_PATTERN = re.compile(r"^[6-9]\d{9}$")
 USERNAME_MAX_SUFFIX = 99
 USERNAME_MIN_LENGTH = 5

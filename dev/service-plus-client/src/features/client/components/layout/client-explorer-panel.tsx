@@ -131,10 +131,97 @@ function CollapsibleGroup({ children, defaultOpen = true, label }: CollapsibleGr
 }
 
 function ConfigurationsExplorer() {
+	const currentUser = useAppSelector(selectCurrentUser);
+	const canOrganization = hasAccessRight(currentUser, ACCESS_RIGHTS.MASTERS_ORGANIZATION);
+	const orgTitle = !canOrganization ? "Your role does not have access to Organization" : undefined;
+	const canServiceConfig = hasAccessRight(currentUser, ACCESS_RIGHTS.MASTERS_SERVICE_CONFIG);
+	const configTitle = !canServiceConfig ? "Your role does not have access to Service Config" : undefined;
+
 	return (
-		<div className="space-y-4">
-			<div className="space-y-1">
+		<div className="space-y-3">
+			<CollapsibleGroup label="Organization">
+				<TreeItem
+					icon={Building2}
+					iconColor="text-purple-600"
+					label="Branch"
+					disabled={!canOrganization}
+					title={orgTitle}
+				/>
 				<TreeItem icon={Building2} iconColor="text-purple-600" label="Divisions" helpArticleId="divisions" />
+				<TreeItem
+					icon={Hash}
+					iconColor="text-slate-600"
+					label="Financial Year"
+					disabled={!canOrganization}
+					title={orgTitle}
+				/>
+				<TreeItem
+					icon={MapPin}
+					iconColor="text-indigo-600"
+					label="State / Province"
+					disabled={!canOrganization}
+					title={orgTitle}
+				/>
+			</CollapsibleGroup>
+			<CollapsibleGroup label="Service Config" defaultOpen={false}>
+				<TreeItem
+					icon={Users}
+					iconColor="text-purple-600"
+					label="Customer Type"
+					disabled={!canServiceConfig}
+					title={configTitle}
+				/>
+				<TreeItem
+					icon={FileText}
+					iconColor="text-slate-600"
+					label="Document Type"
+					disabled={!canServiceConfig}
+					title={configTitle}
+				/>
+				<TreeItem
+					icon={Wrench}
+					iconColor="text-blue-600"
+					label="Job Type"
+					disabled={!canServiceConfig}
+					title={configTitle}
+				/>
+				<TreeItem
+					icon={ClipboardList}
+					iconColor="text-slate-600"
+					label="Job Status"
+					disabled={!canServiceConfig}
+					title={configTitle}
+				/>
+				<TreeItem
+					icon={RotateCcw}
+					iconColor="text-blue-600"
+					label="Job Receive Manner"
+					disabled={!canServiceConfig}
+					title={configTitle}
+				/>
+				<TreeItem
+					icon={Truck}
+					iconColor="text-orange-600"
+					label="Job Delivery Manner"
+					disabled={!canServiceConfig}
+					title={configTitle}
+				/>
+				<TreeItem
+					icon={Settings2}
+					iconColor="text-blue-600"
+					label="Job Receive Condition"
+					disabled={!canServiceConfig}
+					title={configTitle}
+				/>
+				<TreeItem
+					icon={Receipt}
+					iconColor="text-green-600"
+					label="Job Additional Charges"
+					disabled={!canServiceConfig}
+					title={configTitle}
+				/>
+			</CollapsibleGroup>
+			<CollapsibleGroup label="System">
 				<TreeItem
 					icon={Settings2}
 					iconColor="text-blue-600"
@@ -147,7 +234,7 @@ function ConfigurationsExplorer() {
 					label="Numbering / Auto Series"
 					helpArticleId="document-sequences"
 				/>
-			</div>
+			</CollapsibleGroup>
 		</div>
 	);
 }
@@ -343,38 +430,8 @@ function JobsExplorer() {
 }
 
 function MastersExplorer() {
-	const currentUser = useAppSelector(selectCurrentUser);
-	const canOrganization = hasAccessRight(currentUser, ACCESS_RIGHTS.MASTERS_ORGANIZATION);
-	const canServiceConfig = hasAccessRight(currentUser, ACCESS_RIGHTS.MASTERS_SERVICE_CONFIG);
-
-	const orgTitle = !canOrganization ? "Your role does not have access to Organization" : undefined;
-	const configTitle = !canServiceConfig ? "Your role does not have access to Service Config" : undefined;
-
 	return (
 		<div className="space-y-3">
-			<CollapsibleGroup label="Organization">
-				<TreeItem
-					icon={Building2}
-					iconColor="text-purple-600"
-					label="Branch"
-					disabled={!canOrganization}
-					title={orgTitle}
-				/>
-				<TreeItem
-					icon={Hash}
-					iconColor="text-slate-600"
-					label="Financial Year"
-					disabled={!canOrganization}
-					title={orgTitle}
-				/>
-				<TreeItem
-					icon={MapPin}
-					iconColor="text-indigo-600"
-					label="State / Province"
-					disabled={!canOrganization}
-					title={orgTitle}
-				/>
-			</CollapsibleGroup>
 			<CollapsibleGroup label="Entities">
 				<TreeItem icon={User} iconColor="text-purple-600" label="Customer" helpArticleId="customers" />
 				<TreeItem
@@ -384,64 +441,6 @@ function MastersExplorer() {
 					helpArticleId="vendors-branches"
 				/>
 				<TreeItem icon={UserCog} iconColor="text-purple-600" label="Technician" helpArticleId="technicians" />
-			</CollapsibleGroup>
-			<CollapsibleGroup label="Service Config" defaultOpen={false}>
-				<TreeItem
-					icon={Users}
-					iconColor="text-purple-600"
-					label="Customer Type"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={FileText}
-					iconColor="text-slate-600"
-					label="Document Type"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={Wrench}
-					iconColor="text-blue-600"
-					label="Job Type"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={ClipboardList}
-					iconColor="text-slate-600"
-					label="Job Status"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={RotateCcw}
-					iconColor="text-blue-600"
-					label="Job Receive Manner"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={Truck}
-					iconColor="text-orange-600"
-					label="Job Delivery Manner"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={Settings2}
-					iconColor="text-blue-600"
-					label="Job Receive Condition"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={Receipt}
-					iconColor="text-green-600"
-					label="Job Additional Charges"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
 			</CollapsibleGroup>
 			<CollapsibleGroup label="Product & Parts" defaultOpen={false}>
 				<TreeItem icon={Globe} iconColor="text-cyan-600" label="Spare Parts Web" />

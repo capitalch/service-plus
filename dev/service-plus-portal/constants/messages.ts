@@ -45,7 +45,7 @@ export const MESSAGES = {
 	paymentPending: "We will share our bank account details when we call you.",
 	pricingIntro: "Start free. Upgrade when your workshop grows. No lock-in.",
 	pricingTitle: "Simple, transparent pricing",
-	reasonBranches: "You run more than one branch, which needs the Standard plan or above",
+	reasonBranches: "You run more than one branch, which needs the Enterprise plan",
 	reasonBusinessUnits:
 		"You run more than five branches or several businesses, so you need more than one business unit",
 	reasonInventory: "You stock spare parts, so your plan includes spare-parts inventory",

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useHasEnterpriseFeatures } from "@/components/shared/billing/use-has-enterprise-features";
 import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -26,6 +27,14 @@ import type { AppSettingRecord } from "@/features/client/types/app-setting";
 type GenericQueryDataType<T> = { genericQuery: T[] | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+/** Settings for Enterprise-only features, hidden on Lite / Basic / Standard. */
+const ENTERPRISE_SETTING_KEYS = [
+	"extended_warranty",
+	"post_data_to_accounts",
+	"track_job_url",
+	"web_order_notify_email",
+];
 
 const rowVariants = {
 	hidden: { opacity: 0, y: 6 },
@@ -50,10 +59,11 @@ export const AppSettingsSection = () => {
 	const dbName = useAppSelector(selectDbName);
 	const dispatch = useAppDispatch();
 	const schema = useAppSelector(selectSchema);
+	const hasEnterpriseFeatures = useHasEnterpriseFeatures();
 
 	const [editRecord, setEditRecord] = useState<AppSettingRecord | null>(null);
 	const [loading, setLoading] = useState(false);
-	const [records, setRecords] = useState<AppSettingRecord[]>([]);
+	const [allRecords, setAllRecords] = useState<AppSettingRecord[]>([]);
 	const [search, setSearch] = useState("");
 	const [selectedId, setSelectedId] = useState<number | null>(null);
 
@@ -70,7 +80,7 @@ export const AppSettingsSection = () => {
 					value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_APP_SETTINGS }),
 				},
 			});
-			setRecords(res.data?.genericQuery ?? []);
+			setAllRecords(res.data?.genericQuery ?? []);
 		} catch {
 			toast.error("Failed to load app settings.");
 		} finally {
@@ -87,6 +97,15 @@ export const AppSettingsSection = () => {
 		await loadData();
 		if (dbName && schema) await loadAppSettings(dispatch, dbName, schema);
 	}
+
+	// The rows this plan may see; counts and search work on these, never on the hidden ones.
+	const records = useMemo(
+		() =>
+			hasEnterpriseFeatures
+				? allRecords
+				: allRecords.filter((r) => !ENTERPRISE_SETTING_KEYS.includes(r.setting_key)),
+		[allRecords, hasEnterpriseFeatures],
+	);
 
 	const displayRecords = useMemo(() => {
 		if (!search.trim()) return records;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { MESSAGES } from "@/constants/messages";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
@@ -21,7 +22,10 @@ import type { AppSettingRecord } from "@/features/client/types/app-setting";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ValueMode = "simple" | "json";
+// The editor is chosen by the stored value's type — there is no manual mode toggle.
+// An object/array is edited as JSON; a number gets a numeric input; any other scalar
+// is plain text. Booleans use a switch and never reach these schemas' rules.
+type ValueKindType = "json" | "number" | "text";
 
 type EditAppSettingDialogProps = {
 	onOpenChange: (open: boolean) => void;
@@ -30,37 +34,52 @@ type EditAppSettingDialogProps = {
 	record: AppSettingRecord;
 };
 
-// Simple mode edits a bare scalar — `valueToString` strips the JSON quotes, so
-// plain text like `example.com` is legitimate here and must NOT be JSON-parsed.
-// It gets re-encoded to JSON on submit by `encodeSimpleValue`.
-const simpleSchema = z.object({
-	setting_value: z.string().min(1, "Value is required"),
-	description: z.string().optional(),
-});
+const requiredValue = z.string().trim().min(1, MESSAGES.ERROR_APP_SETTING_VALUE_REQUIRED);
 
-// JSON mode edits the raw JSON text, so it does have to parse.
-const jsonSchema = z.object({
-	setting_value: z
-		.string()
-		.min(1, "Value is required")
-		.refine((v) => {
+const SCHEMAS = {
+	json: z.object({
+		description: z.string().optional(),
+		setting_value: requiredValue.refine((v) => {
 			try {
 				JSON.parse(v);
 				return true;
 			} catch {
 				return false;
 			}
-		}, 'Must be valid JSON (e.g. {"key": "value"})'),
-	description: z.string().optional(),
-});
+		}, MESSAGES.ERROR_APP_SETTING_INVALID_JSON),
+	}),
+	number: z.object({
+		description: z.string().optional(),
+		setting_value: requiredValue
+			.refine((v) => Number.isFinite(Number(v)), MESSAGES.ERROR_APP_SETTING_NOT_A_NUMBER)
+			.refine((v) => !(Number(v) < 0), MESSAGES.ERROR_APP_SETTING_NEGATIVE_NUMBER),
+	}),
+	text: z.object({
+		description: z.string().optional(),
+		setting_value: requiredValue,
+	}),
+};
 
-type FormType = z.infer<typeof simpleSchema>;
+type FormType = z.infer<typeof SCHEMAS.text>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function detectMode(v: unknown): ValueMode {
+function detectKind(v: unknown): ValueKindType {
 	if (v !== null && typeof v === "object") return "json";
-	return "simple";
+	if (typeof v === "number") return "number";
+	return "text";
+}
+
+/**
+ * Turn the edited text into the JSON text that the `setting_value` jsonb column
+ * requires, keeping the setting's stored type: a number stays a number, text is
+ * re-quoted, and JSON is already JSON.
+ */
+function encodeValue(text: string, kind: ValueKindType, original: unknown): string {
+	if (kind === "json") return text;
+	if (kind === "number") return String(Number(text.trim()));
+	if (typeof original === "boolean") return text.trim();
+	return JSON.stringify(text);
 }
 
 // A setting stored as true/false (or the text "true"/"false") is edited with a switch, not free text.
@@ -72,22 +91,6 @@ function valueToString(v: unknown): string {
 	if (v === null || v === undefined) return "";
 	if (typeof v === "object") return JSON.stringify(v, null, 2);
 	return String(v);
-}
-
-/**
- * Turn what the user typed in Simple mode into the JSON text that the
- * `setting_value` jsonb column requires. Simple mode shows scalars unquoted, so
- * a plain string has to be re-quoted before it can be saved.
- */
-function encodeSimpleValue(text: string, original: unknown): string {
-	// Preserve the setting's existing type: a value already stored as a JSON
-	// string stays one, so entering `123` there doesn't silently become a number.
-	if (typeof original === "string") return JSON.stringify(text);
-
-	const trimmed = text.trim();
-	if (trimmed === "true" || trimmed === "false" || trimmed === "null") return trimmed;
-	if (trimmed !== "" && Number.isFinite(Number(trimmed))) return trimmed;
-	return JSON.stringify(text);
 }
 
 // ─── Field error ──────────────────────────────────────────────────────────────
@@ -102,17 +105,16 @@ export const EditAppSettingDialog = ({ onOpenChange, onSuccess, open, record }: 
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 
-	const [valueMode, setValueMode] = useState<ValueMode>(() => detectMode(record.setting_value));
-
 	const isBoolean = isBooleanValue(record.setting_value);
+	const valueKind = detectKind(record.setting_value);
 
 	const form = useForm<FormType>({
 		defaultValues: {
-			setting_value: valueToString(record.setting_value),
 			description: record.description ?? "",
+			setting_value: valueToString(record.setting_value),
 		},
 		mode: "onChange",
-		resolver: zodResolver(valueMode === "json" ? jsonSchema : simpleSchema),
+		resolver: zodResolver(SCHEMAS[valueKind]),
 	});
 
 	const {
@@ -122,58 +124,16 @@ export const EditAppSettingDialog = ({ onOpenChange, onSuccess, open, record }: 
 	// Pre-fill on open
 	useEffect(() => {
 		if (!open) return;
-		const mode = detectMode(record.setting_value);
-		setValueMode(mode);
 		form.reset({
-			setting_value: valueToString(record.setting_value),
 			description: record.description ?? "",
+			setting_value: valueToString(record.setting_value),
 		});
 	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	// Re-validate when the mode changes: the resolver swaps with `valueMode`, so
-	// an error raised under the old mode's rules has to be recomputed. Skipped on
-	// first render so opening the dialog doesn't flag an untouched field.
-	const skipModeValidation = useRef(true);
-	useEffect(() => {
-		if (skipModeValidation.current) {
-			skipModeValidation.current = false;
-			return;
-		}
-		form.trigger("setting_value");
-	}, [valueMode, form]);
-
-	function handleModeSwitch(m: ValueMode) {
-		if (m === valueMode) return;
-		const current = form.getValues("setting_value");
-
-		if (m === "json") {
-			// Show the real JSON for whatever Simple mode was holding, so the
-			// textarea starts from valid, parseable text.
-			const asJson = encodeSimpleValue(current, record.setting_value);
-			try {
-				form.setValue("setting_value", JSON.stringify(JSON.parse(asJson), null, 2));
-			} catch {
-				form.setValue("setting_value", asJson);
-			}
-		} else {
-			// Back to Simple: unwrap a JSON scalar so the bare value is edited.
-			// An object/array can't be shown unquoted, so it is left untouched.
-			try {
-				const parsed = JSON.parse(current);
-				if (parsed === null || typeof parsed !== "object") form.setValue("setting_value", String(parsed));
-			} catch {
-				/* leave as-is */
-			}
-		}
-		setValueMode(m);
-	}
-
 	async function onSubmit(data: FormType) {
 		if (!dbName || !schema) return;
-		// The column is jsonb, so Simple mode's bare scalar must be encoded as
-		// JSON text; JSON mode is already exactly that.
-		const settingValue =
-			valueMode === "json" ? data.setting_value : encodeSimpleValue(data.setting_value, record.setting_value);
+		// The column is jsonb, so the edited text must be encoded as JSON text.
+		const settingValue = encodeValue(data.setting_value, valueKind, record.setting_value);
 		try {
 			await apolloClient.mutate({
 				mutation: GRAPHQL_MAP.genericUpdate,
@@ -232,50 +192,25 @@ export const EditAppSettingDialog = ({ onOpenChange, onSuccess, open, record }: 
 						</div>
 					) : (
 						<div className="flex flex-col gap-1.5">
-							<div className="flex items-center justify-between">
-								<Label htmlFor="es_value">
-									Value <span className="text-red-500">*</span>
-								</Label>
-								{/* Mode toggle — real buttons, with the active one held visibly pressed */}
-								<div className="flex items-center gap-1.5">
-									{(["simple", "json"] as const).map((m) => {
-										const isActive = valueMode === m;
-										return (
-											<Button
-												key={m}
-												aria-pressed={isActive}
-												className={
-													isActive
-														? "translate-y-px inset-shadow-sm ring-1 ring-(--cl-accent)/40"
-														: ""
-												}
-												size="xs"
-												type="button"
-												variant={isActive ? "default" : "outline"}
-												onClick={() => handleModeSwitch(m)}
-											>
-												{m === "simple" ? "Simple" : "JSON"}
-											</Button>
-										);
-									})}
-								</div>
-							</div>
-
-							{valueMode === "simple" ? (
-								<Input
-									autoComplete="off"
-									className="font-mono"
-									id="es_value"
-									placeholder="e.g. 18, true, or plain text"
-									{...form.register("setting_value")}
-								/>
-							) : (
+							<Label htmlFor="es_value">
+								Value <span className="text-red-500">*</span>
+							</Label>
+							{valueKind === "json" ? (
 								<Textarea
 									autoComplete="off"
 									className="font-mono text-sm"
 									id="es_value"
 									placeholder={'{\n  "key": "value"\n}'}
 									rows={6}
+									{...form.register("setting_value")}
+								/>
+							) : (
+								<Input
+									autoComplete="off"
+									className="font-mono"
+									id="es_value"
+									inputMode={valueKind === "number" ? "decimal" : undefined}
+									placeholder={valueKind === "number" ? "e.g. 18" : "Enter value"}
 									{...form.register("setting_value")}
 								/>
 							)}

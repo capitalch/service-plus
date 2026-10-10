@@ -3,6 +3,19 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-10 15:44 (main)
+Plans: Enterprise-only branches; Organization and Service Config move
+
+- Plans: Standard joins Lite/Basic as one-branch (server limits, messages, portal copy); Add Branch, Add Division and four integration App Settings are hidden below Enterprise via a shared useHasEnterpriseFeatures hook; plan name badge shown before the BU name
+- Configurations: Branch, Financial Year, State/Province and the eight Service Config lists move out of Masters; one ITEM_RIGHTS guard; masters-access.ts removed; lookup screens now shared
+- Server: branch, state and financial_year writes require MASTERS_ORGANIZATION; markup_percent_over_cost seed description mentions spare parts
+- Branch: Head Office can no longer be deactivated; the BU/Branch/Division gate explains a BU with no active branch and offers Logout
+- App Settings edit: no Simple/JSON toggle; editor follows the stored type, numeric settings validated as non-negative numbers
+- Docs: both help files updated; plans/plan.md for the Organization move; marketing notes
+
+Files: 46 changed (+468 / -373) — Base: 72d5a45
+Version: 0.24.3 → 0.24.4
+
 ## 2026-10-09 21:18 (main)
 Chore: git-deploy raises the client patch version on every deploy
 

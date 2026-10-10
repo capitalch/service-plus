@@ -29,7 +29,7 @@ export const faqs: FaqType[] = [
 		question: "What is a business unit?",
 	},
 	{
-		answer: "Lite and Basic include one branch, the head office. Standard and Enterprise include unlimited branches, which you add and edit yourself.",
+		answer: "Lite, Basic and Standard include one branch, the head office. Enterprise includes unlimited branches, which you add and edit yourself.",
 		question: "How many branches can I have?",
 	},
 	{

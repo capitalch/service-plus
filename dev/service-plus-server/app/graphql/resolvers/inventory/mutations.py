@@ -26,9 +26,9 @@ INVENTORY_GENERIC_UPDATE_TABLE_RIGHTS: dict[str, str] = {
     "customer_contact": "MASTERS_MENU",
     "supplier": "MASTERS_MENU",
     "technician": "MASTERS_MENU",
-    "branch": "MASTERS_MENU",
-    "state": "MASTERS_MENU",
-    "financial_year": "MASTERS_MENU",
+    "branch": "MASTERS_ORGANIZATION",
+    "state": "MASTERS_ORGANIZATION",
+    "financial_year": "MASTERS_ORGANIZATION",
     "additional_charge": "MASTERS_MENU",
     # Inventory
     "purchase_invoice": "INVENTORY_PURCHASE_ENTRY",

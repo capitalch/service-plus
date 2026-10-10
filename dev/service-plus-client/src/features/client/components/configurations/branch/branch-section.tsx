@@ -40,6 +40,7 @@ import { AddBranchDialog } from "./add-branch-dialog";
 import { DeleteBranchDialog } from "./delete-branch-dialog";
 import { EditBranchDialog } from "./edit-branch-dialog";
 import type { BranchType } from "./branch";
+import { useHasEnterpriseFeatures } from "@/components/shared/billing/use-has-enterprise-features";
 import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -74,6 +75,7 @@ export const BranchSection = () => {
 	const [branches, setBranches] = useState<BranchType[]>([]);
 	// Lite and Basic include the head office only (plans/plan.md Step 12); the server enforces it too.
 	const atBranchLimit = billing?.branchLimit != null && branches.length >= billing.branchLimit;
+	const canAddBranchOnPlan = useHasEnterpriseFeatures();
 	const [deleteBranch, setDeleteBranch] = useState<BranchType | null>(null);
 	const [editBranch, setEditBranch] = useState<BranchType | null>(null);
 	const [loading, setLoading] = useState(false);
@@ -114,6 +116,10 @@ export const BranchSection = () => {
 
 	async function handleToggleActive(branch: BranchType) {
 		if (!dbName || !schema) return;
+		if (branch.is_active && branch.is_head_office) {
+			toast.error(MESSAGES.ERROR_BRANCH_DEACTIVATE_HEAD_OFFICE);
+			return;
+		}
 		try {
 			await apolloClient.mutate({
 				mutation: GRAPHQL_MAP.genericUpdate,
@@ -213,22 +219,24 @@ export const BranchSection = () => {
 							<RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
 							Refresh
 						</Button>
-						<Button
-							className="bg-teal-600 text-white hover:bg-teal-700"
-							size="sm"
-							disabled={isReadOnly || atBranchLimit}
-							title={
-								isReadOnly
-									? MESSAGES.READ_ONLY_TOOLTIP
-									: atBranchLimit
-										? MESSAGES.BILLING_BRANCH_LIMIT
-										: undefined
-							}
-							onClick={() => setAddOpen(true)}
-						>
-							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-							Add Branch
-						</Button>
+						{canAddBranchOnPlan && (
+							<Button
+								className="bg-teal-600 text-white hover:bg-teal-700"
+								size="sm"
+								disabled={isReadOnly || atBranchLimit}
+								title={
+									isReadOnly
+										? MESSAGES.READ_ONLY_TOOLTIP
+										: atBranchLimit
+											? MESSAGES.BILLING_BRANCH_LIMIT
+											: undefined
+								}
+								onClick={() => setAddOpen(true)}
+							>
+								<PlusIcon className="mr-1.5 h-3.5 w-3.5" />
+								Add Branch
+							</Button>
+						)}
 					</div>
 				</div>
 
@@ -375,9 +383,13 @@ export const BranchSection = () => {
 																Edit
 															</DropdownMenuItem>
 															<DropdownMenuSeparator />
+															{/* Head Office can't be switched off: it is the branch every user
+															    lands on, and with it inactive a single-branch BU has nothing
+															    left to select, locking everyone behind the selection gate. */}
 															{branch.is_active ? (
 																<DropdownMenuItem
 																	className="cursor-pointer text-amber-600 focus:text-amber-600"
+																	disabled={branch.is_head_office}
 																	onClick={() => handleToggleActive(branch)}
 																>
 																	<ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />

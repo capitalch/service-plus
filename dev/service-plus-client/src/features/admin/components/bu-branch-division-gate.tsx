@@ -44,6 +44,7 @@ export const BuBranchDivisionGate = () => {
 
 	const open = !isResolving && !isComplete;
 	const hasNoBu = availableBus.length === 0;
+	const noActiveBranch = !!currentBu && availableBranches.length === 0;
 	// An admin's BU list is every BU in the tenant (GET_ALL_BUS_WITH_SCHEMA_STATUS), so an
 	// empty list means none exists yet — a fresh tenant. Admin mode is where the first one is
 	// created, and this dialog covers the activity bar's own switch, so offer it here.
@@ -126,6 +127,17 @@ export const BuBranchDivisionGate = () => {
 									))}
 								</SelectContent>
 							</Select>
+							{/* A BU whose every branch is inactive can never be completed here, so say why
+							    instead of leaving a dead, disabled dropdown. */}
+							{noActiveBranch && (
+								<>
+									<p className="text-xs text-muted-foreground">{MESSAGES.INFO_NO_ACTIVE_BRANCH}</p>
+									<Button className="mt-1 w-full gap-2" onClick={handleLogout} variant="outline">
+										<LogOutIcon className="h-4 w-4 text-muted-foreground" />
+										Logout
+									</Button>
+								</>
+							)}
 						</div>
 
 						{availableDivisions.length > 0 && (

@@ -40,6 +40,7 @@ import { AddDivisionDialog } from "./add-division-dialog";
 import { DeleteDivisionDialog } from "./delete-division-dialog";
 import { EditDivisionDialog } from "./edit-division-dialog";
 import type { DivisionType } from "@/features/client/types/division";
+import { useHasEnterpriseFeatures } from "@/components/shared/billing/use-has-enterprise-features";
 import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -65,6 +66,8 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text
 export const DivisionSection = () => {
 	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	// Lite / Basic / Standard: no Add Division button at all, same as Add Branch.
+	const canAddDivisionOnPlan = useHasEnterpriseFeatures();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const { refreshBuContext } = useBuBranchDivisionActions();
@@ -214,16 +217,18 @@ export const DivisionSection = () => {
 							<RefreshCwIcon className="h-3.5 w-3.5 text-blue-600" />
 							Refresh
 						</Button>
-						<Button
-							className="bg-teal-600 text-white hover:bg-teal-700"
-							size="sm"
-							disabled={isReadOnly}
-							title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
-							onClick={() => setAddOpen(true)}
-						>
-							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-							Add Division
-						</Button>
+						{canAddDivisionOnPlan && (
+							<Button
+								className="bg-teal-600 text-white hover:bg-teal-700"
+								size="sm"
+								disabled={isReadOnly}
+								title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+								onClick={() => setAddOpen(true)}
+							>
+								<PlusIcon className="mr-1.5 h-3.5 w-3.5" />
+								Add Division
+							</Button>
+						)}
 					</div>
 				</div>
 

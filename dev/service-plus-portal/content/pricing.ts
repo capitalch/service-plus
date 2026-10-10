@@ -6,7 +6,7 @@
 export type PlanCodeType = "basic" | "enterprise" | "lite" | "standard";
 
 export type PlanType = {
-	/** null = unlimited. Lite and Basic are limited to the head office branch only. */
+	/** null = unlimited. Lite, Basic and Standard are limited to the head office branch only. */
 	branches: number | null;
 	businessUnits: number;
 	code: PlanCodeType;
@@ -58,7 +58,7 @@ export const plans: PlanType[] = [
 		whatsappPerMonth: 200,
 	},
 	{
-		branches: null,
+		branches: 1,
 		businessUnits: 1,
 		code: "standard",
 		highlighted: true,
@@ -68,7 +68,7 @@ export const plans: PlanType[] = [
 		name: "Standard",
 		provisioning: "bu",
 		setupFee: 2000,
-		tagline: "A full team across all your branches",
+		tagline: "A full team, each with their own login",
 		users: "multi",
 		whatsappPerMonth: 500,
 	},

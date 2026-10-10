@@ -259,7 +259,7 @@ class SeedBuData:
         INSERT INTO app_setting (id, setting_key, setting_value, description, is_editable) VALUES
             (1, 'default_gst_rate',                          '18',    'Default GST rate (%%) applied to invoices',                                                       true),
             (2, 'show_parts_in_job_invoice',              '{"gst_rate":18,"hsn": 11236,"show": true,"text": "Overall repair cost"}',  'When showing parts in invoice, use a single combined line with this label and HSN code', true),
-            (3, 'markup_percent_over_cost',                  '20',    'Default markup percent over cost price to get selling price',                                    true),
+            (3, 'markup_percent_over_cost',                  '20',    'Default markup percent of spare part over cost price to get selling price',                      true),
             (4, 'default_hsn_for_spare_part',               '92099400',  'Default HSN code for Spare Part',                                                                true),
             (5, 'default_hsn_for_service_charge',           '998726',    'Default HSN code for labour charges, service charges etc.',                                      true),
             (6, 'no_of_job_sheets_per_print',               '2',         'The no of job sheets to be printed when print pdf',                                        true),

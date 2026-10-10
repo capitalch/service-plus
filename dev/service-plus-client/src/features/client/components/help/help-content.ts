@@ -100,11 +100,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "steps",
 				items: [
-					"Create a Branch (Masters → Branch). At least one branch is required.",
+					"Create a Branch (Configurations → Branch). At least one branch is required.",
 					"Create a Division (Configurations → Divisions). Fill GSTIN for a GST division; leave GSTIN blank for non-GST.",
 					"Configure Numbering / Auto Series (Configurations → Numbering / Auto Series). JOB_SHEET (prefix J), PURCHASE_INVOICE (prefix P), and PURCHASE_RETURN_INVOICE (prefix PR) already come pre-filled for the new BU's Head Office branch — the Main division's series also come pre-filled: MONEY_RECEIPT (MR), SALES_INVOICE (SI), SALES_RETURN_INVOICE (SR), SERVICE_INVOICE (SI) and SERVICE_RETURN_INVOICE (RI). Change any of them if you prefer. Any other division you add needs its own prefixes.",
 					"Set App Settings (Configurations → App Settings): default GST rate, default HSN codes, number of print copies. Yes/no settings such as post_data_to_accounts are edited with an on/off switch instead of typing true or false.",
-					"Add lookup values: Job Types, Job Statuses, Receive/Delivery Manners, Receive Conditions (Masters → Service Config).",
+					"Add lookup values: Job Types, Job Statuses, Receive/Delivery Manners, Receive Conditions (Configurations → Service Config).",
 					"Add Brands, Products, and Models (Masters → Brand / Product / Model). Jobs require all three.",
 					"Add Spare Parts with Cost Price, HSN code, and GST Rate (Masters → Parts).",
 					"Add Customers and Technicians (Masters → Customer and Technician).",
@@ -2916,7 +2916,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				items: [
 					"A company with only one branch shows customers a plain catalog page — no branch picker at all.",
 					"A company with several branches shows customers a branch dropdown, defaulting to the first branch, and switching it swaps the whole catalog.",
-					"Deactivating a branch (Masters → Branches) hides that branch's whole catalog from the public site with no separate switch — worth remembering since it isn't obviously a website setting.",
+					"Deactivating a branch (Configurations → Branch) hides that branch's whole catalog from the public site with no separate switch — worth remembering since it isn't obviously a website setting.",
 				],
 			},
 			{ type: "heading", text: "How customer orders reach you" },
@@ -2926,7 +2926,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "para",
-				text: "Each order emails the branch it was placed against, so the branch that will actually fulfill it is the one notified. The recipient is resolved in this order: the branch's own email address (Masters → Branches) → the App Settings 'web_order_notify_email' address for the business unit, if set → the head office branch's email as a last resort. Set at least one of these per business unit, or order notifications have nowhere to go (the order itself is still saved either way — nothing is lost, but nobody gets pinged).",
+				text: "Each order emails the branch it was placed against, so the branch that will actually fulfill it is the one notified. The recipient is resolved in this order: the branch's own email address (Configurations → Branch) → the App Settings 'web_order_notify_email' address for the business unit, if set → the head office branch's email as a last resort. Set at least one of these per business unit, or order notifications have nowhere to go (the order itself is still saved either way — nothing is lost, but nobody gets pinged).",
 			},
 			{
 				type: "note",
@@ -2961,7 +2961,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "A part is marked Active but customers say they can't see it — why?",
-				a: "Check that the branch it belongs to is itself Active in Masters → Branches — deactivating a branch hides its entire web catalog, parts included, with no separate toggle.",
+				a: "Check that the branch it belongs to is itself Active in Configurations → Branch — deactivating a branch hides its entire web catalog, parts included, with no separate toggle.",
 			},
 			{
 				q: "Where do web orders actually go — is there stock deducted automatically?",
@@ -3035,22 +3035,22 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Branches" },
 			{
 				type: "para",
-				text: "Masters → Branch. A Branch is a physical service center location. All jobs, inventory, technicians, and document sequences are scoped to a branch.",
+				text: "Configurations → Branch. A Branch is a physical service center location. All jobs, inventory, technicians, and document sequences are scoped to a branch.",
 			},
 			{
 				type: "bullets",
 				items: [
 					"At least one branch is required.",
-					"The Head Office branch cannot be deleted.",
+					"The Head Office branch cannot be deleted or deactivated — Deactivate is greyed out on its row menu. Switching it off would leave a one-branch business unit with nothing to select, so no one could get past the Business Unit / Branch / Division screen at login.",
 					"Adding a branch also creates its default division, Main, from the branch's address and GSTIN (see Divisions Setup).",
-					"Lite and Basic include the head office only: Add Branch is switched off at that limit. Standard and Enterprise have no limit.",
+					"Lite, Basic and Standard include the head office only, so the Add Branch button isn't shown on those plans. Enterprise has no limit.",
 					"Users are assigned to specific branches, controlling which branch's data they can access.",
 				],
 			},
 			{ type: "heading", text: "Financial Years" },
 			{
 				type: "para",
-				text: "Masters → Financial Year. Defines your accounting periods (India standard: April 1 – March 31). Date ranges must not overlap between years. All date filters in the system default to the current financial year.",
+				text: "Configurations → Financial Year. Defines your accounting periods (India standard: April 1 – March 31). Date ranges must not overlap between years. All date filters in the system default to the current financial year.",
 			},
 		],
 		faqs: [
@@ -3089,6 +3089,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "bullets",
 				items: [
+					"Adding divisions needs the Enterprise plan: on Lite, Basic and Standard the Add Division button isn't shown, and you work with the Main division.",
 					"The default division can be edited, but it has no Deactivate or Delete action.",
 					"Deleting an unused branch also removes its divisions.",
 					"The Accounts tab (Trace+ settings) appears only when post_data_to_accounts is on in App Settings. With it off, a division saves without those settings, and any Trace+ settings already stored on it are kept.",
@@ -3242,7 +3243,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 						"show_parts_in_job_invoice",
 						"A JSON object controlling the default 'Show Parts in Invoice' toggle plus the fallback combined-line label, HSN, and GST rate used when parts are merged into one invoice line",
 					],
-					["markup_percent_over_cost", "Auto-calculates selling price = cost × (1 + markup%)"],
+					["markup_percent_over_cost", "Auto-calculates a spare part's selling price = cost × (1 + markup%)"],
 					[
 						"post_data_to_accounts",
 						"Enables accounting system integration (Post to Accounts). Off for a new business unit; switch it on only if you post to Trace+",
@@ -3256,6 +3257,14 @@ export const HELP_ARTICLES: HelpArticle[] = [
 						"The Extended Warranty add-on: Enabled, the two numbers printed in the customer's reminder, the staff alert number, the notify email and the daily send cap — see 'Extended Warranty settings' below",
 					],
 				],
+			},
+			{
+				type: "note",
+				text: "When you edit a setting, the box matches the kind of value it holds: numbers such as default_gst_rate accept only a number (no negatives), on/off settings show a switch, and structured settings such as show_parts_in_job_invoice open as JSON text.",
+			},
+			{
+				type: "note",
+				text: "On the Lite, Basic and Standard plans, four settings for Enterprise features are not listed: extended_warranty, post_data_to_accounts, track_job_url and web_order_notify_email. They keep their current values.",
 			},
 			{ type: "heading", text: "Turning WhatsApp messages on or off" },
 			{
@@ -3303,7 +3312,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					"Division → State is set (required for supply state code on invoices).",
 					"Parts Master → HSN code set on each part (or Default HSN for Spare Part set in App Settings as fallback).",
 					"Parts Master → GST Rate set on each part (or Default GST Rate set in App Settings as fallback).",
-					"Additional Charges Master → HSN set for each service charge type.",
+					"Configurations → Service Config → Job Additional Charges → HSN set for each service charge type.",
 					"Document Sequence → SERVICE_INVOICE prefix configured.",
 					"Document Sequence → MONEY_RECEIPT prefix configured.",
 				],
@@ -4107,13 +4116,13 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Business Unit vs Branch — don't confuse these" },
 			{
 				type: "para",
-				text: "A Business Unit is a separate client company (tenant) on the platform, each with its own database schema, created and provisioned from Admin Mode. A Branch is a physical service-center location that exists inside one client's business, created in Client Mode → Masters → Branch. They sound similar but are unrelated: one client company (one Business Unit / one database) can have many Branches inside it.",
+				text: "A Business Unit is a separate client company (tenant) on the platform, each with its own database schema, created and provisioned from Admin Mode. A Branch is a physical service-center location that exists inside one client's business, created in Client Mode → Configurations → Branch. They sound similar but are unrelated: one client company (one Business Unit / one database) can have many Branches inside it.",
 			},
 		],
 		faqs: [
 			{
 				q: "What's the difference between a Business Unit and a Branch?",
-				a: "A Business Unit is a separate client company/tenant on the platform (Admin Mode concept, each with its own database schema). A Branch is a physical service location inside one client's business (Client Mode → Masters → Branch). A single Business Unit can contain many Branches.",
+				a: "A Business Unit is a separate client company/tenant on the platform (Admin Mode concept, each with its own database schema). A Branch is a physical service location inside one client's business (Client Mode → Configurations → Branch). A single Business Unit can contain many Branches.",
 			},
 			{
 				q: "Who can access Admin Mode?",
@@ -4185,9 +4194,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					["Jobs → Customer Connect", "✅", "❌", "✅"],
 					["Jobs → Internal Notes: edit / delete (adding is open to all)", "✅", "❌", "❌"],
 					["Masters tab (whole tab)", "✅", "❌", "✅"],
-					["Masters → Organization (Branch, Financial Year, State / Province)", "✅", "❌", "❌"],
-					["Masters → Service Config (Customer Type, Job Type, Job Status, …)", "✅", "❌", "❌"],
 					["Configurations tab (whole tab)", "✅", "❌", "❌"],
+					["Configurations → Organization: Branch, Financial Year, State / Province", "✅", "❌", "❌"],
+					["Configurations → Service Config (Customer Type, Job Type, Job Status, …)", "✅", "❌", "❌"],
 					["Admin tab / Post-Unpost", "✅", "❌", "❌"],
 					["Inventory → Purchase Entry", "✅", "❌", "✅"],
 					["Inventory → Sales Entry", "✅", "❌", "✅"],
@@ -4229,7 +4238,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Why can a Receptionist see Masters but not Configurations?",
-				a: "That split is intentional: Masters holds day-to-day reference data (customers, parts, technicians) that front-desk staff maintain, while Configurations controls system-wide behavior (divisions, numbering, app settings) reserved for Managers. Inside Masters, the Organization and Service Config groups are Manager-only too, so a Receptionist opening Masters lands on Customer instead of Branch.",
+				a: "That split is intentional: Masters holds day-to-day reference data (customers, parts, technicians) that front-desk staff maintain, while Configurations controls set-once, system-wide setup (branches, divisions, financial years, states, numbering, app settings) reserved for Managers. Branch, Financial Year and State / Province used to sit under Masters → Organization, and the eight Service Config lists (Customer Type, Document Type, Job Type, Job Status, Job Receive Manner, Job Delivery Manner, Job Receive Condition, Job Additional Charges) under Masters → Service Config; both groups now live in Configurations. A custom role needs the Configurations tab plus the Organization or Service Config right to open them.",
 			},
 		],
 	},
@@ -4592,13 +4601,17 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "para",
+				text: "Your plan's name (Lite, Basic, Standard or Enterprise) is shown as a small badge just before the business unit name in the top bar. It isn't shown on phone-sized screens, or for a business unit that has no subscription.",
+			},
+			{
+				type: "para",
 				text: 'What you see: an amber banner under the top bar in the last days before the paid period ends ("Your payment is due. The app becomes view-only after <date>."), and a red banner once the business unit is view-only. While view-only, the Add buttons on the Masters screens, Save on the job and inventory entry screens and every Delete are switched off (hover for "Read-only: payment pending"); if a save is refused anyway, a View-only dialog explains why.',
 			},
 		],
 		faqs: [
 			{
 				q: "Why can't I add a second branch?",
-				a: "The Lite and Basic plans include the head office branch only. Add Branch is switched off when you are at the limit, and the server refuses it too. Upgrade to Standard for more branches.",
+				a: "The Lite, Basic and Standard plans include the head office branch only. On those plans the Add Branch button isn't shown, and the server refuses a new branch too. Upgrade to Enterprise for more branches.",
 			},
 		],
 	},

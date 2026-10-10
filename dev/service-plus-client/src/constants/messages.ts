@@ -109,6 +109,7 @@ export const MESSAGES = {
 	ERROR_BRANCH_CODE_EXISTS: "This code is already in use.",
 	ERROR_BRANCH_CODE_EXISTS_EDIT: "This code is already used by another branch.",
 	ERROR_BRANCH_CREATE_FAILED: "Failed to create branch. Please try again.",
+	ERROR_BRANCH_DEACTIVATE_HEAD_OFFICE: "Head Office branch cannot be deactivated.",
 	ERROR_BRANCH_DELETE_FAILED: "Failed to delete branch. Please try again.",
 	ERROR_BRANCH_DELETE_HEAD_OFFICE: "Head Office branch cannot be deleted.",
 	ERROR_BRANCH_DELETE_IN_USE: "This branch cannot be deleted as it is referenced by existing records.",
@@ -332,6 +333,8 @@ export const MESSAGES = {
 	INFO_NO_BU_ASSIGNED_USER: "No business unit is assigned to your account. Contact your administrator.",
 	INFO_NO_BU_CREATED_ADMIN:
 		"No business unit has been created yet. Go to Admin mode and create one under Business Units.",
+	INFO_NO_ACTIVE_BRANCH:
+		"This business unit has no active branch. Ask your administrator to activate its Head Office branch.",
 	INFO_SELECT_BU_BRANCH_DIVISION: "Choose all three to continue — this can't be skipped or dismissed.",
 
 	// Network Errors
@@ -654,7 +657,7 @@ export const MESSAGES = {
 
 	// Plans and monthly billing (plans/plan.md Steps 12–14)
 	BILLING_AMOUNT_BELOW_DUE: "Amount cannot be less than the monthly fee × months.",
-	BILLING_BRANCH_LIMIT: "Your plan includes one branch. Upgrade to Standard for more branches.",
+	BILLING_BRANCH_LIMIT: "Your plan includes one branch. Upgrade to Enterprise for more branches.",
 	BILLING_CAP_EXCEEDED: "This would take the paid period more than 5 years ahead.",
 	BILLING_DOWNGRADE_BLOCKED: "Delete these branches and their data first, then change the plan:",
 	BILLING_DUE_SOON: "Your payment is due. The app becomes view-only after {date}.",
@@ -719,6 +722,11 @@ export const MESSAGES = {
 	SUCCESS_INTERNAL_NOTE_ADDED: "Internal note added.",
 	SUCCESS_INTERNAL_NOTE_DELETED: "Internal note deleted.",
 	SUCCESS_INTERNAL_NOTE_UPDATED: "Internal note updated.",
+	// App Settings
+	ERROR_APP_SETTING_INVALID_JSON: 'Must be valid JSON (e.g. {"key": "value"})',
+	ERROR_APP_SETTING_NEGATIVE_NUMBER: "Value cannot be negative",
+	ERROR_APP_SETTING_NOT_A_NUMBER: "Value must be a number",
+	ERROR_APP_SETTING_VALUE_REQUIRED: "Value is required",
 } as const;
 
 // Builds the Post/Unpost "Select All" confirmation title + description from central templates.

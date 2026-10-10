@@ -61,7 +61,7 @@ class AppMessages:
     # Error messages - Branches and default divisions (plans/plan2.md)
     BRANCH_CREATE_FAILED = "Failed to create the branch"
     BRANCH_INSERT_VIA_ADD_BRANCH = "Branches are added through Add Branch only."
-    BRANCH_LIMIT_REACHED = "Your plan includes one branch. Upgrade to Standard for more branches."
+    BRANCH_LIMIT_REACHED = "Your plan includes one branch. Upgrade to Enterprise for more branches."
     DEFAULT_DIVISION_LOCKED = "The default division of a branch cannot be deleted or deactivated."
 
     # Error messages - Sign-up and billing (plans/plan.md)
@@ -124,7 +124,7 @@ class AppMessages:
         "This business unit is view-only because its monthly payment is due. "
         "Pay to continue adding and changing data."
     )
-    SIGNUP_BRANCHES_ONE = "The Lite and Basic plans include one branch only."
+    SIGNUP_BRANCHES_ONE = "The Lite, Basic and Standard plans include one branch only."
     SIGNUP_DUPLICATE = (
         "A request with this mobile number or email already exists. "
         "Check its progress on the sign-up status page."

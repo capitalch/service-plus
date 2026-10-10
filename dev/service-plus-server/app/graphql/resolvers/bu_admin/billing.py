@@ -38,7 +38,7 @@ from app.services.bu_billing import clear_bu_billing
 from app.services.signup_emails import rupees, send_text_email
 
 LT_PLAN_CODES = ("basic", "lite", "standard")
-ONE_BRANCH_PLAN_CODES = ("basic", "lite")
+ONE_BRANCH_PLAN_CODES = ("basic", "lite", "standard")
 
 
 def _invalid(message: str, **extensions: Any) -> ValidationException:

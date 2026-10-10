@@ -11,7 +11,7 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCompanyName, selectCurrentBranch, selectSchema } from "@/store/context-slice";
-import type { BranchType } from "@/features/client/components/masters/branch/branch";
+import type { BranchType } from "@/features/client/components/configurations/branch/branch";
 import type { PurchaseInvoiceType, PurchaseLineType } from "@/features/client/types/purchase";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { DivisionContextType } from "@/features/client/types/division";

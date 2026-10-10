@@ -1,33 +1,17 @@
 import { motion } from "framer-motion";
 
-import { selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ClientLayout } from "@/features/client/components/layout/client-layout";
 import { useClientSelection } from "@/features/client/components/layout/client-layout";
-import { canAccessMastersItem } from "@/features/client/components/layout/masters-access";
-import { AdditionalChargeSection } from "@/features/client/components/masters/additional-charge/additional-charge-section";
-import { BranchSection } from "@/features/client/components/masters/branch/branch-section";
 import { CustomerSection } from "@/features/client/components/masters/customer/customer-section";
-import { FinancialYearSection } from "@/features/client/components/masters/financial-year/financial-year-section";
-import { LookupSection } from "@/features/client/components/masters/lookup/lookup-section";
 import { ModelSection } from "@/features/client/components/masters/model/model-section";
 import { PartsSection } from "@/features/client/components/masters/parts/parts-section";
 import { PartLocationSection } from "@/features/client/components/masters/part-location/part-location-section";
 import { ProductSection } from "@/features/client/components/masters/product/product-section";
+import { LookupSection } from "@/features/client/components/shared/lookup/lookup-section";
 import { SparePartWebSection } from "@/features/client/components/masters/spare-part-web/spare-part-web-section";
-import { StateSection } from "@/features/client/components/masters/state-province/state-section";
 import { TechnicianSection } from "@/features/client/components/masters/technician/technician-section";
 import { VendorSection } from "@/features/client/components/masters/vendor/vendor-section";
-import {
-	BRAND_CONFIG,
-	CUSTOMER_TYPE_CONFIG,
-	DOCUMENT_TYPE_CONFIG,
-	JOB_DELIVERY_MANNER_CONFIG,
-	JOB_RECEIVE_CONDITION_CONFIG,
-	JOB_RECEIVE_MANNER_CONFIG,
-	JOB_STATUS_CONFIG,
-	JOB_TYPE_CONFIG,
-} from "@/features/client/config/lookup-configs";
-import { useAppSelector } from "@/store/hooks";
+import { BRAND_CONFIG } from "@/features/client/config/lookup-configs";
 
 // ─── Coming Soon ──────────────────────────────────────────────────────────────
 
@@ -51,28 +35,14 @@ function ComingSoon({ label }: { label: string }) {
 
 function MastersContent() {
 	const { selected } = useClientSelection();
-	const currentUser = useAppSelector(selectCurrentUser);
 
-	// The layout redirects off restricted items; render nothing for the one frame before it does.
-	if (!canAccessMastersItem(currentUser, selected)) return null;
-	if (selected === "Job Additional Charges") return <AdditionalChargeSection />;
 	if (selected === "Brand") return <LookupSection config={BRAND_CONFIG} />;
-	if (selected === "Branch") return <BranchSection />;
 	if (selected === "Customer") return <CustomerSection />;
-	if (selected === "Customer Type") return <LookupSection config={CUSTOMER_TYPE_CONFIG} />;
-	if (selected === "Document Type") return <LookupSection config={DOCUMENT_TYPE_CONFIG} />;
-	if (selected === "Financial Year") return <FinancialYearSection />;
-	if (selected === "Job Delivery Manner") return <LookupSection config={JOB_DELIVERY_MANNER_CONFIG} />;
-	if (selected === "Job Receive Condition") return <LookupSection config={JOB_RECEIVE_CONDITION_CONFIG} />;
-	if (selected === "Job Receive Manner") return <LookupSection config={JOB_RECEIVE_MANNER_CONFIG} />;
-	if (selected === "Job Status") return <LookupSection config={JOB_STATUS_CONFIG} />;
-	if (selected === "Job Type") return <LookupSection config={JOB_TYPE_CONFIG} />;
 	if (selected === "Model") return <ModelSection />;
 	if (selected === "Parts") return <PartsSection />;
 	if (selected === "Part Location") return <PartLocationSection />;
 	if (selected === "Product") return <ProductSection />;
 	if (selected === "Spare Parts Web") return <SparePartWebSection />;
-	if (selected === "State / Province") return <StateSection />;
 	if (selected === "Technician") return <TechnicianSection />;
 	if (selected === "Vendor / Supplier") return <VendorSection />;
 

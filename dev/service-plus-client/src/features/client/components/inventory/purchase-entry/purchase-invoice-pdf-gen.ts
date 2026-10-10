@@ -2,7 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatCurrency } from "@/lib/utils";
 import type { PurchaseInvoiceType, PurchaseLineType } from "@/features/client/types/purchase";
-import type { BranchType } from "@/features/client/components/masters/branch/branch";
+import type { BranchType } from "@/features/client/components/configurations/branch/branch";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { DivisionContextType } from "@/features/client/types/division";
 

@@ -57,7 +57,7 @@ import {
 	selectCompanyName,
 	selectPostDataToAccounts,
 } from "@/store/context-slice";
-import type { BranchType } from "@/features/client/components/masters/branch/branch";
+import type { BranchType } from "@/features/client/components/configurations/branch/branch";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseInvoiceType, PurchaseLineType, StockTransactionTypeRow } from "@/features/client/types/purchase";
 import { ViewPurchaseInvoiceDialog } from "./view-purchase-invoice-dialog";
