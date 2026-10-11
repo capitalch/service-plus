@@ -1992,7 +1992,38 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "warning",
-				text: "A custom role with MASTERS_SERVICE_CONFIG but without CONFIG_MENU loses these screens — the whole Configurations tab is hidden. No seeded role is in that state (Manager has both, Receptionist neither).",
+				text: "A custom role with MASTERS_SERVICE_CONFIG but without CONFIG_MENU loses these screens — the whole Configurations tab is hidden. No seeded role holds MASTERS_SERVICE_CONFIG any more (see 'Service Config Hidden from Manager').",
+			},
+		],
+		faqs: [],
+	},
+
+	{
+		id: "dev-service-config-hidden-from-manager",
+		category: "Access Control & Security",
+		title: "Service Config Hidden from Manager",
+		summary: "MASTERS_SERVICE_CONFIG is granted to no default role; the Service Config group is hidden without it.",
+		tags: [
+			"MASTERS_SERVICE_CONFIG",
+			"service config",
+			"manager",
+			"role_access_right",
+			"revoke_manager_service_config",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Since 2026-10-11 the Manager role no longer holds MASTERS_SERVICE_CONFIG (access_right id 15). Admin (userType A) and super-admin (S) bypass every right check, so they still reach Configurations → Service Config; a custom role can be granted the right.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"Seed: ACCESS_RIGHT_SEED_SQL (seed_security_data.py) no longer inserts (role 1, right 15). The right's own access_right row, ACCESS_RIGHTS, GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS and the seed-roles-dialog preview entry are unchanged (the preview label now reads 'Admin only').",
+					"Existing tenants: scripts/revoke_manager_service_config.sql deletes the MANAGER grant, looking role and right up by code. Idempotent; run it on every tenant database and the default customer database. The seed uses ON CONFLICT DO NOTHING, so re-seeding never removes a grant but also no longer re-adds this one.",
+					"UI: ConfigurationsExplorer (client-explorer-panel.tsx) renders the Service Config group only when hasAccessRight(user, MASTERS_SERVICE_CONFIG). It is hidden, not greyed, so Receptionist and Technician lose the greyed group too. client-configurations-page.tsx ITEM_RIGHTS still guards deep links.",
+					"Enforcement is UI-only: the lookup tables have no GENERIC_UPDATE_TABLE_RIGHTS entry (only branch, state and financial_year do).",
+					"To grant it to another role: INSERT INTO security.role_access_right (role_id, access_right_id) SELECT r.id, a.id FROM security.role r, security.access_right a WHERE r.code = '<ROLE_CODE>' AND a.code = 'MASTERS_SERVICE_CONFIG' ON CONFLICT DO NOTHING; rights load at login, so the user signs in again.",
+				],
 			},
 		],
 		faqs: [],
@@ -2051,7 +2082,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"MASTERS_SERVICE_CONFIG",
-						"Configurations → Service Config group (the eight job/customer lookup lists; moved from Masters 2026-10-10, right kept its name)",
+						"Configurations → Service Config group (the eight job/customer lookup lists; moved from Masters 2026-10-10, right kept its name). Granted to no default role since 2026-10-11 — Admin / super-admin bypass it, and the group is hidden without it",
 					],
 					["CONFIG_MENU", "The whole Configurations top-level tab"],
 					["ADMIN_MENU", "Client Mode's Admin tab (Post/Unpost) — not the separate /admin/* Admin Mode"],
@@ -2066,7 +2097,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					["JOBS_ACCOUNTS_POSTING", "✅", "❌", "✅"],
 					["MASTERS_MENU", "✅", "❌", "✅"],
 					["MASTERS_ORGANIZATION", "✅", "❌", "❌"],
-					["MASTERS_SERVICE_CONFIG", "✅", "❌", "❌"],
+					["MASTERS_SERVICE_CONFIG", "❌", "❌", "❌"],
 					["CONFIG_MENU", "✅", "❌", "❌"],
 					["ADMIN_MENU", "✅", "❌", "❌"],
 				],
@@ -3131,6 +3162,72 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 	// ── Category 8: Configuration ─────────────────────────────────────────────
 
 	{
+		id: "dev-manager-user-management",
+		category: "Configuration",
+		title: "Manager User Management (Standard and above)",
+		summary:
+			"How a Manager adds Receptionist / Technician users through createBusinessUser, and the guards behind it.",
+		tags: ["createBusinessUser", "GET_STAFF_USERS", "GET_STAFF_ROLES", "staff_users", "manager", "plan gating"],
+		content: [
+			{
+				type: "para",
+				text: "createBusinessUser used to be Admin-only. mutation.py now lets any non-Admin through only after bu_admin/staff_users.py's require_manager_creates_staff_user passes. No access right is involved (nothing to seed or re-seed): the gate is the token's role_code == 'MANAGER' plus the BU's plan. The client screen (Configurations → System → User Management) is hidden by use-can-manage-staff-users.ts, but the server guard is the real wall.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"Caller must be userType 'B' with role_code MANAGER; Super Admin and other roles are refused (reason manager_only).",
+					"role_id must resolve (GET_ROLE_CODE_BY_ID) to RECEPTIONIST or TECHNICIAN, otherwise STAFF_USER_ROLE_NOT_ALLOWED. A Manager can never mint a Manager or an Admin (the helper always sets is_admin false).",
+					"Every bu_ids entry must exist (GET_BU_CODES_BY_IDS) and be in the token's bu_codes, else reason bu_mismatch. The client sends only the current BU's id.",
+					"Each BU's plan comes from get_bu_billing(...).planCode and must be standard or enterprise; a BU with no plan counts as unlimited (same convention as use-has-enterprise-features.ts). Lite and Basic get STAFF_USER_PLAN_REQUIRED with reason plan_too_low. Plan changes apply at once (billing cache is 60 s).",
+					"Reads go through genericQuery: GET_STAFF_USERS (current_schema() = the caller's own BU, role in RECEPTIONIST/TECHNICIAN, no password hash) and GET_STAFF_ROLES. They, and the two CHECK_BUSINESS_USER_*_EXISTS ids the Add User dialog uses for live uniqueness, are in auth_guards.py NON_ADMIN_SECURITY_SQL_IDS and MANAGER_ONLY_SQL_IDS (role_code MANAGER, or Admin / Super Admin). Add any new Manager-facing security id to both sets.",
+					"Duplicate username, email and mobile are re-checked inside resolve_create_business_user_helper, so the dialog's live checks are courtesy only. The mobile check has no live equivalent.",
+					"Edit, deactivate, delete and credential resend stay Admin-only (Admin mode → Business Users).",
+					"Tests: tests/bu_admin/test_staff_users.py.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Do I need a new access right to let another role add users?",
+				a: "Not with this design: the check is role_code == MANAGER. To open it to a custom role, replace that check with a require_access_right and follow the four-place rule for new rights.",
+			},
+		],
+	},
+
+	{
+		id: "dev-job-invoice-parts-display",
+		category: "Configuration",
+		title: "Job Invoice — Parts Display",
+		summary:
+			"How the show_parts_in_job_invoice setting and job.to_show_parts_in_job_invoice decide itemized vs combined invoice lines.",
+		tags: ["show_parts_in_job_invoice", "to_show_parts_in_job_invoice", "invoice", "combined line"],
+		content: [
+			{
+				type: "para",
+				text: "Two values are involved. The app_setting row show_parts_in_job_invoice ({gst_rate, hsn, show, text}) only supplies the default tick of the 'Show Parts in Invoice' checkbox (show !== false) and the combined-line label/HSN/GST. The checkbox itself is saved per job in job.to_show_parts_in_job_invoice, and invoices read that column, so editing the setting never changes already-finalized jobs.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"Seed default hsn is 998719 (SAC 9987, maintenance and repair of other goods; seed_bu_data.py id 2). It was 11236 before, which is not a valid 4/6/8-digit code. The seed is ON CONFLICT DO NOTHING, so existing BUs keep the old value until scripts/run_fix_show_parts_hsn.py (--dry-run first) rewrites it; it only touches rows whose hsn is still exactly 11236.",
+					"Builder: deliver-job/job-invoice-builder.ts (showDetail = job.to_show_parts_in_job_invoice ?? true); proforma: job-control/job-proforma-invoice-pdf-gen.ts uses the same flag.",
+					"showDetail true: one line per part and per charge; a charge's ref_no and description are appended to its name as 'Name (Ref: x, desc)'.",
+					"showDetail false AND setting present: parts + charges (selling_price × qty) are summed into one line, qty 1, description = setting.text, HSN = setting.hsn (GST invoices only), rate = setting.gst_rate, split CGST/SGST or IGST per force-IGST.",
+					"showDetail false AND setting missing: falls back to itemized lines, without the charge ref/description extras.",
+					"Written by finalize-job-save.ts; batch-warranty-transactions/batch-execute.ts hardcodes true. Server reads it in sql_jobs.py (job select list). Column is boolean NOT NULL DEFAULT true in the BU template.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "I changed show_parts_in_job_invoice but an old invoice did not change — bug?",
+				a: "No. Invoices read job.to_show_parts_in_job_invoice, saved at finalize time. The setting only supplies the checkbox default and the combined-line label/HSN/GST for jobs finalized afterwards.",
+			},
+		],
+	},
+
+	{
 		id: "dev-app-settings-numbering",
 		category: "Configuration",
 		title: "App Settings & Document Numbering",
@@ -3148,7 +3245,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					["default_gst_rate", "Fallback GST rate when a part has no specific rate"],
 					["default_hsn_for_spare_part / default_hsn_for_service_charge", "Fallback HSN codes"],
 					["no_of_job_sheets_per_print / no_of_job_invoices_per_print", "Print copy counts"],
-					["show_parts_in_job_invoice", "JSON controlling the merged-line invoice fallback label/HSN/GST"],
+					[
+						"show_parts_in_job_invoice",
+						"JSON {gst_rate, hsn, show, text} (seed id 2). `show` is only the default of the finalize checkbox (final-a-job-section.tsx, final-job-dialog.tsx, job-control-section.tsx, job-pipeline-status-drilldown.tsx, deliver-job-section.tsx all read it via GET_APP_SETTING_BY_KEY; show !== false → ticked). The checkbox is persisted per job as job.to_show_parts_in_job_invoice (boolean NOT NULL DEFAULT true; written by finalize-job-save.ts, batch-execute.ts hardcodes true) and that column, not the setting, drives invoices. text/hsn/gst_rate shape the combined line. See 'Job Invoice — Parts Display'.",
+					],
 					[
 						"markup_percent_over_cost",
 						"Auto-markup for a spare part's selling price = cost × (1 + markup%). The seed description (seed_bu_data.py, id 3) is applied ON CONFLICT DO NOTHING, so a changed wording reaches new BUs only — existing rows keep theirs until edited in App Settings",
@@ -3159,7 +3259,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"whatsapp_notifications",
-						"Per-event on/off switch for outbound WhatsApp sends ({JOB_CREATION, JOB_COMPLETION, JOB_DELIVERY, JOB_MONEY_RECEIPT, JOB_INVOICE, EXTENDED_WARRANTY} booleans, only JOB_COMPLETION seeded true) — read server-side, in app/whatsapp/sender.py's _is_event_enabled(), not by the client. See 'WhatsApp Integration — Implementation' for the fail-closed gating logic.",
+						"Per-event on/off switch for outbound WhatsApp sends ({JOB_CREATION, JOB_COMPLETION, JOB_DELIVERY, JOB_MONEY_RECEIPT, JOB_INVOICE, EXTENDED_WARRANTY} booleans, only JOB_COMPLETION seeded true) — read server-side, in app/whatsapp/sender.py's _is_event_enabled(), not by the client. See 'WhatsApp Integration — Implementation' for the fail-closed gating logic. Customer Connect tab visibility: loadAppSettings parses whatsapp_notifications into context-slice's whatsappNotifications (Record<string, boolean> | null; null = not loaded yet → show every tab; a missing key = off, strict true only), read via selectWhatsappNotifications in customer-connect-section.tsx. Tab → key: completion→JOB_COMPLETION, intake→JOB_CREATION, delivery→JOB_DELIVERY, moneyReceipt→JOB_MONEY_RECEIPT, invoice→JOB_INVOICE; if the active tab is switched off it moves to the first visible one, and with none visible the page shows INFO_CUSTOMER_CONNECT_ALL_EVENTS_OFF. EXTENDED_WARRANTY has no tab. App Settings saves already call loadAppSettings, so a change shows without re-login. edit-whatsapp-notifications-dialog.tsx hides the EXTENDED_WARRANTY row when currentUser.roleCode === 'MANAGER' (client-side only); the dialog state is built from the stored value, so the hidden key is saved back unchanged.",
 					],
 					[
 						"extended_warranty (id 15)",
@@ -3169,7 +3269,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "Generic editor (edit-app-setting-dialog.tsx): there is no Simple/JSON toggle — detectKind picks the editor from the stored jsonb value's type. Object/array → JSON textarea (must parse); JSON number (e.g. default_gst_rate, markup_percent_over_cost, no_of_*_per_print) → numeric input validated as a finite, non-negative number and saved unquoted; any other scalar → text input saved as a JSON string; boolean or \"true\"/\"false\" → Switch. So a setting's type is fixed by its seed in seed_bu_data.py: seeding a numeric key as '\"18\"' instead of '18' would silently drop numeric validation.",
+				text: "Generic editor (edit-app-setting-dialog.tsx): there is no Simple/JSON toggle — detectKind picks the editor from the stored jsonb value's type. Object/array → JSON textarea (must parse); JSON number (e.g. default_gst_rate, markup_percent_over_cost, no_of_*_per_print) → numeric input validated as a finite, non-negative number and saved unquoted; any other scalar → text input saved as a JSON string; boolean or \"true\"/\"false\" → Switch. So a setting's type is fixed by its seed in seed_bu_data.py: seeding a numeric key as '\"18\"' instead of '18' would silently drop numeric validation. The Description input is editable only when currentUser.userType is 'A' or 'S' (canEditDescription); otherwise it renders as a wrapping read-only div (so long text is fully visible, unlike a clipped readOnly input) and onSubmit leaves `description` out of the genericUpdate xData, so the stored description is not overwritten. This is client-side only — the server does not enforce it, so a hand-built genericUpdate on app_setting could still change the description.",
 			},
 			{ type: "heading", text: "document_sequence" },
 			{
@@ -3240,6 +3340,31 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
+		id: "dev-branch-gstin-removed",
+		category: "Configuration",
+		title: "Branch GSTIN Removed",
+		summary: "branch.gstin and branch_gstin_check are gone; GSTIN lives only on the division.",
+		tags: ["branch", "gstin", "division", "drop column", "run_branch_drop_gstin_ddl", "gst mode"],
+		content: [
+			{
+				type: "para",
+				text: "A branch has no GSTIN. GSTIN lives only on the division, which is mandatory in every branch and is what drives GST mode (isGstDivision, selectIsGstMode) and every invoice and job PDF. branch.email stays: the public company-info email and the web-order notification still resolve it first.",
+			},
+			{
+				type: "bullets",
+				items: [
+					"Dropped: branch.gstin and branch_gstin_check — gone from the BU template (sql_bu_admin_ddl.py) and from BranchType, BranchContextType and the Add/Edit Branch dialogs. addBranch's BRANCH_FIELDS no longer accepts gstin.",
+					"SQL: GET_ALL_BRANCHES and GET_BU_BRANCHES no longer return gstin; GET_JOB_INTAKE_STATUS and JobIntakeData lost branch_gstin (the job slip PDF always used division_gstin). DEFAULT_DIVISION_DDL, INSERT_MAIN_DIVISION_FOR_BRANCH and the seed copy no gstin into Main, so a new Main starts with no GSTIN.",
+					"Existing tenants: DivisionServerSql.BRANCH_DROP_GSTIN_DDL, run by scripts/run_branch_drop_gstin_ddl.py over every BU schema of every client database plus service_plus_service. --dry-run lists branches whose GSTIN is set and differs from their default division's (the values the drop loses). Per schema, one transaction, safe to re-run.",
+					"Deploy order: server code, then the script, then the client. New server code must not select the column after the drop, and old code must not run after it.",
+					"Regenerate after the script: pnpm gen-types-service / gen-types-security and scripts/extract_schema.sh. Never hand-edit src/types/db-schema-service.ts.",
+				],
+			},
+		],
+		faqs: [],
+	},
+
+	{
 		id: "dev-default-division",
 		category: "Configuration",
 		title: "Default Division per Branch",
@@ -3249,7 +3374,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "Every branch has exactly one default division, marked by division.is_default. When the system creates it, it is named Main with code MAIN and copies the branch's address_line1/2, city, state_id, pincode, phone, email and gstin once; later branch edits do not flow to it. Built in stages from plans/plan2.md.",
+				text: "Every branch has exactly one default division, marked by division.is_default. When the system creates it, it is named Main with code MAIN and copies the branch's address_line1/2, city, state_id, pincode, phone and email once (branch.gstin was removed — see 'Branch GSTIN Removed'); later branch edits do not flow to it. Built in stages from plans/plan2.md.",
 			},
 			{
 				type: "table",

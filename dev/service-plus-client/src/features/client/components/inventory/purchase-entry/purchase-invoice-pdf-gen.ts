@@ -159,7 +159,6 @@ export const generatePurchaseInvoicePdf = (
 					branch?.address_line2 ?? null,
 					cityStatePinLine(branch?.city, branch?.state_name, branch?.pincode),
 					branch?.phone ? `Ph: ${branch.phone}` : null,
-					branch?.gstin ? `GSTIN: ${branch.gstin}` : null,
 				],
 	);
 

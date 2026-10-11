@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Ligrsw4r6c3n8dnwSggKvG9rd6d6Bve5XPLaCjFcjPsB3Gbq9TfbErnWv2hWYsS
+\restrict P3aaPigs4bAvaR97aYJIZHtZFPmpTTECwav6tEMKlF5wCbP5gKkaUK8Xs2ClYZN
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
@@ -151,13 +151,11 @@ CREATE TABLE demo1.branch (
     state_id integer NOT NULL,
     city text,
     pincode text NOT NULL,
-    gstin text,
     is_active boolean DEFAULT true NOT NULL,
     is_head_office boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT branch_code_check CHECK ((code ~ '^[A-Z0-9_]+$'::text)),
-    CONSTRAINT branch_gstin_check CHECK (((gstin IS NULL) OR (gstin ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'::text)))
+    CONSTRAINT branch_code_check CHECK ((code ~ '^[A-Z0-9_]+$'::text))
 );
 
 
@@ -4352,5 +4350,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Ligrsw4r6c3n8dnwSggKvG9rd6d6Bve5XPLaCjFcjPsB3Gbq9TfbErnWv2hWYsS
+\unrestrict P3aaPigs4bAvaR97aYJIZHtZFPmpTTECwav6tEMKlF5wCbP5gKkaUK8Xs2ClYZN
 

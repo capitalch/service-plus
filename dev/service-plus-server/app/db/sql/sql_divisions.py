@@ -54,10 +54,10 @@ class DivisionServerSql:
         WHERE d.id = pick.id;
 
         INSERT INTO division (id, branch_id, code, name, address_line1, address_line2, city, state_id,
-                              pincode, phone, email, gstin, is_default)
+                              pincode, phone, email, is_default)
         SELECT (SELECT COALESCE(MAX(id), 0) FROM division) + row_number() OVER (ORDER BY b.id),
                b.id, 'MAIN', 'Main', b.address_line1, b.address_line2, b.city, b.state_id,
-               b.pincode, b.phone, b.email, b.gstin, true
+               b.pincode, b.phone, b.email, true
         FROM branch b
         WHERE NOT EXISTS (SELECT 1 FROM division d WHERE d.branch_id = b.id);
 
@@ -87,9 +87,9 @@ class DivisionServerSql:
     # addBranch: the new branch's Main, copied from the branch row just inserted.
     INSERT_MAIN_DIVISION_FOR_BRANCH = """
         INSERT INTO division (id, branch_id, code, name, address_line1, address_line2, city, state_id,
-                              pincode, phone, email, gstin, is_default)
+                              pincode, phone, email, is_default)
         SELECT (SELECT COALESCE(MAX(id), 0) + 1 FROM division), b.id, 'MAIN', 'Main', b.address_line1,
-               b.address_line2, b.city, b.state_id, b.pincode, b.phone, b.email, b.gstin, true
+               b.address_line2, b.city, b.state_id, b.pincode, b.phone, b.email, true
         FROM branch b
         WHERE b.id = %(branch_id)s
         RETURNING id
@@ -106,6 +106,30 @@ class DivisionServerSql:
         FROM branch b
         LEFT JOIN division d ON d.branch_id = b.id AND d.is_default
         ORDER BY b.id
+    """
+
+    # Branch GSTIN removal. Every BU schema (run with search_path set to it). Safe to run
+    # twice. GSTIN now lives only on the division. No % characters: runs without parameters.
+    BRANCH_DROP_GSTIN_DDL = """
+        ALTER TABLE branch DROP CONSTRAINT IF EXISTS branch_gstin_check;
+        ALTER TABLE branch DROP COLUMN IF EXISTS gstin;
+    """
+
+    # Dry run: does this schema's branch table still have the gstin column.
+    BRANCH_HAS_GSTIN = """
+        SELECT 1 AS found
+        FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name = 'branch' AND column_name = 'gstin'
+    """
+
+    # Dry run: branches whose GSTIN is set and differs from their default division's, i.e.
+    # values the drop would lose. Only valid while the gstin column still exists.
+    GET_BRANCH_GSTIN_MISMATCHES = """
+        SELECT b.code AS branch_code, b.gstin AS branch_gstin, d.gstin AS division_gstin
+        FROM branch b
+        LEFT JOIN division d ON d.branch_id = b.id AND d.is_default
+        WHERE COALESCE(b.gstin, '') <> '' AND b.gstin IS DISTINCT FROM d.gstin
+        ORDER BY b.code
     """
 
     # plans/plan1.md Step 1. Every BU schema (run with search_path set to it). Safe to run

@@ -15,7 +15,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectCurrentBranch, selectSchema, selectWhatsappNotifications } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { sendWhatsappCompletion, type WhatsappCompletionResult } from "../send-whatsapp-completion";
@@ -84,6 +84,25 @@ export function CustomerConnectSection() {
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
 	const branchId = globalBranch?.id ?? null;
+	const whatsappNotifications = useAppSelector(selectWhatsappNotifications);
+
+	// A tab shows only while its whatsapp_notifications event is on. null = settings not loaded yet,
+	// so nothing is hidden prematurely.
+	const tabVisible: Record<ActiveTab, boolean> = {
+		completion: whatsappNotifications === null || whatsappNotifications.JOB_COMPLETION === true,
+		delivery: whatsappNotifications === null || whatsappNotifications.JOB_DELIVERY === true,
+		intake: whatsappNotifications === null || whatsappNotifications.JOB_CREATION === true,
+		invoice: whatsappNotifications === null || whatsappNotifications.JOB_INVOICE === true,
+		moneyReceipt: whatsappNotifications === null || whatsappNotifications.JOB_MONEY_RECEIPT === true,
+	};
+	const firstVisibleTab = (["completion", "intake", "delivery", "moneyReceipt", "invoice"] as ActiveTab[]).find(
+		(t) => tabVisible[t],
+	);
+
+	// If the active tab gets switched off, move to the first one still shown.
+	useEffect(() => {
+		if (firstVisibleTab && !tabVisible[activeTab]) setActiveTab(firstVisibleTab);
+	}, [activeTab, firstVisibleTab, whatsappNotifications]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const [rows, setRows] = useState<CustomerConnectJobRow[]>([]);
 	const [total, setTotal] = useState(0);
@@ -473,62 +492,76 @@ export function CustomerConnectSection() {
                         the WhatsApp icon marks it as the "live" action tab
                         even when it's not the one currently active, so it
                         never reads as just another identical log tab. */}
-					<button
-						className={`h-9 gap-1.5 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer inline-flex items-center justify-center ${
-							activeTab === "completion"
-								? "bg-emerald-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
-								: "bg-transparent text-emerald-700 dark:text-emerald-400 ring-1 ring-inset ring-emerald-300 dark:ring-emerald-800 hover:text-white hover:bg-emerald-600 hover:ring-emerald-600 sm:hover:scale-105 font-semibold"
-						}`}
-						onClick={() => setActiveTab("completion")}
-					>
-						<WhatsAppIcon className="h-3.5 w-3.5 shrink-0" />
-						Job Completion
-					</button>
-					<button
-						className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${
-							activeTab === "intake"
-								? "bg-sky-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
-								: "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-sky-600 sm:hover:scale-105 font-semibold"
-						}`}
-						onClick={() => setActiveTab("intake")}
-					>
-						Job Intake
-					</button>
-					<button
-						className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${
-							activeTab === "delivery"
-								? "bg-violet-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
-								: "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-violet-600 sm:hover:scale-105 font-semibold"
-						}`}
-						onClick={() => setActiveTab("delivery")}
-					>
-						Job Delivery
-					</button>
-					<button
-						className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${
-							activeTab === "moneyReceipt"
-								? "bg-amber-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
-								: "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-amber-600 sm:hover:scale-105 font-semibold"
-						}`}
-						onClick={() => setActiveTab("moneyReceipt")}
-					>
-						Money Receipt
-					</button>
-					<button
-						className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${
-							activeTab === "invoice"
-								? "bg-indigo-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
-								: "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-indigo-600 sm:hover:scale-105 font-semibold"
-						}`}
-						onClick={() => setActiveTab("invoice")}
-					>
-						Invoice
-					</button>
+					{tabVisible.completion && (
+						<button
+							className={`h-9 gap-1.5 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer inline-flex items-center justify-center ${
+								activeTab === "completion"
+									? "bg-emerald-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
+									: "bg-transparent text-emerald-700 dark:text-emerald-400 ring-1 ring-inset ring-emerald-300 dark:ring-emerald-800 hover:text-white hover:bg-emerald-600 hover:ring-emerald-600 sm:hover:scale-105 font-semibold"
+							}`}
+							onClick={() => setActiveTab("completion")}
+						>
+							<WhatsAppIcon className="h-3.5 w-3.5 shrink-0" />
+							Job Completion
+						</button>
+					)}
+					{tabVisible.intake && (
+						<button
+							className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${
+								activeTab === "intake"
+									? "bg-sky-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
+									: "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-sky-600 sm:hover:scale-105 font-semibold"
+							}`}
+							onClick={() => setActiveTab("intake")}
+						>
+							Job Intake
+						</button>
+					)}
+					{tabVisible.delivery && (
+						<button
+							className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${
+								activeTab === "delivery"
+									? "bg-violet-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
+									: "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-violet-600 sm:hover:scale-105 font-semibold"
+							}`}
+							onClick={() => setActiveTab("delivery")}
+						>
+							Job Delivery
+						</button>
+					)}
+					{tabVisible.moneyReceipt && (
+						<button
+							className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${
+								activeTab === "moneyReceipt"
+									? "bg-amber-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
+									: "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-amber-600 sm:hover:scale-105 font-semibold"
+							}`}
+							onClick={() => setActiveTab("moneyReceipt")}
+						>
+							Money Receipt
+						</button>
+					)}
+					{tabVisible.invoice && (
+						<button
+							className={`h-9 px-2 sm:px-4 text-xs sm:text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${
+								activeTab === "invoice"
+									? "bg-indigo-600 text-white font-bold shadow-lg sm:scale-105 hover:brightness-110"
+									: "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-indigo-600 sm:hover:scale-105 font-semibold"
+							}`}
+							onClick={() => setActiveTab("invoice")}
+						>
+							Invoice
+						</button>
+					)}
 				</div>
 			</div>
 
+			{!firstVisibleTab && (
+				<p className="text-sm text-(--cl-text-muted)">{MESSAGES.INFO_CUSTOMER_CONNECT_ALL_EVENTS_OFF}</p>
+			)}
+
 			{/* Job Intake — read-only log, no send controls */}
-			{activeTab === "intake" && (
+			{activeTab === "intake" && tabVisible.intake && (
 				<WhatsappLogSection
 					eventKey="JOB_CREATION"
 					emptyMessage="No Job Intake messages have been sent yet."
@@ -537,7 +570,7 @@ export function CustomerConnectSection() {
 			)}
 
 			{/* Job Delivery — read-only log, no send controls */}
-			{activeTab === "delivery" && (
+			{activeTab === "delivery" && tabVisible.delivery && (
 				<WhatsappLogSection
 					eventKey="JOB_DELIVERY"
 					emptyMessage="No Job Delivery messages have been sent yet."
@@ -546,7 +579,7 @@ export function CustomerConnectSection() {
 			)}
 
 			{/* Money Receipt — read-only log, no send controls */}
-			{activeTab === "moneyReceipt" && (
+			{activeTab === "moneyReceipt" && tabVisible.moneyReceipt && (
 				<MoneyReceiptLogSection
 					emptyMessage="No Money Receipt messages have been sent yet."
 					onCountChange={setMoneyReceiptTotal}
@@ -554,7 +587,7 @@ export function CustomerConnectSection() {
 			)}
 
 			{/* Invoice — read-only log, no send controls */}
-			{activeTab === "invoice" && (
+			{activeTab === "invoice" && tabVisible.invoice && (
 				<WhatsappLogSection
 					eventKey="JOB_INVOICE"
 					emptyMessage="No Invoice messages have been sent yet."
@@ -563,7 +596,7 @@ export function CustomerConnectSection() {
 			)}
 
 			{/* Job Completion — the only tab that actually sends; unchanged below */}
-			{activeTab === "completion" && (
+			{activeTab === "completion" && tabVisible.completion && (
 				<>
 					{/* Toolbar */}
 					<div className="flex flex-wrap items-center gap-2">

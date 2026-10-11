@@ -58,7 +58,7 @@ class PublicSql:
     # this has no ambient WHERE clause beyond the job ids the token names.
     # Every field below is either the customer's own data (mobile, address, problem
     # reported) going back to that same customer on their own signed link, or
-    # routinely-public business info (branch phone/email/GSTIN) — same "customer's
+    # routinely-public business info (branch phone/email) — same "customer's
     # own copy" boundary the printed job slip already crosses at drop-off. Nothing
     # from job_type/job_receive_manner/job_receive_condition or the job/customer
     # columns here approaches internal-only territory (cost price, technician,
@@ -94,7 +94,6 @@ class PublicSql:
             b.name AS branch_name,
             b.phone AS branch_phone,
             b.email AS branch_email,
-            b.gstin AS branch_gstin,
             TRIM(CONCAT_WS(', ', NULLIF(b.address_line1, ''), NULLIF(b.address_line2, ''),
                            NULLIF(b.city, ''), NULLIF(st.name, ''), NULLIF(b.pincode, ''))) AS branch_address,
             -- The printed/downloadable Job Sheet is branded per DIVISION, same as

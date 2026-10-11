@@ -180,9 +180,9 @@ class SeedBuData:
 
         -- Main: the Head Office's default division, copied from the branch. id 1 in a new BU.
         INSERT INTO division (id, branch_id, code, name, address_line1, address_line2, city, state_id,
-                              pincode, phone, email, gstin, is_default)
+                              pincode, phone, email, is_default)
         SELECT (SELECT COALESCE(MAX(id), 0) + 1 FROM division), b.id, 'MAIN', 'Main', b.address_line1,
-               b.address_line2, b.city, b.state_id, b.pincode, b.phone, b.email, b.gstin, true
+               b.address_line2, b.city, b.state_id, b.pincode, b.phone, b.email, true
         FROM branch b
         WHERE b.code = 'HO' AND NOT EXISTS (SELECT 1 FROM division d WHERE d.branch_id = b.id);
 
@@ -258,7 +258,7 @@ class SeedBuData:
 
         INSERT INTO app_setting (id, setting_key, setting_value, description, is_editable) VALUES
             (1, 'default_gst_rate',                          '18',    'Default GST rate (%%) applied to invoices',                                                       true),
-            (2, 'show_parts_in_job_invoice',              '{"gst_rate":18,"hsn": 11236,"show": true,"text": "Overall repair cost"}',  'When showing parts in invoice, use a single combined line with this label and HSN code', true),
+            (2, 'show_parts_in_job_invoice',              '{"gst_rate":18,"hsn": 998719,"show": true,"text": "Overall repair cost"}',  'When showing parts in invoice, use a single combined line with this label and HSN code', true),
             (3, 'markup_percent_over_cost',                  '20',    'Default markup percent of spare part over cost price to get selling price',                      true),
             (4, 'default_hsn_for_spare_part',               '92099400',  'Default HSN code for Spare Part',                                                                true),
             (5, 'default_hsn_for_service_charge',           '998726',    'Default HSN code for labour charges, service charges etc.',                                      true),

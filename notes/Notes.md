@@ -1,3 +1,7 @@
+# to run pythonn through venv
+cd /home/sushant/projects/service-plus/dev/service-plus-server
+source ../../env/bin/activate
+python ...
 # Modification in access management
   - Technician role
     - Not allowed

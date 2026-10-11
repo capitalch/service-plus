@@ -8,7 +8,6 @@ import { logout, setCredentials } from "../features/auth/store/auth-slice";
 export type BranchContextType = {
 	code: string;
 	gst_state_code: string | null;
-	gstin: string | null;
 	id: number;
 	is_active: boolean;
 	is_head_office: boolean;
@@ -66,6 +65,9 @@ type ContextStateType = {
 	noOfJobReceiptsPerPrint: number;
 	noOfJobSheetsPerPrint: number;
 	trackJobUrl: string | null;
+	// App Settings → whatsapp_notifications: per-event on/off. null until the settings load, so nothing
+	// is hidden prematurely; a missing event key counts as off (the server gates fail-closed too).
+	whatsappNotifications: Record<string, boolean> | null;
 	jobTermsAndConditions: string;
 	defaultHsnForSparePart: string;
 	defaultHsnForServiceCharge: string;
@@ -97,6 +99,7 @@ const initialState: ContextStateType = {
 	noOfJobReceiptsPerPrint: 1,
 	noOfJobSheetsPerPrint: 1,
 	trackJobUrl: null,
+	whatsappNotifications: null,
 	jobTermsAndConditions: "",
 	defaultHsnForSparePart: "",
 	defaultHsnForServiceCharge: "",
@@ -147,6 +150,10 @@ const contextSlice = createSlice({
 
 		setDefaultGstRate: (state, action: PayloadAction<number>) => {
 			state.defaultGstRate = action.payload;
+		},
+
+		setWhatsappNotifications: (state, action: PayloadAction<Record<string, boolean> | null>) => {
+			state.whatsappNotifications = action.payload;
 		},
 
 		setExtendedWarrantyEnabled: (state, action: PayloadAction<boolean>) => {
@@ -233,6 +240,7 @@ export const {
 	setDefaultDivisionId,
 	setDefaultGstRate,
 	setExtendedWarrantyEnabled,
+	setWhatsappNotifications,
 	setMarkupPercentOverCost,
 	setDefaultHsnForSparePart,
 	setNoOfJobInvoicesPerPrint,
@@ -267,6 +275,7 @@ export const selectMarkupPercentOverCost = (state: ContextRootState) => state.co
 export const selectNoOfJobInvoicesPerPrint = (state: ContextRootState) => state.context.noOfJobInvoicesPerPrint;
 export const selectNoOfJobReceiptsPerPrint = (state: ContextRootState) => state.context.noOfJobReceiptsPerPrint;
 export const selectNoOfJobSheetsPerPrint = (state: ContextRootState) => state.context.noOfJobSheetsPerPrint;
+export const selectWhatsappNotifications = (state: ContextRootState) => state.context.whatsappNotifications;
 export const selectTrackJobUrl = (state: ContextRootState) => state.context.trackJobUrl;
 export const selectJobTermsAndConditions = (state: ContextRootState) => state.context.jobTermsAndConditions;
 export const selectDefaultHsnForSparePart = (state: ContextRootState) => state.context.defaultHsnForSparePart;

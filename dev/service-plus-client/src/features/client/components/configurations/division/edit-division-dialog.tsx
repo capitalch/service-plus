@@ -338,9 +338,9 @@ export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: 
 
 				<form className="flex flex-col min-h-0 flex-1" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
 					<Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col min-h-0 flex-1">
-						<TabsList className="shrink-0">
-							<TabsTrigger value="details">Details</TabsTrigger>
-							{postDataToAccounts && (
+						{postDataToAccounts && (
+							<TabsList className="shrink-0">
+								<TabsTrigger value="details">Details</TabsTrigger>
 								<TabsTrigger value="accounts" className="gap-1.5">
 									Trace+ Accounts Integration
 									{errors.account_setting && (
@@ -350,17 +350,14 @@ export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: 
 										/>
 									)}
 								</TabsTrigger>
-							)}
-						</TabsList>
+							</TabsList>
+						)}
 
 						<TabsContent value="details">
 							<div className="flex flex-col gap-3 pt-1 overflow-y-auto min-h-0 flex-1 pr-1">
 								{/* ── Identity ── */}
 								<div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-									<p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-amber-600">
-										Identity
-									</p>
-									<div className="flex flex-col gap-3">
+									<div className="gap-3 grid grid-cols-1 sm:grid-cols-2">
 										{/* Code */}
 										<div className="flex flex-col gap-1.5">
 											<Label htmlFor="edv_code">
@@ -371,7 +368,7 @@ export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: 
 													autoComplete="off"
 													className="pr-8 font-mono uppercase"
 													id="edv_code"
-													placeholder="e.g. MAIN (2–10 uppercase letters/digits/underscores)"
+													placeholder="e.g. MAIN"
 													{...form.register("code", {
 														setValueAs: (v: string) => v.toUpperCase(),
 													})}
@@ -413,9 +410,6 @@ export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: 
 
 								{/* ── Address ── */}
 								<div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-									<p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-blue-600">
-										Address
-									</p>
 									<div className="flex flex-col gap-3">
 										<div className="flex flex-col gap-1.5">
 											<Label htmlFor="edv_addr1">
@@ -502,9 +496,6 @@ export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: 
 
 								{/* ── Contact & Legal ── */}
 								<div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
-									<p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
-										Contact & Legal
-									</p>
 									<div className="flex flex-col gap-3">
 										<div className="grid grid-cols-2 gap-3">
 											<div className="flex flex-col gap-1.5">
@@ -572,9 +563,6 @@ export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: 
 								<div className="flex flex-col gap-4 pt-1 overflow-y-auto min-h-0 flex-1 pr-1">
 									{/* ── Common ── */}
 									<div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3">
-										<p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-sky-600">
-											Common
-										</p>
 										<div className="grid grid-cols-3 gap-3">
 											<div className="flex flex-col gap-1.5">
 												<Label htmlFor="edv_client_code" className="text-xs">

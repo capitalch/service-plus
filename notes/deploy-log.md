@@ -3,6 +3,20 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-11 19:44 (main)
+Staff users, Customer Connect tabs, branch GSTIN drop; limits plan
+
+- Configurations > User management: Managers on Standard or above can add Receptionist/Technician users (staff_users.py resolver, GET_STAFF_ROLES / GET_STAFF_USERS SQL ids, add-staff-user dialog, use-can-manage-staff-users hook, access-rights guards).
+- Customer Connect: tabs show only while their whatsapp_notifications event is on; settings parsed into the store with a message when all events are off.
+- Branch/Division: a branch no longer has its own GSTIN; GSTIN is entered on the division; DDL scripts added.
+- Service Config: hidden from Managers (Admin only); revoke script and seed changes added.
+- Layout: billing banner no longer clipped under the top nav.
+- Help: client and developer articles updated.
+- plans/plan.md: new plan for monthly job and WhatsApp limits per plan; notes updated.
+
+Files: 39 changed (+844 / -358) — Base: c617421
+Version: 0.24.4 → 0.24.5
+
 ## 2026-10-10 15:44 (main)
 Plans: Enterprise-only branches; Organization and Service Config move
 

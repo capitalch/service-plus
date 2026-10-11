@@ -42,7 +42,7 @@ const ACCESS_RIGHT_PREVIEW_ITEMS = [
 	{ code: "INVENTORY_OPENING_STOCK", module: "Inventory", name: "Opening Stock" },
 	{ code: "INVENTORY_SET_PART_LOCATION", module: "Inventory", name: "Set Part Location" },
 	{ code: "MASTERS_ORGANIZATION", module: "Masters", name: "Organization (Manager only)" },
-	{ code: "MASTERS_SERVICE_CONFIG", module: "Masters", name: "Service Config (Manager only)" },
+	{ code: "MASTERS_SERVICE_CONFIG", module: "Masters", name: "Service Config (Admin only)" },
 	{ code: "JOBS_BATCH_WARRANTY_TRANSACTIONS", module: "Jobs", name: "Batch Warranty Jobs" },
 	{ code: "CUSTOM_MENU", module: "Custom", name: "Custom (whole tab)" },
 	{ code: "CUSTOM_EXTENDED_WARRANTY", module: "Custom", name: "Extended Warranty" },
@@ -288,9 +288,10 @@ export const SeedRolesDialog = ({ client, onOpenChange, onSuccess, open }: SeedR
 								<p className="mb-1 text-sm font-semibold text-slate-800">Default Access Rights</p>
 								<p className="mb-3 text-xs text-slate-500">
 									The following access rights are being seeded, and granted to Manager and
-									Receptionist (Technician gets none by default). The Masters Organization / Service
-									Config rights go to Manager only. Existing rows are left untouched — only missing
-									ones are added.
+									Receptionist (Technician gets none by default). The Masters Organization right goes
+									to Manager only; the Service Config right is granted to no default role (Admin and
+									super-admin bypass it). Existing rows are left untouched — only missing ones are
+									added.
 								</p>
 								<div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200">
 									{ACCESS_RIGHT_PREVIEW_ITEMS.map((item, idx) => (

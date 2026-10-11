@@ -6,11 +6,13 @@
 		- Rejection OK
 		- Approval OK
 			- New user as manager uid: sushant is created
-				- Curb the powers of manager for lite
+				- Curb the powers of manager for lite: done
+	- Check for no of jobs limitations for lite, basic and Standard plans
+	- Check for whatsapp messages
 - Proposed changes
-	- Is GSTIN, email required for branch? its already there for division
-	- How to setup default gst rate
-	- Validate and fix the seed values for App Settings
+												- Is GSTIN, email required for branch? its already there for division
+												- How to setup default gst rate
+												- Validate and fix the seed values for App Settings
 - Lite
 	- 1 user
 	- 1 bu

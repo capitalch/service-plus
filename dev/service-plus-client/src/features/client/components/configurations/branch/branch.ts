@@ -4,7 +4,6 @@ export type BranchType = {
 	city: string | null;
 	code: string;
 	email: string | null;
-	gstin: string | null;
 	id: number;
 	is_active: boolean;
 	is_head_office: boolean;

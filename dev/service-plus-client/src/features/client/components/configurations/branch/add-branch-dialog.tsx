@@ -59,11 +59,6 @@ const addBranchSchema = z.object({
 		.regex(/^[A-Za-z0-9_]+$/, "Only letters, numbers and underscores")
 		.transform((v) => v.toUpperCase()),
 	email: z.string().email("Invalid email").or(z.literal("")).optional(),
-	gstin: z
-		.string()
-		.regex(/^[0-9A-Z]{15}$/, "Invalid GSTIN (15 characters)")
-		.or(z.literal(""))
-		.optional(),
 	name: z.string().min(2, "Name must be at least 2 characters"),
 	phone: z
 		.string()
@@ -99,7 +94,6 @@ export const AddBranchDialog = ({ onOpenChange, onSuccess, open }: AddBranchDial
 			city: "",
 			code: "",
 			email: "",
-			gstin: "",
 			name: "",
 			phone: "",
 			pincode: "",
@@ -230,7 +224,6 @@ export const AddBranchDialog = ({ onOpenChange, onSuccess, open }: AddBranchDial
 						city: data.city || null,
 						code: data.code,
 						email: data.email || null,
-						gstin: data.gstin || null,
 						name: data.name,
 						phone: data.phone || null,
 						pincode: data.pincode,
@@ -400,32 +393,17 @@ export const AddBranchDialog = ({ onOpenChange, onSuccess, open }: AddBranchDial
 						</div>
 					</div>
 
-					<div className="grid grid-cols-2 gap-4">
-						{/* Email */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="br_email">Email</Label>
-							<Input
-								autoComplete="off"
-								id="br_email"
-								placeholder="branch@example.com"
-								type="email"
-								{...form.register("email")}
-							/>
-							<FieldError message={errors.email?.message} />
-						</div>
-
-						{/* GSTIN */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="br_gstin">GSTIN</Label>
-							<Input
-								autoComplete="off"
-								className="font-mono uppercase"
-								id="br_gstin"
-								placeholder="15-character GSTIN"
-								{...form.register("gstin")}
-							/>
-							<FieldError message={errors.gstin?.message} />
-						</div>
+					{/* Email */}
+					<div className="flex flex-col gap-1.5">
+						<Label htmlFor="br_email">Email</Label>
+						<Input
+							autoComplete="off"
+							id="br_email"
+							placeholder="branch@example.com"
+							type="email"
+							{...form.register("email")}
+						/>
+						<FieldError message={errors.email?.message} />
 					</div>
 
 					<DialogFooter className="pt-2">

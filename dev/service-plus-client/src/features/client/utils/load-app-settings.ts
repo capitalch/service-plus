@@ -15,6 +15,7 @@ import {
 	setNoOfJobSheetsPerPrint,
 	setPostDataToAccounts,
 	setTrackJobUrl,
+	setWhatsappNotifications,
 } from "@/store/context-slice";
 
 /**
@@ -161,6 +162,22 @@ export function loadAppSettings(dispatch: AppDispatch, dbName: string, schema: s
 					!!parsedEw && typeof parsedEw === "object" && (parsedEw as { enabled?: unknown }).enabled === true,
 				),
 			);
+
+			// whatsapp_notifications: {EVENT: boolean}. Only a strict true counts as on.
+			const rawWn = settings.find((s) => s.setting_key === "whatsapp_notifications")?.setting_value;
+			let parsedWn: unknown = rawWn;
+			if (typeof rawWn === "string") {
+				try {
+					parsedWn = JSON.parse(rawWn);
+				} catch {
+					/* keep raw */
+				}
+			}
+			const wn: Record<string, boolean> = {};
+			if (parsedWn && typeof parsedWn === "object") {
+				for (const [k, v] of Object.entries(parsedWn)) wn[k] = v === true;
+			}
+			dispatch(setWhatsappNotifications(wn));
 		})
 		.catch(() => {
 			/* silently ignore */

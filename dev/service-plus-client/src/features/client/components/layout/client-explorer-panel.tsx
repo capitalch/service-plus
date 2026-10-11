@@ -1,3 +1,4 @@
+import { useCanManageStaffUsers } from "@/components/shared/billing/use-can-manage-staff-users";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import {
@@ -135,7 +136,7 @@ function ConfigurationsExplorer() {
 	const canOrganization = hasAccessRight(currentUser, ACCESS_RIGHTS.MASTERS_ORGANIZATION);
 	const orgTitle = !canOrganization ? "Your role does not have access to Organization" : undefined;
 	const canServiceConfig = hasAccessRight(currentUser, ACCESS_RIGHTS.MASTERS_SERVICE_CONFIG);
-	const configTitle = !canServiceConfig ? "Your role does not have access to Service Config" : undefined;
+	const canManageStaffUsers = useCanManageStaffUsers();
 
 	return (
 		<div className="space-y-3">
@@ -163,64 +164,18 @@ function ConfigurationsExplorer() {
 					title={orgTitle}
 				/>
 			</CollapsibleGroup>
-			<CollapsibleGroup label="Service Config" defaultOpen={false}>
-				<TreeItem
-					icon={Users}
-					iconColor="text-purple-600"
-					label="Customer Type"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={FileText}
-					iconColor="text-slate-600"
-					label="Document Type"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={Wrench}
-					iconColor="text-blue-600"
-					label="Job Type"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={ClipboardList}
-					iconColor="text-slate-600"
-					label="Job Status"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={RotateCcw}
-					iconColor="text-blue-600"
-					label="Job Receive Manner"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={Truck}
-					iconColor="text-orange-600"
-					label="Job Delivery Manner"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={Settings2}
-					iconColor="text-blue-600"
-					label="Job Receive Condition"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-				<TreeItem
-					icon={Receipt}
-					iconColor="text-green-600"
-					label="Job Additional Charges"
-					disabled={!canServiceConfig}
-					title={configTitle}
-				/>
-			</CollapsibleGroup>
+			{canServiceConfig && (
+				<CollapsibleGroup label="Service Config" defaultOpen={false}>
+					<TreeItem icon={Users} iconColor="text-purple-600" label="Customer Type" />
+					<TreeItem icon={FileText} iconColor="text-slate-600" label="Document Type" />
+					<TreeItem icon={Wrench} iconColor="text-blue-600" label="Job Type" />
+					<TreeItem icon={ClipboardList} iconColor="text-slate-600" label="Job Status" />
+					<TreeItem icon={RotateCcw} iconColor="text-blue-600" label="Job Receive Manner" />
+					<TreeItem icon={Truck} iconColor="text-orange-600" label="Job Delivery Manner" />
+					<TreeItem icon={Settings2} iconColor="text-blue-600" label="Job Receive Condition" />
+					<TreeItem icon={Receipt} iconColor="text-green-600" label="Job Additional Charges" />
+				</CollapsibleGroup>
+			)}
 			<CollapsibleGroup label="System">
 				<TreeItem
 					icon={Settings2}
@@ -234,6 +189,14 @@ function ConfigurationsExplorer() {
 					label="Numbering / Auto Series"
 					helpArticleId="document-sequences"
 				/>
+				{canManageStaffUsers && (
+					<TreeItem
+						icon={Users}
+						iconColor="text-teal-600"
+						label="User Management"
+						helpArticleId="user-management"
+					/>
+				)}
 			</CollapsibleGroup>
 		</div>
 	);

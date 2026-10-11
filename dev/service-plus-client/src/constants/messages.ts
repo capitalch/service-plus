@@ -48,6 +48,10 @@ export const MESSAGES = {
 	ERROR_AUDIT_STATS_FAILED: "Failed to load audit log statistics. Please try again.",
 
 	// Business Users
+	INFO_STAFF_USERS_EMPTY: "No Receptionist or Technician users have been added to this business unit yet.",
+	INFO_STAFF_USERS_SUBTITLE:
+		"Add Receptionist and Technician users for this business unit. They receive an email to set their password.",
+	INFO_STAFF_USERS_UPGRADE: "Adding users needs the Standard plan or above.",
 	ERROR_BUSINESS_USER_ACTIVATE_FAILED: "Failed to activate business user. Please try again.",
 	ERROR_BUSINESS_USER_BU_REQUIRED: "Please select at least one business unit.",
 	ERROR_BUSINESS_USER_CREATE_FAILED: "Failed to create business user. Please try again.",
@@ -726,6 +730,8 @@ export const MESSAGES = {
 	ERROR_APP_SETTING_INVALID_JSON: 'Must be valid JSON (e.g. {"key": "value"})',
 	ERROR_APP_SETTING_NEGATIVE_NUMBER: "Value cannot be negative",
 	ERROR_APP_SETTING_NOT_A_NUMBER: "Value must be a number",
+	INFO_CUSTOMER_CONNECT_ALL_EVENTS_OFF:
+		"All WhatsApp events are switched off. Turn them on in Configurations → App Settings → whatsapp_notifications.",
 	ERROR_APP_SETTING_VALUE_REQUIRED: "Value is required",
 } as const;
 

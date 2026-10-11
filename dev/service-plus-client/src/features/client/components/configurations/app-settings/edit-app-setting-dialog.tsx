@@ -16,7 +16,7 @@ import { MESSAGES } from "@/constants/messages";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
-import { selectDbName } from "@/features/auth/store/auth-slice";
+import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { AppSettingRecord } from "@/features/client/types/app-setting";
 
@@ -104,6 +104,9 @@ function FieldError({ message }: { message?: string }) {
 export const EditAppSettingDialog = ({ onOpenChange, onSuccess, open, record }: EditAppSettingDialogProps) => {
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
+	const currentUser = useAppSelector(selectCurrentUser);
+	// Only Admin (A) and Super Admin (S) may change the description; others see it read-only.
+	const canEditDescription = currentUser?.userType === "A" || currentUser?.userType === "S";
 
 	const isBoolean = isBooleanValue(record.setting_value);
 	const valueKind = detectKind(record.setting_value);
@@ -145,7 +148,7 @@ export const EditAppSettingDialog = ({ onOpenChange, onSuccess, open, record }: 
 						xData: {
 							id: record.id,
 							setting_value: settingValue,
-							description: data.description || null,
+							...(canEditDescription ? { description: data.description || null } : {}),
 						},
 					}),
 				},
@@ -221,12 +224,22 @@ export const EditAppSettingDialog = ({ onOpenChange, onSuccess, open, record }: 
 					{/* Description */}
 					<div className="flex flex-col gap-1.5">
 						<Label htmlFor="es_desc">Description</Label>
-						<Input
-							autoComplete="off"
-							id="es_desc"
-							placeholder="Optional description"
-							{...form.register("description")}
-						/>
+						{canEditDescription ? (
+							<Input
+								autoComplete="off"
+								id="es_desc"
+								placeholder="Optional description"
+								{...form.register("description")}
+							/>
+						) : (
+							// A read-only <input> clips long text, so show it as wrapping text instead.
+							<div
+								className="rounded-md border border-(--cl-border) bg-(--cl-surface-3) px-3 py-2 text-sm break-words whitespace-pre-wrap text-(--cl-text-muted)"
+								id="es_desc"
+							>
+								{record.description || "—"}
+							</div>
+						)}
 					</div>
 
 					<DialogFooter className="pt-2">

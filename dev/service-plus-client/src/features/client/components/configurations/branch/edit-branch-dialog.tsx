@@ -55,11 +55,6 @@ const editBranchSchema = z.object({
 	address_line2: z.string().optional(),
 	city: z.string().optional(),
 	email: z.string().email("Invalid email").or(z.literal("")).optional(),
-	gstin: z
-		.string()
-		.regex(/^[0-9A-Z]{15}$/, "Invalid GSTIN (15 characters)")
-		.or(z.literal(""))
-		.optional(),
 	name: z.string().min(2, "Name must be at least 2 characters"),
 	phone: z
 		.string()
@@ -91,7 +86,6 @@ export const EditBranchDialog = ({ branch, onOpenChange, onSuccess, open }: Edit
 			address_line2: branch.address_line2 ?? "",
 			city: branch.city ?? "",
 			email: branch.email ?? "",
-			gstin: branch.gstin ?? "",
 			name: branch.name,
 			phone: branch.phone ?? "",
 			pincode: branch.pincode,
@@ -115,7 +109,6 @@ export const EditBranchDialog = ({ branch, onOpenChange, onSuccess, open }: Edit
 			address_line2: branch.address_line2 ?? "",
 			city: branch.city ?? "",
 			email: branch.email ?? "",
-			gstin: branch.gstin ?? "",
 			name: branch.name,
 			phone: branch.phone ?? "",
 			pincode: branch.pincode,
@@ -190,7 +183,6 @@ export const EditBranchDialog = ({ branch, onOpenChange, onSuccess, open }: Edit
 							address_line2: data.address_line2 || null,
 							city: data.city || null,
 							email: data.email || null,
-							gstin: data.gstin || null,
 							id: branch.id,
 							name: data.name,
 							phone: data.phone || null,
@@ -346,32 +338,17 @@ export const EditBranchDialog = ({ branch, onOpenChange, onSuccess, open }: Edit
 						</div>
 					</div>
 
-					<div className="grid grid-cols-2 gap-4">
-						{/* Email */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="ebr_email">Email</Label>
-							<Input
-								autoComplete="off"
-								id="ebr_email"
-								placeholder="branch@example.com"
-								type="email"
-								{...form.register("email")}
-							/>
-							<FieldError message={errors.email?.message} />
-						</div>
-
-						{/* GSTIN */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="ebr_gstin">GSTIN</Label>
-							<Input
-								autoComplete="off"
-								className="font-mono uppercase"
-								id="ebr_gstin"
-								placeholder="15-character GSTIN"
-								{...form.register("gstin")}
-							/>
-							<FieldError message={errors.gstin?.message} />
-						</div>
+					{/* Email */}
+					<div className="flex flex-col gap-1.5">
+						<Label htmlFor="ebr_email">Email</Label>
+						<Input
+							autoComplete="off"
+							id="ebr_email"
+							placeholder="branch@example.com"
+							type="email"
+							{...form.register("email")}
+						/>
+						<FieldError message={errors.email?.message} />
 					</div>
 
 					<DialogFooter className="pt-2">

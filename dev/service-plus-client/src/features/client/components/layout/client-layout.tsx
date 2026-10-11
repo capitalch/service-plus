@@ -237,7 +237,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 								<main
 									className={`absolute bottom-6 right-0 top-9.5 flex flex-col p-4 pt-3 sm:p-6 sm:pt-4 transition-[left] duration-200 ${mainLeft}`}
 								>
-									<div className="-mx-4 -mt-3 mb-2 sm:-mx-6 sm:-mt-4">
+									<div className="-mx-4 mb-2 sm:-mx-6">
 										<BillingBanner />
 									</div>
 									<div className="mb-3 flex items-center justify-between sm:mb-2 gap-4">

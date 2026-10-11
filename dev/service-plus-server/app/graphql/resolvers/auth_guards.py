@@ -42,6 +42,18 @@ NON_ADMIN_SECURITY_SQL_IDS: frozenset[str] = frozenset({
     "GET_EW_LEAD_TIMELINE",
     "GET_JOB_TRANSACTIONS_BY_JOB",
     "GET_JOB_TRANSACTION_DETAIL",
+    "CHECK_BUSINESS_USER_EMAIL_EXISTS",
+    "CHECK_BUSINESS_USER_USERNAME_EXISTS",
+    "GET_STAFF_ROLES",
+    "GET_STAFF_USERS",
+})
+
+# Allowlisted ids that list other users: only a Manager (or Admin / Super Admin) may run them.
+MANAGER_ONLY_SQL_IDS: frozenset[str] = frozenset({
+    "CHECK_BUSINESS_USER_EMAIL_EXISTS",
+    "CHECK_BUSINESS_USER_USERNAME_EXISTS",
+    "GET_STAFF_ROLES",
+    "GET_STAFF_USERS",
 })
 
 
@@ -161,6 +173,11 @@ def require_sql_id_access(info, sql_id: str | None) -> None:
         raise AuthorizationException(
             message=AppMessages.FORBIDDEN,
             extensions={"reason": "admin_only_sql_id", "sql_id": sql_id},
+        )
+    if sql_id in MANAGER_ONLY_SQL_IDS and context.get("role_code") != "MANAGER":
+        raise AuthorizationException(
+            message=AppMessages.FORBIDDEN,
+            extensions={"reason": "manager_only_sql_id", "sql_id": sql_id},
         )
 
 

@@ -79,7 +79,7 @@ class _JobIntakeData:
     in-progress items still gets one combined figure, same as the completion
     WhatsApp message's own amount total.
     `customer_mobile`/`customer_address`/`branch_phone`/`branch_email`/
-    `branch_gstin`/`terms_and_conditions` exist only for the job slip PDF (a legal
+    `terms_and_conditions` exist only for the job slip PDF (a legal
     document expected to carry the same information the manual printed job slip
     does) — the HTML status page never reads them. `terms_and_conditions` comes
     from the `job_terms_and_conditions` app_setting, the exact text already printed
@@ -98,7 +98,6 @@ class _JobIntakeData:
     branch_address: str
     branch_phone: str | None
     branch_email: str | None
-    branch_gstin: str | None
     division_name: str | None
     division_address: str | None
     division_phone: str | None
@@ -201,7 +200,6 @@ async def _load_job_intake(token: str) -> _JobIntakeData | None:
         branch_address=rows[0]["branch_address"] or "",
         branch_phone=rows[0]["branch_phone"],
         branch_email=rows[0]["branch_email"],
-        branch_gstin=rows[0]["branch_gstin"],
         division_name=rows[0]["division_name"],
         division_address=rows[0]["division_address"] or None,
         division_phone=rows[0]["division_phone"],

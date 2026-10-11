@@ -7,6 +7,7 @@ from typing import Any
 from urllib.parse import unquote
 from ariadne import MutationType  # pylint: disable=import-error
 from app.core.exceptions import AppMessages, AuthorizationException
+from app.graphql.resolvers.bu_admin.staff_users import require_manager_creates_staff_user
 from app.graphql.resolvers.auth_guards import (
     BYPASS_USER_TYPES,
     require_access_right,
@@ -262,10 +263,11 @@ async def resolve_create_client(
 async def resolve_create_business_user(
     _, info, db_name: str = "", schema: str = "security", value: str = ""
 ) -> Any:
-    """Create a business user in the security schema. Admin only
-    (plans/revert.md, constraint 1)."""
+    """Create a business user in the security schema. Admin, or a Manager adding a
+    Receptionist / Technician on Standard and above (bu_admin/staff_users.py)."""
     require_own_tenant(info, db_name)
-    require_user_type(info, {"A"})
+    if (info.context or {}).get("user_type") != "A":
+        await require_manager_creates_staff_user(info, db_name, value)
     return await resolve_create_business_user_helper(
         db_name, schema, value, request=info.context.get("request")
     )

@@ -329,9 +329,9 @@ export const AddDivisionDialog = ({ onOpenChange, onSuccess, open }: AddDivision
 
 				<form className="flex flex-col min-h-0 flex-1" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
 					<Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col min-h-0 flex-1">
-						<TabsList className="shrink-0">
-							<TabsTrigger value="details">Details</TabsTrigger>
-							{postDataToAccounts && (
+						{postDataToAccounts && (
+							<TabsList className="shrink-0">
+								<TabsTrigger value="details">Details</TabsTrigger>
 								<TabsTrigger value="accounts" className="gap-1.5">
 									Trace+ Accounts Integration
 									{errors.account_setting && (
@@ -341,16 +341,13 @@ export const AddDivisionDialog = ({ onOpenChange, onSuccess, open }: AddDivision
 										/>
 									)}
 								</TabsTrigger>
-							)}
-						</TabsList>
+							</TabsList>
+						)}
 
 						<TabsContent value="details">
 							<div className="flex flex-col gap-3 pt-1 overflow-y-auto min-h-0 flex-1 pr-1">
 								{/* ── Identity ── */}
 								<div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-									<p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-amber-600">
-										Identity
-									</p>
 									<div className="flex flex-col gap-3">
 										<div className="grid grid-cols-2 gap-3">
 											{/* ID */}
@@ -437,9 +434,6 @@ export const AddDivisionDialog = ({ onOpenChange, onSuccess, open }: AddDivision
 
 								{/* ── Address ── */}
 								<div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-									<p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-blue-600">
-										Address
-									</p>
 									<div className="flex flex-col gap-3">
 										<div className="flex flex-col gap-1.5">
 											<Label htmlFor="dv_addr1">
@@ -526,9 +520,6 @@ export const AddDivisionDialog = ({ onOpenChange, onSuccess, open }: AddDivision
 
 								{/* ── Contact & Legal ── */}
 								<div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
-									<p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
-										Contact & Legal
-									</p>
 									<div className="flex flex-col gap-3">
 										<div className="grid grid-cols-2 gap-3">
 											<div className="flex flex-col gap-1.5">
@@ -596,9 +587,6 @@ export const AddDivisionDialog = ({ onOpenChange, onSuccess, open }: AddDivision
 								<div className="flex flex-col gap-4 pt-1 overflow-y-auto min-h-0 flex-1 pr-1">
 									{/* ── Common ── */}
 									<div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3">
-										<p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-sky-600">
-											Common
-										</p>
 										<div className="grid grid-cols-3 gap-3">
 											<div className="flex flex-col gap-1.5">
 												<Label htmlFor="dv_client_code" className="text-xs">

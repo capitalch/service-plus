@@ -104,7 +104,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					"Create a Division (Configurations → Divisions). Fill GSTIN for a GST division; leave GSTIN blank for non-GST.",
 					"Configure Numbering / Auto Series (Configurations → Numbering / Auto Series). JOB_SHEET (prefix J), PURCHASE_INVOICE (prefix P), and PURCHASE_RETURN_INVOICE (prefix PR) already come pre-filled for the new BU's Head Office branch — the Main division's series also come pre-filled: MONEY_RECEIPT (MR), SALES_INVOICE (SI), SALES_RETURN_INVOICE (SR), SERVICE_INVOICE (SI) and SERVICE_RETURN_INVOICE (RI). Change any of them if you prefer. Any other division you add needs its own prefixes.",
 					"Set App Settings (Configurations → App Settings): default GST rate, default HSN codes, number of print copies. Yes/no settings such as post_data_to_accounts are edited with an on/off switch instead of typing true or false.",
-					"Add lookup values: Job Types, Job Statuses, Receive/Delivery Manners, Receive Conditions (Configurations → Service Config).",
+					"Add lookup values: Job Types, Job Statuses, Receive/Delivery Manners, Receive Conditions (Configurations → Service Config, Admin only).",
 					"Add Brands, Products, and Models (Masters → Brand / Product / Model). Jobs require all three.",
 					"Add Spare Parts with Cost Price, HSN code, and GST Rate (Masters → Parts).",
 					"Add Customers and Technicians (Masters → Customer and Technician).",
@@ -950,7 +950,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "What does 'Show Parts in Invoice' mean?",
-				a: "Checked: the invoice lists each part and charge individually. Unchecked: all lines are merged into a single description on the invoice (using the master setting for description and HSN).",
+				a: "Checked: the invoice lists each part and charge as its own line, and each charge's reference no and description are added after its name. Unchecked: all parts and charges are added up into one line, with the label, HSN and GST rate taken from the show_parts_in_job_invoice setting in App Settings (default label 'Overall repair cost', default code 998719, the service code for repair of other goods). The tick is saved on the job when you finalize it, so later changes to the setting do not alter invoices already finalized. In that setting, 'show' decides whether the box starts ticked; if the setting is missing, the invoice lists items individually even when the box is unticked.",
 			},
 			{
 				q: "What is Force IGST?",
@@ -1452,7 +1452,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "Turning an event off entirely" },
 			{
 				type: "para",
-				text: "Configurations → App Settings → whatsapp_notifications has one on/off switch per event — Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, and Extended Warranty. Only Job Completed is on by default; the rest must be switched on deliberately. When an event is off, clicking Send doesn't fail or error — it simply doesn't go out, and you'll see a message saying that event is currently switched off. Extended Warranty also needs its own Enabled setting — see 'Extended Warranty'.",
+				text: "Configurations → App Settings → whatsapp_notifications has one on/off switch per event — Job Intake Message, Job Completed, Job Delivery, Money Receipt, Invoice, and Extended Warranty. Managers do not see the Extended Warranty switch; its value is kept unchanged when a Manager saves. Only Job Completed is on by default; the rest must be switched on deliberately. When an event is off, clicking Send doesn't fail or error — it simply doesn't go out, and you'll see a message saying that event is currently switched off. Extended Warranty also needs its own Enabled setting — see 'Extended Warranty'.",
 			},
 		],
 		faqs: [
@@ -1576,7 +1576,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "Jobs → Customer Connect has five tabs. The first one sends; the other four are read-only logs of messages sent from elsewhere in the app.",
+				text: "Jobs → Customer Connect has five tabs. The first one sends; the other four are read-only logs of messages sent from elsewhere in the app. A tab is shown only while its event is switched on in Configurations → App Settings → whatsapp_notifications (Job Completion, Job Intake, Job Delivery, Money Receipt, Invoice); switch an event off and its tab disappears, switch it back on and the tab returns. If all five are off, the page shows a note saying so.",
 			},
 			{
 				type: "table",
@@ -3042,7 +3042,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				items: [
 					"At least one branch is required.",
 					"The Head Office branch cannot be deleted or deactivated — Deactivate is greyed out on its row menu. Switching it off would leave a one-branch business unit with nothing to select, so no one could get past the Business Unit / Branch / Division screen at login.",
-					"Adding a branch also creates its default division, Main, from the branch's address and GSTIN (see Divisions Setup).",
+					"Adding a branch also creates its default division, Main, from the branch's address, phone and email. A branch has no GSTIN of its own — enter the GSTIN on the division (see Divisions Setup).",
 					"Lite, Basic and Standard include the head office only, so the Add Branch button isn't shown on those plans. Enterprise has no limit.",
 					"Users are assigned to specific branches, controlling which branch's data they can access.",
 				],
@@ -3084,7 +3084,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "para",
-				text: "Every branch has one default division, listed first with a Default badge. When a branch is added (and when a new business unit's Head Office is created) a default division named Main is created with it, copied from the branch's address, phone, email and GSTIN — edit it to suit. The default division is selected automatically when you switch to that branch, and new jobs and invoices start on it.",
+				text: "Every branch has one default division, listed first with a Default badge. When a branch is added (and when a new business unit's Head Office is created) a default division named Main is created with it, copied from the branch's address, phone and email — edit it to suit, and enter its GSTIN here (a branch has no GSTIN of its own). The default division is selected automatically when you switch to that branch, and new jobs and invoices start on it.",
 			},
 			{
 				type: "bullets",
@@ -3211,6 +3211,43 @@ export const HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
+		id: "user-management",
+		category: "Configurations",
+		title: "User Management",
+		summary: "Managers add Receptionist and Technician users for their business unit.",
+		tags: ["user management", "add user", "receptionist", "technician", "manager", "staff", "login"],
+		content: [
+			{
+				type: "para",
+				text: "Configurations → System → User Management lets a Manager add Receptionist and Technician users to the business unit they are working in. It is available on the Standard plan and above. On Lite and Basic the menu item is not shown; ask your Admin, or upgrade the plan, to add users.",
+			},
+			{
+				type: "steps",
+				items: [
+					"Open Configurations → System → User Management. The list shows the Receptionists and Technicians of this business unit.",
+					"Click Add User and enter Full Name, Username (letters and numbers, at least 5), Email and, optionally, Mobile.",
+					"Choose Role: Receptionist or Technician. A Manager cannot add another Manager; ask your Admin for that.",
+					"Click Add User. An email with a link to set a password goes to the new user, who then logs in with the username.",
+				],
+			},
+			{
+				type: "note",
+				text: "Username and email must not be used by anyone else in your company, and the form tells you straight away if they are. A mobile number must also be unused. The new user can open only this business unit. Changing or removing a user is done by your Admin.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why don't I see User Management?",
+				a: "It shows only for the Manager role, and only when the business unit is on the Standard plan or above. On Lite and Basic the Admin adds users.",
+			},
+			{
+				q: "The new user did not get an email.",
+				a: "A message says so when the email could not be sent. The user is still created; ask your Admin to resend the password link from the Admin screen.",
+			},
+		],
+	},
+
+	{
 		id: "app-settings",
 		category: "Configurations",
 		title: "App Settings",
@@ -3241,7 +3278,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					["no_of_job_invoices_per_print", "Number of invoice copies printed"],
 					[
 						"show_parts_in_job_invoice",
-						"A JSON object controlling the default 'Show Parts in Invoice' toggle plus the fallback combined-line label, HSN, and GST rate used when parts are merged into one invoice line",
+						"A JSON object: 'show' sets whether the 'Show Parts in Invoice' box starts ticked when finalizing a job; 'text', 'hsn' and 'gst_rate' are the label, HSN and GST rate of the single combined line used when the box is unticked. Only jobs finalized afterwards are affected",
 					],
 					["markup_percent_over_cost", "Auto-calculates a spare part's selling price = cost × (1 + markup%)"],
 					[
@@ -3260,7 +3297,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "When you edit a setting, the box matches the kind of value it holds: numbers such as default_gst_rate accept only a number (no negatives), on/off settings show a switch, and structured settings such as show_parts_in_job_invoice open as JSON text.",
+				text: "When you edit a setting, the box matches the kind of value it holds: numbers such as default_gst_rate accept only a number (no negatives), on/off settings show a switch, and structured settings such as show_parts_in_job_invoice open as JSON text. The Description field can be changed only by an Admin or Super Admin; for everyone else it is shown in full, as read-only text (greyed out), and saving leaves the description as it was.",
 			},
 			{
 				type: "note",
@@ -3312,7 +3349,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					"Division → State is set (required for supply state code on invoices).",
 					"Parts Master → HSN code set on each part (or Default HSN for Spare Part set in App Settings as fallback).",
 					"Parts Master → GST Rate set on each part (or Default GST Rate set in App Settings as fallback).",
-					"Configurations → Service Config → Job Additional Charges → HSN set for each service charge type.",
+					"Configurations → Service Config (Admin only) → Job Additional Charges → HSN set for each service charge type.",
 					"Document Sequence → SERVICE_INVOICE prefix configured.",
 					"Document Sequence → MONEY_RECEIPT prefix configured.",
 				],
@@ -4196,7 +4233,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					["Masters tab (whole tab)", "✅", "❌", "✅"],
 					["Configurations tab (whole tab)", "✅", "❌", "❌"],
 					["Configurations → Organization: Branch, Financial Year, State / Province", "✅", "❌", "❌"],
-					["Configurations → Service Config (Customer Type, Job Type, Job Status, …)", "✅", "❌", "❌"],
+					[
+						"Configurations → Service Config (Customer Type, Job Type, Job Status, …) — Admin only",
+						"❌",
+						"❌",
+						"❌",
+					],
 					["Admin tab / Post-Unpost", "✅", "❌", "❌"],
 					["Inventory → Purchase Entry", "✅", "❌", "✅"],
 					["Inventory → Sales Entry", "✅", "❌", "✅"],
@@ -4238,7 +4280,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Why can a Receptionist see Masters but not Configurations?",
-				a: "That split is intentional: Masters holds day-to-day reference data (customers, parts, technicians) that front-desk staff maintain, while Configurations controls set-once, system-wide setup (branches, divisions, financial years, states, numbering, app settings) reserved for Managers. Branch, Financial Year and State / Province used to sit under Masters → Organization, and the eight Service Config lists (Customer Type, Document Type, Job Type, Job Status, Job Receive Manner, Job Delivery Manner, Job Receive Condition, Job Additional Charges) under Masters → Service Config; both groups now live in Configurations. A custom role needs the Configurations tab plus the Organization or Service Config right to open them.",
+				a: "That split is intentional: Masters holds day-to-day reference data (customers, parts, technicians) that front-desk staff maintain, while Configurations controls set-once, system-wide setup (branches, divisions, financial years, states, numbering, app settings) reserved for Managers (Service Config, below, is Admin only: a Manager sees Organization, Divisions, numbering and App Settings but no Service Config group). Branch, Financial Year and State / Province used to sit under Masters → Organization, and the eight Service Config lists (Customer Type, Document Type, Job Type, Job Status, Job Receive Manner, Job Delivery Manner, Job Receive Condition, Job Additional Charges) under Masters → Service Config; both groups now live in Configurations. A custom role needs the Configurations tab plus the Organization or Service Config right to open them.",
 			},
 		],
 	},

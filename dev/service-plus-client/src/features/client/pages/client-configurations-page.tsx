@@ -18,6 +18,7 @@ import { BranchSection } from "../components/configurations/branch/branch-sectio
 import { DocumentSequenceSection } from "../components/configurations/document-sequence/document-sequence-section";
 import { DivisionSection } from "../components/configurations/division/division-section";
 import { FinancialYearSection } from "../components/configurations/financial-year/financial-year-section";
+import { UserManagementSection } from "../components/configurations/user-management/user-management-section";
 import { StateSection } from "../components/configurations/state-province/state-section";
 import { LookupSection } from "../components/shared/lookup/lookup-section";
 
@@ -92,6 +93,8 @@ function ConfigurationsContent() {
 			return <DocumentSequenceSection />;
 		case "State / Province":
 			return <StateSection />;
+		case "User Management":
+			return <UserManagementSection />;
 		default:
 			return <ComingSoon label={s || "Configurations"} />;
 	}

@@ -61,6 +61,8 @@ class AppMessages:
     # Error messages - Branches and default divisions (plans/plan2.md)
     BRANCH_CREATE_FAILED = "Failed to create the branch"
     BRANCH_INSERT_VIA_ADD_BRANCH = "Branches are added through Add Branch only."
+    STAFF_USER_PLAN_REQUIRED = "Adding users needs the Standard plan or above. Upgrade to let your Manager add users."
+    STAFF_USER_ROLE_NOT_ALLOWED = "A Manager can add only Receptionist and Technician users."
     BRANCH_LIMIT_REACHED = "Your plan includes one branch. Upgrade to Enterprise for more branches."
     DEFAULT_DIVISION_LOCKED = "The default division of a branch cannot be deleted or deactivated."
 

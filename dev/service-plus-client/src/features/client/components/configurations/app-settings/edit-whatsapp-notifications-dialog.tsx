@@ -11,7 +11,7 @@ import { MESSAGES } from "@/constants/messages";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
-import { selectDbName } from "@/features/auth/store/auth-slice";
+import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { AppSettingRecord } from "@/features/client/types/app-setting";
 
@@ -61,6 +61,9 @@ export const EditWhatsappNotificationsDialog = ({
 }: EditWhatsappNotificationsDialogProps) => {
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
+	const currentUser = useAppSelector(selectCurrentUser);
+	// Managers do not see the Extended Warranty switch; its stored value is kept as-is on save.
+	const isManager = currentUser?.roleCode === "MANAGER";
 
 	const [value, setValue] = useState<WhatsappNotificationsValue>(() => toValue(record.setting_value));
 	const [submitting, setSubmitting] = useState(false);
@@ -102,7 +105,7 @@ export const EditWhatsappNotificationsDialog = ({
 		}
 	}
 
-	const rows: { key: keyof WhatsappNotificationsValue; label: string; note?: string }[] = [
+	const allRows: { key: keyof WhatsappNotificationsValue; label: string; note?: string }[] = [
 		{ key: "JOB_CREATION", label: "Job Intake Message" },
 		{ key: "JOB_COMPLETION", label: "Job Completed" },
 		{ key: "JOB_DELIVERY", label: "Job Delivery" },
@@ -110,6 +113,7 @@ export const EditWhatsappNotificationsDialog = ({
 		{ key: "JOB_INVOICE", label: "Invoice" },
 		{ key: "EXTENDED_WARRANTY", label: "Extended Warranty", note: MESSAGES.INFO_EW_SEND_SWITCH_HINT },
 	];
+	const rows = allRows.filter((r) => !(isManager && r.key === "EXTENDED_WARRANTY"));
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>

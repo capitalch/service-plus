@@ -167,7 +167,7 @@ class BuAdminSql(BuAdminDdl):
         -- with "dummy" as (values(1::int)) -- Test line
         SELECT b.id, b.address_line1, b.address_line2,
                b.city, b.code, b.email,
-               b.gstin, b.is_active, b.is_head_office,
+               b.is_active, b.is_head_office,
                b.name, b.phone, b.pincode,
                b.state_id, s.name AS state_name
         FROM branch b
@@ -179,7 +179,7 @@ class BuAdminSql(BuAdminDdl):
         with "dummy" as (values(1::int))
         -- with "dummy" as (values(1::int)) -- Test line
         SELECT b.id, b.code, b.is_active, b.is_head_office, b.name,
-               b.gstin, s.gst_state_code
+               s.gst_state_code
         FROM branch b
         LEFT JOIN state s ON s.id = b.state_id
         WHERE b.is_active = true
@@ -398,6 +398,45 @@ class BuAdminSql(BuAdminDdl):
         GROUP BY u.id, u.created_at, u.email, u.full_name, u.is_active,
                  u.mobile, u.updated_at, u.username
         ORDER BY u.full_name
+    """
+
+    # Manager's user management (Configurations -> User Management). Run through genericQuery by a
+    # non-admin: current_schema() is the caller's own BU (require_bu_access already vetted the
+    # schema, search_path is set to exactly it), so only that BU's Receptionists and Technicians
+    # come back. Selects no password hash. GET_STAFF_USERS is on NON_ADMIN_SECURITY_SQL_IDS and
+    # MANAGER_ONLY_SQL_IDS in auth_guards.py.
+    GET_STAFF_USERS = """
+        with "dummy" as (values(1::int))
+        SELECT
+            u.id,
+            u.created_at,
+            u.email,
+            u.full_name,
+            u.is_active,
+            u.mobile,
+            u.username,
+            r.code AS role_code,
+            r.name AS role_name
+        FROM security."user" u
+        JOIN security.user_bu_role ubr ON ubr.user_id = u.id
+        JOIN security.bu           b   ON b.id = ubr.bu_id AND LOWER(b.code) = LOWER(current_schema())
+        JOIN security.role         r   ON r.id = ubr.role_id AND r.code IN ('RECEPTIONIST', 'TECHNICIAN')
+        WHERE u.is_admin = false
+        ORDER BY u.full_name
+    """
+
+    # The two roles a Manager may assign. Same allowlisting as GET_STAFF_USERS.
+    GET_STAFF_ROLES = """
+        with "dummy" as (values(1::int))
+        SELECT id, code, name FROM security.role WHERE code IN ('RECEPTIONIST', 'TECHNICIAN') ORDER BY name
+    """
+
+    GET_BU_CODES_BY_IDS = """
+        SELECT id, code FROM security.bu WHERE id = ANY(%(ids)s::bigint[])
+    """
+
+    GET_ROLE_CODE_BY_ID = """
+        SELECT code FROM security.role WHERE id = %(id)s::bigint
     """
 
     GET_USER_BU_ROLE = """

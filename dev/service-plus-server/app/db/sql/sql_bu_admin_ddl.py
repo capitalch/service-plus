@@ -300,13 +300,11 @@ class BuAdminDdl:
             state_id integer NOT NULL,
             city text,
             pincode text NOT NULL,
-            gstin text,
             is_active boolean DEFAULT true NOT NULL,
             is_head_office boolean DEFAULT false NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
-            CONSTRAINT branch_code_check CHECK ((code ~ '^[A-Z0-9_]+$'::text)),
-            CONSTRAINT branch_gstin_check CHECK (((gstin IS NULL) OR (gstin ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'::text)))
+            CONSTRAINT branch_code_check CHECK ((code ~ '^[A-Z0-9_]+$'::text))
         );
 
         ALTER TABLE branch ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (

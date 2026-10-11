@@ -32,7 +32,6 @@ BRANCH_FIELDS: tuple[str, ...] = (
     "city",
     "code",
     "email",
-    "gstin",
     "name",
     "phone",
     "pincode",
