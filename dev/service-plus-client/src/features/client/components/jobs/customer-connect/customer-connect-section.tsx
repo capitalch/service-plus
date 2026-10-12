@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { RefreshButton } from "@/components/shared/refresh-button";
 import { Input } from "@/components/ui/input";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { UsageLine } from "@/components/shared/billing/usage-line";
+import { useUsageLimits } from "@/components/shared/billing/use-usage-limits";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
@@ -85,6 +87,8 @@ export function CustomerConnectSection() {
 	const globalBranch = useAppSelector(selectCurrentBranch);
 	const branchId = globalBranch?.id ?? null;
 	const whatsappNotifications = useAppSelector(selectWhatsappNotifications);
+	// Send is off once the month's WhatsApp allowance is used up (plans/plan.md Step 8).
+	const { isWhatsappLimitReached, refreshUsage } = useUsageLimits();
 
 	// A tab shows only while its whatsapp_notifications event is on. null = settings not loaded yet,
 	// so nothing is hidden prematurely.
@@ -425,11 +429,17 @@ export function CustomerConnectSection() {
 		setSending(true);
 		try {
 			const jobIds = groups.flatMap((g) => g.job_ids);
-			const { results: sendResults, disabled } = await sendWhatsappCompletion(dbName, schema, branchId, jobIds);
+			const {
+				disabled,
+				limitReached,
+				results: sendResults,
+			} = await sendWhatsappCompletion(dbName, schema, branchId, jobIds);
 			setSendGroups(null);
 			setResults(sendResults);
 			const anyFailed = sendResults.some((r) => r.status === "FAILED");
-			if (disabled) {
+			if (limitReached) {
+				toast.warning(MESSAGES.BILLING_WHATSAPP_LIMIT);
+			} else if (disabled) {
 				toast.warning(MESSAGES.WARN_WHATSAPP_EVENT_DISABLED);
 			} else if (sendResults.length === 0) {
 				toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
@@ -458,6 +468,7 @@ export function CustomerConnectSection() {
 			toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
 		} finally {
 			setSending(false);
+			refreshUsage();
 		}
 	}
 
@@ -485,6 +496,7 @@ export function CustomerConnectSection() {
 							`${moneyReceiptTotal} logged message${moneyReceiptTotal !== 1 ? "s" : ""}`}
 						{activeTab === "invoice" && `${invoiceTotal} logged message${invoiceTotal !== 1 ? "s" : ""}`}
 					</span>
+					<UsageLine className="ml-2 hidden shrink-0 sm:inline-flex" kind="whatsapp" />
 				</div>
 
 				<div className="grid grid-cols-5 gap-2.5 rounded-xl border-2 border-(--cl-border) bg-(--cl-surface-2) p-1 shadow-md sm:mx-auto sm:flex sm:w-auto">
@@ -628,8 +640,16 @@ export function CustomerConnectSection() {
 							/>
 							<Button
 								className="h-9 gap-2 px-4 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md tracking-wide disabled:opacity-40 disabled:cursor-not-allowed"
-								disabled={selectedIds.size === 0 || loadingGroups || !branchId}
-								title={selectedIds.size === 0 ? "Select at least one job first" : undefined}
+								disabled={
+									selectedIds.size === 0 || loadingGroups || !branchId || isWhatsappLimitReached
+								}
+								title={
+									isWhatsappLimitReached
+										? MESSAGES.BILLING_WHATSAPP_LIMIT
+										: selectedIds.size === 0
+											? "Select at least one job first"
+											: undefined
+								}
 								onClick={() => void handleOpenSendModal()}
 							>
 								{loadingGroups ? (

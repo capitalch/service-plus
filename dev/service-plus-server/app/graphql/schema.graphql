@@ -72,6 +72,7 @@ type Mutation {
     verifyJobDeliveryOtp(db_name: String!, schema: String, value: String!): Generic
     setJobDeliveryManualConfirmation(db_name: String!, schema: String, value: String!): Generic
     addEwFollowUp(db_name: String!, schema: String, value: String!): Generic
+    askHelpAi(db_name: String!, schema: String!, value: String!): Generic
     addJobInternalNote(db_name: String!, schema: String, value: String!): Generic
     resendEwLeadAlert(db_name: String!, schema: String, value: String!): Generic
     sendEwReminders(db_name: String!, schema: String, value: String!): Generic

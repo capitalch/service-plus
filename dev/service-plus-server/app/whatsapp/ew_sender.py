@@ -23,7 +23,8 @@ from app.db.sql.sql_extended_warranty import ExtendedWarrantyServerSql, Extended
 from app.graphql.pubsub import publish_ew_lead_changed
 from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
-from app.whatsapp.client import send_template
+from app.services.bu_usage import release_whatsapp, reserve_whatsapp_up_to
+from app.whatsapp.metered import send_metered, send_reserved
 from app.whatsapp.mobile import is_valid_mobile, normalize_mobile
 from app.whatsapp.sender import (
     _build_biz_opaque_callback_data,
@@ -132,14 +133,18 @@ async def _send_and_settle(
     header_values: list[str],
     body_values: list[str],
     button_values: list[str],
+    reserved: bool = False,
 ) -> tuple[bool, str | None]:
     """Call Meta for a claimed ew_message row and settle it: ACCEPTED + wamid, or FAILED +
     error. An exception from the call is settled as FAILED too — a reminder left PENDING
-    would block its expiry band for good, since PENDING counts as a live reminder."""
+    would block its expiry band for good, since PENDING counts as a live reminder.
+    `reserved` = the caller already counted this message against the monthly allowance;
+    otherwise it is counted here (plans/plan.md Step 6)."""
     callback_data = _build_biz_opaque_callback_data(db_name, schema, template_key, [ew_message_id])
+    send = send_reserved if reserved else send_metered
     try:
-        result = await send_template(
-            to, TEMPLATES[template_key], header_values, body_values, callback_data, button_values
+        result = await send(
+            db_name, schema, to, TEMPLATES[template_key], header_values, body_values, callback_data, button_values
         )
         ok, wamid, error = result.ok, result.provider_message_id, result.error_message
     except Exception as e:  # pylint: disable=broad-except
@@ -178,7 +183,9 @@ async def _send_one_reminder(
         sql_args={"branch_id": branch_id, "ew_lead_id": ew_lead_id, "sent_by": sent_by, "sent_by_name": sent_by_name},
     )
     if not claimed:
-        # Sent in this band already, or the lead changed between selection and send.
+        # Sent in this band already, or the lead changed between selection and send: give
+        # back the message send_ew_reminders reserved for it.
+        await release_whatsapp(db_name, schema, 1)
         return {**result_base, "error": "Already sent in this expiry window", "status": "SKIPPED"}
     ew_message_id = claimed[0]["ew_message_id"]
 
@@ -192,6 +199,7 @@ async def _send_one_reminder(
         header_values,
         body_values,
         [sign_ew(db_name, schema, ew_lead_id, ew_message_id)],
+        reserved=True,
     )
     return {**result_base, "band": claimed[0]["band"], "error": error, "status": "SENT" if ok else "FAILED"}
 
@@ -289,8 +297,9 @@ async def send_ew_reminders(
     invalid mobiles, applies the daily cap once up front, and claims each lead before
     calling Meta. `sent_by` comes from the authenticated session, never the payload.
 
-    Returns `{"results": [{band, customer_name, error, ew_lead_id, status}]}` with status
-    SENT | FAILED | SKIPPED | CAPPED, or `{"disabled": True, "results": []}` when either
+    Returns `{"limitReached", "results": [{band, customer_name, error, ew_lead_id, status}]}`
+    with status SENT | FAILED | SKIPPED | CAPPED (daily cap) | LIMIT (monthly WhatsApp
+    allowance used up), or `{"disabled": True, "results": []}` when either
     switch is off. Dispatch results only; delivery arrives later through the webhook."""
     payload = _decode_value(value, "sendEwReminders")
     branch_id = payload.get("branch_id")
@@ -350,6 +359,10 @@ async def send_ew_reminders(
     else:
         remaining = len(sendable)
     allowed, capped = sendable[:remaining], sendable[remaining:]
+    # The month's WhatsApp allowance (plans/plan.md Step 6): send as many as still fit, report
+    # the rest like the daily cap. Each reserved message is given back if it is not sent.
+    fits = await reserve_whatsapp_up_to(db_name_arg, schema_name, len(allowed))
+    allowed, over_limit = allowed[:fits], allowed[fits:]
 
     bu_name = await _bu_name(db_name_arg, schema_name)
     sent_by_name = await staff_name(db_name_arg, sent_by)
@@ -371,18 +384,27 @@ async def send_ew_reminders(
             "status": "CAPPED",
         }
         for r in capped
+    ] + [
+        {
+            "band": r["band"],
+            "customer_name": r["full_name"],
+            "error": AppMessages.WHATSAPP_LIMIT_REACHED,
+            "ew_lead_id": r["ew_lead_id"],
+            "status": "LIMIT",
+        }
+        for r in over_limit
     ]
 
     logger.info(
-        "sendEwReminders: schema=%s selected=%d attempted=%d capped=%d skipped=%d",
-        schema_name, len(ew_lead_ids), len(allowed), len(capped), len(skipped),
+        "sendEwReminders: schema=%s selected=%d attempted=%d capped=%d over_limit=%d skipped=%d",
+        schema_name, len(ew_lead_ids), len(allowed), len(capped), len(over_limit), len(skipped),
     )
     # One event for the whole batch, not one per lead: every open screen re-reads once
     # either way, and a 50-lead send must not become 50 pushes. Only an attempted send
     # changed anything — a capped or skipped lead is exactly as it was.
     if allowed:
         await publish_ew_lead_changed(db_name_arg, schema_name, "REMINDERS_SENT")
-    return {"results": [*sent, *capped_results, *skipped]}
+    return {"limitReached": bool(over_limit), "results": [*sent, *capped_results, *skipped]}
 
 
 async def staff_name(db_name: str, user_id: int | None) -> str | None:

@@ -165,6 +165,7 @@ export type EwResendAlertResultType = {
 /** sendEwReminders */
 export type EwSendResponseType = {
 	disabled?: boolean;
+	limitReached?: boolean;
 	results: EwSendResultType[];
 };
 
@@ -173,7 +174,7 @@ export type EwSendResultType = {
 	customer_name: string | null;
 	error: string | null;
 	ew_lead_id: number;
-	status: "CAPPED" | "FAILED" | "SENT" | "SKIPPED";
+	status: "CAPPED" | "FAILED" | "LIMIT" | "SENT" | "SKIPPED";
 };
 
 /** The `extended_warranty` app_setting value. */

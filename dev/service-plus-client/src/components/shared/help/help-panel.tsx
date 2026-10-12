@@ -1,35 +1,21 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { X, Search, ChevronRight, AlertTriangle, Info, ArrowLeft, Lightbulb, BookOpen, Clock } from "lucide-react";
+import {
+	X,
+	Search,
+	ChevronRight,
+	AlertTriangle,
+	Info,
+	ArrowLeft,
+	Lightbulb,
+	BookOpen,
+	Clock,
+	Sparkles,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { HelpArticle, ContentBlock, HelpFaq, CategoryStyleType } from "./help-types";
+import { AiHelpView } from "./ai-help-view";
+import type { AiHelpType, HelpArticle, ContentBlock, HelpFaq, CategoryStyleType } from "./help-types";
+import { queryWords, rankHelpArticles } from "./help-search";
 import { useRecentlyViewed } from "./use-recently-viewed";
-
-// ─── Search helper ────────────────────────────────────────────────────────────
-// Shared across content sets — each content file (help-content.ts, dev-help-content.ts)
-// hands its own `articles` array in; nothing here is specific to end-user or developer content.
-
-function searchHelpArticles(articles: HelpArticle[], query: string): HelpArticle[] {
-	if (!query.trim()) return articles;
-	const q = query.toLowerCase();
-	return articles.filter(
-		(a) =>
-			a.title.toLowerCase().includes(q) ||
-			a.summary.toLowerCase().includes(q) ||
-			a.tags.some((t) => t.toLowerCase().includes(q)) ||
-			a.faqs.some((f) => f.q.toLowerCase().includes(q) || f.a.toLowerCase().includes(q)) ||
-			a.content.some(
-				(c) =>
-					(c.type === "para" && c.text.toLowerCase().includes(q)) ||
-					(c.type === "steps" && c.items.some((i) => i.toLowerCase().includes(q))) ||
-					(c.type === "bullets" && c.items.some((i) => i.toLowerCase().includes(q))) ||
-					(c.type === "heading" && c.text.toLowerCase().includes(q)) ||
-					(c.type === "note" && c.text.toLowerCase().includes(q)) ||
-					(c.type === "warning" && c.text.toLowerCase().includes(q)) ||
-					(c.type === "code" && c.text.toLowerCase().includes(q)) ||
-					(c.type === "table" && c.rows.some((r) => r.some((cell) => cell.toLowerCase().includes(q)))),
-			),
-	);
-}
 
 // ─── Category style fallback ──────────────────────────────────────────────────
 
@@ -413,7 +399,7 @@ function ArticleView({
 							"hover:opacity-80",
 						)}
 					>
-						<ArrowLeft className="h-3 w-3 text-muted-foreground" />
+						<ArrowLeft className="h-3 w-3" />
 						Back to {article.category}
 					</button>
 				</div>
@@ -494,18 +480,19 @@ function CategoryView({
 // ─── Search results view ──────────────────────────────────────────────────────
 
 function highlightMatch(text: string, query: string): React.ReactNode {
-	if (!query.trim()) return text;
-	const q = query.trim();
-	const idx = text.toLowerCase().indexOf(q.toLowerCase());
-	if (idx === -1) return text;
-	return (
-		<>
-			{text.slice(0, idx)}
-			<mark className="bg-yellow-200/70 text-inherit rounded-sm px-0.5 dark:bg-yellow-500/30">
-				{text.slice(idx, idx + q.length)}
+	const words = queryWords(query);
+	if (words.length === 0) return text;
+	const escaped = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+	const parts = text.split(new RegExp(`(${escaped.join("|")})`, "gi"));
+	if (parts.length === 1) return text;
+	return parts.map((part, i) =>
+		i % 2 === 1 ? (
+			<mark key={i} className="bg-yellow-200/70 dark:bg-yellow-500/30 px-0.5 rounded-sm text-inherit">
+				{part}
 			</mark>
-			{text.slice(idx + q.length)}
-		</>
+		) : (
+			part
+		),
 	);
 }
 
@@ -515,6 +502,7 @@ function SearchResults({
 	styles,
 	popularIds,
 	allArticles,
+	onAskAi,
 	onSelect,
 }: {
 	query: string;
@@ -522,6 +510,7 @@ function SearchResults({
 	styles: Record<string, CategoryStyleType>;
 	popularIds: string[];
 	allArticles: HelpArticle[];
+	onAskAi?: (question: string) => void;
 	onSelect: (a: HelpArticle) => void;
 }) {
 	const [activeIdx, setActiveIdx] = useState<number | null>(null);
@@ -557,6 +546,16 @@ function SearchResults({
 					<p className="mt-1.5 text-[12px] text-(--cl-text-muted) leading-relaxed">
 						Try searching for a feature name, task, or error message.
 					</p>
+					{onAskAi && (
+						<button
+							className="mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 px-4 py-1.5 text-[12px] font-semibold text-white shadow-sm transition-all hover:shadow-md"
+							onClick={() => onAskAi(query)}
+							type="button"
+						>
+							<Sparkles className="h-3.5 w-3.5" />
+							Ask AI instead
+						</button>
+					)}
 				</div>
 				{popular.length > 0 && (
 					<div>
@@ -756,12 +755,17 @@ function HomeView({
 type View =
 	| { kind: "home" }
 	| { kind: "category"; category: string }
-	| { kind: "article"; article: HelpArticle }
-	| { kind: "search"; query: string; results: HelpArticle[] };
+	| { kind: "article"; article: HelpArticle; fromAi?: boolean }
+	| { kind: "search"; query: string; results: HelpArticle[] }
+	| { kind: "ai"; draft: string };
 
 // ─── Main panel ───────────────────────────────────────────────────────────────
 
 type HelpPanelProps = {
+	/** Ask AI (client Help only). Without it the panel has no AI entry points. */
+	ai?: AiHelpType;
+	/** Open straight on the Ask AI view (needs `ai`). */
+	initialAi?: boolean;
 	open: boolean;
 	onClose: () => void;
 	articles: HelpArticle[];
@@ -775,6 +779,8 @@ type HelpPanelProps = {
 };
 
 export function HelpPanel({
+	ai,
+	initialAi = false,
 	open,
 	onClose,
 	articles,
@@ -794,6 +800,11 @@ export function HelpPanel({
 	// Reset on open
 	useEffect(() => {
 		if (!open) return;
+		if (ai && initialAi) {
+			setView({ kind: "ai", draft: "" });
+			setQuery("");
+			return;
+		}
 		setTimeout(() => searchRef.current?.focus(), 120);
 		if (initialArticleId) {
 			const a = articles.find((x) => x.id === initialArticleId);
@@ -808,7 +819,7 @@ export function HelpPanel({
 		setView({ kind: "home" });
 		setQuery("");
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [open, initialArticleId]);
+	}, [open, initialArticleId, initialAi]);
 
 	// Close on Escape
 	useEffect(() => {
@@ -825,7 +836,7 @@ export function HelpPanel({
 		if (!open) return;
 		const q = query.trim();
 		if (q) {
-			setView({ kind: "search", query: q, results: searchHelpArticles(articles, q) });
+			setView({ kind: "search", query: q, results: rankHelpArticles(articles, q) });
 		} else if (view.kind === "search") {
 			setView({ kind: "home" });
 		}
@@ -835,12 +846,17 @@ export function HelpPanel({
 	const handleSelectArticle = useCallback(
 		(a: HelpArticle) => {
 			setQuery("");
-			setView({ kind: "article", article: a });
+			setView((v) => ({ kind: "article", article: a, fromAi: v.kind === "ai" }));
 			pushRecent(a.id);
 			onArticleViewed?.(a.id);
 		},
 		[pushRecent, onArticleViewed],
 	);
+
+	const handleOpenAi = useCallback((draft: string) => {
+		setQuery("");
+		setView({ kind: "ai", draft });
+	}, []);
 
 	const handleSelectCategory = useCallback((cat: string) => {
 		setView({ kind: "category", category: cat });
@@ -848,6 +864,7 @@ export function HelpPanel({
 
 	const handleBack = useCallback(() => {
 		setView((v) => {
+			if (v.kind === "article" && v.fromAi) return { kind: "ai", draft: "" };
 			if (v.kind === "article") {
 				const cat = v.article.category;
 				return { kind: "category", category: cat };
@@ -864,12 +881,14 @@ export function HelpPanel({
 				? view.category
 				: view.kind === "article"
 					? view.article.category
-					: "Search Results";
+					: view.kind === "ai"
+						? "Ask AI"
+						: "Search Results";
 
 	const headerGradient =
 		view.kind === "home"
 			? null
-			: view.kind === "search"
+			: view.kind === "search" || view.kind === "ai"
 				? null
 				: catStyle(view.kind === "category" ? view.category : view.article.category, categoryStyles).gradient;
 
@@ -882,13 +901,18 @@ export function HelpPanel({
 				: view.kind === "article"
 					? [
 							{ label: "Home", onClick: () => setView({ kind: "home" }) },
-							{
-								label: view.article.category,
-								onClick: () => setView({ kind: "category", category: view.article.category }),
-							},
+							view.fromAi
+								? { label: "Ask AI", onClick: () => setView({ kind: "ai", draft: "" }) }
+								: {
+										label: view.article.category,
+										onClick: () => setView({ kind: "category", category: view.article.category }),
+									},
 							{ label: view.article.title },
 						]
-					: [{ label: "Home", onClick: () => setView({ kind: "home" }) }, { label: "Search Results" }];
+					: [
+							{ label: "Home", onClick: () => setView({ kind: "home" }) },
+							{ label: view.kind === "ai" ? "Ask AI" : "Search Results" },
+						];
 
 	if (!open) return null;
 
@@ -926,11 +950,12 @@ export function HelpPanel({
 							className={cn(
 								"cursor-pointer rounded-full p-1.5 transition-colors",
 								headerGradient
-									? "text-white/80 hover:bg-white/20 hover:text-white"
-									: "text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)",
+									? "bg-white/20 text-white hover:bg-white/30"
+									: "bg-(--cl-hover) text-(--cl-text) hover:bg-(--cl-border)",
 							)}
+							title="Back"
 						>
-							<ArrowLeft className="h-4 w-4 text-muted-foreground" />
+							<ArrowLeft className="h-4 w-4" />
 						</button>
 					)}
 
@@ -959,7 +984,7 @@ export function HelpPanel({
 						)}
 						title="Close"
 					>
-						<X className="h-4 w-4 text-muted-foreground" />
+						<X className="h-4 w-4" />
 					</button>
 				</div>
 
@@ -989,22 +1014,35 @@ export function HelpPanel({
 				{/* ── Search bar ── */}
 				{(view.kind === "home" || view.kind === "search") && (
 					<div className="shrink-0 border-b border-(--cl-border) bg-(--cl-bg) px-4 py-3">
-						<div className="relative">
-							<Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-							<input
-								ref={searchRef}
-								type="text"
-								placeholder="Search articles, topics, questions…"
-								value={query}
-								onChange={(e) => setQuery(e.target.value)}
-								className="w-full rounded-full border border-(--cl-border) bg-(--cl-surface) py-2 pl-9 pr-8 text-[13px] text-(--cl-text) placeholder:text-(--cl-text-muted)/60 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20 transition-all"
-							/>
-							{query && (
+						<div className="flex items-center gap-2">
+							<div className="relative flex-1">
+								<Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+								<input
+									ref={searchRef}
+									type="text"
+									placeholder="Search articles, topics, questions…"
+									value={query}
+									onChange={(e) => setQuery(e.target.value)}
+									className="w-full rounded-full border border-(--cl-border) bg-(--cl-surface) py-2 pl-9 pr-8 text-[13px] text-(--cl-text) placeholder:text-(--cl-text-muted)/60 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20 transition-all"
+								/>
+								{query && (
+									<button
+										onClick={() => setQuery("")}
+										className="cursor-pointer absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-(--cl-text-muted) hover:text-(--cl-text) hover:bg-(--cl-hover) transition-colors"
+									>
+										<X className="h-3 w-3 text-muted-foreground" />
+									</button>
+								)}
+							</div>
+							{ai && (
 								<button
-									onClick={() => setQuery("")}
-									className="cursor-pointer absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-(--cl-text-muted) hover:text-(--cl-text) hover:bg-(--cl-hover) transition-colors"
+									className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 px-3 py-2 text-[12px] font-semibold text-white shadow-sm transition-all hover:shadow-md"
+									onClick={() => handleOpenAi(query.trim())}
+									title="Ask a question in your own words"
+									type="button"
 								>
-									<X className="h-3 w-3 text-muted-foreground" />
+									<Sparkles className="h-3.5 w-3.5" />
+									Ask AI
 								</button>
 							)}
 						</div>
@@ -1048,7 +1086,16 @@ export function HelpPanel({
 							styles={categoryStyles}
 							popularIds={popularIds}
 							allArticles={articles}
+							onAskAi={ai ? handleOpenAi : undefined}
 							onSelect={handleSelectArticle}
+						/>
+					)}
+					{view.kind === "ai" && ai && (
+						<AiHelpView
+							ai={ai}
+							articles={articles}
+							draft={view.draft}
+							onSelectArticle={handleSelectArticle}
 						/>
 					)}
 				</div>

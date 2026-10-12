@@ -16,15 +16,23 @@ export type BranchContextType = {
 
 /** A BU's billing summary, always computed by the server (plans/plan.md Steps 11, 14). */
 export type BuBillingType = {
+	/** Ask AI in Help is configured on the server (GEMINI_API_KEY set). Only from buBillingStatus. */
+	aiHelpEnabled?: boolean;
 	branchLimit: number | null;
+	/** This month's job allowance; null = unlimited. Only from buBillingStatus, not from login. */
+	jobLimit?: number | null;
+	jobsUsed?: number;
 	paidThrough: string | null;
 	planCode: string | null;
 	status: "active" | "due_soon" | "not_billed" | "read_only";
+	/** This month's WhatsApp allowance; null = unlimited. Only from buBillingStatus, not from login. */
+	whatsappLimit?: number | null;
+	whatsappUsed?: number;
 };
 
 /** A write the server refused for billing reasons, shown in the read-only dialog. */
 export type BillingNoticeType = {
-	code: "BRANCH_LIMIT_REACHED" | "SUBSCRIPTION_READ_ONLY";
+	code: "BRANCH_LIMIT_REACHED" | "JOB_LIMIT_REACHED" | "SUBSCRIPTION_READ_ONLY";
 	message: string;
 	paidThrough: string | null;
 };
@@ -255,6 +263,11 @@ export const {
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
+/** A monthly allowance is used up; an unknown or unlimited (null) limit never is. */
+function isLimitReached(limit: number | null | undefined, used: number | undefined): boolean {
+	return limit !== null && limit !== undefined && (used ?? 0) >= limit;
+}
+
 type ContextRootState = { context: ContextStateType };
 
 export const selectAvailableBranches = (state: ContextRootState) => state.context.availableBranches;
@@ -262,6 +275,10 @@ export const selectBilling = (state: ContextRootState) => state.context.billing;
 export const selectBillingNotice = (state: ContextRootState) => state.context.billingNotice;
 export const selectBillingRefreshTick = (state: ContextRootState) => state.context.billingRefreshTick;
 export const selectIsReadOnly = (state: ContextRootState) => state.context.billing?.status === "read_only";
+export const selectJobLimitReached = (state: ContextRootState) =>
+	isLimitReached(state.context.billing?.jobLimit, state.context.billing?.jobsUsed);
+export const selectWhatsappLimitReached = (state: ContextRootState) =>
+	isLimitReached(state.context.billing?.whatsappLimit, state.context.billing?.whatsappUsed);
 export const selectAvailableBus = (state: ContextRootState) => state.context.availableBus;
 export const selectAvailableDivisions = (state: ContextRootState) => state.context.availableDivisions;
 export const selectCompanyName = (state: ContextRootState) => state.context.companyName;

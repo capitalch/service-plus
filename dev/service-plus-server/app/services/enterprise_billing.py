@@ -17,7 +17,7 @@ from datetime import date
 from app.core.audit_log import AuditAction, audit_logger
 from app.core.billing import rebase_paid_through, today_ist
 from app.core.exceptions import AppMessages, CodedValidationException
-from app.core.plan_prices import get_price_list
+from app.core.plan_prices import PlanLimitType, get_plan_limits, get_price_list
 from app.db.connection.psycopg_driver import exec_sql
 from app.db.sql.sql_billing import BillingServerSql
 from app.services.bu_billing import clear_bu_billing
@@ -91,6 +91,7 @@ async def apply_new_bu_billing(db_name: str, bu_id: int, bu_code: str, plan: New
     """Copy the client's plan and dates to the new BU; rebase and record a fee change; tell
     the team about an extra BU."""
     t = plan.template
+    limits = get_plan_limits(t["plan_code"]) if t["plan_code"] else PlanLimitType(jobs=None, whatsapp=None)
     await exec_sql(
         db_name,
         "security",
@@ -100,9 +101,11 @@ async def apply_new_bu_billing(db_name: str, bu_id: int, bu_code: str, plan: New
             "billing_required": t["billing_required"],
             "branch_limit": t["branch_limit"],
             "bu_id": bu_id,
+            "job_limit_monthly": limits.jobs,
             "monthly_fee_paise": plan.fee_paise,
             "paid_through": plan.paid_through,
             "plan_code": t["plan_code"],
+            "whatsapp_limit_monthly": limits.whatsapp,
         },
     )
     clear_bu_billing(db_name)

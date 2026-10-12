@@ -58,12 +58,31 @@ class AppMessages:
     INVALID_PHONE_FORMAT = "Invalid phone number format"
     INVALID_DATE_FORMAT = "Invalid date format"
 
+    # Error messages - Ask AI in the Help Center (app/ai_help/)
+    AI_HELP_BUSY = "AI help is busy right now. Please try again in a little while."
+    AI_HELP_INVALID_INPUT = "The question could not be sent. Please shorten it and try again."
+    AI_HELP_LIMIT_REACHED = (
+        "AI help has reached its limit for now. Try again in a minute, or tomorrow if today's "
+        "questions for this business unit are used up."
+    )
+    AI_HELP_NOT_CONFIGURED = "AI help is not set up on this server."
+    AI_HELP_UNAVAILABLE = "AI help could not answer just now. Please try again, or search the help."
+
     # Error messages - Branches and default divisions (plans/plan2.md)
     BRANCH_CREATE_FAILED = "Failed to create the branch"
     BRANCH_INSERT_VIA_ADD_BRANCH = "Branches are added through Add Branch only."
     STAFF_USER_PLAN_REQUIRED = "Adding users needs the Standard plan or above. Upgrade to let your Manager add users."
     STAFF_USER_ROLE_NOT_ALLOWED = "A Manager can add only Receptionist and Technician users."
     BRANCH_LIMIT_REACHED = "Your plan includes one branch. Upgrade to Enterprise for more branches."
+    JOB_INSERT_VIA_JOB_SCREENS = "Jobs are created through the job screens only."
+    JOB_LIMIT_REACHED = (
+        "This business unit has used all the jobs included in its plan for this month. "
+        "The limit resets on the 1st. Upgrade the plan to add more."
+    )
+    WHATSAPP_LIMIT_REACHED = (
+        "This business unit has used all the WhatsApp messages included in its plan for this month. "
+        "The limit resets on the 1st."
+    )
     DEFAULT_DIVISION_LOCKED = "The default division of a branch cannot be deleted or deactivated."
 
     # Error messages - Sign-up and billing (plans/plan.md)

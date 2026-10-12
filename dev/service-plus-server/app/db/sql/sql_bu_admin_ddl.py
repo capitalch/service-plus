@@ -40,10 +40,14 @@ class BuAdminDdl:
             branch_limit integer,
             last_reminder_on date,
             last_reminder_kind text,
+            job_limit_monthly integer,
+            whatsapp_limit_monthly integer,
             CONSTRAINT bu_branch_limit_check CHECK (((branch_limit IS NULL) OR (branch_limit >= 1))),
+            CONSTRAINT bu_job_limit_check CHECK (((job_limit_monthly IS NULL) OR (job_limit_monthly >= 0))),
             CONSTRAINT bu_last_reminder_kind_check CHECK (((last_reminder_kind IS NULL) OR (last_reminder_kind = ANY (ARRAY['due_soon'::text, 'due_today'::text, 'lapsed'::text, 'first_payment'::text])))),
             CONSTRAINT bu_monthly_fee_check CHECK (((monthly_fee_paise IS NULL) OR (monthly_fee_paise >= 0))),
-            CONSTRAINT bu_plan_code_check CHECK (((plan_code IS NULL) OR (plan_code = ANY (ARRAY['lite'::text, 'basic'::text, 'standard'::text, 'enterprise'::text]))))
+            CONSTRAINT bu_plan_code_check CHECK (((plan_code IS NULL) OR (plan_code = ANY (ARRAY['lite'::text, 'basic'::text, 'standard'::text, 'enterprise'::text])))),
+            CONSTRAINT bu_whatsapp_limit_check CHECK (((whatsapp_limit_monthly IS NULL) OR (whatsapp_limit_monthly >= 0)))
         );
 
         ALTER TABLE security.bu ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -86,6 +90,15 @@ class BuAdminDdl:
             NO MINVALUE
             NO MAXVALUE
             CACHE 1
+        );
+
+        CREATE TABLE security.bu_usage (
+            bu_id bigint NOT NULL,
+            period_start date NOT NULL,
+            jobs_used integer DEFAULT 0 NOT NULL,
+            whatsapp_used integer DEFAULT 0 NOT NULL,
+            CONSTRAINT bu_usage_jobs_used_check CHECK ((jobs_used >= 0)),
+            CONSTRAINT bu_usage_whatsapp_used_check CHECK ((whatsapp_used >= 0))
         );
 
         CREATE TABLE security.role (
@@ -149,6 +162,9 @@ class BuAdminDdl:
         ALTER TABLE ONLY security.bu
             ADD CONSTRAINT bu_pkey PRIMARY KEY (id);
 
+        ALTER TABLE ONLY security.bu_usage
+            ADD CONSTRAINT bu_usage_pkey PRIMARY KEY (bu_id, period_start);
+
         ALTER TABLE ONLY security.role_access_right
             ADD CONSTRAINT role_access_right_pkey PRIMARY KEY (role_id, access_right_id);
 
@@ -193,6 +209,9 @@ class BuAdminDdl:
 
         ALTER TABLE ONLY security.bu_payment
             ADD CONSTRAINT bu_payment_bu_id_fkey FOREIGN KEY (bu_id) REFERENCES security.bu(id);
+
+        ALTER TABLE ONLY security.bu_usage
+            ADD CONSTRAINT bu_usage_bu_id_fkey FOREIGN KEY (bu_id) REFERENCES security.bu(id) ON DELETE CASCADE;
 
         ALTER TABLE ONLY security.role_access_right
             ADD CONSTRAINT role_access_right_access_right_id_fkey FOREIGN KEY (access_right_id) REFERENCES security.access_right(id) ON DELETE CASCADE;

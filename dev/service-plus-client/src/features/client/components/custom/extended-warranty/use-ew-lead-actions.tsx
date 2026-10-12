@@ -12,6 +12,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useUsageLimits } from "@/components/shared/billing/use-usage-limits";
 import { Button } from "@/components/ui/button";
 import { MESSAGES } from "@/constants/messages";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -52,6 +53,7 @@ export const useEwLeadActions = ({
 	const branch = useAppSelector(selectCurrentBranch);
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
+	const { isWhatsappLimitReached, refreshUsage } = useUsageLimits();
 
 	const [busy, setBusy] = useState(false);
 	const [deleting, setDeleting] = useState<EwLeadType | null>(null);
@@ -79,7 +81,9 @@ export const useEwLeadActions = ({
 				void handleResend(row);
 				break;
 			case "SEND":
-				setSendRows([row]);
+				// Month's WhatsApp messages used up: say so instead of asking to send (plans/plan.md Step 8).
+				if (isWhatsappLimitReached) toast.warning(MESSAGES.BILLING_WHATSAPP_LIMIT);
+				else setSendRows([row]);
 				break;
 			case "STAGE_ADVANCE":
 			case "TRANSITION":
@@ -122,6 +126,7 @@ export const useEwLeadActions = ({
 			toast.error(MESSAGES.ERROR_EW_SEND_FAILED);
 		} finally {
 			setBusy(false);
+			refreshUsage();
 		}
 	}
 

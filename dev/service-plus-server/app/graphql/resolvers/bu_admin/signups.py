@@ -21,7 +21,7 @@ from psycopg.rows import dict_row
 
 from app.core.audit_log import AuditAction, audit_logger
 from app.core.exceptions import AppMessages, CodedValidationException, ValidationException
-from app.core.plan_prices import PAISE_PER_RUPEE, get_plan_price
+from app.core.plan_prices import PAISE_PER_RUPEE, get_plan_limits, get_plan_price
 from app.db.connection.psycopg_driver import exec_sql, get_service_db_connection
 from app.db.sql.sql_base import SqlStore
 from app.db.sql.sql_signups import SignupServerSql
@@ -210,7 +210,9 @@ async def build_bu_schema(db_name: str, bu: dict) -> None:
 
 
 async def set_bu_plan(db_name: str, bu_id: int, plan_code: str, monthly_fee_paise: int | None = None) -> None:
-    """Stamp the plan fields on a new BU: branch limit, billing, fee; paid_through empty."""
+    """Stamp the plan fields on a new BU: branch, job and WhatsApp limits, billing, fee;
+    paid_through empty."""
+    limits = get_plan_limits(plan_code)
     await exec_sql(
         db_name,
         "security",
@@ -219,10 +221,12 @@ async def set_bu_plan(db_name: str, bu_id: int, plan_code: str, monthly_fee_pais
             "billing_required": plan_code != "lite",
             "branch_limit": 1 if plan_code in ONE_BRANCH_PLAN_CODES else None,
             "bu_id": bu_id,
+            "job_limit_monthly": limits.jobs,
             "monthly_fee_paise": (
                 get_plan_price(plan_code).monthly_fee_paise if monthly_fee_paise is None else monthly_fee_paise
             ),
             "plan_code": plan_code,
+            "whatsapp_limit_monthly": limits.whatsapp,
         },
     )
     clear_bu_billing(db_name)

@@ -14,12 +14,14 @@ export type WhatsappCompletionResult = {
 };
 
 type SendWhatsappCompletionData = {
-	sendWhatsappCompletion: { results: WhatsappCompletionResult[]; disabled?: boolean } | null;
+	sendWhatsappCompletion: { disabled?: boolean; limitReached?: boolean; results: WhatsappCompletionResult[] } | null;
 };
 
 export type WhatsappCompletionSendOutcome = {
 	results: WhatsappCompletionResult[];
 	disabled: boolean;
+	/** Nothing (or not everything) was sent: the month's WhatsApp allowance is used up. */
+	limitReached: boolean;
 };
 
 export async function sendWhatsappCompletion(
@@ -39,5 +41,6 @@ export async function sendWhatsappCompletion(
 	return {
 		results: res.data?.sendWhatsappCompletion?.results ?? [],
 		disabled: res.data?.sendWhatsappCompletion?.disabled ?? false,
+		limitReached: res.data?.sendWhatsappCompletion?.limitReached ?? false,
 	};
 }

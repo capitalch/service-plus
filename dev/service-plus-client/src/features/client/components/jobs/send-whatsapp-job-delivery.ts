@@ -16,12 +16,18 @@ export type WhatsappJobDeliveryResult = {
 };
 
 type SendWhatsappJobDeliveryData = {
-	sendWhatsappJobDelivery: { results: WhatsappJobDeliveryResult[]; disabled?: boolean } | null;
+	sendWhatsappJobDelivery: {
+		disabled?: boolean;
+		limitReached?: boolean;
+		results: WhatsappJobDeliveryResult[];
+	} | null;
 };
 
 export type WhatsappJobDeliverySendOutcome = {
 	results: WhatsappJobDeliveryResult[];
 	disabled: boolean;
+	/** Nothing (or not everything) was sent: the month's WhatsApp allowance is used up. */
+	limitReached: boolean;
 };
 
 export async function sendWhatsappJobDelivery(
@@ -41,5 +47,6 @@ export async function sendWhatsappJobDelivery(
 	return {
 		results: res.data?.sendWhatsappJobDelivery?.results ?? [],
 		disabled: res.data?.sendWhatsappJobDelivery?.disabled ?? false,
+		limitReached: res.data?.sendWhatsappJobDelivery?.limitReached ?? false,
 	};
 }

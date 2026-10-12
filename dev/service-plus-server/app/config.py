@@ -5,6 +5,7 @@ Application configuration management using Pydantic Settings.
 from pydantic import ValidationError
 from pydantic_settings import SettingsConfigDict
 
+from app.core.settings.ai_settings import AiSettings
 from app.core.settings.api_settings import ApiSettings
 from app.core.settings.auth_settings import AuthSettings
 from app.core.settings.database_settings import DatabaseSettings
@@ -12,7 +13,9 @@ from app.core.settings.email_settings import EmailSettings
 from app.core.settings.whatsapp_settings import WhatsappSettings
 
 
-class Settings(DatabaseSettings, AuthSettings, EmailSettings, WhatsappSettings, ApiSettings):
+class Settings(
+    DatabaseSettings, AuthSettings, EmailSettings, WhatsappSettings, AiSettings, ApiSettings
+):
     """
     Application settings loaded from environment variables.
 

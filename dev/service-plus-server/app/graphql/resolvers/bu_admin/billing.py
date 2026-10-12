@@ -27,7 +27,7 @@ from app.core.billing import (
     today_ist,
 )
 from app.core.exceptions import AppMessages, CodedValidationException, ValidationException
-from app.core.plan_prices import PAISE_PER_RUPEE, get_plan_price, get_price_list
+from app.core.plan_prices import PAISE_PER_RUPEE, get_plan_limits, get_plan_price, get_price_list
 from app.db.connection.psycopg_driver import exec_sql, get_service_db_connection
 from app.db.sql.sql_billing import BillingServerSql
 from app.db.sql.sql_signups import SignupServerSql
@@ -189,15 +189,18 @@ async def resolve_change_bu_plan_helper(info, db_name: str, value: str) -> dict:
                 extensions={"branches": blocking},
             )
 
+        limits = get_plan_limits(new_plan)
         await cur.execute(
             BillingServerSql.SET_BU_PLAN_FIELDS,
             {
                 "billing_required": billed,
                 "branch_limit": 1 if new_plan in ONE_BRANCH_PLAN_CODES else None,
                 "id": bu["id"],
+                "job_limit_monthly": limits.jobs,
                 "monthly_fee_paise": new_fee,
                 "paid_through": paid_through,
                 "plan_code": new_plan,
+                "whatsapp_limit_monthly": limits.whatsapp,
             },
         )
         if paid_through != bu["paid_through"]:
@@ -457,6 +460,7 @@ async def resolve_start_client_billing_helper(value: str) -> dict:
     if paid_through < today or exceeds_prepaid_limit(paid_through, today):
         raise _invalid(AppMessages.PAID_THROUGH_INVALID, field="paid_through")
     prices = get_price_list()
+    limits = get_plan_limits("enterprise")
 
     async with get_service_db_connection(db_name) as conn:
         cur = await _security_cursor(conn)
@@ -469,7 +473,14 @@ async def resolve_start_client_billing_helper(value: str) -> dict:
             fee = base_fee if n == 1 else (0 if n <= prices.enterprise_included_bus else prices.extra_bu_monthly_paise)
             total += fee
             await cur.execute(
-                BillingServerSql.START_BU_BILLING, {"id": bu["id"], "monthly_fee_paise": fee, "paid_through": paid_through}
+                BillingServerSql.START_BU_BILLING,
+                {
+                    "id": bu["id"],
+                    "job_limit_monthly": limits.jobs,
+                    "monthly_fee_paise": fee,
+                    "paid_through": paid_through,
+                    "whatsapp_limit_monthly": limits.whatsapp,
+                },
             )
         await cur.execute(
             BillingServerSql.INSERT_LEDGER_NOTE,

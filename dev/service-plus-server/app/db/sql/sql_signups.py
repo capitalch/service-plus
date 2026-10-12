@@ -319,6 +319,7 @@ class SignupServerSql:
     SET_BU_PLAN = """
         UPDATE security.bu
         SET plan_code = %(plan_code)s, branch_limit = %(branch_limit)s,
+            job_limit_monthly = %(job_limit_monthly)s, whatsapp_limit_monthly = %(whatsapp_limit_monthly)s,
             billing_required = %(billing_required)s, monthly_fee_paise = %(monthly_fee_paise)s,
             paid_through = NULL, updated_at = now()
         WHERE id = %(bu_id)s

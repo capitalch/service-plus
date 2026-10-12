@@ -15,7 +15,8 @@ from app.graphql.pubsub import pubsub
 from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
 from app.whatsapp import otp
-from app.whatsapp.client import send_template
+from app.services.bu_usage import reserve_whatsapp
+from app.whatsapp.metered import WHATSAPP_LIMIT_REACHED, send_metered, send_reserved
 from app.whatsapp.mobile import is_valid_mobile, normalize_mobile
 from app.whatsapp.templates import TEMPLATES
 from app.whatsapp.token import sign as sign_status_link
@@ -349,8 +350,8 @@ async def _send_chunk(
     callback_data = _build_biz_opaque_callback_data(db_name, schema, "JOB_COMPLETION", job_ids)
 
     async with semaphore:
-        result = await send_template(
-            normalize_mobile(mobile), template, header_values, body_values, callback_data
+        result = await send_reserved(
+            db_name, schema, normalize_mobile(mobile), template, header_values, body_values, callback_data
         )
 
     status = "ACCEPTED" if result.ok else "FAILED"
@@ -397,8 +398,9 @@ async def _send_creation_chunk(
     button_values = [status_token, status_token]
 
     async with semaphore:
-        result = await send_template(
-            normalize_mobile(mobile), template, header_values, body_values, callback_data, button_values
+        result = await send_reserved(
+            db_name, schema, normalize_mobile(mobile), template, header_values, body_values, callback_data,
+            button_values,
         )
 
     status = "ACCEPTED" if result.ok else "FAILED"
@@ -449,8 +451,8 @@ async def _send_delivery_chunk(
     button_values = [status_token, status_token]
 
     async with semaphore:
-        summary_result = await send_template(
-            normalize_mobile(mobile), delivery_template, header_values, body_values,
+        summary_result = await send_reserved(
+            db_name, schema, normalize_mobile(mobile), delivery_template, header_values, body_values,
             delivery_callback, button_values,
         )
     if not summary_result.ok:
@@ -481,8 +483,8 @@ async def _send_delivery_chunk(
     # until this call returns.
     otp_callback = _build_biz_opaque_callback_data(db_name, schema, "JOB_DELIVERY", job_ids)
     async with semaphore:
-        otp_result = await send_template(
-            normalize_mobile(mobile), otp_template, [], [code], otp_callback,
+        otp_result = await send_reserved(
+            db_name, schema, normalize_mobile(mobile), otp_template, [], [code], otp_callback,
         )
 
     if not otp_result.ok:
@@ -509,6 +511,31 @@ async def _send_delivery_chunk(
         "status": "SENT" if otp_result.ok else "FAILED",
         "error": otp_result.error_message,
     }
+
+
+async def _refuse_chunks_at_limit(
+    db_name: str, schema: str, event_key: str, chunks: list[list[dict]]
+) -> list[dict[str, Any]]:
+    """The month's WhatsApp allowance cannot cover this request: nothing is sent (Meta is not
+    called) and every job records a FAILED attempt with the limit message, so the screens
+    show why (plans/plan.md Step 6)."""
+    error = AppMessages.WHATSAPP_LIMIT_REACHED
+    await asyncio.gather(
+        *(
+            _persist_attempt(db_name, schema, j["job_id"], event_key, None, "FAILED", error)
+            for chunk in chunks
+            for j in chunk
+        )
+    )
+    return [
+        {
+            "customer_name": chunk[0]["customer_name"],
+            "job_ids": [j["job_id"] for j in chunk],
+            "status": "FAILED",
+            "error": error,
+        }
+        for chunk in chunks
+    ]
 
 
 async def resolve_send_whatsapp_completion_helper(
@@ -557,7 +584,7 @@ async def resolve_send_whatsapp_completion_helper(
         groups.setdefault(row["customer_contact_id"], []).append(row)
 
     semaphore = asyncio.Semaphore(_SEND_CONCURRENCY)
-    send_tasks = []
+    chunks: list[list[dict]] = []
     skipped_results = []
 
     for jobs in groups.values():
@@ -575,10 +602,16 @@ async def resolve_send_whatsapp_completion_helper(
                 }
             )
             continue
-        for chunk in _chunk(jobs, MAX_JOBS_PER_WHATSAPP_MESSAGE):
-            send_tasks.append(_send_chunk(db_name_arg, schema_name, bu_name, chunk, semaphore))
+        chunks.extend(_chunk(jobs, MAX_JOBS_PER_WHATSAPP_MESSAGE))
 
-    send_results = await asyncio.gather(*send_tasks) if send_tasks else []
+    # The whole request is reserved up front: refused whole, never half-sent.
+    limit_reached = not await reserve_whatsapp(db_name_arg, schema_name, len(chunks))
+    if limit_reached:
+        send_results = await _refuse_chunks_at_limit(db_name_arg, schema_name, "JOB_COMPLETION", chunks)
+    else:
+        send_results = list(
+            await asyncio.gather(*(_send_chunk(db_name_arg, schema_name, bu_name, c, semaphore) for c in chunks))
+        )
     all_results = [*send_results, *skipped_results]
 
     logger.info(
@@ -588,7 +621,7 @@ async def resolve_send_whatsapp_completion_helper(
         len(rows),
     )
 
-    return {"results": all_results}
+    return {"limitReached": limit_reached, "results": all_results}
 
 
 async def send_job_creation_notice(db_name: str, schema: str = "public", value: str = "") -> dict[str, Any]:
@@ -642,7 +675,7 @@ async def send_job_creation_notice(db_name: str, schema: str = "public", value: 
         groups.setdefault(row["customer_contact_id"], []).append(row)
 
     semaphore = asyncio.Semaphore(_SEND_CONCURRENCY)
-    send_tasks = []
+    chunks: list[list[dict]] = []
     skipped_results = []
 
     for jobs in groups.values():
@@ -660,10 +693,16 @@ async def send_job_creation_notice(db_name: str, schema: str = "public", value: 
                 }
             )
             continue
-        for chunk in _chunk(jobs, MAX_JOBS_PER_WHATSAPP_MESSAGE):
-            send_tasks.append(_send_creation_chunk(db_name_arg, schema_name, bu_name, chunk, semaphore))
+        chunks.extend(_chunk(jobs, MAX_JOBS_PER_WHATSAPP_MESSAGE))
 
-    send_results = await asyncio.gather(*send_tasks) if send_tasks else []
+    # The whole request is reserved up front: refused whole, never half-sent.
+    limit_reached = not await reserve_whatsapp(db_name_arg, schema_name, len(chunks))
+    if limit_reached:
+        send_results = await _refuse_chunks_at_limit(db_name_arg, schema_name, "JOB_CREATION", chunks)
+    else:
+        send_results = list(
+            await asyncio.gather(*(_send_creation_chunk(db_name_arg, schema_name, bu_name, c, semaphore) for c in chunks))
+        )
     all_results = [*send_results, *skipped_results]
 
     logger.info(
@@ -673,7 +712,7 @@ async def send_job_creation_notice(db_name: str, schema: str = "public", value: 
         len(rows),
     )
 
-    return {"results": all_results}
+    return {"limitReached": limit_reached, "results": all_results}
 
 
 async def send_job_delivery_notice(db_name: str, schema: str = "public", value: str = "") -> dict[str, Any]:
@@ -729,7 +768,7 @@ async def send_job_delivery_notice(db_name: str, schema: str = "public", value: 
         groups.setdefault(row["customer_contact_id"], []).append(row)
 
     semaphore = asyncio.Semaphore(_SEND_CONCURRENCY)
-    send_tasks = []
+    chunks: list[list[dict]] = []
     skipped_results = []
 
     for jobs in groups.values():
@@ -748,10 +787,17 @@ async def send_job_delivery_notice(db_name: str, schema: str = "public", value: 
                 }
             )
             continue
-        for chunk in _chunk(jobs, MAX_JOBS_PER_WHATSAPP_MESSAGE):
-            send_tasks.append(_send_delivery_chunk(db_name_arg, schema_name, bu_name, chunk, semaphore))
+        chunks.extend(_chunk(jobs, MAX_JOBS_PER_WHATSAPP_MESSAGE))
 
-    send_results = await asyncio.gather(*send_tasks) if send_tasks else []
+    # Each chunk is two messages (summary + OTP); the request is reserved whole, so a
+    # delivery never gets a summary without its OTP because the allowance ran out.
+    limit_reached = not await reserve_whatsapp(db_name_arg, schema_name, len(chunks) * 2)
+    if limit_reached:
+        send_results = await _refuse_chunks_at_limit(db_name_arg, schema_name, "JOB_DELIVERY", chunks)
+    else:
+        send_results = list(
+            await asyncio.gather(*(_send_delivery_chunk(db_name_arg, schema_name, bu_name, c, semaphore) for c in chunks))
+        )
     all_results = [*send_results, *skipped_results]
 
     logger.info(
@@ -761,7 +807,7 @@ async def send_job_delivery_notice(db_name: str, schema: str = "public", value: 
         len(rows),
     )
 
-    return {"results": all_results}
+    return {"limitReached": limit_reached, "results": all_results}
 
 
 async def send_whatsapp_money_receipt(db_name: str, schema: str = "public", value: str = "") -> dict[str, Any]:
@@ -830,8 +876,9 @@ async def send_whatsapp_money_receipt(db_name: str, schema: str = "public", valu
     receipt_token = sign_receipt(db_name_arg, schema_name, row["job_id"], payment_id)
     button_values = [receipt_token]
 
-    result = await send_template(
-        normalize_mobile(row["mobile"]), template, header_values, body_values, callback_data, button_values
+    result = await send_metered(
+        db_name_arg, schema_name, normalize_mobile(row["mobile"]), template, header_values, body_values,
+        callback_data, button_values,
     )
 
     status = "ACCEPTED" if result.ok else "FAILED"
@@ -844,6 +891,7 @@ async def send_whatsapp_money_receipt(db_name: str, schema: str = "public", valu
     )
 
     return {
+        "limitReached": result.error_code == WHATSAPP_LIMIT_REACHED,
         "results": [
             {
                 "customer_name": row["customer_name"],
@@ -930,8 +978,9 @@ async def send_whatsapp_job_invoice(db_name: str, schema: str = "public", value:
     invoice_token = sign_status_link(db_name_arg, schema_name, [job_id])
     button_values = [invoice_token]
 
-    result = await send_template(
-        normalize_mobile(row["mobile"]), template, header_values, body_values, callback_data, button_values
+    result = await send_metered(
+        db_name_arg, schema_name, normalize_mobile(row["mobile"]), template, header_values, body_values,
+        callback_data, button_values,
     )
 
     status = "ACCEPTED" if result.ok else "FAILED"
@@ -942,6 +991,7 @@ async def send_whatsapp_job_invoice(db_name: str, schema: str = "public", value:
     logger.info("sendWhatsappJobInvoice: job_id=%s status=%s", job_id, status)
 
     return {
+        "limitReached": result.error_code == WHATSAPP_LIMIT_REACHED,
         "results": [
             {
                 "customer_name": row["customer_name"],

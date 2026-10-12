@@ -255,6 +255,11 @@ export const GRAPHQL_MAP = {
 			addJobInternalNote(db_name: $db_name, schema: $schema, value: $value)
 		}
 	`,
+	askHelpAi: gql`
+		mutation AskHelpAi($db_name: String!, $schema: String!, $value: String!) {
+			askHelpAi(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
 	deleteJobInternalNote: gql`
 		mutation DeleteJobInternalNote($db_name: String!, $schema: String, $value: String!) {
 			deleteJobInternalNote(db_name: $db_name, schema: $schema, value: $value)

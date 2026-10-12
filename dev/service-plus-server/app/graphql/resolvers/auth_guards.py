@@ -81,7 +81,7 @@ SECURITY_ADMIN_ONLY_TABLES = frozenset({
 # `public.sales_enquiry` (Enterprise) is server-only as well, and no BU table shares
 # either name. `job_internal_note` (BU schemas) is written only by the three
 # internal-note mutations, so authorship and the edit right cannot be bypassed.
-SECURITY_SERVER_ONLY_TABLES = frozenset({"bu_payment", "job_internal_note", "sales_enquiry"})
+SECURITY_SERVER_ONLY_TABLES = frozenset({"bu_payment", "bu_usage", "job_internal_note", "sales_enquiry"})
 
 # security.bu billing columns: set only by approval, plan change and payment
 # mutations, never by genericUpdate (edit / activate / deactivate BU write none of them).
@@ -89,11 +89,13 @@ BU_BILLING_COLUMNS = frozenset({
     "billing_hold",
     "billing_required",
     "branch_limit",
+    "job_limit_monthly",
     "last_reminder_kind",
     "last_reminder_on",
     "monthly_fee_paise",
     "paid_through",
     "plan_code",
+    "whatsapp_limit_monthly",
 })
 
 # The one security write a business user makes: the BU/branch switcher saving their

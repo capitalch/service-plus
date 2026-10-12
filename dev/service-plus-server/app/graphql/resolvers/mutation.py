@@ -6,6 +6,7 @@ import json
 from typing import Any
 from urllib.parse import unquote
 from ariadne import MutationType  # pylint: disable=import-error
+from app.ai_help.service import ask_help_ai
 from app.core.exceptions import AppMessages, AuthorizationException
 from app.graphql.resolvers.bu_admin.staff_users import require_manager_creates_staff_user
 from app.graphql.resolvers.auth_guards import (
@@ -20,6 +21,7 @@ from app.graphql.resolvers.auth_guards import (
     require_user_type,
 )
 from app.graphql.resolvers.error_handling import handle_graphql_errors
+from app.graphql.resolvers.shared.generic_query import _decode_value
 
 from app.graphql.resolvers.bu_admin.mailers import (
     resolve_mail_admin_credentials_helper,
@@ -87,6 +89,7 @@ from app.graphql.resolvers.jobs.mutations import (
     JOBS_GENERIC_UPDATE_TABLE_RIGHTS,
     add_job_internal_note,
     delete_job_internal_note,
+    refuse_job_insert,
     resolve_create_job_batch_helper,
     resolve_create_job_payment_helper,
     resolve_create_single_job_helper,
@@ -348,6 +351,7 @@ async def resolve_generic_update(_, info, db_name="", schema="public", value="")
     # deactivated, moved or re-flagged here. Applies to every user type.
     payload = _generic_update_payload(value)
     refuse_branch_insert(payload)
+    refuse_job_insert(payload)
     await refuse_default_division_change(db_name, schema, payload)
     result = await resolve_generic_update_helper(db_name, schema, value)
     # A lead entered, edited or deleted is the one Extended Warranty change with no
@@ -612,6 +616,11 @@ async def resolve_set_user_bu_role(
     return await resolve_set_user_bu_role_helper(db_name, schema, value)
 
 
+def _is_super_admin(info) -> bool:
+    """The Super Admin's own job writes are never counted against a BU's monthly allowance."""
+    return (info.context or {}).get("user_type") == "S"
+
+
 @mutation.field("createSingleJob")
 @handle_graphql_errors("Error creating single job")
 async def resolve_create_single_job(
@@ -621,7 +630,7 @@ async def resolve_create_single_job(
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
     await require_bu_writable(info, db_name, schema)
-    return await resolve_create_single_job_helper(db_name, schema, value)
+    return await resolve_create_single_job_helper(db_name, schema, value, skip_usage=_is_super_admin(info))
 
 
 @mutation.field("updateJob")
@@ -657,7 +666,7 @@ async def resolve_create_job_batch(
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
     await require_bu_writable(info, db_name, schema)
-    return await resolve_create_job_batch_helper(db_name, schema, value)
+    return await resolve_create_job_batch_helper(db_name, schema, value, skip_usage=_is_super_admin(info))
 
 
 @mutation.field("updateJobBatch")
@@ -669,7 +678,7 @@ async def resolve_update_job_batch(
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
     await require_bu_writable(info, db_name, schema)
-    return await resolve_update_job_batch_helper(db_name, schema, value)
+    return await resolve_update_job_batch_helper(db_name, schema, value, skip_usage=_is_super_admin(info))
 
 
 @mutation.field("deleteJobBatch")
@@ -969,6 +978,18 @@ async def resolve_add_ew_follow_up(
     await require_bu_writable(info, db_name, schema)
     require_access_right(info, EW_ACCESS_RIGHT)
     return await add_ew_follow_up(db_name, schema, value, (info.context or {}).get("user_id"))
+
+
+@mutation.field("askHelpAi")
+@handle_graphql_errors("Error answering an Ask AI question")
+async def resolve_ask_help_ai(_, info, db_name: str = "", schema: str = "", value: str = "") -> Any:
+    """Ask AI in the client Help Center (app/ai_help/). Everyone who can open Help may ask,
+    so no access right; read-only BUs may ask too (nothing is written)."""
+    require_own_tenant(info, db_name)
+    require_bu_access(info, schema)
+    payload = _decode_value(value, "askHelpAi")
+    user_key = f"{db_name}:{(info.context or {}).get('user_id')}"
+    return await ask_help_ai(db_name, schema, user_key, payload)
 
 
 @mutation.field("resendEwLeadAlert")

@@ -579,6 +579,8 @@ export const MESSAGES = {
 	SUCCESS_EW_SETTINGS_SAVED: "Extended Warranty settings saved.",
 	SUCCESS_EW_STATE_CHANGED: "Lead moved to {state}.",
 	WARN_EW_SEND_CAPPED: "{count} not sent — the daily send cap is reached.",
+	WARN_EW_SEND_MONTHLY_LIMIT:
+		"{count} not sent — this month's WhatsApp messages in your plan are used up. The limit resets on the 1st.",
 	WARN_EW_SEND_SKIPPED: "{count} skipped — no longer sendable.",
 	// Extended Warranty — forms and screens
 	ERROR_EW_BRAND_REQUIRED: "Please select a brand.",
@@ -667,6 +669,8 @@ export const MESSAGES = {
 	BILLING_DUE_SOON: "Your payment is due. The app becomes view-only after {date}.",
 	BILLING_EXTRA_NOTE_REQUIRED: "Add a note explaining the amount above the monthly fee × months.",
 	BILLING_HOLD_SAVED: "Billing hold updated.",
+	BILLING_JOB_LIMIT:
+		"You have used all the jobs included in your plan for this month. The limit resets on the 1st. Upgrade your plan to add more.",
 	BILLING_LOAD_FAILED: "Failed to load subscriptions. Please try again.",
 	BILLING_NOT_STARTED: "This customer is not billed yet. Start billing to put all its business units on the plan.",
 	BILLING_PAID_THROUGH_SAVED: "Paid-through date updated.",
@@ -677,6 +681,10 @@ export const MESSAGES = {
 	BILLING_READ_ONLY_FIRST:
 		"Your first monthly payment has not been recorded yet. You can view your data but cannot add or change it. Please contact your Service+ provider.",
 	BILLING_STARTED: "Billing started.",
+	BILLING_USAGE_JOBS: "Jobs this month: {used} / {limit}",
+	BILLING_USAGE_WHATSAPP: "WhatsApp messages this month: {used} / {limit}",
+	BILLING_WHATSAPP_LIMIT:
+		"You have used all the WhatsApp messages included in your plan for this month. The limit resets on the 1st.",
 	BILLING_FEE_SAVED: "Monthly fee updated.",
 	READ_ONLY_TOOLTIP: "Read-only: payment pending",
 
@@ -733,6 +741,21 @@ export const MESSAGES = {
 	INFO_CUSTOMER_CONNECT_ALL_EVENTS_OFF:
 		"All WhatsApp events are switched off. Turn them on in Configurations → App Settings → whatsapp_notifications.",
 	ERROR_APP_SETTING_VALUE_REQUIRED: "Value is required",
+
+	// Ask AI in the Help Center
+	AI_HELP_BUSY: "AI help is busy right now. Please try again in a little while.",
+	AI_HELP_DISCLAIMER:
+		"AI answers come only from these help pages and can be wrong — check the linked article. Don't type customer names or numbers.",
+	AI_HELP_EMPTY_STATE:
+		"Ask a question about using Service+, in your own words. For example: how do I deliver two jobs together?",
+	AI_HELP_INVALID_INPUT: "The question could not be sent. Please shorten it and try again.",
+	AI_HELP_LIMIT_REACHED:
+		"AI help has reached its limit for now. Try again in a minute, or tomorrow if today's questions for this business unit are used up.",
+	AI_HELP_NOT_COVERED:
+		"The help pages don't cover this. Try searching the help with other words, or ask your business owner or Service+ support.",
+	AI_HELP_QUESTION_REQUIRED: "Type a question first.",
+	AI_HELP_QUESTION_TOO_LONG: "Keep the question under 500 characters.",
+	AI_HELP_UNAVAILABLE: "AI help could not answer just now. Please try again, or search the help.",
 } as const;
 
 // Builds the Post/Unpost "Select All" confirmation title + description from central templates.

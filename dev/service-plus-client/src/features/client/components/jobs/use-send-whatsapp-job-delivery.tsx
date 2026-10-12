@@ -11,6 +11,7 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { MESSAGES } from "@/constants/messages";
+import { useUsageLimits } from "@/components/shared/billing/use-usage-limits";
 import { sendWhatsappJobDelivery, type WhatsappJobDeliveryResult } from "./send-whatsapp-job-delivery";
 
 // Copy of use-send-whatsapp-job-intake.tsx (plans/plan.md, Step 4) — same
@@ -21,6 +22,7 @@ import { sendWhatsappJobDelivery, type WhatsappJobDeliveryResult } from "./send-
 // distinction is the caller's to act on, not this hook's — it just reports
 // results back.
 export function useSendWhatsappJobDelivery() {
+	const { isWhatsappLimitReached, refreshUsage } = useUsageLimits();
 	const [sending, setSending] = useState(false);
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const resolveConfirmRef = useRef<((confirmed: boolean) => void) | null>(null);
@@ -33,8 +35,10 @@ export function useSendWhatsappJobDelivery() {
 	): Promise<WhatsappJobDeliveryResult[]> {
 		setSending(true);
 		try {
-			const { results, disabled } = await sendWhatsappJobDelivery(dbName, schema, branchId, jobIds);
-			if (disabled) {
+			const { disabled, limitReached, results } = await sendWhatsappJobDelivery(dbName, schema, branchId, jobIds);
+			if (limitReached) {
+				toast.warning(MESSAGES.BILLING_WHATSAPP_LIMIT);
+			} else if (disabled) {
 				toast.warning(MESSAGES.WARN_WHATSAPP_EVENT_DISABLED);
 			} else if (results.length === 0) {
 				toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
@@ -58,6 +62,7 @@ export function useSendWhatsappJobDelivery() {
 			return [];
 		} finally {
 			setSending(false);
+			refreshUsage();
 		}
 	}
 
@@ -67,6 +72,11 @@ export function useSendWhatsappJobDelivery() {
 		branchId: number,
 		jobIds: number[],
 	): Promise<WhatsappJobDeliveryResult[]> {
+		// Month's messages used up: say so instead of asking to send (plans/plan.md Step 8).
+		if (isWhatsappLimitReached) {
+			toast.warning(MESSAGES.BILLING_WHATSAPP_LIMIT);
+			return [];
+		}
 		const confirmed = await new Promise<boolean>((resolve) => {
 			resolveConfirmRef.current = resolve;
 			setConfirmOpen(true);

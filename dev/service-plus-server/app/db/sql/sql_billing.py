@@ -49,6 +49,27 @@ class BillingSql:
     """
 
 
+
+def _reserve_sql(used_col: str, limit_col: str) -> str:
+    """Add n to this month's counter only while it stays within the BU's limit (NULL =
+    unlimited), in one statement: ON CONFLICT locks the month's row, so two requests can
+    never both take the last slot. No row returned = limit reached."""
+    return f"""
+        INSERT INTO security.bu_usage (bu_id, period_start, {used_col})
+        SELECT b.id, %(period_start)s, %(n)s
+        FROM security.bu b
+        WHERE LOWER(b.code) = LOWER(%(code)s::text)
+          AND (b.{limit_col} IS NULL OR %(n)s <= b.{limit_col})
+        ON CONFLICT (bu_id, period_start) DO UPDATE
+        SET {used_col} = security.bu_usage.{used_col} + EXCLUDED.{used_col}
+        WHERE COALESCE(
+            security.bu_usage.{used_col} + EXCLUDED.{used_col}
+                <= (SELECT b2.{limit_col} FROM security.bu b2 WHERE b2.id = security.bu_usage.bu_id),
+            true
+        )
+        RETURNING {used_col} AS used
+    """
+
 class BillingServerSql:
     """Billing DDL, writes and server-only reads. Never composed into SqlStore."""
 
@@ -194,6 +215,7 @@ class BillingServerSql:
     SET_BU_PLAN_FIELDS = """
         UPDATE security.bu
         SET plan_code = %(plan_code)s, branch_limit = %(branch_limit)s,
+            job_limit_monthly = %(job_limit_monthly)s, whatsapp_limit_monthly = %(whatsapp_limit_monthly)s,
             billing_required = %(billing_required)s, monthly_fee_paise = %(monthly_fee_paise)s,
             paid_through = %(paid_through)s, updated_at = now()
         WHERE id = %(id)s
@@ -211,6 +233,7 @@ class BillingServerSql:
     START_BU_BILLING = """
         UPDATE security.bu
         SET plan_code = 'enterprise', billing_required = true, branch_limit = NULL,
+            job_limit_monthly = %(job_limit_monthly)s, whatsapp_limit_monthly = %(whatsapp_limit_monthly)s,
             billing_hold = false, monthly_fee_paise = %(monthly_fee_paise)s,
             paid_through = %(paid_through)s, updated_at = now()
         WHERE id = %(id)s
@@ -269,6 +292,7 @@ class BillingServerSql:
         SET plan_code = %(plan_code)s, billing_required = %(billing_required)s,
             paid_through = %(paid_through)s, billing_hold = %(billing_hold)s,
             branch_limit = %(branch_limit)s, monthly_fee_paise = %(monthly_fee_paise)s,
+            job_limit_monthly = %(job_limit_monthly)s, whatsapp_limit_monthly = %(whatsapp_limit_monthly)s,
             updated_at = now()
         WHERE id = %(bu_id)s
     """
@@ -285,4 +309,26 @@ class BillingServerSql:
         INSERT INTO security.bu_payment
             (bu_id, entry_kind, amount_paise, months, monthly_fee_paise, note, recorded_by)
         VALUES (%(bu_id)s, 'fee_rebase', 0, 0, %(monthly_fee_paise)s, %(note)s, %(recorded_by)s)
+    """
+
+    # Monthly job / WhatsApp allowances (plans/plan.md Steps 4–7). period_start is the 1st of
+    # the IST month; a new month starts a new row at 0. Every table is security-qualified:
+    # RESERVE_JOBS runs on the job cursor, whose search_path is the BU schema.
+    RESERVE_JOBS = _reserve_sql("jobs_used", "job_limit_monthly")
+
+    RESERVE_WHATSAPP = _reserve_sql("whatsapp_used", "whatsapp_limit_monthly")
+
+    RELEASE_WHATSAPP = """
+        UPDATE security.bu_usage
+        SET whatsapp_used = GREATEST(whatsapp_used - %(n)s, 0)
+        WHERE bu_id = (SELECT id FROM security.bu WHERE LOWER(code) = LOWER(%(code)s::text))
+          AND period_start = %(period_start)s
+    """
+
+    GET_BU_USAGE = """
+        SELECT b.job_limit_monthly, b.whatsapp_limit_monthly,
+               COALESCE(u.jobs_used, 0) AS jobs_used, COALESCE(u.whatsapp_used, 0) AS whatsapp_used
+        FROM security.bu b
+        LEFT JOIN security.bu_usage u ON u.bu_id = b.id AND u.period_start = %(period_start)s
+        WHERE LOWER(b.code) = LOWER(%(code)s::text)
     """

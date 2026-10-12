@@ -11,6 +11,7 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { MESSAGES } from "@/constants/messages";
+import { useUsageLimits } from "@/components/shared/billing/use-usage-limits";
 import { sendWhatsappJobIntake, type WhatsappJobIntakeResult } from "./send-whatsapp-job-intake";
 
 // Shared by every "Whatsapp Job Intake" entry point at job-creation time (single job,
@@ -28,6 +29,7 @@ import { sendWhatsappJobIntake, type WhatsappJobIntakeResult } from "./send-what
 // The caller must render the returned ConfirmDialog element once, anywhere in its
 // tree — every call site sharing one hook instance shares one dialog.
 export function useSendWhatsappJobIntake() {
+	const { isWhatsappLimitReached, refreshUsage } = useUsageLimits();
 	const [sending, setSending] = useState(false);
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const resolveConfirmRef = useRef<((confirmed: boolean) => void) | null>(null);
@@ -40,8 +42,10 @@ export function useSendWhatsappJobIntake() {
 	): Promise<WhatsappJobIntakeResult[]> {
 		setSending(true);
 		try {
-			const { results, disabled } = await sendWhatsappJobIntake(dbName, schema, branchId, jobIds);
-			if (disabled) {
+			const { disabled, limitReached, results } = await sendWhatsappJobIntake(dbName, schema, branchId, jobIds);
+			if (limitReached) {
+				toast.warning(MESSAGES.BILLING_WHATSAPP_LIMIT);
+			} else if (disabled) {
 				toast.warning(MESSAGES.WARN_WHATSAPP_EVENT_DISABLED);
 			} else if (results.length === 0) {
 				toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
@@ -56,6 +60,7 @@ export function useSendWhatsappJobIntake() {
 			return [];
 		} finally {
 			setSending(false);
+			refreshUsage();
 		}
 	}
 
@@ -65,6 +70,11 @@ export function useSendWhatsappJobIntake() {
 		branchId: number,
 		jobIds: number[],
 	): Promise<WhatsappJobIntakeResult[]> {
+		// Month's messages used up: say so instead of asking to send (plans/plan.md Step 8).
+		if (isWhatsappLimitReached) {
+			toast.warning(MESSAGES.BILLING_WHATSAPP_LIMIT);
+			return [];
+		}
 		const confirmed = await new Promise<boolean>((resolve) => {
 			resolveConfirmRef.current = resolve;
 			setConfirmOpen(true);

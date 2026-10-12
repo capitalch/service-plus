@@ -3,6 +3,7 @@ GraphQL Query resolvers.
 """
 from typing import Any
 from ariadne import QueryType
+from app.ai_help.service import ai_help_enabled
 from app.graphql.resolvers.auth_guards import (
     require_bu_access,
     require_own_tenant,
@@ -25,6 +26,7 @@ from app.graphql.resolvers.shared.generic_query import (
     resolve_generic_query_helper,
 )
 from app.services.bu_billing import get_bu_billing
+from app.services.bu_usage import get_bu_usage
 from app.whatsapp.sender import get_job_delivery_otp_pending
 
 
@@ -83,10 +85,16 @@ async def resolve_generic_batch_query(_, info, db_name="", items=None) -> Any:
 @query.field("buBillingStatus")
 @handle_query_errors("Unexpected billing status failure")
 async def resolve_bu_billing_status(_, info, db_name="", schema="") -> Any:
-    """{status, paidThrough, planCode, branchLimit} of one BU (plans/plan.md Step 11)."""
+    """{status, paidThrough, planCode, branchLimit} of one BU (plans/plan.md Step 11), plus
+    this month's {jobLimit, jobsUsed, whatsappLimit, whatsappUsed} (Step 7), read fresh — the
+    billing part is cached, usage never is. aiHelpEnabled shows or hides Ask AI in Help."""
     require_own_tenant(info, db_name)
     require_bu_access(info, schema)
-    return await get_bu_billing(db_name, schema)
+    return {
+        **await get_bu_billing(db_name, schema),
+        **await get_bu_usage(db_name, schema),
+        "aiHelpEnabled": ai_help_enabled(),
+    }
 
 
 @query.field("genericQuery")

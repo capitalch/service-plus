@@ -1,5 +1,0 @@
-# Subscriptions
-- From the web portal, User should be able to spin up the Lite version after approval process, at present only enquiry form is filled up and update of database is done.
-- For basic, standard and enterprise the enquiry form is ok. But for lite version there should be a confirm button which when clicked, it should show a notification for admin user. When admin user approves, the lite version is activated for the user/service center. The business unit name will be derived from what user entered in enquiry form. Proper messages should be visible for lite version user, like your request is pending for approval.
-- This should be done after proper validation. No credit card details required.
-- service-plus-server should store the key for default database name for service centers as customers for lite, basic and standard subscription plans.

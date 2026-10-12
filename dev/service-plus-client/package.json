@@ -1,11 +1,12 @@
 {
   "name": "service-plus-client",
   "private": true,
-  "version": "0.24.5",
+  "version": "0.24.6",
   "type": "module",
   "scripts": {
     "start": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/export-help.mjs && tsc -b && vite build",
+    "export-help": "node scripts/export-help.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "gen-types-service": "dotenv -- cross-var cross-env PG_TO_TS_CONN=%SERVICE_PLUS_SERVICE% pg-to-ts generate --schema demo1 -o src/types/db-schema-service.ts",

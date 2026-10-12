@@ -1787,7 +1787,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					[
 						"Anything taking a BU schema",
 						"require_own_tenant + require_bu_access, before any right check; writes then await require_bu_writable (Step 11, see 'View-only Guard (Unpaid Month)')",
-						"the four generic dispatchers, every job / invoice / payment / inventory mutation, accountsPosting, the five sendWhatsapp… mutations, verifyJobDeliveryOtp, setJobDeliveryManualConfirmation, the four Extended Warranty mutations, addBranch, getJobDeliveryOtpPending, buBillingStatus",
+						"the four generic dispatchers, every job / invoice / payment / inventory mutation, accountsPosting, the five sendWhatsapp… mutations, verifyJobDeliveryOtp, setJobDeliveryManualConfirmation, the four Extended Warranty mutations, addBranch, getJobDeliveryOtpPending, buBillingStatus, askHelpAi (no require_bu_writable — it writes nothing, so a read-only BU may still ask)",
 					],
 				],
 			},
@@ -1869,11 +1869,11 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				headers: ["List", "Who may write it through genericUpdate"],
 				rows: [
 					[
-						"SECURITY_SERVER_ONLY_TABLES: sales_enquiry, bu_payment, job_internal_note",
+						"SECURITY_SERVER_ONLY_TABLES: sales_enquiry, bu_payment, bu_usage, job_internal_note",
 						"Nobody, Super Admin included, in any schema and at any xDetails depth. sales_enquiry / bu_payment change only by the sign-up and payment mutations (Steps 9, 10, 13); job_internal_note only by the three internal-note mutations (see 'Job Internal Notes — Implementation').",
 					],
 					[
-						"BU_BILLING_COLUMNS of security.bu: plan_code, billing_required, monthly_fee_paise, paid_through, billing_hold, branch_limit, last_reminder_on, last_reminder_kind",
+						"BU_BILLING_COLUMNS of security.bu: plan_code, billing_required, monthly_fee_paise, paid_through, billing_hold, branch_limit, job_limit_monthly, whatsapp_limit_monthly, last_reminder_on, last_reminder_kind",
 						"Nobody. The edit / activate / deactivate / delete BU dialogs write only name, is_active or deletedIds, and still work.",
 					],
 					[
@@ -3689,7 +3689,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				rows: [
 					[
 						"client.py",
-						"send_template() only — the single call that touches Meta's HTTP API. It sends header + body components and, when the template has any, dynamic-URL button components (one parameter per button, e.g. JOB_CREATION's two 'token' buttons). upload_media() and any document/header branch are still gone — every template here is text + link, never a Meta-hosted attachment.",
+						"send_template() only — the single call that touches Meta's HTTP API. It sends header + body components and, when the template has any, dynamic-URL button components (one parameter per button, e.g. JOB_CREATION's two 'token' buttons). upload_media() and any document/header branch are still gone — every template here is text + link, never a Meta-hosted attachment. Nothing calls it directly any more: every send goes through app/whatsapp/metered.py (send_metered / send_reserved), which counts it against the BU's monthly WhatsApp allowance — see 'Monthly Job & WhatsApp Limits'.",
 					],
 					[
 						"templates.py",
@@ -4841,11 +4841,11 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				type: "bullets",
 				items: [
 					"require_bu_writable(info, db_name, schema) in auth_guards.py (async): skips S and the security/public/empty schemas; otherwise reads get_bu_billing and raises AuthorizationException code SUBSCRIPTION_READ_ONLY with extensions.paidThrough. It runs after require_own_tenant + require_bu_access, so a foreign BU still gets 'forbidden'. Admins are blocked like anyone.",
-					"app/services/bu_billing.py: get_bu_billing caches {status, paidThrough, planCode, branchLimit} per (database, BU) for 60 s (BillingServerSql.GET_BU_BILLING_BY_CODE + compute_billing_status). clear_bu_billing(db, schema=None) is called by set_bu_plan and the extra-BU billing; payment recording (Step 13) must call it too.",
+					"app/services/bu_billing.py: get_bu_billing caches {status, paidThrough, planCode, branchLimit} per (database, BU) for 60 s (BillingServerSql.GET_BU_BILLING_BY_CODE + compute_billing_status). clear_bu_billing(db, schema=None) is called by set_bu_plan and the extra-BU billing; payment recording (Step 13) must call it too. buBillingStatus also returns jobLimit / jobsUsed / whatsappLimit / whatsappUsed from app/services/bu_usage.py — read fresh, never through this cache — and aiHelpEnabled (see 'Ask AI in the Help Center').",
 					"Guarded: genericUpdate, genericUpdateScript, addBranch and every BU-schema mutation (jobs, invoices, payments, inventory import/delete, accountsPosting, WhatsApp sends, delivery OTP/confirmation, the four EW mutations). Not guarded: provisioning, users/roles, mail credentials, Super Admin and enquiry/payment/plan mutations. tests/test_view_only_guard.py keeps every mutation in exactly one of the two lists — a new mutation fails the test until classified.",
 					"REST: image_router's _require_media_scope refuses uploads/deletes (403 detail.code SUBSCRIPTION_READ_ONLY); public /part-orders answers 409 PART_ORDER_UNAVAILABLE. Public job-intake/delivery/receipt pages are GET-only and stay readable; WhatsApp status callbacks and the stock snapshot are untouched.",
 					"Login: GET_USER_BUS returns the billing columns and each availableBus entry carries billing (the summary) with paid_through as ISO text. GET_ALL_BUS_WITH_SCHEMA_STATUS returns the billing columns too. New query buBillingStatus(db_name, schema) — guarded by tenant and BU access.",
-					"Client (Step 14): components/shared/billing/use-billing-sync.ts (mounted in client-layout.tsx) reads buBillingStatus on BU change, window focus and context.billingRefreshTick into context.billing; never computed in the browser. apollo-client.ts's error link turns SUBSCRIPTION_READ_ONLY / BRANCH_LIMIT_REACHED into showBillingNotice (read-only-dialog.tsx) + requestBillingRefresh. billing-banner.tsx shows due_soon (amber) / read_only. The plan badge just before the BU selector (bu-branch-switcher.tsx) reads context.billing.planCode through PLAN_NAMES (enquiry-types.ts) — so it shows only in client mode, where useBillingSync runs, is absent for a BU with a null plan_code, and is hidden below the sm breakpoint. useIsReadOnly (selectIsReadOnly) disables the Masters Add buttons, Save on the job/receipt/sales/stock-adjustment/branch-transfer/loan/opening-stock screens, and DeleteConfirmDialog.",
+					"Client (Step 14): components/shared/billing/use-billing-sync.ts (mounted in client-layout.tsx) reads buBillingStatus on BU change, window focus and context.billingRefreshTick into context.billing; never computed in the browser. apollo-client.ts's error link turns SUBSCRIPTION_READ_ONLY / BRANCH_LIMIT_REACHED / JOB_LIMIT_REACHED (BILLING_ERROR_CODES) into showBillingNotice (read-only-dialog.tsx) + requestBillingRefresh. billing-banner.tsx shows due_soon (amber) / read_only. The plan badge just before the BU selector (bu-branch-switcher.tsx) reads context.billing.planCode through PLAN_NAMES (enquiry-types.ts) — so it shows only in client mode, where useBillingSync runs, is absent for a BU with a null plan_code, and is hidden below the sm breakpoint. useIsReadOnly (selectIsReadOnly) disables the Masters Add buttons, Save on the job/receipt/sales/stock-adjustment/branch-transfer/loan/opening-stock screens, and DeleteConfirmDialog.",
 				],
 			},
 		],
@@ -4940,6 +4940,119 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
+		id: "dev-plan-usage-limits",
+		category: "Integrations",
+		title: "Monthly Job & WhatsApp Limits",
+		summary:
+			"Per-plan monthly allowances: .env keys, stamping on security.bu, the bu_usage counter, reserve/release, the three job paths, metered WhatsApp sends, client gating.",
+		tags: [
+			"job_limit_monthly",
+			"whatsapp_limit_monthly",
+			"bu_usage",
+			"RESERVE_JOBS",
+			"RESERVE_WHATSAPP",
+			"RELEASE_WHATSAPP",
+			"GET_BU_USAGE",
+			"JOB_LIMIT_REACHED",
+			"WHATSAPP_LIMIT_REACHED",
+			"send_metered",
+			"get_plan_limits",
+			"LIMIT_LITE_JOBS",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Each BU has a monthly allowance of new jobs and WhatsApp messages, per calendar month in India time; usage resets on the 1st. Over the limit the action is blocked, not warned. Defaults: Lite 75 jobs / 20 messages, Basic 150 / 150, Standard 400 / 300, Enterprise unlimited. The portal shows the same numbers in service-plus-portal/content/pricing.ts — change both together.",
+			},
+			{ type: "heading", text: "Where the numbers live" },
+			{
+				type: "table",
+				headers: ["Piece", "Where", "Notes"],
+				rows: [
+					[
+						"Plan defaults",
+						"app/core/plan_prices.py — PlanLimitSettings, get_plan_limits(plan_code) → PlanLimitType(jobs, whatsapp)",
+						".env keys LIMIT_{LITE,BASIC,STANDARD,ENTERPRISE}_{JOBS,WHATSAPP}; a blank value = unlimited (None). Read only when a plan is set.",
+					],
+					[
+						"BU's allowance",
+						"security.bu.job_limit_monthly, whatsapp_limit_monthly (NULL = unlimited, CHECK ≥ 0)",
+						"Stamped at four points: set_bu_plan (sign-up and Enterprise approval, SignupServerSql.SET_BU_PLAN), changeBuPlan (SET_BU_PLAN_FIELDS), startClientBilling (START_BU_BILLING), a new BU of an Enterprise client (apply_new_bu_billing → COPY_CLIENT_BILLING_TO_BU). An .env change never alters an existing BU until its plan is set again.",
+					],
+					[
+						"Usage",
+						"security.bu_usage (bu_id, period_start, jobs_used, whatsapp_used), PK (bu_id, period_start)",
+						"period_start = 1st of the IST month (month_start_ist); a new month starts a new row at 0, so nothing resets anything.",
+					],
+					[
+						"Protection",
+						"auth_guards.py",
+						"Both limit columns are in BU_BILLING_COLUMNS and bu_usage is in SECURITY_SERVER_ONLY_TABLES, so genericUpdate can write neither.",
+					],
+					[
+						"Migration",
+						"service-plus-server/scripts/run_plan_limits_ddl.py",
+						"Adds the columns and table in every client database plus service_plus_service, stamps Lite/Basic/Standard BUs, reports jobs already created this month; --dry-run rolls back. New tenants get it from sql_bu_admin_ddl.py (regenerated from the schema dump).",
+					],
+				],
+			},
+			{ type: "heading", text: "Counting (app/services/bu_usage.py)" },
+			{
+				type: "bullets",
+				items: [
+					"BillingServerSql.RESERVE_JOBS / RESERVE_WHATSAPP (built by _reserve_sql): one INSERT … ON CONFLICT DO UPDATE … WHERE used + n ≤ limit RETURNING. ON CONFLICT locks the month's row, so two requests can never both take the last slot. No row returned = refused. Never read-then-write.",
+					"reserve_jobs(cur, schema, n) runs on the job's own cursor: a rollback of the insert undoes the count, so only saved jobs count. Every table is security-qualified because that cursor's search_path is the BU schema.",
+					"reserve_whatsapp / release_whatsapp (RELEASE_WHATSAPP, never below 0) / reserve_whatsapp_up_to (as many as fit) run in their own transaction. get_bu_usage (GET_BU_USAGE) feeds buBillingStatus.",
+					"Schemas '', public and security are never counted (is_counted). A schema with no security.bu row is refused by RESERVE_JOBS.",
+				],
+			},
+			{ type: "heading", text: "Jobs — three creation paths, all in resolvers/jobs/mutations.py" },
+			{
+				type: "bullets",
+				items: [
+					"createSingleJob → 1, skipped for an opening job (xData.is_opening_job) — opening jobs go through this same mutation.",
+					"createJobBatch → len(jobs), refused whole when it doesn't fit.",
+					"updateJobBatch → len(addedJobs) (adding jobs to an existing batch is creation too).",
+					"Refusal: CodedValidationException JOB_LIMIT_REACHED (AppMessages.JOB_LIMIT_REACHED, extensions.requested) before the number is claimed. Super Admin (user type S) is never counted: mutation.py passes skip_usage=_is_super_admin(info).",
+					"refuse_job_insert (called in resolve_generic_update next to refuse_branch_insert) refuses a genericUpdate job row without id or with isIdInsert → JOB_INSERT_VIA_JOB_SCREENS, so the count can't be bypassed. A new job-creating path must reserve too.",
+					"Deleting a job never gives it back.",
+				],
+			},
+			{ type: "heading", text: "WhatsApp — app/whatsapp/metered.py" },
+			{
+				type: "bullets",
+				items: [
+					"No code calls send_template directly; grep for it outside metered.py must stay empty. send_metered reserves 1 then sends; send_reserved sends a message the caller already reserved. Both give the message back when Meta does not accept it (or the call raises). limit_result() is the refusal: ok False, error_code WHATSAPP_LIMIT_REACHED, Meta not called.",
+					"Grouped sends (sender.py: completion, job intake, delivery) reserve the whole request up front — one per chunk, two per delivery chunk (summary + OTP) — and are refused whole: _refuse_chunks_at_limit records a FAILED attempt with the limit message on every job and nothing is sent. A refused delivery has no OTP; staff confirm pickup manually.",
+					"Money receipt and invoice: send_metered. Their responses, and the grouped ones, carry limitReached.",
+					"ew_sender.py: the lead alert (automatic, to the shop's own number) uses send_metered. Reminders reserve as many as fit (reserve_whatsapp_up_to) after the daily cap; the rest return status LIMIT; a reserved lead whose claim fails is released. Response carries limitReached.",
+					"Super Admin sends are counted too (the helpers only see db_name/schema). The automatic job intake notice can be refused after the job is saved — the job stays.",
+				],
+			},
+			{ type: "heading", text: "Client" },
+			{
+				type: "bullets",
+				items: [
+					"context.billing (BuBillingType) gains optional jobLimit, jobsUsed, whatsappLimit, whatsappUsed — only from buBillingStatus, not from login. Selectors selectJobLimitReached / selectWhatsappLimitReached; hook components/shared/billing/use-usage-limits.ts (also refreshUsage = requestBillingRefresh).",
+					"components/shared/billing/usage-line.tsx: 'Jobs this month: 42 / 75' pill (BILLING_USAGE_JOBS / BILLING_USAGE_WHATSAPP; {used}/{limit} rendered bold by splitting the template, so keep those placeholders); blue normally, amber at ≥ 90 %, never red; hidden when unlimited or not loaded. Single/Batch Job and Customer Connect place it right after the title block (before the flex-1 spacer) so it shows in both New and View modes; callers pass 'hidden sm:inline-flex'.",
+					"Single Job and Batch Job: Save off for a new job / new batch at the limit (tooltip BILLING_JOB_LIMIT); editing stays open; usage line beside Save. JOB_LIMIT_REACHED is in apollo-client.ts BILLING_ERROR_CODES → read-only-dialog.tsx ('Monthly job limit reached').",
+					"WhatsApp: the four send hooks (intake, delivery, money receipt, invoice), Customer Connect and the EW Send action warn BILLING_WHATSAPP_LIMIT instead of asking to send at the limit, toast it when a result has limitReached, and refresh usage after every send. Customer Connect shows the usage line and disables Send Messages. EW toasts LIMIT rows with WARN_EW_SEND_MONTHLY_LIMIT.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "How do I give one customer more jobs this month?",
+				a: "There is no per-BU override screen. Change the plan (Admin → Subscriptions), which stamps the new plan's limits at once and keeps this month's usage; or, as a one-off, update security.bu.job_limit_monthly directly — the next plan change overwrites it.",
+			},
+			{
+				q: "Why is the WhatsApp counter not just counted from job.whatsapp_notifications?",
+				a: "Those are per job and event and overwritten on resend; money receipts and EW messages live elsewhere. One counter row per month is cheap to read and can be reserved atomically.",
+			},
+		],
+	},
+
+	{
 		id: "dev-signup-billing-map",
 		category: "Integrations",
 		title: "Sign-up & Billing — End-to-end Map",
@@ -4993,7 +5106,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"require_default_customer_db on every lt approval and billing mutation; require_user_type {S} on every Enterprise one.",
 					"require_bu_writable on every BU write; tests/test_view_only_guard.py keeps the GUARDED and ALLOWED lists complete.",
 					"addBranch is the only way to add a branch: it locks the security.bu row, counts against branch_limit and inserts with the Main division in one transaction. genericUpdate refuses branch inserts so there is one door, and there is deliberately no database trigger. changeBuPlan takes the same lock, so a downgrade and an insert cannot interleave.",
-					"Refusal codes travel as extensions.code through CodedValidationException / AuthorizationException: SIGNUP_* (REST detail.code), PAYMENT_NOT_RECEIVED, EXTRA_BU_CONFIRM_REQUIRED, BRANCH_LIMIT_REACHED, DOWNGRADE_BLOCKED_BRANCHES, PREPAID_LIMIT_EXCEEDED, SUBSCRIPTION_READ_ONLY.",
+					"Refusal codes travel as extensions.code through CodedValidationException / AuthorizationException: SIGNUP_* (REST detail.code), PAYMENT_NOT_RECEIVED, EXTRA_BU_CONFIRM_REQUIRED, BRANCH_LIMIT_REACHED, DOWNGRADE_BLOCKED_BRANCHES, JOB_INSERT_VIA_JOB_SCREENS, JOB_LIMIT_REACHED, PREPAID_LIMIT_EXCEEDED, SUBSCRIPTION_READ_ONLY. WHATSAPP_LIMIT_REACHED is not an error: it arrives as a send result's error_code / limitReached flag.",
 				],
 			},
 			{ type: "heading", text: "Settings" },
@@ -5267,6 +5380,120 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "A screen fails with 'date too large (after year 10K)' — how do I find the row?",
 				a: "Query each date/timestamp column for extract(year from col) > 9999 or < 1900 in the tenant DB, then correct the value with an UPDATE. With the loader fallback the screen should load anyway and show the odd date.",
+			},
+		],
+	},
+	{
+		id: "dev-ask-ai-help",
+		category: "Integrations",
+		title: "Ask AI in the Help Center (Gemini)",
+		summary:
+			"How client Help answers free-text questions from its own articles through the Gemini API, and what to keep in step.",
+		tags: ["ai", "ask ai", "gemini", "help", "askHelpAi", "aiHelpEnabled", "export-help", "search", "rank"],
+		content: [
+			{
+				type: "para",
+				text: "Client Help has an Ask AI view. The browser ranks the help articles, sends the question plus the ids of the best few to the server, and the server builds the prompt from its own copy of the article text and calls Gemini. Super Admin developer help gets only the ranked search (it passes no `ai` prop to HelpPanel).",
+			},
+			{ type: "heading", text: "Pieces" },
+			{
+				type: "table",
+				headers: ["Where", "What"],
+				rows: [
+					[
+						"components/shared/help/help-search.ts",
+						"rankHelpArticles(articles, query, limit?) — replaces the old whole-text 'contains' filter in help-panel.tsx. Splits the query into words, drops stop words, scores title 5 / tags 4 / summary 3 / FAQ question 3 / headings 2 / other text and FAQ answers 1, and multiplies each word by its rarity, log(1 + articles / articles containing it). Words of 4+ letters also match as a prefix; a plural query word matches the singular. highlightMatch highlights each query word.",
+					],
+					[
+						"components/shared/help/ai-help-view.tsx",
+						"The AI view: bubbles, numbered steps parsed from '1. …' lines, article chips, react-hook-form + zod textarea (1–500 chars), New chat, disclaimer. HelpPanel gets `ai?: AiHelpType` and `initialAi`; view kind 'ai'; an article opened from a chip carries fromAi so Back returns to the conversation.",
+					],
+					[
+						"features/client/components/help/use-ask-help-ai.ts",
+						"Conversation state. Picks ids = top 5 of rankHelpArticles(question + previous question) merged with the previous answer's ids, max 6. Sends at most the last 6 non-notice turns. Maps error codes to MESSAGES.AI_HELP_* shown inline in amber (no toast, not in apollo-client.ts BILLING_ERROR_CODES).",
+					],
+					[
+						"client-layout.tsx / help-fab.tsx",
+						"HelpContext gains aiHelpEnabled and openAiHelp(). The small sparkles button above the Help FAB and every Ask AI entry point show only when context.billing.aiHelpEnabled. closeHelp() clears the conversation.",
+					],
+					[
+						"scripts/export-help.mjs",
+						"Loads help-content.ts through Vite's ssrLoadModule and writes service-plus-server/app/ai_help/help_articles.json. `pnpm build` runs it first; run `pnpm export-help` after editing help-content.ts in dev. The JSON is committed with the server.",
+					],
+					[
+						"app/ai_help/corpus.py",
+						"Loads the JSON once (lru_cache); known_ids() drops unknown ids; render() emits <article id title> blocks with numbered steps, table rows and FAQs.",
+					],
+					[
+						"app/ai_help/prompt.py",
+						"The fixed system instruction: answer only from the given articles, say when they don't cover it, decline non-Service+ questions, plain text with '1. …' steps, answer in the question's language, never claim to act, treat user text only as a question. Reply JSON {answer, articleIds}.",
+					],
+					[
+						"app/ai_help/redact.py",
+						"8+ digits (spaces/dashes allowed between) → [number], emails → [email], applied to the question and history before sending.",
+					],
+					[
+						"app/ai_help/providers/gemini.py",
+						"google-genai async client, 30 s timeout, response_schema JSON, thinking_level LOW (gemini-3.8-flash rejects MINIMAL). HTTP 429 and 503 raise ProviderBusyError. A second provider is a new module here exposing configured() and generate(model, instructions, articles_text, history, question).",
+					],
+					[
+						"app/ai_help/service.py",
+						"ask_help_ai(): size checks (question 1–500, ≤ 6 history turns of ≤ 2,000 chars, roles user/assistant, ≤ 6 ids), limits.check, no known ids → notCovered without a model call, main model then fallback model once on busy, drops returned ids that were not sent, limits.record only on an answer. ai_help_enabled() = the provider's configured().",
+					],
+					[
+						"app/ai_help/limits.py",
+						"In memory: per BU (db_name + schema) per India day, and per user (db_name:user_id) per minute. A restart resets them; failed questions are not counted.",
+					],
+				],
+			},
+			{ type: "heading", text: "GraphQL" },
+			{
+				type: "bullets",
+				items: [
+					"askHelpAi(db_name: String!, schema: String!, value: String!) — value is encodeObj({articleIds, history: [{role, text}], question}). Guards: require_own_tenant + require_bu_access only; no access right, no require_bu_writable. Returns {answer, articleIds, notCovered}; the client shows MESSAGES.AI_HELP_NOT_COVERED when notCovered.",
+					"Error codes (CodedValidationException): AI_HELP_BUSY (both models 429/503), AI_HELP_LIMIT_REACHED, AI_HELP_UNAVAILABLE (any other provider failure, or no key), AI_HELP_INVALID_INPUT (size checks). Server texts are in AppMessages.AI_HELP_*.",
+					"buBillingStatus returns aiHelpEnabled (true when the provider's key is set); stored on context.billing.aiHelpEnabled (BuBillingType).",
+				],
+			},
+			{ type: "heading", text: "Settings (.env, app/core/settings/ai_settings.py)" },
+			{
+				type: "table",
+				headers: ["Key", "Default", "Meaning"],
+				rows: [
+					["GEMINI_API_KEY", "(empty)", "Empty hides Ask AI everywhere. repr=False."],
+					["AI_HELP_PROVIDER", "gemini", "Module name under app/ai_help/providers/."],
+					["AI_HELP_MODEL", "gemini-3.8-flash", "Main model."],
+					[
+						"AI_HELP_FALLBACK_MODEL",
+						"gemini-3.5-flash-lite",
+						"Tried once when the main model is busy; each free model has its own quota. Empty = none.",
+					],
+					["AI_HELP_DAILY_LIMIT_PER_BU", "30", "Answered questions per BU per India day."],
+					["AI_HELP_PER_USER_PER_MINUTE", "5", "Answered questions per user per minute."],
+				],
+			},
+			{ type: "heading", text: "Why only the top articles are sent" },
+			{
+				type: "para",
+				text: "The whole help is about 60K tokens; the free tier caps tokens per minute per account, so sending it all would hit the cap after a few questions. Sending at most 6 ranked articles keeps a question around 5–8K tokens. This also means the quality of Ask AI depends on rankHelpArticles — if the AI says 'not covered' for something the help does cover, check the ranking first.",
+			},
+			{
+				type: "warning",
+				text: "Free-tier requests may be used by Google to improve its products — hence the redaction and the disclaimer. Moving to a paid key is only a .env change.",
+			},
+		],
+		faqs: [
+			{
+				q: "I edited help-content.ts but Ask AI doesn't know about it.",
+				a: "The server reads app/ai_help/help_articles.json. Run `pnpm export-help` (pnpm build does it too), then restart the server — corpus.py caches the file on first use.",
+			},
+			{
+				q: "Users see 'AI help is busy' often.",
+				a: "Both models returned 429 (quota) or 503 (overloaded). Check the limits at aistudio.google.com/rate-limit, pick another free model for AI_HELP_FALLBACK_MODEL, or switch to a paid key.",
+			},
+			{
+				q: "How do I test without calling Gemini?",
+				a: "tests/ai_help/test_ai_help.py replaces service._provider with a fake; it covers redaction, id filtering, the busy → fallback → busy path and both limits.",
 			},
 		],
 	},

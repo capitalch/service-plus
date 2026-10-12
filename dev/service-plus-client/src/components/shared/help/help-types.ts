@@ -40,3 +40,21 @@ export type CategoryStyleType = {
 	stepText: string;
 	border: string;
 };
+
+// ─── Ask AI (client Help only; Super Admin passes no `ai` prop) ────────────────
+
+export type AiHelpTurnType = {
+	articleIds: string[];
+	id: number;
+	/** An error or limit message for the user, shown in amber; never sent back as history. */
+	isNotice: boolean;
+	role: "assistant" | "user";
+	text: string;
+};
+
+export type AiHelpType = {
+	ask: (question: string) => Promise<void>;
+	clear: () => void;
+	loading: boolean;
+	turns: AiHelpTurnType[];
+};

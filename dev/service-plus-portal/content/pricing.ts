@@ -2,6 +2,8 @@
 // browser with the live list from the server's .env (GET /api/public/plan-prices), so they are
 // shown first and kept if that call fails. The JSON-LD and the pre-built HTML always use these —
 // update them at the next release after a price change.
+// jobsPerMonth and whatsappPerMonth must match the server's PlanLimitSettings
+// (service-plus-server/app/core/plan_prices.py) — that is what is enforced.
 
 export type PlanCodeType = "basic" | "enterprise" | "lite" | "standard";
 
@@ -34,7 +36,7 @@ export const plans: PlanType[] = [
 		businessUnits: 1,
 		code: "lite",
 		inventory: true,
-		jobsPerMonth: 100,
+		jobsPerMonth: 75,
 		monthlyPrice: 0,
 		name: "Lite",
 		provisioning: "bu",
@@ -48,14 +50,14 @@ export const plans: PlanType[] = [
 		businessUnits: 1,
 		code: "basic",
 		inventory: true,
-		jobsPerMonth: 200,
+		jobsPerMonth: 150,
 		monthlyPrice: 2999,
 		name: "Basic",
 		provisioning: "bu",
 		setupFee: 2000,
 		tagline: "A WhatsApp update on every job",
 		users: "single",
-		whatsappPerMonth: 200,
+		whatsappPerMonth: 150,
 	},
 	{
 		branches: 1,
@@ -63,14 +65,14 @@ export const plans: PlanType[] = [
 		code: "standard",
 		highlighted: true,
 		inventory: true,
-		jobsPerMonth: 500,
+		jobsPerMonth: 400,
 		monthlyPrice: 5999,
 		name: "Standard",
 		provisioning: "bu",
 		setupFee: 2000,
 		tagline: "A full team, each with their own login",
 		users: "multi",
-		whatsappPerMonth: 500,
+		whatsappPerMonth: 300,
 	},
 	{
 		branches: null,

@@ -11,6 +11,7 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { MESSAGES } from "@/constants/messages";
+import { useUsageLimits } from "@/components/shared/billing/use-usage-limits";
 import { sendWhatsappJobInvoice, type WhatsappJobInvoiceResult } from "../send-whatsapp-job-invoice";
 
 // Same confirm-before-send / in-flight-state / toast pattern every other
@@ -23,6 +24,7 @@ import { sendWhatsappJobInvoice, type WhatsappJobInvoiceResult } from "../send-w
 // generic WHATSAPP_* message constants the other events already use, since
 // the outcome wording doesn't depend on which event triggered the send.
 export function useSendWhatsappJobInvoice() {
+	const { isWhatsappLimitReached, refreshUsage } = useUsageLimits();
 	const [sending, setSending] = useState(false);
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const resolveConfirmRef = useRef<((confirmed: boolean) => void) | null>(null);
@@ -35,8 +37,10 @@ export function useSendWhatsappJobInvoice() {
 	): Promise<WhatsappJobInvoiceResult[]> {
 		setSending(true);
 		try {
-			const { results, disabled } = await sendWhatsappJobInvoice(dbName, schema, branchId, jobId);
-			if (disabled) {
+			const { disabled, limitReached, results } = await sendWhatsappJobInvoice(dbName, schema, branchId, jobId);
+			if (limitReached) {
+				toast.warning(MESSAGES.BILLING_WHATSAPP_LIMIT);
+			} else if (disabled) {
 				toast.warning(MESSAGES.WARN_WHATSAPP_EVENT_DISABLED);
 			} else if (results.length === 0) {
 				toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
@@ -51,6 +55,7 @@ export function useSendWhatsappJobInvoice() {
 			return [];
 		} finally {
 			setSending(false);
+			refreshUsage();
 		}
 	}
 
@@ -60,6 +65,11 @@ export function useSendWhatsappJobInvoice() {
 		branchId: number,
 		jobId: number,
 	): Promise<WhatsappJobInvoiceResult[]> {
+		// Month's messages used up: say so instead of asking to send (plans/plan.md Step 8).
+		if (isWhatsappLimitReached) {
+			toast.warning(MESSAGES.BILLING_WHATSAPP_LIMIT);
+			return [];
+		}
 		const confirmed = await new Promise<boolean>((resolve) => {
 			resolveConfirmRef.current = resolve;
 			setConfirmOpen(true);

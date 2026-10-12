@@ -74,6 +74,8 @@ import { getJobSheetBlobUrl } from "../job-sheet-pdf";
 import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { UsageLine } from "@/components/shared/billing/usage-line";
+import { useUsageLimits } from "@/components/shared/billing/use-usage-limits";
 import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -101,6 +103,8 @@ export const SingleJobSection = ({
 }) => {
 	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	// A new job is off once the month's job allowance is used up; editing stays open (plans/plan.md Step 8).
+	const { isJobLimitReached, refreshUsage } = useUsageLimits();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -144,6 +148,7 @@ export const SingleJobSection = ({
 
 	// Edit / View
 	const [editJob, setEditJob] = useState<JobDetailType | null>(null);
+	const isNewJobBlocked = isJobLimitReached && !editJob;
 	const [editSourceMode, setEditSourceMode] = useState<ViewMode>("new");
 	const [viewJobId, setViewJobId] = useState<number | null>(null);
 
@@ -288,6 +293,7 @@ export const SingleJobSection = ({
 					variables: { db_name: dbName, schema, value: encoded },
 				});
 				const created = createRes.data?.createSingleJob;
+				refreshUsage();
 				toast.success(
 					created?.job_no
 						? `${MESSAGES.SUCCESS_JOB_CREATED} (${created.job_no})`
@@ -696,6 +702,8 @@ export const SingleJobSection = ({
 					</div>
 				</div>
 
+				<UsageLine className="hidden shrink-0 sm:inline-flex" kind="jobs" />
+
 				<div className="flex-1" />
 
 				<ViewModeToggle
@@ -730,8 +738,14 @@ export const SingleJobSection = ({
 					</Button>
 					<Button
 						className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-						disabled={isReadOnly || !form.formState.isValid || submitting}
-						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+						disabled={isReadOnly || isNewJobBlocked || !form.formState.isValid || submitting}
+						title={
+							isReadOnly
+								? MESSAGES.READ_ONLY_TOOLTIP
+								: isNewJobBlocked
+									? MESSAGES.BILLING_JOB_LIMIT
+									: undefined
+						}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{submitting ? (

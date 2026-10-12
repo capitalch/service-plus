@@ -3,6 +3,18 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-13 00:37 (main)
+Help: Ask AI answers from help articles; monthly job/WhatsApp limits
+
+- Help (client + server): Ask AI view answers questions from the help articles via Gemini (askHelpAi, app/ai_help/, 3.8-flash with lite fallback, redaction, in-memory per-BU/per-user limits, aiHelpEnabled)
+- Help search: ranked word-based search with rarity weighting; build exports articles to the server; both help files document Ask AI; clearer back button in the Help header
+- Limits: per-BU monthly job and WhatsApp allowances stamped on security.bu, counted in security.bu_usage, refused when used up (JOB_LIMIT_REACHED dialog, metered WhatsApp sends) with usage pills
+- Server: plan_prices limits, billing/DDL SQL, run_plan_limits_ddl.py, google-genai requirement, view-only guard test classifies askHelpAi
+- Config: app/config.py and .env.example updated (contents not read)
+- Plans/docs: plan.md now the Ask AI plan; limits plan moved to history
+Files: 58 changed (+1446 / -731) — Base: 8fa2b1d
+Version: 0.24.5 → 0.24.6
+
 ## 2026-10-11 19:44 (main)
 Staff users, Customer Connect tabs, branch GSTIN drop; limits plan
 

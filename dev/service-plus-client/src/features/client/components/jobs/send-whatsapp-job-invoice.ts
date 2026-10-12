@@ -16,12 +16,14 @@ export type WhatsappJobInvoiceResult = {
 };
 
 type SendWhatsappJobInvoiceData = {
-	sendWhatsappJobInvoice: { results: WhatsappJobInvoiceResult[]; disabled?: boolean } | null;
+	sendWhatsappJobInvoice: { disabled?: boolean; limitReached?: boolean; results: WhatsappJobInvoiceResult[] } | null;
 };
 
 export type WhatsappJobInvoiceSendOutcome = {
 	results: WhatsappJobInvoiceResult[];
 	disabled: boolean;
+	/** Nothing (or not everything) was sent: the month's WhatsApp allowance is used up. */
+	limitReached: boolean;
 };
 
 export async function sendWhatsappJobInvoice(
@@ -41,5 +43,6 @@ export async function sendWhatsappJobInvoice(
 	return {
 		results: res.data?.sendWhatsappJobInvoice?.results ?? [],
 		disabled: res.data?.sendWhatsappJobInvoice?.disabled ?? false,
+		limitReached: res.data?.sendWhatsappJobInvoice?.limitReached ?? false,
 	};
 }

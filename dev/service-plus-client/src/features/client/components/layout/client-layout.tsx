@@ -6,6 +6,7 @@ import { useLocation } from "react-router-dom";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
+	selectBilling,
 	selectCurrentDivision,
 	selectExtendedWarrantyEnabled,
 	selectIsGstMode,
@@ -25,6 +26,7 @@ import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
 import { ClientTopNav } from "./client-top-nav";
 import { CLIENT_CAT_STYLE, CLIENT_POPULAR_IDS, HELP_ARTICLES, HELP_CATEGORIES } from "../help/help-content";
+import { useAskHelpAi } from "../help/use-ask-help-ai";
 
 export type Section = "admin" | "configurations" | "custom" | "inventory" | "jobs" | "masters" | "reports";
 
@@ -54,9 +56,21 @@ const LayoutContext = createContext<LayoutContextType>({ explorerOpen: true, tog
 
 export const useLayout = () => useContext(LayoutContext);
 
-type HelpContextType = { helpOpen: boolean; openHelp: (articleId?: string) => void; closeHelp: () => void };
+type HelpContextType = {
+	aiHelpEnabled: boolean;
+	closeHelp: () => void;
+	helpOpen: boolean;
+	openAiHelp: () => void;
+	openHelp: (articleId?: string) => void;
+};
 
-const HelpContext = createContext<HelpContextType>({ helpOpen: false, openHelp: () => {}, closeHelp: () => {} });
+const HelpContext = createContext<HelpContextType>({
+	aiHelpEnabled: false,
+	closeHelp: () => {},
+	helpOpen: false,
+	openAiHelp: () => {},
+	openHelp: () => {},
+});
 
 export const useHelp = () => useContext(HelpContext);
 
@@ -130,6 +144,9 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 	const [explorerOpen, setExplorerOpen] = useState(() => window.innerWidth >= 1024);
 	const [helpOpen, setHelpOpen] = useState(false);
 	const [helpArticleId, setHelpArticleId] = useState<string | undefined>(undefined);
+	const [helpAiOpen, setHelpAiOpen] = useState(false);
+	const aiHelp = useAskHelpAi();
+	const aiHelpEnabled = useAppSelector(selectBilling)?.aiHelpEnabled ?? false;
 	const [isDark, setIsDark] = useState(() => {
 		const stored = localStorage.getItem("client-theme");
 		return stored ? stored === "dark" : false;
@@ -186,13 +203,23 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 	const toggleTheme = useCallback(() => setIsDark((d) => !d), []);
 	const toggleExplorer = useCallback(() => setExplorerOpen((o) => !o), []);
 	const openHelp = useCallback((articleId?: string) => {
+		setHelpAiOpen(false);
 		setHelpArticleId(articleId);
 		setHelpOpen(true);
 	}, []);
+	const openAiHelp = useCallback(() => {
+		setHelpAiOpen(true);
+		setHelpArticleId(undefined);
+		setHelpOpen(true);
+	}, []);
+	const { clear: clearAiHelp } = aiHelp;
 	const closeHelp = useCallback(() => {
+		// Ask AI keeps nothing once Help closes.
+		clearAiHelp();
+		setHelpAiOpen(false);
 		setHelpOpen(false);
 		setHelpArticleId(undefined);
-	}, []);
+	}, [clearAiHelp]);
 
 	const onSelect = useCallback((label: string, group?: string) => {
 		setSelected(label);
@@ -212,7 +239,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 	return (
 		<ThemeContext.Provider value={{ isDark, toggleTheme }}>
 			<LayoutContext.Provider value={{ explorerOpen, toggleExplorer }}>
-				<HelpContext.Provider value={{ helpOpen, openHelp, closeHelp }}>
+				<HelpContext.Provider value={{ aiHelpEnabled, closeHelp, helpOpen, openAiHelp, openHelp }}>
 					<ClientSelectionContext.Provider value={{ onSelect, selected, selectedGroup }}>
 						<PortalContainerContext.Provider value={themeRoot}>
 							<div
@@ -278,6 +305,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 								</main>
 								<ClientStatusBar />
 								<HelpPanel
+									ai={aiHelpEnabled ? aiHelp : undefined}
 									articles={HELP_ARTICLES}
 									categories={HELP_CATEGORIES}
 									categoryStyles={CLIENT_CAT_STYLE}
@@ -285,6 +313,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 									onClose={closeHelp}
 									open={helpOpen}
 									popularIds={CLIENT_POPULAR_IDS}
+									initialAi={helpAiOpen}
 									initialArticleId={helpArticleId}
 								/>
 								<HelpFab />

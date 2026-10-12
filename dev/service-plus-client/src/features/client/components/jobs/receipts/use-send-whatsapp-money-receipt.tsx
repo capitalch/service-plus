@@ -11,6 +11,7 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { MESSAGES } from "@/constants/messages";
+import { useUsageLimits } from "@/components/shared/billing/use-usage-limits";
 import { sendWhatsappMoneyReceipt, type WhatsappMoneyReceiptResult } from "../send-whatsapp-money-receipt";
 
 // Same confirm-before-send / in-flight-state / toast pattern every other
@@ -22,6 +23,7 @@ import { sendWhatsappMoneyReceipt, type WhatsappMoneyReceiptResult } from "../se
 // generic WHATSAPP_* message constants the other events already use, since
 // the outcome wording doesn't depend on which event triggered the send.
 export function useSendWhatsappMoneyReceipt() {
+	const { isWhatsappLimitReached, refreshUsage } = useUsageLimits();
 	const [sending, setSending] = useState(false);
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const resolveConfirmRef = useRef<((confirmed: boolean) => void) | null>(null);
@@ -34,8 +36,15 @@ export function useSendWhatsappMoneyReceipt() {
 	): Promise<WhatsappMoneyReceiptResult[]> {
 		setSending(true);
 		try {
-			const { results, disabled } = await sendWhatsappMoneyReceipt(dbName, schema, branchId, paymentId);
-			if (disabled) {
+			const { disabled, limitReached, results } = await sendWhatsappMoneyReceipt(
+				dbName,
+				schema,
+				branchId,
+				paymentId,
+			);
+			if (limitReached) {
+				toast.warning(MESSAGES.BILLING_WHATSAPP_LIMIT);
+			} else if (disabled) {
 				toast.warning(MESSAGES.WARN_WHATSAPP_EVENT_DISABLED);
 			} else if (results.length === 0) {
 				toast.error(MESSAGES.ERROR_WHATSAPP_SEND_FAILED);
@@ -50,6 +59,7 @@ export function useSendWhatsappMoneyReceipt() {
 			return [];
 		} finally {
 			setSending(false);
+			refreshUsage();
 		}
 	}
 
@@ -59,6 +69,11 @@ export function useSendWhatsappMoneyReceipt() {
 		branchId: number,
 		paymentId: number,
 	): Promise<WhatsappMoneyReceiptResult[]> {
+		// Month's messages used up: say so instead of asking to send (plans/plan.md Step 8).
+		if (isWhatsappLimitReached) {
+			toast.warning(MESSAGES.BILLING_WHATSAPP_LIMIT);
+			return [];
+		}
 		const confirmed = await new Promise<boolean>((resolve) => {
 			resolveConfirmRef.current = resolve;
 			setConfirmOpen(true);

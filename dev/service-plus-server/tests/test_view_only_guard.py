@@ -56,6 +56,7 @@ GUARDED = {
 
 ALLOWED = {
     "approveSalesEnquiry",
+    "askHelpAi",  # Ask AI writes nothing; a read-only BU may still use Help
     "changeBuPlan",
     "createAdminUser",
     "createBuSchemaAndFeedSeedData",

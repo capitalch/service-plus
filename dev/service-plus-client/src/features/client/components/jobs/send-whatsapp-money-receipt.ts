@@ -16,12 +16,18 @@ export type WhatsappMoneyReceiptResult = {
 };
 
 type SendWhatsappMoneyReceiptData = {
-	sendWhatsappMoneyReceipt: { results: WhatsappMoneyReceiptResult[]; disabled?: boolean } | null;
+	sendWhatsappMoneyReceipt: {
+		disabled?: boolean;
+		limitReached?: boolean;
+		results: WhatsappMoneyReceiptResult[];
+	} | null;
 };
 
 export type WhatsappMoneyReceiptSendOutcome = {
 	results: WhatsappMoneyReceiptResult[];
 	disabled: boolean;
+	/** Nothing (or not everything) was sent: the month's WhatsApp allowance is used up. */
+	limitReached: boolean;
 };
 
 export async function sendWhatsappMoneyReceipt(
@@ -41,5 +47,6 @@ export async function sendWhatsappMoneyReceipt(
 	return {
 		results: res.data?.sendWhatsappMoneyReceipt?.results ?? [],
 		disabled: res.data?.sendWhatsappMoneyReceipt?.disabled ?? false,
+		limitReached: res.data?.sendWhatsappMoneyReceipt?.limitReached ?? false,
 	};
 }

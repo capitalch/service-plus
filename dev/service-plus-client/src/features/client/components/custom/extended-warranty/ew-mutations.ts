@@ -131,11 +131,13 @@ export function toastSendResults(response: EwSendResponseType): void {
 	}
 	const capped = countOf("CAPPED");
 	const failed = countOf("FAILED");
+	const overLimit = countOf("LIMIT");
 	const sent = countOf("SENT");
 	const skipped = countOf("SKIPPED");
 	if (sent) toast.success(fillMessage(MESSAGES.SUCCESS_EW_REMINDERS_SENT, { count: sent }));
 	if (failed) toast.error(fillMessage(MESSAGES.ERROR_EW_SEND_SOME_FAILED, { count: failed }));
 	if (capped) toast.warning(fillMessage(MESSAGES.WARN_EW_SEND_CAPPED, { count: capped }));
+	if (overLimit) toast.warning(fillMessage(MESSAGES.WARN_EW_SEND_MONTHLY_LIMIT, { count: overLimit }));
 	if (skipped) toast.warning(fillMessage(MESSAGES.WARN_EW_SEND_SKIPPED, { count: skipped }));
 }
 

@@ -1,7 +1,7 @@
 # To Do
 Enhancements
-	- Set correctly, the app settings default values for seed data
-	- One internal remarks, not printable, for internal working
+										- Set correctly, the app settings default values for seed data
+										- One internal remarks, not printable, for internal working
 	- Intimation for immediate collection of your set
 	- Creation of CRM for subscription for sales team
 	- Define hierarchy in portal and help system

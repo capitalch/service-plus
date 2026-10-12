@@ -17,9 +17,11 @@ from app.db.connection.psycopg_driver import (
 )
 from app.db.sql.sql_base import SqlStore
 from app.db.sql.sql_job_internal_notes import JobInternalNoteServerSql
-from app.core.exceptions import AppMessages, ValidationException
+from app.core.exceptions import AppMessages, CodedValidationException, ValidationException
+from app.graphql.resolvers.masters.branches import iter_sql_object_rows
 from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
+from app.services.bu_usage import reserve_jobs
 from app.whatsapp.ew_sender import staff_name
 
 # genericUpdate access rights for tables owned by the jobs domain. Merged
@@ -83,11 +85,35 @@ async def resolve_create_job_payment_helper(
 
     return payment_id
 
+async def _reserve_jobs_or_refuse(cur, schema: str, n: int) -> None:
+    """Count n new jobs against this month's allowance on the job's own cursor, or refuse
+    with JOB_LIMIT_REACHED before anything is written (plans/plan.md Step 5). A rollback of
+    the insert also undoes the count."""
+    if not await reserve_jobs(cur, schema, n):
+        raise CodedValidationException(
+            message=AppMessages.JOB_LIMIT_REACHED,
+            code="JOB_LIMIT_REACHED",
+            extensions={"requested": n},
+        )
+
+
+def refuse_job_insert(sql_object: Any) -> None:
+    """Refuse a genericUpdate payload that would insert a job anywhere in it: jobs are
+    created only by createSingleJob / createJobBatch / updateJobBatch, which count them."""
+    for table_name, _, rows in iter_sql_object_rows(sql_object):
+        if table_name == "job" and any(not r.get("id") or r.get("isIdInsert") for r in rows):
+            raise CodedValidationException(
+                message=AppMessages.JOB_INSERT_VIA_JOB_SCREENS, code="JOB_INSERT_VIA_JOB_SCREENS"
+            )
+
+
 async def resolve_create_single_job_helper(
-    db_name: str, schema: str = "public", value: str = ""
+    db_name: str, schema: str = "public", value: str = "", skip_usage: bool = False
 ) -> Any:
     """
-    Create a single job and atomically increment the document sequence.
+    Create a single job and atomically increment the document sequence. A normal job counts
+    against the BU's monthly allowance; an opening job (migrated data) never does, and
+    `skip_usage` (Super Admin) skips the count.
     """
     if not value:
         raise ValidationException(
@@ -122,6 +148,8 @@ async def resolve_create_single_job_helper(
             await cur.execute(
                 pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
             )
+            if not skip_usage and not x_data.get("is_opening_job"):
+                await _reserve_jobs_or_refuse(cur, schema_name, 1)
 
             # 1. Claim next sequence number atomically
             await cur.execute(
@@ -581,9 +609,10 @@ async def resolve_deliver_job_helper(
     return new_txn_id
 
 async def resolve_create_job_batch_helper(
-    db_name: str, schema: str = "public", value: str = ""
+    db_name: str, schema: str = "public", value: str = "", skip_usage: bool = False
 ) -> Any:
-    """Create a batch of jobs from shared data and per-job overrides."""
+    """Create a batch of jobs from shared data and per-job overrides. The whole batch counts
+    against the monthly allowance and is refused whole when it does not fit."""
     # pylint: disable=too-many-locals
     payload = _decode_value(value, "createJobBatch")
     shared = payload.get("sharedData", {})
@@ -611,6 +640,8 @@ async def resolve_create_job_batch_helper(
             await cur.execute(
                 pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
             )
+            if not skip_usage:
+                await _reserve_jobs_or_refuse(cur, schema_name, len(jobs))
             await cur.execute(SqlStore.CLAIM_NEXT_BATCH_NUMBER)
             batch_no = (await cur.fetchone())["batch_no"]
             logger.info("Assigned batch_no=%s", batch_no)
@@ -667,9 +698,10 @@ async def resolve_create_job_batch_helper(
     return {"batch_no": batch_no, "job_ids": job_ids, "job_nos": job_nos}
 
 async def resolve_update_job_batch_helper(
-    db_name: str, schema: str = "public", value: str = ""
+    db_name: str, schema: str = "public", value: str = "", skip_usage: bool = False
 ) -> Any:
-    """Update header and line items for an existing job batch."""
+    """Update header and line items for an existing job batch. Jobs added to the batch
+    count against the monthly allowance, like a new batch."""
     # pylint: disable=too-many-locals
     payload = _decode_value(value, "updateJobBatch")
     batch_no = payload.get("batch_no")
@@ -687,6 +719,8 @@ async def resolve_update_job_batch_helper(
             await cur.execute(
                 pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
             )
+            if added_jobs and not skip_usage:
+                await _reserve_jobs_or_refuse(cur, schema_name, len(added_jobs))
 
             await cur.execute(
                 "UPDATE job SET job_date=%s, customer_contact_id=%s,"

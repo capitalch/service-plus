@@ -1,324 +1,200 @@
-# Plan — Monthly job and WhatsApp limits per plan
+# Plan — "Ask AI" in the Help Center (Gemini free tier)
 
 ## Goal
-- Every plan has two monthly allowances: **new jobs** and **WhatsApp messages**.
-- When a BU has used its job allowance for the month, creating a new job is refused.
-- When a BU has used its WhatsApp allowance for the month, sending a WhatsApp message is refused.
-- Decisions already made:
-    - The period is a **calendar month, IST** (1st 00:00 to month end). Usage resets on the 1st.
-    - Over the limit means **block**, not warn.
-    - Limits are not secrets. Plan defaults live in the server `.env` (next to the prices); the effective limit is **stamped on `security.bu`** when a plan is set, exactly like `branch_limit` and `monthly_fee_paise`.
-    - `NULL` limit = unlimited.
-- Decisions made in this plan (change them in Step 0 if you disagree):
-    - A job counts when it is created. Deleting it later does **not** give the count back.
-    - Opening jobs (migrated old data) and edits to existing jobs do **not** count.
-    - A WhatsApp message counts when it is handed to Meta and accepted. A message that fails to send is given back.
-    - Usage is per BU (per schema), not per customer. An Enterprise customer with five BUs gets the allowance five times.
+- Staff get an **Ask AI** button. They type a question in plain words ("how do I deliver two jobs together?", "why can't I see the Accounts menu?"), and the AI answers **only from our own Help articles**, with links to the articles it used.
+- If the help does not cover the question, the AI says so instead of guessing.
+- Follow-up questions work ("and how do I print it?") while the AI view is open. Nothing is saved after the panel closes.
+- It costs nothing per question: it runs on the **Google Gemini API free tier**.
+- As a side benefit, the normal Help search gets smarter, so a question typed as a sentence finds articles even without AI.
+- Decisions:
+    - Client Help only (`help-content.ts`). Super Admin developer help is left for later.
+    - The AI is called from **our server**, never from the browser. The Gemini key stays in the server `.env`.
+    - Provider and model are `.env` values (`AI_HELP_PROVIDER=gemini`, `AI_HELP_MODEL`). Only Gemini is built now; the server code has one small "provider" file so Claude or a paid Gemini key can be added later without touching the rest.
+    - Only the **best 5 matching articles** are sent with each question (about 5–8K tokens), not the whole help (about 60K). This keeps us far inside the free limits.
+    - Limits are kept in server memory, no database change: 30 questions per BU per day, 5 per user per minute. A server restart resets them, which is fine for a free feature.
+    - No new access right. Everyone who can open Help can ask AI.
+- Free-tier trade-offs, accepted:
+    - Google may use free-tier questions to improve its products. So the server removes phone numbers and email addresses from the question before sending it, and the panel asks staff not to type customer details.
+    - Google caps free requests per minute and per day for the whole account. When the cap is hit, staff see "AI help is busy, please try again later".
+    - No uptime promise. If this becomes a problem, switch to a paid key in `.env` (a few paise per question on Flash-Lite).
 
-## Present context and current design
-- **No limit exists today** for jobs or WhatsApp messages. Plan data is: `plan_code`, `billing_required`, `monthly_fee_paise`, `paid_through`, `billing_hold`, `branch_limit` on `security.bu`.
-- **Prices** come from `app/core/plan_prices.py` (`PlanPriceSettings`, `.env` keys, defaults in code). A change affects only new customers and new payments, because the values are stamped on the BU when it is approved or its plan changes.
-- **Stamping points** (all write the plan fields of one BU):
-    - Sign-up approval: `set_bu_plan` in `app/graphql/resolvers/bu_admin/signups.py` with `SignupServerSql.SET_BU_PLAN`.
-    - Plan change: `BillingServerSql.SET_BU_PLAN_FIELDS` in `app/graphql/resolvers/bu_admin/billing.py`.
-    - Start billing of an existing BU: `BillingServerSql.START_BU_BILLING` (Enterprise).
-- **Write guard**: `require_bu_writable` in `app/graphql/resolvers/auth_guards.py` refuses writes to a view-only BU. Its status is read through `app/services/bu_billing.py` (`get_bu_billing`, cached 60 s). Usage changes on every job, so it must **not** go through this cache.
-- **Branch limit** is the model to copy: `resolve_add_branch` locks the `security.bu` row and refuses with `CodedValidationException` code `BRANCH_LIMIT_REACHED`. The client turns that code into a dialog in `lib/apollo-client.ts` (`showBillingNotice`).
-- **Job creation** has exactly two server paths, both in `app/graphql/resolvers/jobs/mutations.py`: `resolve_create_single_job_helper` (`createSingleJob`, one job) and `resolve_create_job_batch_helper` (`createJobBatch`, N jobs). Both run inside one DB transaction on one cursor.
-- **WhatsApp sending** has seven `send_template(...)` call sites: `app/whatsapp/sender.py` lines ~352 (completion), ~400 (job intake), ~452 (delivery summary), ~484 (delivery OTP), ~833 (money receipt), ~933 (invoice) and `app/whatsapp/ew_sender.py` line ~141 (extended-warranty lead alert and reminders). Each `_persist_attempt` writes a per-job JSON in `job.whatsapp_notifications`; that is per job and event, not usable as a monthly counter.
-- **Client** keeps the BU's billing summary in `store/context-slice.ts` (`billing`: status, paidThrough, planCode, branchLimit), filled by `components/shared/billing/use-billing-sync.ts` from the `buBillingStatus` query.
+## Present context
+- **Help content** is a TypeScript array, `HELP_ARTICLES` (59 articles, ~250 KB), in `src/features/client/components/help/help-content.ts`. Each article has `id`, `category`, `title`, `summary`, `tags`, `content` blocks (para, steps, bullets, table, note, warning, heading, code) and `faqs`. The server has no copy of it.
+- **Help engine** is `src/components/shared/help/help-panel.tsx`, shared with Super Admin. Views: `home`, `category`, `article`, `search`.
+- **Search today** (`searchHelpArticles` in `help-panel.tsx`) checks whether the whole typed text appears somewhere in an article. "how do I print a job card" finds nothing, because that exact sentence is nowhere. Results are not ranked.
+- **Opening help**: `HelpFab` (`components/shared/help/help-fab.tsx`) calls `openHelp()` from `HelpContext` in `features/client/components/layout/client-layout.tsx`, which renders `HelpPanel`.
+- **Server**: FastAPI + Ariadne GraphQL. No AI library is installed. Settings are pydantic classes in `app/core/settings/*_settings.py`, combined in the server's `Settings` class. `app/core/rate_limit.py` already has a small in-memory counter (per IP) to copy.
+- `buBillingStatus` already sends per-BU facts to the client (`store/context-slice.ts` → `billing`).
+- **Error codes** reach the client the same way as `BRANCH_LIMIT_REACHED` (`CodedValidationException` → `lib/apollo-client.ts`).
+- **Gemini free tier** (checked 12 Oct 2026, ai.google.dev pricing page): free on `gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`. Free-tier data is used to improve Google's products; paid is not. The exact free limits are not published; they are shown per account in AI Studio. A Google AI Pro (consumer Gemini app) subscription is separate from the API, so the key from Your Part A is on the free tier unless billing is turned on for its project; Your Part B shows which tier it is.
 
 ## New design brief
-- Plan limits in `.env` and a helper that reads them — Step 1.
-- Two limit columns on `security.bu` and a monthly usage table `security.bu_usage` — Step 2.
-- Limits stamped at approval, plan change and start-billing — Step 3.
-- One atomic "reserve usage" SQL and a small usage service — Step 4.
-- Job creation refuses at the limit — Step 5.
-- WhatsApp sending refuses at the limit and gives back failed sends — Step 6.
-- `buBillingStatus` also returns limits and this month's usage — Step 7.
-- Client shows usage, disables Save and shows the limit message — Step 8.
-- Help articles (client and developer) — Step 9.
-- Verification — Step 10.
+- Ranked Help search in the browser; it also picks the articles sent to the AI → Step 1.
+- Script that copies the help articles to the server; `pnpm build` runs it → Step 2.
+- Server settings and the Gemini library → Step 3.
+- Server module: load articles, build the prompt from the chosen ones, call Gemini → Step 4.
+- In-memory limits → Step 5.
+- GraphQL mutation `askHelpAi`; `buBillingStatus` says whether AI is on → Step 6.
+- Client store, GraphQL map, messages and hook → Step 7.
+- "Ask AI" view in the Help panel, an Ask AI button, "Ask AI instead" on empty search → Step 8.
+- Both help files updated → Step 9.
 
-## Key constraints of new design
-1. **Two concurrent requests must not both take the last slot.** Resolution: reserve with one `INSERT … ON CONFLICT DO UPDATE … WHERE used + n <= limit` statement; no read-then-write (Step 4).
-2. **A failed job creation must not eat the allowance.** Resolution: the job reservation runs on the same cursor and transaction as the job insert, so a rollback undoes it (Step 5).
-3. **A failed WhatsApp send must not eat the allowance.** Resolution: reserve before sending (to stop races), release if Meta did not accept (Step 6).
-4. **The browser is never trusted.** Resolution: all counting and refusal is server-side; the client only displays and pre-disables (Steps 5–8).
-5. **Changing `.env` must not change a paying customer's allowance mid-term.** Resolution: the limit is stamped on `security.bu` at approval or plan change; `.env` is only read at those moments (Steps 1, 3).
-6. **Existing BUs must keep working.** Resolution: columns are nullable; `NULL` = unlimited, so every BU stays unlimited until its plan is next set. Lite BUs are backfilled in Step 0 (C).
-7. **Super Admin must not be blocked.** Resolution: same exemption as `require_bu_writable` (user type `S`).
-8. **The client must not be able to write the new columns through `genericUpdate`.** Resolution: add them to `BU_BILLING_COLUMNS` and `bu_usage` to `SECURITY_SERVER_ONLY_TABLES` (Step 3).
-9. **Generated type files are never hand-edited.** Resolution: Step 0 (B) regenerates them after the migration.
+## Key constraints
+1. **The free tier has small per-minute token caps.** Sending the whole help (60K tokens) would hit them after a few questions. Resolution: send only the best 5 articles. The browser ranks them (Step 1); the server receives only their ids and reads the text from its own copy.
+2. **The help lives in the client, the AI call lives on the server.** Resolution: Step 2 exports the articles to `service-plus-server/app/ai_help/help_articles.json`, and `pnpm build` runs the export first.
+3. **Misuse as a free general chatbot, or text injected through the request.** Resolution: the server owns the prompt and the article text. The browser sends only the question, earlier turns, and article ids (unknown ids are dropped). Question ≤ 500 characters, at most 6 earlier turns. The prompt says to answer only Service+ questions from the given articles.
+4. **Made-up answers.** Resolution: answer only from the given articles, say plainly when they do not cover it, and return the ids used. The panel shows "AI answers can be wrong — check the linked article."
+5. **Free tier may train on questions.** Resolution: phone numbers (8+ digits) and emails are replaced with `[number]` / `[email]` on the server before sending. The disclaimer line asks staff not to type customer details.
+6. **Google's account-wide free cap.** Resolution: Gemini "quota exceeded" → `AI_HELP_BUSY` message. `AI_HELP_FALLBACK_MODEL` (optional, another free model) is tried once first, since each free model has its own cap.
+7. **Follow-up questions match badly on their own** ("and how do I print it?"). Resolution: for a follow-up, the browser ranks with the previous question added, and keeps the previous turn's articles (at most 6 ids in total).
+8. **AI not configured** (no key). Resolution: `buBillingStatus` returns `aiHelpEnabled: false`, and the client hides every Ask AI entry point. The better search still works.
+9. **Transport rule.** Resolution: authenticated → GraphQL mutation through Apollo.
 
 ## Step 0 — Your Part
-**A. Decide the numbers (before Step 1).** The defaults below are proposals; I have no data on your cost per message. Reply with changes, or accept.
+- **A.** 🟢 Completed — Open aistudio.google.com with a Google account, click **Get API key** → **Create API key**. No billing needed.
+- **B.** 🟢 Completed — On aistudio.google.com/rate-limit, checked the free requests-per-minute and per-day. Both are fine; the main model is `gemini-3.8-flash`.
 
-| Plan | Jobs / month | WhatsApp / month |
-|---|---|---|
-| Lite | 50 | 0 |
-| Basic | 300 | 300 |
-| Standard | 1000 | 1000 |
-| Enterprise | unlimited | 3000 per BU |
+## Step 1 — Ranked Help search 🟢 Completed
+Needs: none.
+- New `src/components/shared/help/help-search.ts` with `rankHelpArticles(articles, query, limit?)`:
+    - Split the query into words, lower-case, drop common words ("how", "do", "i", "the", "a", "to", "is", "my", "can", "what", "why", …) and words shorter than 2 letters.
+    - Score each article per word: title 5, tags 4, summary 3, FAQ question 3, headings 2, other text and FAQ answers 1. A word also matches the start of a longer word ("deliver" → "delivery") when it has 4 or more letters.
+    - Articles that match more of the words rank higher. Drop articles with score 0. Sort by score, then title.
+- `help-panel.tsx`: `searchHelpArticles` is replaced by `rankHelpArticles`. `highlightMatch` highlights each query word instead of the whole text.
+- This helps Super Admin help too, since the panel is shared.
 
-(Blank in `.env` = unlimited.) Also confirm the three "decisions made in this plan" in the Goal.
+## Step 2 — Export the help to the server 🟢 Completed
+Needs: none.
+- New `service-plus-client/scripts/export-help.mjs`. It uses Vite's own loader, so the `@/` paths and the `.tsx` icon import in `help-content.ts` just work:
+```js
+import { writeFileSync } from "node:fs";
+import { createServer } from "vite";
 
-**B. Run the migration (after Step 2 is written, before Step 3 is deployed).**
-- Run `plans/migrate-usage-limits.sql` (created in Step 2) on `service_plus_service` and on **every tenant database** (`security` schema exists in each).
-- Then run `pnpm gen-types-all` in the client folder to refresh `src/types/db-schema-security.ts`. The `.env` reads are blocked for Claude, so this is yours.
-- Also refresh `service-plus-server/app/db/schema_dumps/service_plus_service.sql` with `app/db/tools/extract_schema.py`.
-
-**C. Backfill existing Lite BUs (after B).** Step 2's migration file ends with a commented `UPDATE` that stamps Lite limits on BUs whose `plan_code = 'lite'`. Uncomment and run it once per tenant database if you want existing Lite BUs limited too. Skip it to leave them unlimited.
-
-**D. Add the `.env` keys (before Step 3 is deployed)** to the server `.env`, using the numbers from A. Key names are in Step 1.
-
-## Step 1 — Plan limits from `.env`
-Needs: Your Part A.
-- **Explanation:** Mirror the price list. A new settings class reads the four plan rows; `get_plan_limits(plan_code)` returns the limits to stamp. Blank or missing key = unlimited (`None`). Defaults in code are the Step 0 table so a missing `.env` still works.
-- **Path:** `service-plus-server/app/core/plan_prices.py` (add below `PlanPriceSettings`; do not touch the price code).
-- **Code — old:** none (new).
-- **Code — new:**
-```python
-class PlanLimitSettings(BaseSettings):
-    """Monthly allowances from .env; blank = unlimited."""
-
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
-    )
-
-    limit_basic_jobs: int | None = Field(default=300, ge=0)
-    limit_basic_whatsapp: int | None = Field(default=300, ge=0)
-    limit_enterprise_jobs: int | None = Field(default=None, ge=0)
-    limit_enterprise_whatsapp: int | None = Field(default=3000, ge=0)
-    limit_lite_jobs: int | None = Field(default=50, ge=0)
-    limit_lite_whatsapp: int | None = Field(default=0, ge=0)
-    limit_standard_jobs: int | None = Field(default=1000, ge=0)
-    limit_standard_whatsapp: int | None = Field(default=1000, ge=0)
-
-
-@dataclass(frozen=True)
-class PlanLimitType:
-    """One plan's monthly allowances; None = unlimited."""
-
-    jobs: int | None
-    whatsapp: int | None
-
-
-def get_plan_limits(plan_code: str) -> PlanLimitType:
-    """The allowances to stamp on a BU of this plan. Read fresh from .env on each call."""
-    s = PlanLimitSettings()
-    return PlanLimitType(
-        jobs=getattr(s, f"limit_{plan_code}_jobs"),
-        whatsapp=getattr(s, f"limit_{plan_code}_whatsapp"),
-    )
+const server = await createServer({ appType: "custom", server: { middlewareMode: true } });
+const { HELP_ARTICLES } = await server.ssrLoadModule("/src/features/client/components/help/help-content.ts");
+await server.close();
+const out = HELP_ARTICLES.map(({ category, content, faqs, id, summary, tags, title }) => ({ category, content, faqs, id, summary, tags, title }));
+writeFileSync("../service-plus-server/app/ai_help/help_articles.json", JSON.stringify(out, null, "\t"));
+console.log(`Exported ${out.length} help articles`);
 ```
-- Note: pydantic treats an empty `.env` value for `int | None` as a parse error; document in the dev article that "unlimited" is written by **deleting** the key (for keys whose default is a number, set a very large number such as `999999`). If you prefer a blank to mean unlimited, add a `field_validator(mode="before")` turning `""` into `None`.
+- `package.json`: add `"export-help": "node scripts/export-help.mjs"`, and change `build` to `node scripts/export-help.mjs && tsc -b && vite build`.
+- The JSON is committed with the server, so the deployed server always has it.
 
-## Step 2 — Schema: limit columns and usage table
-Needs: Step 1.
-- **Explanation:** Two nullable limit columns on `security.bu`. One row per BU per month in `security.bu_usage` holds the counters. `period_start` is the first day of the IST month. A new tenant gets these from the DDL file; existing tenants get them from the migration file.
-- **Path:** `service-plus-server/app/db/sql/sql_bu_admin_ddl.py` (the `security.bu` create at ~line 40 and a new table after it); new file `plans/migrate-usage-limits.sql`.
-- **Code — old** (in the `bu` create, after `branch_limit integer,`):
-```sql
-            branch_limit integer,
-```
-- **Code — new:**
-```sql
-            branch_limit integer,
-            job_limit_monthly integer,
-            whatsapp_limit_monthly integer,
-```
-  and with the other constraints:
-```sql
-            CONSTRAINT bu_job_limit_check CHECK (((job_limit_monthly IS NULL) OR (job_limit_monthly >= 0))),
-            CONSTRAINT bu_whatsapp_limit_check CHECK (((whatsapp_limit_monthly IS NULL) OR (whatsapp_limit_monthly >= 0))),
-```
-- **New table (same DDL file, and the migration file):**
-```sql
-CREATE TABLE IF NOT EXISTS security.bu_usage (
-    bu_id bigint NOT NULL REFERENCES security.bu(id) ON DELETE CASCADE,
-    period_start date NOT NULL,
-    jobs_used integer NOT NULL DEFAULT 0 CHECK (jobs_used >= 0),
-    whatsapp_used integer NOT NULL DEFAULT 0 CHECK (whatsapp_used >= 0),
-    PRIMARY KEY (bu_id, period_start)
-);
-```
-- **Migration file** (`plans/migrate-usage-limits.sql`): `ALTER TABLE security.bu ADD COLUMN IF NOT EXISTS job_limit_monthly integer, ADD COLUMN IF NOT EXISTS whatsapp_limit_monthly integer;` plus the two CHECK constraints (guard with `DO $$ … IF NOT EXISTS` or drop-if-exists first), the table above, and at the end the commented Lite backfill used by Your Part C:
-```sql
--- UPDATE security.bu SET job_limit_monthly = 50, whatsapp_limit_monthly = 0 WHERE plan_code = 'lite';
-```
-- Also register the table for new BU/tenant creation wherever `security` tables are listed (check `app/db/seeds/seed_security_data.py` and `app/db/schema_dumps/service_plus_service.sql` comment header) so a freshly created tenant has it.
+## Step 3 — Server settings and library 🟢 Completed
+Needs: none.
+- `service-plus-server/requirements.txt`: add `google-genai` (Google's current Python library), pinned like the other lines.
+- New `app/core/settings/ai_settings.py`, same style as `whatsapp_settings.py`:
+    - `ai_help_provider: str = "gemini"`
+    - `gemini_api_key: str = ""` with `repr=False`
+    - `ai_help_model: str = "gemini-3.8-flash"`
+    - `ai_help_fallback_model: str = "gemini-3.5-flash-lite"` (empty = no fallback)
+    - `ai_help_daily_limit_per_bu: int = 30`
+    - `ai_help_per_user_per_minute: int = 5`
+- Add `AiSettings` to the server's combined `Settings` class.
+- `.env.example`: the six keys, one comment line each.
 
-## Step 3 — Stamp the limits and protect the columns
-Needs: Step 2, Your Part B.
-- **Explanation:** Whenever a plan is set, copy `get_plan_limits(plan)` onto the BU. Add the columns to the write-protection list so the browser cannot set them.
-- **Path / code (four edits):**
-  1. `service-plus-server/app/db/sql/sql_billing.py` `SET_BU_PLAN_FIELDS` — old:
-```sql
-        SET plan_code = %(plan_code)s, branch_limit = %(branch_limit)s,
-```
-  new:
-```sql
-        SET plan_code = %(plan_code)s, branch_limit = %(branch_limit)s,
-            job_limit_monthly = %(job_limit)s, whatsapp_limit_monthly = %(whatsapp_limit)s,
-```
-  and `START_BU_BILLING` — old `SET plan_code = 'enterprise', billing_required = true, branch_limit = NULL,` new add `job_limit_monthly = %(job_limit)s, whatsapp_limit_monthly = %(whatsapp_limit)s,`.
-  2. `service-plus-server/app/graphql/resolvers/bu_admin/billing.py` (~line 196, and the start-billing call) — add to the parameter dict: `"job_limit": limits.jobs, "whatsapp_limit": limits.whatsapp,` where `limits = get_plan_limits(new_plan)` (`"enterprise"` for start-billing).
-  3. `service-plus-server/app/graphql/resolvers/bu_admin/signups.py` `set_bu_plan` (~line 220) and `SignupServerSql.SET_BU_PLAN` in `app/db/sql/sql_signups.py` — same two columns and parameters.
-  4. `service-plus-server/app/graphql/resolvers/auth_guards.py` — in `BU_BILLING_COLUMNS` add `"job_limit_monthly"` and `"whatsapp_limit_monthly"` (alphabetical); in `SECURITY_SERVER_ONLY_TABLES` add `"bu_usage"` (alphabetical: `{"bu_payment", "bu_usage", "job_internal_note", "sales_enquiry"}`).
-- After a plan change the cached billing summary is cleared by the existing `clear_bu_billing`; nothing extra needed.
+### 🧑 Your Part C — Key and install 🟢 Completed (key added by you; `google-genai` installed in the server venv)
+Needs: Step 3, Your Part A.
+- Put `GEMINI_API_KEY=...` in the server `.env` (the model defaults already match Part B), then `pip install -r requirements.txt` in the server venv.
 
-## Step 4 — Usage service (atomic reserve and release)
-Needs: Step 2.
-- **Explanation:** One SQL per counter. `reserve` inserts the month's row or adds to it, but only if the new total stays within the BU's limit. No returned row = limit reached. `release` subtracts (never below 0). A plain `LimitReachedType` result is returned instead of raising, so each caller chooses how to refuse.
-- **Path:** SQL in `service-plus-server/app/db/sql/sql_billing.py` (class `BillingServerSql`); service in new file `service-plus-server/app/services/bu_usage.py`.
-- **Code — new SQL** (shown for jobs; the WhatsApp one is identical with `whatsapp`):
-```sql
-    RESERVE_JOBS = """
-        INSERT INTO security.bu_usage (bu_id, period_start, jobs_used)
-        SELECT b.id, %(period_start)s, %(n)s
-        FROM security.bu b
-        WHERE LOWER(b.code) = LOWER(%(code)s::text)
-          AND (b.job_limit_monthly IS NULL OR %(n)s <= b.job_limit_monthly)
-        ON CONFLICT (bu_id, period_start) DO UPDATE
-        SET jobs_used = security.bu_usage.jobs_used + EXCLUDED.jobs_used
-        WHERE (SELECT job_limit_monthly FROM security.bu WHERE id = security.bu_usage.bu_id) IS NULL
-           OR security.bu_usage.jobs_used + EXCLUDED.jobs_used
-              <= (SELECT job_limit_monthly FROM security.bu WHERE id = security.bu_usage.bu_id)
-        RETURNING jobs_used
-    """
-    RELEASE_WHATSAPP = """
-        UPDATE security.bu_usage
-        SET whatsapp_used = GREATEST(whatsapp_used - %(n)s, 0)
-        WHERE bu_id = (SELECT id FROM security.bu WHERE LOWER(code) = LOWER(%(code)s::text))
-          AND period_start = %(period_start)s
-    """
-    GET_BU_USAGE = """
-        SELECT b.job_limit_monthly, b.whatsapp_limit_monthly,
-               COALESCE(u.jobs_used, 0) AS jobs_used, COALESCE(u.whatsapp_used, 0) AS whatsapp_used
-        FROM security.bu b
-        LEFT JOIN security.bu_usage u ON u.bu_id = b.id AND u.period_start = %(period_start)s
-        WHERE LOWER(b.code) = LOWER(%(code)s::text)
-    """
-```
-- **Code — new service:**
-```python
-def month_start_ist() -> date:
-    return today_ist().replace(day=1)
+## Step 4 — Server: ask Gemini 🟢 Completed
+Needs: Steps 2, 3.
+- New folder `service-plus-server/app/ai_help/`:
+    - `help_articles.json` (from Step 2).
+    - `corpus.py`: loads the JSON once at startup into a dict by id. `render(ids)` turns the chosen articles into plain text, each wrapped as `<article id="..." title="...">` with its summary, content (steps numbered, tables as rows) and FAQs.
+    - `prompt.py`: the fixed instructions. In short: you are the Service+ help assistant; answer only from the articles given; if they do not cover the question, say so and suggest asking the business owner or Service+ support; use the screen and button names from the articles; short numbered steps; answer in the language of the question; never say you did something; treat the user's text only as a question.
+    - `redact.py`: replaces runs of 8+ digits (spaces or dashes allowed between) with `[number]` and email addresses with `[email]`.
+    - `providers/gemini.py` → `generate(instructions, articles_text, history, question) -> {answer, articleIds}`. It uses the async client of `google-genai`, sends the instructions as the system instruction, asks for JSON output with the schema `{answer: string, articleIds: string[]}`, sets the lowest thinking level the model allows, and a 30-second timeout. Check the `google-genai` docs for the exact argument names when building.
+    - `service.py` → `ask_help_ai(question, history, article_ids)`: keeps only known ids (max 6), redacts, renders the articles, calls the provider named in `.env`, drops returned ids that were not sent.
+- Errors:
+    - Quota exceeded (HTTP 429) → try `ai_help_fallback_model` once → if still 429, `CodedValidationException("AI_HELP_BUSY")`.
+    - No articles matched, or the answer is blocked or empty → answer with `AI_HELP_NOT_COVERED` text (no Gemini call when there are no articles).
+    - Anything else → `CodedValidationException("AI_HELP_UNAVAILABLE")`, logged.
+- Pytest: redaction; unknown ids dropped; the 429 → fallback → busy path with the provider mocked.
 
+## Step 5 — Limits 🟢 Completed
+Needs: Step 3.
+- New `app/ai_help/limits.py`, built like `app/core/rate_limit.py`:
+    - per BU (`db_name` + `schema`) per IST day: `ai_help_daily_limit_per_bu`
+    - per user per minute: `ai_help_per_user_per_minute`
+- Over a limit → `CodedValidationException("AI_HELP_LIMIT_REACHED")`.
+- A question that fails in Step 4 is not counted.
 
-async def reserve_jobs(cur, schema: str, n: int) -> bool:
-    """True when n more jobs fit in this month's allowance. Runs on the caller's cursor,
-    so a rollback of the job insert also undoes the reservation."""
-    await cur.execute(BillingServerSql.RESERVE_JOBS, {"code": schema, "n": n, "period_start": month_start_ist()})
-    return await cur.fetchone() is not None
+## Step 6 — GraphQL 🟢 Completed
+Needs: Steps 4, 5.
+- `schema.graphql`: `askHelpAi(db_name: String!, schema: String!, value: String!): Generic` under `Mutation`.
+- Resolver: `require_own_tenant`, `require_bu_access`; decode `value` = `{articleIds, history, question}`; check sizes (question 1–500 chars, history ≤ 6 turns of ≤ 2,000 chars each, roles only `user`/`assistant`, ≤ 6 ids); limits → `ask_help_ai`.
+- `buBillingStatus` also returns `aiHelpEnabled` (true when the provider's key is set).
 
+## Step 7 — Client wiring 🟢 Completed
+Needs: Steps 1, 6.
+- `constants/graphql-map.ts`: `askHelpAi` mutation.
+- `store/context-slice.ts`: `billing` gets `aiHelpEnabled`.
+- `constants/messages.ts`: `AI_HELP_BUSY`, `AI_HELP_DISCLAIMER`, `AI_HELP_EMPTY_STATE`, `AI_HELP_LIMIT_REACHED`, `AI_HELP_NOT_COVERED`, `AI_HELP_UNAVAILABLE`.
+- `lib/apollo-client.ts`: the three new error codes show their message as a toast, not the billing dialog.
+- New hook `features/client/components/help/use-ask-help-ai.ts`:
+    - keeps the conversation in state;
+    - for each question, ranks articles with `rankHelpArticles` (adding the previous question for a follow-up) and merges in the previous turn's ids, max 6;
+    - calls the mutation with `apolloClient.mutate`;
+    - returns `{ask, clear, loading, turns}`.
 
-async def reserve_whatsapp(db_name: str, schema: str, n: int = 1) -> bool: ...   # exec_sql, own transaction
-async def release_whatsapp(db_name: str, schema: str, n: int = 1) -> None: ...
-async def get_bu_usage(db_name: str, schema: str) -> dict: ...                   # Step 7
-```
-- **Caveat:** the `search_path` of the job cursor is the BU schema, so every table in these SQLs is `security.`-qualified (as written).
-- Super Admin and tenant-wide schemas (`security`, `public`, empty) are never counted; the callers skip when `require_bu_writable` would skip.
-
-## Step 5 — Block new jobs at the limit
-Needs: Step 4.
-- **Explanation:** After `branch_id` is validated and the cursor's `search_path` is set, reserve `1` (single job) or `len(jobs)` (batch). If the reservation fails, raise the new coded error; nothing is written. A batch that does not fit is refused whole — no partial batch. Add the error text and code.
-- **Path:** `service-plus-server/app/graphql/resolvers/jobs/mutations.py` in `resolve_create_single_job_helper` (~line 120, before `CLAIM_NEXT_JOB_NUMBER`) and `resolve_create_job_batch_helper` (~line 610, before `CLAIM_NEXT_BATCH_NUMBER`); `service-plus-server/app/core/exceptions.py`.
-- **Code — old** (batch helper):
-```python
-            await cur.execute(SqlStore.CLAIM_NEXT_BATCH_NUMBER)
-```
-- **Code — new:**
-```python
-            if not await reserve_jobs(cur, schema_name, len(jobs)):
-                raise CodedValidationException(
-                    message=AppMessages.JOB_LIMIT_REACHED,
-                    code="JOB_LIMIT_REACHED",
-                    extensions={"requested": len(jobs)},
-                )
-            await cur.execute(SqlStore.CLAIM_NEXT_BATCH_NUMBER)
-```
-  Single-job helper: same block with `1`, placed before the `# 1. Claim next sequence number atomically` step.
-- **Exemption:** the resolvers `createSingleJob`/`createJobBatch` in `mutation.py` know the user type; pass `skip_usage = info.context.get("user_type") == "S"` into the helpers (or skip the reservation inside when set). Keep the helper signature change minimal.
-- **Message** in `app/core/exceptions.py` next to `SUBSCRIPTION_READ_ONLY`:
-```python
-    JOB_LIMIT_REACHED = "This business unit has used all the jobs included in its plan for this month. The limit resets on the 1st."
-```
-- **Verification of "only two creation paths":** `grep -rn "INSERT INTO job\b\|\"job\"" app/graphql` must show creation only in these helpers (the `process_data(..., "job", ...)` calls at ~223/321 are updates; the client's `genericUpdate` with `tableName: "job"` in `single-job-section.tsx` ~228/261 must be checked: if either is an insert with no `id`, add the same reservation to that path or route it through `createSingleJob`).
-
-## Step 6 — Block WhatsApp sends at the limit
-Needs: Step 4.
-- **Explanation:** Wrap `send_template` once so every one of the seven call sites is covered: a new function `send_metered(db_name, schema, ...)` calls `reserve_whatsapp`; if refused it returns a `SendResult`-shaped value with `ok=False` and error `WHATSAPP_LIMIT_REACHED` **without calling Meta**; otherwise it calls `send_template`, and releases the reservation when `result.ok` is false. The existing code already turns `ok=False` into status `FAILED` and persists it; the new error code lets the UI tell "limit" from "Meta error".
-- **Path:** `service-plus-server/app/whatsapp/client.py` (or a new `app/whatsapp/metered.py` to keep `client.py` free of DB imports — preferred), call sites in `app/whatsapp/sender.py` (6) and `app/whatsapp/ew_sender.py` (1).
-- **Code — old** (`sender.py` ~352):
-```python
-        result = await send_template(
-            normalize_mobile(mobile), template, header_values, body_values, callback_data
-        )
-```
-- **Code — new:**
-```python
-        result = await send_metered(
-            db_name, schema, normalize_mobile(mobile), template, header_values, body_values, callback_data
-        )
-```
-  and in `metered.py`:
-```python
-async def send_metered(db_name, schema, *args, **kwargs):
-    if not await reserve_whatsapp(db_name, schema):
-        return SendResultType(ok=False, error_code="WHATSAPP_LIMIT_REACHED",
-                              error_message=AppMessages.WHATSAPP_LIMIT_REACHED, provider_message_id=None)
-    result = await send_template(*args, **kwargs)
-    if not result.ok:
-        await release_whatsapp(db_name, schema)
-    return result
-```
-  (Use the real field names of the result type in `client.py` ~line 33.)
-- **What counts:** the delivery flow sends two messages (summary and OTP, lines ~452 and ~484). Each is metered; if the summary is accepted and the OTP is refused the job delivery still shows "OTP not sent" through the existing failure path — document this in the dev article. Money receipts and invoices are single messages.
-- **Message:** `WHATSAPP_LIMIT_REACHED = "This business unit has used all the WhatsApp messages included in its plan for this month. The limit resets on the 1st."` in `exceptions.py`.
-- **Do not meter** the Super Admin's own tenant (the same `user_type == "S"` skip is not available here because the helpers get only `db_name`/`schema`; accept that Super Admin sends count — note in the dev article) and the webhook status callbacks (they send nothing).
-
-## Step 7 — Return limits and usage to the client
-Needs: Step 4, Step 3.
-- **Explanation:** `buBillingStatus` already exists. Add `jobLimit`, `whatsappLimit`, `jobsUsed`, `whatsappUsed` to its result. Usage is read fresh each time (not through the 60-second cache).
-- **Path:** `service-plus-server/app/graphql/resolvers/query.py` `resolve_bu_billing_status` (~line 85); `service-plus-server/app/services/bu_billing.py`.
-- **Code — old:** returns `get_bu_billing(db_name, schema)`.
-- **Code — new:**
-```python
-    billing = dict(await get_bu_billing(db_name, schema))
-    usage = await get_bu_usage(db_name, schema)
-    return {**billing, "jobLimit": usage["job_limit_monthly"], "jobsUsed": usage["jobs_used"],
-            "whatsappLimit": usage["whatsapp_limit_monthly"], "whatsappUsed": usage["whatsapp_used"]}
-```
-  Update the GraphQL schema type for `buBillingStatus` (the `.graphql` file that declares it; grep `branchLimit` under `service-plus-server/app/graphql/`) with the four nullable `Int` fields.
-
-## Step 8 — Client: show usage, disable Save, show the limit message
+## Step 8 — Client screens 🟢 Completed
 Needs: Step 7.
-- **Explanation:** Four pieces.
-  1. **Store.** Add the four fields to the billing type in `store/context-slice.ts` (next to `branchLimit`) and to the `buBillingStatus` query text in `constants/graphql-map.ts`. Add selectors `selectJobLimitReached` and `selectWhatsappLimitReached` (limit not null and used >= limit).
-  2. **Error link.** `lib/apollo-client.ts` (~line 100) already recognises `SUBSCRIPTION_READ_ONLY` and `BRANCH_LIMIT_REACHED`; add `JOB_LIMIT_REACHED`, and extend the union in `context-slice.ts` (~line 27) and `read-only-dialog.tsx` so the dialog shows `MESSAGES.BILLING_JOB_LIMIT`. Refresh billing after it (existing `requestBillingRefresh`).
-  3. **Job screens.** Where Save is disabled by `useIsReadOnly` (single job, batch job) also disable it when `selectJobLimitReached`, with tooltip `MESSAGES.BILLING_JOB_LIMIT`. Show a small line `Jobs this month: 42 / 50` (hidden when unlimited) on the job entry screen.
-  4. **WhatsApp.** In Customer Connect (`jobs/customer-connect/customer-connect-section.tsx`) and the other send buttons, disable send when `selectWhatsappLimitReached` and show `Messages this month: 280 / 300`. A send result carrying error code `WHATSAPP_LIMIT_REACHED` shows a toast with `MESSAGES.BILLING_WHATSAPP_LIMIT` instead of the generic failure text.
-- **Messages** (long text → `constants/messages.ts`, alphabetical among the `BILLING_*` keys):
-```ts
-	BILLING_JOB_LIMIT: "You have used all the jobs included in your plan for this month. The limit resets on the 1st. Upgrade your plan to add more.",
-	BILLING_WHATSAPP_LIMIT: "You have used all the WhatsApp messages included in your plan for this month. The limit resets on the 1st.",
-```
-- Red is not used for these (errors only); use the amber style of the due-soon banner for the usage lines when above 90 %.
-- Paths to touch: `src/store/context-slice.ts`, `src/constants/graphql-map.ts`, `src/constants/messages.ts`, `src/lib/apollo-client.ts`, `src/components/shared/billing/read-only-dialog.tsx`, `src/components/shared/billing/billing-types.ts` (if it types the status), the single-job and batch-job sections under `src/features/client/components/jobs/`, and the WhatsApp send buttons (grep `sendWhatsapp` in `src/`).
+- `HelpPanel` gets one optional prop, `ai?: { ask; clear; loading; turns }`. Super Admin does not pass it, so its panel only gets the better search.
+- When `ai` is given:
+    - An **Ask AI** button (Sparkles icon, violet like the Help button) next to the search box opens a new view `{ kind: "ai" }`.
+    - **AI view**: the conversation as bubbles, answers as paragraphs and numbered steps, and under each answer the linked articles as chips that open the article (Back returns to the conversation). A textarea with an **Ask** button (react-hook-form + zod: required, max 500; Ask disabled while invalid or loading), a **New chat** button, and the disclaimer line. Enter sends, Shift+Enter adds a new line.
+    - On an empty search result: **Ask AI instead**, which opens the AI view with the search text filled in.
+- `HelpContext` gets `openAiHelp()`. A small second button above `HelpFab` (Sparkles) opens Help straight on the AI view. Both are hidden when `aiHelpEnabled` is false.
+- Busy or limit messages show in amber inside the AI view. No red.
+- Phone width: the AI view fills the panel, textarea pinned at the bottom.
 
-## Step 9 — Help articles
-Needs: Steps 1–8.
-- **Explanation:** Required by the project rules, both files, in the same change.
-- **Path / content:**
-  - `src/features/client/components/help/help-content.ts` — in the subscription/plan article: the monthly allowances per plan, what "used / limit" means, that the count resets on the 1st, that deleting a job does not give it back, what the message says when blocked, and that Super Admin / the provider can raise the limit by changing the plan.
-  - `src/features/super-admin/components/help/dev-help-content.ts` — **one new article** "Monthly job and WhatsApp limits": `.env` keys (Step 1), `security.bu.job_limit_monthly` / `whatsapp_limit_monthly`, `security.bu_usage`, the three SQL ids `RESERVE_JOBS` / `RESERVE_WHATSAPP` / `RELEASE_WHATSAPP` / `GET_BU_USAGE`, `reserve_jobs` on the job cursor, `send_metered` wrapper and its seven call sites, error codes `JOB_LIMIT_REACHED` and `WHATSAPP_LIMIT_REACHED`, the stamping points, the two protected-column lists, the "delivery sends two messages" note, and the migration file. Then grep the neighbouring billing articles (`branch_limit`, `BU_BILLING_COLUMNS`, "refusal codes" at ~line 4996) and add the new columns/codes to their lists so counts and lists do not go stale.
+## Step 9 — Help articles 🟢 Completed
+Needs: Step 8.
+- `help-content.ts`: new article "Ask AI" covering:
+    - where the button is and how to ask;
+    - answers come only from these help pages and can be wrong;
+    - the daily number per BU;
+    - don't type customer names or numbers;
+    - "busy" means try again later.
+  Add it to `CLIENT_POPULAR_IDS`. Also mention in the search tips that whole questions now work.
+- `dev-help-content.ts`: one new article covering:
+    - `.env` keys, `pnpm export-help` and the build hook;
+    - the `app/ai_help/` files and the provider switch;
+    - why only the top articles are sent (free-tier token caps);
+    - the redaction rule;
+    - `askHelpAi`, its three error codes, and `aiHelpEnabled` on `buBillingStatus`;
+    - that limits are in memory and reset on restart.
+  Update any article that describes the old "contains the text" search.
+- Run `pnpm export-help` again so the AI knows about the new article.
 
 ## Step 10 — Verification
-Needs: all steps.
-- Server: with a Basic BU set to `job_limit_monthly = 2`, create 2 jobs, then a 3rd → `JOB_LIMIT_REACHED`; a batch of 2 when 1 remains → refused whole; a failed creation (bad job type) leaves `jobs_used` unchanged. Two parallel `createSingleJob` calls with 1 slot left → exactly one succeeds.
-- WhatsApp: set `whatsapp_limit_monthly = 1`; first send accepted, second returns `WHATSAPP_LIMIT_REACHED` without a Meta call; force a Meta failure and confirm `whatsapp_used` is released.
-- Month rollover: set `period_start` rows to last month and confirm a new row starts at 0 on the 1st.
-- Browser: `bu_usage` and the limit columns cannot be written through `genericUpdate` (expect the existing billing-columns / server-only-table refusal).
-- Client: `pnpm exec tsc -b --noEmit`, `pnpm lint`, `pnpm format` on touched files, then check the Save/Send disabled states and the usage lines in the browser.
+Needs: Steps 1–9.
+- Client: `tsc -b`, `pnpm build` (also proves the export runs). Server: pytest.
+- Manual checks:
+    - a question the help covers (answer + right article chips);
+    - one it doesn't cover (says so);
+    - a follow-up question;
+    - a non-Service+ question (politely declines);
+    - a question with a phone number (number not in the server's outgoing log);
+    - 31st question of the day in one BU (limit message);
+    - key removed from `.env` (Ask AI hidden, search still works).
+
+## Changes made while building
+- **Ranking** (Step 1): a word's score is multiplied by how rare it is across articles. Sorting by "most words matched" first let filler words like "two" and "together" push `deliver-job` out of the top 5.
+- **Thinking level** (Step 4): `LOW`, not the lowest. `gemini-3.8-flash` rejects `MINIMAL`.
+- **Busy** (Step 4): HTTP 503 "high demand" is treated like 429, so it tries the fallback model and then shows `AI_HELP_BUSY`. 3.8 returned 503 several times during testing, and the fallback answered.
+- **Errors in the client** (Step 7): `apollo-client.ts` is unchanged. The hook shows the error message in amber inside the AI view, so there is no toast as well.
+- **Fourth error code**: `AI_HELP_INVALID_INPUT` for the size checks.
+- **Not covered**: the server returns `notCovered: true` and the client shows `MESSAGES.AI_HELP_NOT_COVERED`.
+- `tests/test_view_only_guard.py`: `askHelpAi` added to `ALLOWED`. It writes nothing, so a read-only BU can still ask.
+
+## Step 10 status
+- Done: `tsc -b`, `pnpm build` (exports 60 articles), server pytest (348 passed, including 15 new in `tests/ai_help/`), and live Gemini calls through `ask_help_ai` (a covered question, plus an off-topic one that was declined).
+- Pending: the manual UI checks above. They need the server restarted first, to load `app/ai_help/` and `google-genai`.
+
+## Later, if wanted
+- Paid Gemini key or Claude as a second provider file, chosen by `AI_HELP_PROVIDER`.
+- Same AI view for the Super Admin developer help.
+- Limits stored in the database so they survive restarts.
+- Streaming answers word by word.

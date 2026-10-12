@@ -138,6 +138,62 @@ export const HELP_ARTICLES: HelpArticle[] = [
 	},
 
 	{
+		id: "ask-ai",
+		category: "Getting Started",
+		title: "Ask AI and searching Help",
+		summary: "Ask a question in your own words and get an answer taken from these help pages.",
+		tags: ["ai", "ask ai", "help", "search", "question", "assistant", "chat"],
+		content: [
+			{
+				type: "para",
+				text: 'Ask AI answers questions about using Service+ in plain words — for example "how do I deliver two jobs together?" or "why can\'t I see the Accounts menu?". It reads only these help pages, so its answer always comes with links to the articles it used.',
+			},
+			{ type: "heading", text: "How to ask" },
+			{
+				type: "steps",
+				items: [
+					"Click the small Ask AI button (sparkles) just above the Help button at the bottom right, or open Help and click Ask AI next to the search box.",
+					"Type your question and press Enter (Shift+Enter starts a new line), or click Ask.",
+					"Read the answer. Click an article name under it to open that article; the Back arrow brings you back to the conversation.",
+					'Ask a follow-up such as "and how do I print it?" — the AI remembers the conversation while Help is open.',
+					"Click New chat to start again. Closing Help also clears the conversation; nothing is saved.",
+				],
+			},
+			{ type: "heading", text: "Searching Help" },
+			{
+				type: "para",
+				text: "The Help search box now understands whole questions too: it looks for the important words in your sentence and lists the best matching articles first. If a search finds nothing, click Ask AI instead to send the same text to Ask AI.",
+			},
+			{ type: "heading", text: "Things to know" },
+			{
+				type: "bullets",
+				items: [
+					"Answers come only from these help pages. If the help does not cover your question, Ask AI says so instead of guessing — then ask your business owner or Service+ support.",
+					"AI answers can be wrong. Check the linked article before doing anything you cannot undo.",
+					"Each business unit can ask 30 questions a day, and each person 5 a minute. After that you see a limit message; try again in a minute, or tomorrow.",
+					'"AI help is busy" means the AI service is overloaded for the moment. Wait a little and ask again.',
+					"Do not type customer names, mobile numbers or email addresses. Phone numbers and emails are removed before the question is sent, but names are not.",
+					"If you don't see the Ask AI button at all, AI help has not been set up for your Service+ server. Search still works.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Can Ask AI do things for me, like create a job?",
+				a: "No. It only explains how to do things in Service+; you still do them yourself.",
+			},
+			{
+				q: "Can I ask in Hindi?",
+				a: "Yes. Ask AI answers in the language of your question. The screen and button names stay as they appear in the app.",
+			},
+			{
+				q: "Why did Ask AI say the help does not cover my question?",
+				a: "It answers only from these help pages and found nothing that answers it. Try different words, search the help, or ask your business owner or Service+ support.",
+			},
+		],
+	},
+
+	{
 		id: "dashboard",
 		category: "Getting Started",
 		title: "Understanding the Dashboard",
@@ -4612,7 +4668,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					"Record payment: choose Months or Years and a count (up to 60 months / 5 years). The amount is filled in as fee × months — no discount for paying ahead — and the line below shows the total and the new paid-through date. You may enter more (a note is then required) but never less.",
 					"A payment can't take the paid period more than 5 years beyond today, even when stacked on earlier advance payments.",
 					"History lists every payment, extension and plan/fee change, newest first; nothing in it is ever edited.",
-					"Change plan moves a customer between Lite, Basic and Standard. Before saving it shows the new fee and, if they have paid ahead, the new paid-through date (an upgrade shortens the prepaid time, a downgrade lengthens it). A downgrade to Lite or Basic is refused while branches other than the head office exist — the dialog lists them with their record counts.",
+					"Change plan moves a customer between Lite, Basic and Standard. Before saving it shows the new fee and, if they have paid ahead, the new paid-through date (an upgrade shortens the prepaid time, a downgrade lengthens it). A downgrade to Lite or Basic is refused while branches other than the head office exist — the dialog lists them with their record counts. The new plan's monthly job and WhatsApp allowances apply at once; what was already used this month still counts.",
 				],
 			},
 			{
@@ -4654,6 +4710,57 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "Why can't I add a second branch?",
 				a: "The Lite, Basic and Standard plans include the head office branch only. On those plans the Add Branch button isn't shown, and the server refuses a new branch too. Upgrade to Enterprise for more branches.",
+			},
+		],
+	},
+	{
+		id: "monthly-plan-limits",
+		category: "Troubleshooting",
+		title: "Monthly job and WhatsApp limits",
+		summary:
+			"How many jobs and WhatsApp messages your plan includes each month, and what happens when they run out.",
+		tags: [
+			"limit",
+			"jobs this month",
+			"whatsapp messages",
+			"plan",
+			"lite",
+			"basic",
+			"standard",
+			"upgrade",
+			"cannot save",
+		],
+		content: [
+			{
+				type: "para",
+				text: "Each plan includes a number of new jobs and WhatsApp messages per business unit per calendar month. The count starts again on the 1st.",
+			},
+			{
+				type: "table",
+				headers: ["Plan", "New jobs / month", "WhatsApp messages / month"],
+				rows: [
+					["Lite", "75", "20"],
+					["Basic", "150", "150"],
+					["Standard", "400", "300"],
+					["Enterprise", "Unlimited", "Unlimited"],
+				],
+			},
+			{
+				type: "bullets",
+				items: [
+					"Where to see it: a 'Jobs this month: 42 / 75' badge right of the Single Job and Batch Job screen titles (shown in both New and View modes), and 'WhatsApp messages this month: 18 / 20' right of the Customer Connect title. It is blue normally and turns amber near the limit. It isn't shown on an unlimited plan or on phone-sized screens.",
+					"What counts as a job: every new job and every job added to a batch. Opening jobs (old data you bring in) and changes to existing jobs don't count. Deleting a job doesn't give it back.",
+					"What counts as a message: each WhatsApp message the customer is sent. A delivery sends two (the summary and the OTP). A message that fails to send doesn't count.",
+					"At the job limit: Save is switched off for new jobs and batches (hover for the reason); editing existing jobs still works. If a save is refused anyway, a 'Monthly job limit reached' dialog explains why.",
+					"At the WhatsApp limit: instead of asking to confirm, Send shows 'You have used all the WhatsApp messages included in your plan for this month'. A send that needs more messages than are left is not sent at all. The job intake message after saving a job may be refused; the job itself is still saved. For a delivery whose OTP could not be sent, confirm pickup manually.",
+					"To get more: ask your Service+ provider to move you to a higher plan. The new allowance applies at once.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "Some Extended Warranty reminders were not sent — why?",
+				a: "If the month's messages ran out partway, the reminders that fit are sent and the rest are reported as not sent because of the monthly limit. Send them again after the 1st or after upgrading.",
 			},
 		],
 	},
@@ -4793,6 +4900,7 @@ export const CLIENT_CAT_STYLE: Record<string, CategoryStyleType> = {
 
 export const CLIENT_POPULAR_IDS = [
 	"first-time-setup",
+	"ask-ai",
 	"create-job",
 	"job-control",
 	"finalize-job",
