@@ -5406,7 +5406,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"components/shared/help/ai-help-view.tsx",
-						"The AI view: bubbles, numbered steps parsed from '1. …' lines, article chips, react-hook-form + zod textarea (1–500 chars), New chat, disclaimer. HelpPanel gets `ai?: AiHelpType` and `initialAi`; view kind 'ai'; an article opened from a chip carries fromAi so Back returns to the conversation.",
+						"The AI view: bubbles, numbered steps parsed from '1. …' lines (a line starting as a step is also split at each later 'N. ', since the model sometimes runs the steps together on one line), article chips, react-hook-form + zod textarea (1–500 chars), New chat, disclaimer. HelpPanel gets `ai?: AiHelpType` and `initialAi`; view kind 'ai'; an article opened from a chip carries fromAi so Back returns to the conversation.",
 					],
 					[
 						"features/client/components/help/use-ask-help-ai.ts",

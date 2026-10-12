@@ -77,6 +77,7 @@ export const terms: LegalPageType = {
 			items: [
 				"The Lite plan is free and carries no setup fee. Paid plans are billed monthly in advance, plus a one-time setup fee.",
 				"Job, WhatsApp message and business unit limits are counted per business unit, per calendar month.",
+				"Ask AI, the help assistant inside the app, is included in every plan, up to 30 questions per business unit per day. It answers only from the Service+ help guide, and its answers can be wrong, so check the linked help page before relying on one. Questions are processed by Google's Gemini AI service; do not type customer details into it. We may change or withdraw Ask AI at any time.",
 				"Plans can be changed on request. Upgrades take effect from the next billing cycle; we agree any credit or top-up for a mid-cycle change with you first.",
 			],
 		},
@@ -118,5 +119,5 @@ export const terms: LegalPageType = {
 		},
 	],
 	title: "Terms of service",
-	updated: "1 September 2026",
+	updated: "13 October 2026",
 };

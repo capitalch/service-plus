@@ -26,11 +26,16 @@ const questionSchema = z.object({
 type QuestionFormType = z.infer<typeof questionSchema>;
 
 const STEP_RE = /^\d+[.)]\s+/;
+// A later "2. " inside a line that starts as a step: the model sometimes runs the steps together.
+const INLINE_STEP_RE = /\s+(?=\d{1,2}[.)]\s)/;
 
 // Plain-text answer → paragraphs, with runs of "1. …" lines as a numbered list.
 function AnswerText({ text }: { text: string }) {
 	const blocks: { items: string[]; kind: "para" | "steps" }[] = [];
-	for (const raw of text.split("\n")) {
+	const lines = text
+		.split("\n")
+		.flatMap((raw) => (STEP_RE.test(raw.trim()) ? raw.trim().split(INLINE_STEP_RE) : [raw]));
+	for (const raw of lines) {
 		const line = raw.trim();
 		if (!line) continue;
 		if (STEP_RE.test(line)) {

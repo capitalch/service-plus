@@ -40,4 +40,8 @@ export const faqs: FaqType[] = [
 		answer: "Usually within one or two business days of payment for Lite, Basic and Standard, and a little longer for Enterprise, since it needs its own database.",
 		question: "How soon can I start?",
 	},
+	{
+		answer: "Ask AI is a helper inside the app's Help. Your staff type a question about using Service+ and get a short answer taken only from the Service+ help guide, with links to the pages it used. It is included in every plan, up to 30 questions a day per business unit. Questions are answered by Google's Gemini AI, so staff should not type customer names or numbers; phone numbers and email addresses are removed before a question is sent.",
+		question: "What is Ask AI?",
+	},
 ];

@@ -89,9 +89,11 @@ export const screenshotGroups: ScreenshotGroupType[] = [
 			shot("branch-switcher", "Switching branches"),
 			shot("customers", "Customer master"),
 			shot("technicians", "Technician master"),
+			shot("user-roles", "User roles"),
 			shot("numbering-auto-series", "Document numbering"),
 			shot("whatsapp-notifications", "WhatsApp notification settings"),
 			shot("post-unpost", "Post to accounts"),
+			shot("ask-ai-help", "Ask AI help"),
 		],
 	},
 ];

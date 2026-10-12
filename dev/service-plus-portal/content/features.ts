@@ -7,6 +7,7 @@ import {
 	Package,
 	ReceiptIndianRupee,
 	ShieldCheck,
+	Sparkles,
 	TrendingUp,
 	UserCog,
 	Wrench,
@@ -143,9 +144,25 @@ export const features: FeatureType[] = [
 			"Access rights are set per business unit",
 		],
 		icon: UserCog,
-		screenshotFiles: [],
+		screenshotFiles: ["user-roles"],
 		anchor: "role-based-access",
 		title: "Role-based access",
+	},
+	{
+		description:
+			"Staff ask how to do something in their own words and get a short answer from the built-in help guide.",
+		detail: 'Ask AI sits inside the in-app Help. A receptionist can type "how do I deliver two jobs together?" and get short, step-by-step instructions with links to the help pages it used. Answers come only from the Service+ help guide, so it says so plainly when something isn\'t covered instead of guessing. New staff learn the app without waiting for someone to show them.',
+		highlights: [
+			"Questions in plain words, answers in numbered steps",
+			"Every answer links to the help pages it came from",
+			"Answers only from the Service+ help guide, never guesses",
+			"Follow-up questions work, and it answers in the language you ask in",
+			"Included in every plan",
+		],
+		icon: Sparkles,
+		screenshotFiles: ["ask-ai-help"],
+		anchor: "ask-ai-help",
+		title: "Ask AI help",
 	},
 ];
 
