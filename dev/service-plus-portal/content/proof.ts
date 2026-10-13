@@ -61,7 +61,7 @@ export const trustPoints: TrustPointType[] = [
 	},
 	{
 		description:
-			"Unlimited branches and up to 5 business units on Enterprise, on a dedicated database.",
+			"Multiple branches and up to 5 business units on Enterprise, on a dedicated database.",
 		icon: IndianRupee,
 		label: "Scales with you",
 	},

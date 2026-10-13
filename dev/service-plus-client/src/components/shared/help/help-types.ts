@@ -41,7 +41,7 @@ export type CategoryStyleType = {
 	border: string;
 };
 
-// ─── Ask AI (client Help only; Super Admin passes no `ai` prop) ────────────────
+// ─── Ask AI (client Help and Super Admin Developer Help) ───────────────────────
 
 export type AiHelpTurnType = {
 	articleIds: string[];
@@ -52,9 +52,18 @@ export type AiHelpTurnType = {
 	text: string;
 };
 
+/** The texts that differ between client Help and Developer Help. */
+export type AiHelpTextsType = {
+	disclaimer: string;
+	emptyState: string;
+	notCovered: string;
+	placeholder: string;
+};
+
 export type AiHelpType = {
 	ask: (question: string) => Promise<void>;
 	clear: () => void;
 	loading: boolean;
+	texts: AiHelpTextsType;
 	turns: AiHelpTurnType[];
 };

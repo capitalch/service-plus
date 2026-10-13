@@ -46,6 +46,7 @@ export const PricingSection = () => {
 					<Reveal delay={index * 0.06} key={plan.code}>
 						<PlanCard
 							extraBuMonthlyFee={extraBuMonthlyFee}
+							onPick={setSelectedPlan}
 							onSelect={handleSelect}
 							plan={plan}
 							selected={plan.code === selectedPlan}

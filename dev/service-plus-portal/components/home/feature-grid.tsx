@@ -8,7 +8,7 @@ export const FeatureGrid = () => {
 	return (
 		<section className="mx-auto w-full max-w-6xl px-page py-section lg:px-page-lg lg:py-section-lg" id="features">
 			<SectionHeading eyebrow="Features" intro={MESSAGES.featuresIntro} title={MESSAGES.featuresTitle} />
-			<div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+			<div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
 				{features.map((feature, index) => (
 					<Reveal delay={(index % 3) * 0.06} key={feature.title}>
 						{/* Each card links to the matching deep-dive section on the features page. */}

@@ -22,7 +22,7 @@ export const ScreenshotGallery = () => {
 			<div className="mx-auto w-full max-w-6xl px-page lg:px-page-lg">
 				<SectionHeading eyebrow="Product" intro={MESSAGES.galleryIntro} title={MESSAGES.galleryTitle} />
 
-				<Tabs className="mt-10" onValueChange={setTab} value={tab}>
+				<Tabs className="mt-9" onValueChange={setTab} value={tab}>
 					{/* Scroll wrapper outside the list: the highlight is measured against the list's
 					    own box, so the list itself must not be inside a transformed or scrolled
 					    ancestor that would offset the measurements. */}
@@ -48,7 +48,7 @@ export const ScreenshotGallery = () => {
 							<div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
 								{candidate.shots.map((shot, index) => (
 									<button
-										className="group bg-card focus-visible:ring-ring/40 cursor-pointer overflow-hidden rounded-2xl border border-border text-left shadow-xs transition-shadow hover:shadow-lg focus-visible:ring-3 focus-visible:outline-none"
+										className="card-lift group bg-card focus-visible:ring-ring/40 cursor-pointer overflow-hidden rounded-2xl border border-border text-left shadow-xs focus-visible:ring-3 focus-visible:outline-none"
 										key={shot.src}
 										onClick={() => setSelectedIndex(index)}
 										type="button"
@@ -56,15 +56,15 @@ export const ScreenshotGallery = () => {
 										{/* eslint-disable-next-line @next/next/no-img-element -- static export, images unoptimized */}
 										<img
 											alt={shot.alt}
-											className="aspect-[16/9] w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.02]"
+											className="aspect-[16/9] w-full object-cover object-top transition-transform duration-300 ease-out group-hover:scale-[1.015]"
 											loading="lazy"
 											src={shot.src}
 										/>
 										<p className="text-muted-foreground group-hover:text-foreground flex items-center justify-between gap-2 border-t border-border px-4 py-3 text-sm font-medium transition-colors">
-											{shot.caption}
+											<span className="text-pretty">{shot.caption}</span>
 											<Maximize2
 												aria-hidden
-												className="size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+												className="size-3.5 shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
 											/>
 										</p>
 									</button>

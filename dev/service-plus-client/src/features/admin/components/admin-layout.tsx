@@ -26,6 +26,7 @@ import {
 	selectIsDefaultCustomerDb,
 	setSessionMode,
 } from "@/features/auth/store/auth-slice";
+import { DeveloperHelp } from "@/features/super-admin/components/help/developer-help";
 import { clearContext } from "@/store/context-slice";
 import { ROUTES } from "@/router/routes";
 
@@ -175,6 +176,7 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
 
 				<main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
 			</div>
+			<DeveloperHelp />
 		</div>
 	);
 };

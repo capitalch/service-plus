@@ -1,6 +1,8 @@
 // Plain-language legal copy for the two pages the site is required to carry once it collects
 // personal data through the enquiry form. TODO(real): have a lawyer review before going live.
 
+import { siteConfig } from "@/content/site-config";
+
 export type LegalSectionType = {
 	heading: string;
 	items?: string[];
@@ -15,7 +17,7 @@ export type LegalPageType = {
 	updated: string;
 };
 
-const COMPANY = "Kush Infotech";
+const COMPANY = siteConfig.company;
 
 export const privacy: LegalPageType = {
 	description:

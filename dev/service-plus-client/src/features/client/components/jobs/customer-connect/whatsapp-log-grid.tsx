@@ -151,6 +151,11 @@ export function WhatsappLogGrid({ rows, loading, total, page, setPage, eventKey,
 													Alt: {row.alternate_job_no}
 												</span>
 											)}
+											{row.division_code && (
+												<span className="w-fit rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+													{row.division_code}
+												</span>
+											)}
 										</div>
 									</td>
 									<td className={tdClass}>

@@ -756,6 +756,12 @@ export const MESSAGES = {
 	AI_HELP_QUESTION_REQUIRED: "Type a question first.",
 	AI_HELP_QUESTION_TOO_LONG: "Keep the question under 500 characters.",
 	AI_HELP_UNAVAILABLE: "AI help could not answer just now. Please try again, or search the help.",
+	AI_DEV_HELP_DISCLAIMER:
+		"AI answers come only from the developer help and can be wrong — check the linked article and the code. Don't paste secrets, keys or customer data.",
+	AI_DEV_HELP_EMPTY_STATE:
+		"Ask a question about the Service+ code, in your own words. For example: what must change when I add a new access right?",
+	AI_DEV_HELP_NOT_COVERED:
+		"The developer help doesn't cover this. Try searching the developer help with other words, or read the code and the plans folder.",
 } as const;
 
 // Builds the Post/Unpost "Select All" confirmation title + description from central templates.

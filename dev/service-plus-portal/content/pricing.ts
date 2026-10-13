@@ -8,7 +8,7 @@
 export type PlanCodeType = "basic" | "enterprise" | "lite" | "standard";
 
 export type PlanType = {
-	/** null = unlimited. Lite, Basic and Standard are limited to the head office branch only. */
+	/** null = multiple (no fixed limit). Lite, Basic and Standard are limited to the head office branch only. */
 	branches: number | null;
 	businessUnits: number;
 	code: PlanCodeType;
@@ -118,7 +118,7 @@ export function whatsappLabel(plan: PlanType): string {
 }
 
 export function branchesLabel(plan: PlanType): string {
-	return plan.branches === null ? "Unlimited branches" : "1 branch (head office only)";
+	return plan.branches === null ? "Multiple branches" : "1 branch (head office only)";
 }
 
 export function businessUnitsLabel(plan: PlanType, extraFee: number = extraBuMonthlyFee): string {

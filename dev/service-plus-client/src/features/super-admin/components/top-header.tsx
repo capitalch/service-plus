@@ -1,13 +1,4 @@
-import {
-	DatabaseIcon,
-	HelpCircleIcon,
-	InboxIcon,
-	LogOutIcon,
-	MenuIcon,
-	SettingsIcon,
-	ShieldAlertIcon,
-	UserIcon,
-} from "lucide-react";
+import { DatabaseIcon, InboxIcon, LogOutIcon, MenuIcon, SettingsIcon, ShieldAlertIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@apollo/client/react";
@@ -39,7 +30,6 @@ function todayIso(): string {
 
 type TopHeaderPropsType = {
 	onMenuToggle: () => void;
-	onOpenHelp: () => void;
 };
 
 function getInitials(fullName?: string): string {
@@ -49,7 +39,7 @@ function getInitials(fullName?: string): string {
 	return initials.toUpperCase();
 }
 
-export const TopHeader = ({ onMenuToggle, onOpenHelp }: TopHeaderPropsType) => {
+export const TopHeader = ({ onMenuToggle }: TopHeaderPropsType) => {
 	const dispatch = useAppDispatch();
 	const navigate = useNavigate();
 	const user = useAppSelector(selectCurrentUser);
@@ -109,17 +99,6 @@ export const TopHeader = ({ onMenuToggle, onOpenHelp }: TopHeaderPropsType) => {
 			<Button className="md:hidden" onClick={onMenuToggle} size="icon" variant="ghost">
 				<MenuIcon className="h-5 w-5" />
 				<span className="sr-only">Toggle menu</span>
-			</Button>
-
-			{/* Developer help */}
-			<Button
-				className="gap-1.5 border border-indigo-200 bg-indigo-50 text-indigo-700 hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-800"
-				onClick={onOpenHelp}
-				title="Developer Help"
-				variant="ghost"
-			>
-				<HelpCircleIcon className="h-5 w-5" />
-				<span className="hidden text-sm font-medium sm:inline">Developer Help</span>
 			</Button>
 
 			<div className="ml-auto flex items-center gap-2">

@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Reveal } from "@/components/layout/reveal";
 import { Button } from "@/components/ui/button";
 import { MESSAGES } from "@/constants/messages";
-import { findPlan, formatInr, type PlanCodeType, type PlanType } from "@/content/pricing";
+import { findPlan, formatInr, plans as planList, type PlanCodeType, type PlanType } from "@/content/pricing";
 import { findLivePlan, usePlanPrices } from "@/lib/plan-prices";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,30 @@ type QuestionType = {
 	options: { label: string; value: number }[];
 	prompt: string;
 };
+
+// Every plan includes spare-parts inventory, so stock is not a deciding question. The monthly job
+// limit is: one option per limited plan ("Up to 75", "Up to 150", …) plus one above the highest,
+// built from the plan definitions so the choices follow any change to the limits.
+function jobOptions(): QuestionType["options"] {
+	const limits = [
+		...new Set(planList.map((plan) => plan.jobsPerMonth).filter((limit): limit is number => limit !== null)),
+	].sort((a, b) => a - b);
+	const highest = limits.at(-1) ?? 0;
+	return [
+		...limits.map((limit) => ({ label: `Up to ${limit}`, value: limit })),
+		{ label: `More than ${highest}`, value: highest + 1 },
+	];
+}
+
+// One, up to the most any plan includes ("2–5"), and beyond that (extra units at a monthly fee).
+function businessUnitOptions(): QuestionType["options"] {
+	const most = Math.max(...planList.map((plan) => plan.businessUnits));
+	return [
+		{ label: "One", value: 1 },
+		{ label: `2–${most}`, value: 2 },
+		{ label: `More than ${most}`, value: most + 1 },
+	];
+}
 
 const questions: QuestionType[] = [
 	{
@@ -27,12 +51,9 @@ const questions: QuestionType[] = [
 		prompt: "How many people will use it?",
 	},
 	{
-		id: "inventory",
-		options: [
-			{ label: "No, jobs only", value: 0 },
-			{ label: "Yes, we stock parts", value: 2 },
-		],
-		prompt: "Do you keep spare parts in stock?",
+		id: "jobs",
+		options: jobOptions(),
+		prompt: "How many jobs do you take in a month?",
 	},
 	{
 		id: "whatsapp",
@@ -44,13 +65,9 @@ const questions: QuestionType[] = [
 		prompt: "Do you send job updates on WhatsApp?",
 	},
 	{
-		id: "branches",
-		options: [
-			{ label: "One", value: 0 },
-			{ label: "2–5", value: 2 },
-			{ label: "More than 5", value: 3 },
-		],
-		prompt: "How many branches or business units?",
+		id: "businessUnits",
+		options: businessUnitOptions(),
+		prompt: "How many business units?",
 	},
 ];
 
@@ -60,32 +77,33 @@ type AnswersType = Record<string, number>;
 // it cannot drift from what the plans actually include. It walks the ladder and takes the first
 // plan that covers every answer, which is why the ladder is ordered cheapest to dearest.
 function recommend(answers: AnswersType): { plan: PlanType; reasons: string[] } {
-	const needsInventory = (answers.inventory ?? 0) > 0;
+	const jobs = answers.jobs ?? 0;
 	const needsMultiUser = (answers.team ?? 1) > 1;
 	const needsWhatsapp = (answers.whatsapp ?? 0) > 0;
 	// "Most jobs" needs messages for at least half of the plan's job limit.
 	const needsWhatsappPerJob = (answers.whatsapp ?? 0) > 1;
-	const branches = answers.branches ?? 0;
+	const businessUnits = answers.businessUnits ?? 1;
+	const mostIncluded = Math.max(...planList.map((plan) => plan.businessUnits));
 
 	const reasons: string[] = [];
 	if (needsMultiUser) reasons.push(MESSAGES.reasonTeam);
-	if (needsInventory) reasons.push(MESSAGES.reasonInventory);
+	if (jobs > (findPlan("lite")?.jobsPerMonth ?? 0)) reasons.push(MESSAGES.reasonJobs);
 	if (needsWhatsapp) reasons.push(MESSAGES.reasonWhatsapp);
-	if (branches === 2) reasons.push(MESSAGES.reasonBranches);
-	if (branches >= 3) reasons.push(MESSAGES.reasonBusinessUnits);
+	if (businessUnits > 1 && businessUnits <= mostIncluded) reasons.push(MESSAGES.reasonBusinessUnits);
+	if (businessUnits > mostIncluded) reasons.push(MESSAGES.reasonExtraBusinessUnits);
 	if (reasons.length === 0) reasons.push(MESSAGES.reasonStarter);
 
 	const ladder: PlanCodeType[] = ["lite", "basic", "standard", "enterprise"];
 	const code = ladder.find((candidate) => {
 		const plan = findPlan(candidate);
 		if (!plan) return false;
-		if (needsInventory && !plan.inventory) return false;
+		if (plan.jobsPerMonth !== null && plan.jobsPerMonth < jobs) return false;
 		if (needsMultiUser && plan.users === "single") return false;
 		if (needsWhatsapp && plan.whatsappPerMonth === 0) return false;
 		if (needsWhatsappPerJob && plan.jobsPerMonth !== null && plan.whatsappPerMonth * 2 < plan.jobsPerMonth)
 			return false;
-		if (branches >= 2 && plan.branches !== null) return false;
-		if (branches >= 3 && plan.businessUnits < 2) return false;
+		// Units beyond the most a plan includes are bought extra, so the largest plan still fits.
+		if (plan.businessUnits < Math.min(businessUnits, mostIncluded)) return false;
 		return true;
 	});
 

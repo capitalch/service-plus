@@ -97,6 +97,15 @@ async def resolve_bu_billing_status(_, info, db_name="", schema="") -> Any:
     }
 
 
+@query.field("devHelpAiEnabled")
+@handle_query_errors("Unexpected devHelpAiEnabled failure")
+async def resolve_dev_help_ai_enabled(_, info) -> Any:
+    """Whether Ask AI is configured, for Developer Help in Super Admin and the Admin panel
+    (neither reads buBillingStatus, where client Help gets its aiHelpEnabled)."""
+    require_user_type(info, {"S", "A"})
+    return ai_help_enabled()
+
+
 @query.field("genericQuery")
 @handle_query_errors("Unexpected generic query failure")
 async def resolve_generic_query(_, info, db_name="", schema="public", value="") -> Any:

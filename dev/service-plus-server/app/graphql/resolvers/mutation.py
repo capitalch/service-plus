@@ -992,6 +992,20 @@ async def resolve_ask_help_ai(_, info, db_name: str = "", schema: str = "", valu
     return await ask_help_ai(db_name, schema, user_key, payload)
 
 
+@mutation.field("askDevHelpAi")
+@handle_graphql_errors("Error answering a developer Ask AI question")
+async def resolve_ask_dev_help_ai(_, info, value: str = "") -> Any:
+    """Ask AI in Developer Help (Super Admin and the business Admin panel): same service as
+    askHelpAi, but the developer articles and prompt. Neither has a BU, so the daily limit
+    is one bucket per tenant database for an Admin, and one shared bucket for Super Admin."""
+    require_user_type(info, {"S", "A"})
+    context = info.context or {}
+    payload = _decode_value(value, "askDevHelpAi")
+    bucket = f"developer:{context.get('db_name') or 'super-admin'}"
+    user_key = f"{context.get('user_type')}:{context.get('db_name')}:{context.get('user_id')}"
+    return await ask_help_ai(bucket, "", user_key, payload, audience="developer")
+
+
 @mutation.field("resendEwLeadAlert")
 @handle_graphql_errors("Error re-sending Extended Warranty staff alert")
 async def resolve_resend_ew_lead_alert(

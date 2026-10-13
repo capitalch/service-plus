@@ -39,6 +39,16 @@ secret: the sales-enquiry endpoint relies on rate limiting, validation and a hon
    | `NEXT_PUBLIC_API_BASE_URL` | the `service-plus-server` URL the enquiry form posts to (https in production; `http://localhost:8000` locally) |
    | `NEXT_PUBLIC_WEBSITE_KEY` | must equal `WEBSITE_API_KEY` in that server's `.env` |
    | `NEXT_PUBLIC_APP_URL` | the Service+ app the **Login** button opens (defaults to `https://serviceplus.cloudjiffy.net`) |
+   | `NEXT_PUBLIC_SITE_URL` | **required** — this site's public URL (metadata, sitemap, robots) |
+   | `NEXT_PUBLIC_CONTACT_EMAIL` | **required** — email shown in the footer, contact page and legal pages |
+   | `NEXT_PUBLIC_CONTACT_PHONE` | **required** — display form, e.g. `+91 98765 43210`; `tel:` and `wa.me` links use its digits |
+   | `NEXT_PUBLIC_CONTACT_WHATSAPP` | optional — only when the WhatsApp number differs from the phone |
+   | `NEXT_PUBLIC_BUSINESS_HOURS` | optional — defaults to `Mon–Sat, 10:00 AM – 7:00 PM IST` |
+   | `NEXT_PUBLIC_ADDRESS_*` | optional — `CITY`, `COUNTRY`, `LINE1`, `LINE2`, `MAP_URL`, `PINCODE`, `STATE`; city/state/country default to Kolkata, West Bengal, India |
+   | `NEXT_PUBLIC_BANK_*` | optional — `ACCOUNT_NAME`, `ACCOUNT_NUMBER`, `BRANCH`, `IFSC`, `NAME`, `UPI_ID`; shown only when account number and IFSC are both set |
+
+   `.env.example` lists every key. The values are baked in at build time, so rebuild after changing them;
+   a missing required value fails the build with its name.
 
 5. **On `service-plus-server`**:
    - add the portal's origins to `cors_origins` (via `CORS_ORIGINS` in its `.env`), e.g.

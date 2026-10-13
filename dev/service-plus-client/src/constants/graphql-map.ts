@@ -255,6 +255,11 @@ export const GRAPHQL_MAP = {
 			addJobInternalNote(db_name: $db_name, schema: $schema, value: $value)
 		}
 	`,
+	askDevHelpAi: gql`
+		mutation AskDevHelpAi($value: String!) {
+			askDevHelpAi(value: $value)
+		}
+	`,
 	askHelpAi: gql`
 		mutation AskHelpAi($db_name: String!, $schema: String!, $value: String!) {
 			askHelpAi(db_name: $db_name, schema: $schema, value: $value)
@@ -316,6 +321,11 @@ export const GRAPHQL_MAP = {
 		}
 	`,
 	// Plans and monthly billing (plans/plan.md Steps 12–14).
+	devHelpAiEnabled: gql`
+		query DevHelpAiEnabled {
+			devHelpAiEnabled
+		}
+	`,
 	buBillingStatus: gql`
 		query BuBillingStatus($db_name: String!, $schema: String!) {
 			buBillingStatus(db_name: $db_name, schema: $schema)

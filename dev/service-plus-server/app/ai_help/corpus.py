@@ -1,5 +1,6 @@
-"""The Help articles exported from the client (`pnpm export-help` → help_articles.json),
-loaded once and rendered as plain text for the prompt."""
+"""The Help articles exported from the client (`pnpm export-help`), loaded once per audience
+and rendered as plain text for the prompt: "client" = staff help (help_articles.json),
+"developer" = Super Admin developer help (dev_help_articles.json)."""
 
 import json
 from functools import lru_cache
@@ -7,7 +8,10 @@ from pathlib import Path
 
 from app.logger import logger
 
-ARTICLES_FILE = Path(__file__).with_name("help_articles.json")
+ARTICLES_FILES = {
+    "client": Path(__file__).with_name("help_articles.json"),
+    "developer": Path(__file__).with_name("dev_help_articles.json"),
+}
 
 
 def _render_article(article: dict) -> str:
@@ -40,24 +44,25 @@ def _render_article(article: dict) -> str:
     return "\n".join(line for line in lines if line)
 
 
-@lru_cache(maxsize=1)
-def articles_by_id() -> dict[str, dict]:
-    """Every exported article by id; empty (and logged) when the export is missing."""
+@lru_cache(maxsize=len(ARTICLES_FILES))
+def articles_by_id(audience: str = "client") -> dict[str, dict]:
+    """Every exported article of `audience` by id; empty (and logged) when the export is missing."""
+    path = ARTICLES_FILES[audience]
     try:
-        articles = json.loads(ARTICLES_FILE.read_text(encoding="utf-8"))
+        articles = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
-        logger.error("Ask AI: cannot read %s: %s", ARTICLES_FILE, e)
+        logger.error("Ask AI: cannot read %s: %s", path, e)
         return {}
     return {a["id"]: a for a in articles}
 
 
-def known_ids(ids: list[str]) -> list[str]:
+def known_ids(ids: list[str], audience: str = "client") -> list[str]:
     """The ids that exist, in the given order, without duplicates."""
-    corpus = articles_by_id()
+    corpus = articles_by_id(audience)
     return [i for i in dict.fromkeys(ids) if i in corpus]
 
 
-def render(ids: list[str]) -> str:
+def render(ids: list[str], audience: str = "client") -> str:
     """The chosen articles as one text block."""
-    corpus = articles_by_id()
+    corpus = articles_by_id(audience)
     return "\n\n".join(_render_article(corpus[i]) for i in ids if i in corpus)

@@ -30,8 +30,8 @@ export const TileCard = ({ description, href, icon: Icon, iconClassName, title }
 			>
 				<Icon aria-hidden className="size-5" />
 			</span>
-			<h3 className="mt-4 font-semibold">{title}</h3>
-			<p className="text-muted-foreground mt-2 text-sm">{description}</p>
+			<h3 className="mt-4 font-semibold text-balance">{title}</h3>
+			<p className="text-muted-foreground mt-2 text-sm text-pretty">{description}</p>
 			{href && (
 				<span className="text-primary mt-4 inline-flex items-center gap-1 text-sm font-medium">
 					See how it works
@@ -44,7 +44,7 @@ export const TileCard = ({ description, href, icon: Icon, iconClassName, title }
 		</>
 	);
 
-	const className = "card-lift group bg-card flex h-full flex-col rounded-2xl border border-border p-5 shadow-xs";
+	const className = "card-lift group bg-card/95 flex h-full flex-col rounded-2xl border border-border p-5 shadow-xs backdrop-blur-sm";
 
 	if (href) {
 		return (

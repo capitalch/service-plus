@@ -48,6 +48,8 @@ export type CustomerConnectJobRow = {
 	job_date: string;
 	/** When the job's last transaction (COMPLETED_OK) was recorded — the Date column. */
 	ok_date: string;
+	/** Code of the job's division, shown under the OK date; null when the job has no division. */
+	division_code: string | null;
 	amount: number | null;
 	whatsapp_notifications: Record<string, WhatsappCompletionState> | null;
 	customer_contact_id: number;
@@ -71,6 +73,8 @@ export type MoneyReceiptLogRow = {
 	job_id: number;
 	job_no: string;
 	alternate_job_no: string | null;
+	/** Code of the job's division, shown under Job No; null when the job has no division. */
+	division_code: string | null;
 	receipt_no: string | null;
 	payment_date: string;
 	payment_mode: string;

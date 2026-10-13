@@ -2546,6 +2546,7 @@ class JobsSql:
             j.alternate_job_no,
             j.job_date,
             jtx.performed_at::date AS ok_date,
+            dv.code      AS division_code,
             j.amount,
             j.whatsapp_notifications,
             cc.id        AS customer_contact_id,
@@ -2564,6 +2565,7 @@ class JobsSql:
         JOIN job_transaction  jtx ON jtx.id = j.last_transaction_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand       b  ON b.id = pbm.brand_id
+        LEFT JOIN division    dv ON dv.id = j.division_id
         LEFT JOIN product     p  ON p.id = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
           AND j.is_final = true
@@ -2646,6 +2648,7 @@ class JobsSql:
             j.id,
             j.job_no,
             j.alternate_job_no,
+            dv.code      AS division_code,
             j.job_date,
             j.amount,
             j.whatsapp_notifications,
@@ -2665,6 +2668,7 @@ class JobsSql:
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand       b  ON b.id = pbm.brand_id
         LEFT JOIN product     p  ON p.id = pbm.product_id
+        LEFT JOIN division    dv ON dv.id = j.division_id
         WHERE j.branch_id = (table "p_branch_id")
           AND jsonb_typeof(j.whatsapp_notifications -> (table "p_event_key")) = 'object'
           AND ((table "p_event_key") != 'JOB_DELIVERY'
@@ -2717,6 +2721,7 @@ class JobsSql:
             j.id AS job_id,
             j.job_no,
             j.alternate_job_no,
+            dv.code      AS division_code,
             jp.receipt_no,
             jp.payment_date,
             jp.payment_mode,
@@ -2729,6 +2734,7 @@ class JobsSql:
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         CROSS JOIN LATERAL jsonb_array_elements(j.whatsapp_notifications -> 'JOB_MONEY_RECEIPT') AS log_entry
         JOIN job_payment jp ON jp.id = (log_entry ->> 'payment_id')::bigint
+        LEFT JOIN division    dv ON dv.id = j.division_id
         WHERE j.branch_id = (table "p_branch_id")
           AND jsonb_typeof(j.whatsapp_notifications -> 'JOB_MONEY_RECEIPT') = 'array'
           AND ((table "p_search") = ''

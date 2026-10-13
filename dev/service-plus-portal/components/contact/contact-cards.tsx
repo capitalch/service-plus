@@ -24,7 +24,7 @@ function contactCards(): ContactCardType[] {
 		{
 			action: { external: true, href: `https://wa.me/${siteConfig.whatsapp}`, label: "Open WhatsApp" },
 			icon: MessageCircle,
-			lines: [siteConfig.phone],
+			lines: [siteConfig.whatsappDisplay],
 			title: "WhatsApp",
 		},
 		{
@@ -39,9 +39,9 @@ function contactCards(): ContactCardType[] {
 			lines: [
 				address.line1,
 				address.line2,
-				`${address.city} ${address.pincode}`,
+				address.pincode ? `${address.city}, PIN ${address.pincode}` : address.city,
 				`${address.state}, ${address.country}`,
-			],
+			].filter(Boolean),
 			title: "Address",
 		},
 		{

@@ -15,16 +15,16 @@ const trustPoints = ["Free Lite plan, no card", "GST & non-GST invoicing", "Noth
 export const Hero = () => {
 	return (
 		<section className="bg-grid relative overflow-hidden">
-			<div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-page py-14 sm:py-18 lg:grid-cols-2 lg:gap-8 lg:px-page-lg lg:py-section-lg">
+			<div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-page py-12 sm:py-16 lg:grid-cols-2 lg:gap-8 lg:px-page-lg lg:py-section-lg">
 				<Reveal>
 					<Badge variant="soft">Free plan available</Badge>
-					<h1 className="mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
+					<h1 className="mt-4 text-4xl font-extrabold tracking-tight text-balance sm:text-5xl lg:text-6xl">
 						<span className="text-gradient-brand">{MESSAGES.heroTitle}</span>
 					</h1>
-					<p className="mt-5 max-w-xl text-lg text-muted-foreground">{MESSAGES.heroBody}</p>
+					<p className="mt-5 max-w-xl text-lg text-pretty text-muted-foreground">{MESSAGES.heroBody}</p>
 
 					<div className="mt-8 flex flex-col gap-3 sm:flex-row">
-						<Button asChild size="lg">
+						<Button asChild className="sheen" size="lg">
 							<Link href="/pricing">
 								See pricing
 								<ArrowRight />
@@ -39,7 +39,7 @@ export const Hero = () => {
 						</Button>
 					</div>
 
-					<ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
+					<ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2.5">
 						{trustPoints.map((point) => (
 							<li className="text-muted-foreground flex items-center gap-1.5 text-sm" key={point}>
 								<Check aria-hidden className="text-success size-4 shrink-0" />

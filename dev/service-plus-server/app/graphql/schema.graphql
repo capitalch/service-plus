@@ -3,6 +3,7 @@ type Query {
     auditLogs(action: String, actor: String, from_date: String, outcome: String, page: Int, page_size: Int, search: String, to_date: String): Generic
     auditLogStats(from_date: String, to_date: String): Generic
     buBillingStatus(db_name: String!, schema: String!): Generic
+    devHelpAiEnabled: Generic
     genericBatchQuery(db_name: String!, items: [String!]!): Generic
     genericQuery(db_name: String!, schema: String, value: String!): Generic
     getJobDeliveryOtpPending(db_name: String!, schema: String, value: String!): Generic
@@ -73,6 +74,7 @@ type Mutation {
     setJobDeliveryManualConfirmation(db_name: String!, schema: String, value: String!): Generic
     addEwFollowUp(db_name: String!, schema: String, value: String!): Generic
     askHelpAi(db_name: String!, schema: String!, value: String!): Generic
+    askDevHelpAi(value: String!): Generic
     addJobInternalNote(db_name: String!, schema: String, value: String!): Generic
     resendEwLeadAlert(db_name: String!, schema: String, value: String!): Generic
     sendEwReminders(db_name: String!, schema: String, value: String!): Generic

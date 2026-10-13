@@ -223,7 +223,16 @@ export const CustomerConnectGrid = forwardRef<GridRetentionHandle, Props>(functi
 										<td className={`${tdClass} text-(--cl-text-muted)`}>
 											{(page - 1) * PAGE_SIZE + idx + 1}
 										</td>
-										<td className={`${tdClass} whitespace-nowrap`}>{row.ok_date}</td>
+										<td className={`${tdClass} whitespace-nowrap`}>
+											<div className="flex flex-col items-start gap-1">
+												<span>{row.ok_date}</span>
+												{row.division_code && (
+													<span className="w-fit rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+														{row.division_code}
+													</span>
+												)}
+											</div>
+										</td>
 										<td className={tdClass}>
 											<div className="flex flex-col items-start gap-1">
 												<span className="font-mono font-semibold text-(--cl-accent)">

@@ -145,3 +145,25 @@ async def test_per_bu_daily_limit(monkeypatch):
     with pytest.raises(CodedValidationException) as exc:
         await _ask(user="u3")
     assert exc.value.code == "AI_HELP_LIMIT_REACHED"
+
+
+# ── developer audience (Super Admin Developer Help) ──────────────────────────
+
+DEV_ID = next(iter(corpus.articles_by_id("developer")))
+
+
+async def test_developer_audience_uses_developer_articles_and_prompt(monkeypatch):
+    seen = {}
+
+    class DevProvider(FakeProvider):
+        async def generate(self, model, instructions, articles_text, history, question):
+            seen["instructions"] = instructions
+            seen["articles_text"] = articles_text
+            return {"answer": "See the article.", "articleIds": [DEV_ID, KNOWN_ID]}
+
+    _use(monkeypatch, DevProvider())
+    payload = {"articleIds": [DEV_ID, KNOWN_ID], "history": [], "question": "Where do SQL ids live?"}
+    result = await service.ask_help_ai("developer", "", "S:1", payload, audience="developer")
+    assert "developer help assistant" in seen["instructions"]
+    assert f'id="{DEV_ID}"' in seen["articles_text"]
+    assert result["articleIds"] == [DEV_ID]  # a client id is unknown to the developer corpus

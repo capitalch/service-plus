@@ -3,6 +3,19 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-13 20:24 (main)
+Help: Developer Help with Ask AI; portal pricing and env-based contacts
+
+- Developer Help: round Help and Ask AI buttons in Super Admin and the business Admin panel; askDevHelpAi / devHelpAiEnabled (S/A only) answer from a separate developer corpus; shared conversation hook; new deployment, file-server and CloudJiffy subdomain articles
+- Customer Connect: division code returned by the eligible-jobs and both log queries; shown under OK Date (Job Completion) and as an indigo badge under Job No on the other tabs
+- Plan prices: price and limit settings read .env ahead of the process environment, so a debugger-launched server picks up price edits without a restart
+- Portal pricing: recommender asks monthly jobs and business units (spare-parts and branches questions dropped); whole card selects a plan; Standard highlighted in teal, crisp blue outline for Selected, equal card sizes; "Multiple" for logins and branches
+- Portal site: contact, address, bank and site URL read from NEXT_PUBLIC_* build-time env (required keys fail the build), documented in deploy/README.md; .env.example added (placeholders, contents not read); text-balance, card-lift and spacing polish
+- Plans and notes: client plan.md moved to plans/improvements, portal plan and marketing notes updated
+
+Files: 55 changed (+985 / -698) — Base: fe92f8a
+Version: 0.24.7 → 0.24.8
+
 ## 2026-10-13 01:02 (main)
 Portal: present Ask AI help, add Ask AI and roles screenshots
 

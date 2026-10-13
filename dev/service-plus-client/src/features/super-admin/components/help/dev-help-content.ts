@@ -3054,6 +3054,15 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					["/health", "Proxies to FastAPI on 127.0.0.1:8000"],
 					["/api/", "Proxies REST calls to FastAPI"],
 					[
+						"/job-intake/, /job-delivery/, /job-money-receipt/",
+						"Proxy the public WhatsApp pages (job status, delivery, money receipt) to FastAPI",
+					],
+					["/extended-warranty/", "Proxies the public Extended Warranty interest / opt-out pages"],
+					[
+						"= /privacy-policy",
+						"Serves the static privacy-policy.html (404 if missing) — Meta checks this URL",
+					],
+					[
 						"/graphql/",
 						"Proxies GraphQL, with Upgrade/Connection headers set — required for subscription WebSocket support",
 					],
@@ -3110,7 +3119,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		faqs: [
 			{
 				q: "Where does the file-server's deploy differ from the main server's?",
-				a: "Same shape (zip, upload, startup.sh) but its startup.sh only runs uvicorn on port 9000 with --host 0.0.0.0 (not 127.0.0.1) so external callers — not just the same container — can reach it directly; it does not run its own nginx.",
+				a: "Same shape (zip, upload, startup.sh — full steps in 'Deploying service-plus-file-server (CloudJiffy)') but its startup.sh only runs uvicorn on port 9000 with --host 0.0.0.0 (not 127.0.0.1) so external callers — not just the same container — can reach it directly; it does not run its own nginx.",
 			},
 			{
 				q: "Why --host 0.0.0.0 for the file-server but 127.0.0.1 for the main server?",
@@ -3155,6 +3164,304 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "How is the encrypted conn string in account_setting produced?",
 				a: "Encrypted server-side before being written to the division row; the exact decrypt path is in the server's accountsPosting resolver — see 'Accounts Posting (Trace Plus) — Implementation'.",
+			},
+		],
+	},
+
+	{
+		id: "dev-deploy-file-server",
+		category: "Deployment & Infrastructure",
+		title: "Deploying service-plus-file-server (CloudJiffy)",
+		summary:
+			"Step-by-step setup of the file-server container: Python image, /app folder, startup.sh on port 9000 and the endpoint mapping.",
+		tags: ["deploy", "file-server", "cloudjiffy", "startup.sh", "port 9000", "endpoint", "full-deploy.sh"],
+		content: [
+			{
+				type: "para",
+				text: "From notes/knowledgebase/Deployment.md, section 'Deployment of service-plus-file-server'. The file-server runs in its own CloudJiffy environment with no nginx in front of it.",
+			},
+			{ type: "heading", text: "Steps" },
+			{
+				type: "steps",
+				items: [
+					"Create a new environment in CloudJiffy named service-plus-file-server: choose the Python docker image, then 3.14.3-slim-bookworm in the top dropdown.",
+					"At the container's command prompt install the libraries (below).",
+					"Create a folder named app at the root (/app). All code stays here.",
+					"Upload service-plus-file-server.zip into /app and unzip it.",
+					"Create startup.sh (below) and upload it to /app.",
+					"In CloudJiffy's command entry point, enter: /app/startup.sh",
+					"Map an endpoint (see below) if a service-plus-server outside CloudJiffy must reach this file-server.",
+				],
+			},
+			{
+				type: "code",
+				language: "bash",
+				text: "apt update\npip install --upgrade pip\npip install fastapi uvicorn[standard] python-multipart Pillow pydantic-settings",
+			},
+			{ type: "heading", text: "startup.sh (/app/startup.sh)" },
+			{
+				type: "code",
+				language: "bash",
+				text: "#!/bin/bash\nexport APP_ENV=production\ncd /app/service-plus-file-server && uvicorn app.main:app --host 0.0.0.0 --port 9000 --reload",
+			},
+			{
+				type: "note",
+				text: "--host 0.0.0.0 lets other sites call the file-server; 127.0.0.1 would let only the same container call it. The runbook's original line reads export APP_ENV=production/app/ — the value the code expects is production.",
+			},
+			{ type: "heading", text: "Endpoint mapping" },
+			{
+				type: "bullets",
+				items: [
+					"Add an endpoint that maps port 9000 to a public port. The URL becomes something like node270118-service-plus-file-server.cloudjiffy.net:11047 — this is where the file-server is reached from outside.",
+					"Note the container's internal IP (for example 192.168.15.85). Apps inside CloudJiffy use that IP; external apps use the public URL.",
+					"The mapping is only needed when a service-plus-server outside CloudJiffy (for example your local one) points at the CloudJiffy file-server.",
+				],
+			},
+			{ type: "heading", text: "Scripted deploy" },
+			{
+				type: "para",
+				text: "The .full-deploy.sh script does the full zip, upload and extraction on the server automatically.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why does the file-server bind to 0.0.0.0 when service-plus-server binds to 127.0.0.1?",
+				a: "service-plus-server's uvicorn is only called by nginx in its own container. The file-server has no nginx in front of it, so it must listen on all interfaces to be reachable.",
+			},
+			{
+				q: "Do I always need the endpoint mapping?",
+				a: "No. Only when a service-plus-server outside CloudJiffy calls this file-server. Servers inside CloudJiffy use the internal IP.",
+			},
+		],
+	},
+
+	{
+		id: "dev-deploy-server-april-2026",
+		category: "Deployment & Infrastructure",
+		title: "Deploying service-plus-server (April 2026 runbook)",
+		summary:
+			"The setup that worked in April 2026: Python image with nginx, the full nginx config, code and client dist upload, startup.sh and the automated extract.",
+		tags: ["deploy", "server", "cloudjiffy", "nginx", "startup.sh", "dist", "final.zip", "extract", "deploy.sh"],
+		content: [
+			{
+				type: "para",
+				text: "From notes/knowledgebase/Deployment.md, section 'Successful Deployment in April 2026 for service-plus-server'. One CloudJiffy container runs nginx (serving the React dist and proxying to FastAPI) and uvicorn on 127.0.0.1:8000. See also 'Hosting Model & Nginx Configuration' and 'Deploy Process'.",
+			},
+			{ type: "heading", text: "1. Create the environment" },
+			{
+				type: "para",
+				text: "Create an environment in CloudJiffy from the Python docker image, choosing 3.14.3-slim-bookworm in the top dropdown (Debian). At the command prompt:",
+			},
+			{ type: "code", language: "bash", text: "apt update\napt install nginx" },
+			{ type: "heading", text: "2–4. Clear the defaults and stop nginx autostart" },
+			{
+				type: "code",
+				language: "bash",
+				text: "# 2. remove the old default index file, otherwise that page appears\nrm /usr/share/nginx/html/index.html\n# 3. remove the default site, otherwise the nginx welcome screen appears instead of the app\nrm /etc/nginx/sites-enabled/default\n# 4. disable nginx autostart (startup.sh starts it)\nsudo systemctl disable nginx",
+			},
+			{ type: "heading", text: "5. nginx config — /etc/nginx/conf.d/service-plus-server.conf" },
+			{
+				type: "code",
+				language: "nginx",
+				text: 'server {\n    listen 80;\n    server_name _;\n\n    # Serve React static files\n    root /usr/share/nginx/html/dist;\n    index index.html;\n\n    location / {\n        try_files $uri /index.html;\n    }\n\n    # Health check \u2014 proxy to FastAPI\n    location /health {\n        proxy_pass http://127.0.0.1:8000/health;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n\n    # REST API \u2014 proxy to FastAPI\n    location /api/ {\n        proxy_pass http://127.0.0.1:8000/api/;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n\n    # WhatsApp Job Intake \u2014 public status page + PDF\n    location /job-intake/ {\n        proxy_pass http://127.0.0.1:8000/job-intake/;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n\n    # WhatsApp Job delivery\n    location /job-delivery/ {\n        proxy_pass http://127.0.0.1:8000/job-delivery/;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n\n    # Whatsapp job money receipt\n    location /job-money-receipt/ {\n        proxy_pass http://127.0.0.1:8000/job-money-receipt/;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n\n    # Extended Warranty \u2014 public interest / opt-out pages.\n    location /extended-warranty/ {\n        proxy_pass http://127.0.0.1:8000/extended-warranty/;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n\n    # Privacy policy \u2014 a real static file, served at a clean extensionless URL.\n    location = /privacy-policy {\n        default_type text/html;\n        try_files /privacy-policy.html =404;\n    }\n\n    # GraphQL \u2014 WebSocket upgrade required for subscriptions\n    location /graphql/ {\n        proxy_pass http://127.0.0.1:8000/graphql/;\n        proxy_http_version 1.1;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection "upgrade";\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n}',
+			},
+			{
+				type: "note",
+				text: "The exact-match /privacy-policy location exists because Meta needs a public Privacy Policy URL before a WhatsApp app can go Live, and reads the HTML without running JavaScript. The SPA fallback would answer 200 with an empty shell, which fails their check — so the real file is served, and a missing file gives 404 rather than falling through.",
+			},
+			{ type: "heading", text: "6. Check and reload nginx" },
+			{ type: "code", language: "bash", text: "sudo nginx -t\nsudo nginx -s reload" },
+			{ type: "heading", text: "7. Install code and libraries" },
+			{
+				type: "code",
+				language: "bash",
+				text: "pip install --upgrade pip\npip install aiofiles ariadne bcrypt fastapi openpyxl pandas python-multipart psycopg[binary] pydantic pydantic-settings PyJWT uvicorn[standard] websockets apscheduler mcp[cli] psycopg_pool httpx",
+			},
+			{
+				type: "steps",
+				items: [
+					"On the local machine, copy the server folder (it contains config.py) into a 'final' folder.",
+					"Build the React client and copy its dist folder into the same final folder.",
+					"Zip the final folder as final.zip.",
+					"Upload final.zip to /usr/share/nginx/html on the server, then: cd /usr/share/nginx/html && unzip final.zip",
+				],
+			},
+			{
+				type: "warning",
+				text: "This library list is from April 2026. Since October 2026 the server also needs google-genai (Ask AI). Installing from the server's requirements.txt (pip install -r requirements.txt) keeps the list current.",
+			},
+			{ type: "heading", text: "8. startup.sh — /usr/share/nginx/html/startup.sh" },
+			{
+				type: "code",
+				language: "bash",
+				text: "#!/bin/bash\nsudo nginx &\nexport APP_ENV=production\ncd /usr/share/nginx/html/trace-server && uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload",
+			},
+			{
+				type: "note",
+				text: "The cd path must be the server folder as unzipped from final.zip; the runbook's example names it trace-server.",
+			},
+			{ type: "heading", text: "9. Entry point, then restart" },
+			{
+				type: "para",
+				text: "In CloudJiffy's command entry point, enter /usr/share/nginx/html/startup.sh, then restart the server. That completed the April 2026 deployment successfully.",
+			},
+			{ type: "heading", text: "Automated deploy" },
+			{
+				type: "bullets",
+				items: [
+					"Local machine: run ./deploy.sh from the final folder.",
+					"Server: a script named extract lives in /usr/local/bin (made executable once with chmod +x extract).",
+					"Upload final.zip to /usr/share/nginx/html, type extract in any terminal, then restart the server.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "The site shows the nginx welcome page instead of Service+.",
+				a: "The default site is still enabled or the old index.html is still there — redo steps 2 and 3, then sudo nginx -t and sudo nginx -s reload.",
+			},
+			{
+				q: "Queries work but live updates (subscriptions) don't.",
+				a: "The /graphql/ location is missing proxy_http_version 1.1 and the Upgrade/Connection headers — compare with the config above.",
+			},
+			{
+				q: "A new public page (like /job-intake/) returns the React app instead of the server's page.",
+				a: "Every server-rendered public path needs its own proxy location; otherwise the SPA fallback (location /) answers it.",
+			},
+		],
+	},
+
+	{
+		id: "dev-subdomain-cloudjiffy",
+		category: "Deployment & Infrastructure",
+		title: "Pointing a subdomain at a CloudJiffy environment",
+		summary:
+			"Make service.kushinfotech.in serve the CloudJiffy env service-stage.cloudjiffy.net with the address bar unchanged: CNAME, domain binding, Let's Encrypt, checks and rollback.",
+		tags: [
+			"dns",
+			"cname",
+			"subdomain",
+			"domain",
+			"cloudjiffy",
+			"cpanel",
+			"ssl",
+			"https",
+			"lets encrypt",
+			"ttl",
+			"bind domain",
+		],
+		content: [
+			{
+				type: "para",
+				text: "From notes/knowledgebase/Subdomain to point Cloudjiffy env.md. Goal: the browser keeps showing service.kushinfotech.in while the app runs on the CloudJiffy env service-stage.cloudjiffy.net. This needs a DNS CNAME plus a domain binding in CloudJiffy — not a redirect, which always rewrites the address bar.",
+			},
+			{
+				type: "warning",
+				text: "It must be a CNAME, not an A record: service-stage.cloudjiffy.net sits behind a rotating shared IP pool (103.217.220.8, .9, .249, .250). A pinned A record breaks when the pool rotates.",
+			},
+			{ type: "heading", text: "Step 1 — Lower the TTL (about 1 hour before the switch)" },
+			{
+				type: "para",
+				text: "cPanel → Zone Editor → Manage for kushinfotech.in. Edit the existing record and change only the TTL from 3600 to 300; leave the value 103.212.121.53 alone. Nothing changes for users. Then wait about an hour: copies cached under the old 3600 don't shorten retroactively, so one full old TTL must pass before every resolver holds 300.",
+			},
+			{
+				type: "code",
+				language: "dns",
+				text: "service.kushinfotech.in.   3600   IN   A   103.212.121.53\n                           ^^^^  change only this to 300",
+			},
+			{ type: "heading", text: "Step 2 — Bind the domain in CloudJiffy" },
+			{
+				type: "steps",
+				items: [
+					"Log in to https://app.cloudjiffy.com.",
+					"Environment → Settings → Custom Domains → Bind Domains.",
+					"Enter service.kushinfotech.in → Bind.",
+				],
+			},
+			{
+				type: "note",
+				text: "Mandatory: the env shares its IPs with many others and the platform picks the env from the HTTP Host header. Without the binding, a correct CNAME still lands on a default or 'environment not found' page.",
+			},
+			{ type: "heading", text: "Step 3 — Swap the DNS record" },
+			{
+				type: "para",
+				text: "cPanel → Zone Editor → Manage for kushinfotech.in. Do both parts together: delete the service A record (103.212.121.53, the one edited in Step 1), then add the CNAME below.",
+			},
+			{
+				type: "code",
+				language: "dns",
+				text: "Name:   service            (cPanel may want the FQDN: service.kushinfotech.in.)\nType:   CNAME\nTTL:    300\nRecord: service-stage.cloudjiffy.net.      <- trailing dot",
+			},
+			{
+				type: "bullets",
+				items: [
+					"A hostname cannot hold both an A and a CNAME. A leftover A record is the classic cause of 'works for some people, not others'.",
+					"If cPanel refuses the CNAME: service.kushinfotech.in also exists as a cPanel subdomain, which keeps re-asserting its A record. cPanel → Domains → remove the service subdomain, then add the CNAME.",
+					"Do not touch the apex, www, mail, MX, or any SPF/DKIM/TXT record.",
+				],
+			},
+			{ type: "heading", text: "Step 4 — Verify DNS before doing SSL" },
+			{
+				type: "code",
+				language: "bash",
+				text: "dig +short service.kushinfotech.in CNAME     # \u2192 service-stage.cloudjiffy.net.\ndig +short service.kushinfotech.in @8.8.8.8  # \u2192 103.217.220.x\ncurl -I http://service.kushinfotech.in       # \u2192 Server: openresty",
+			},
+			{
+				type: "para",
+				text: "The Server header is the fastest diagnosis: openresty = CloudJiffy (good); LiteSpeed = still MilesWeb (not propagated yet, or the old A record survived). Do not start Step 5 until it shows openresty — Let's Encrypt validates over plain HTTP on port 80, and a premature attempt burns a rate-limit slot (5 failures per hostname per hour).",
+			},
+			{ type: "heading", text: "Step 5 — HTTPS (Let's Encrypt)" },
+			{
+				type: "steps",
+				items: [
+					"In the CloudJiffy env: Add-ons → Add-ons → Let's Encrypt → Add.",
+					"In the pop-up, select Add certificate for custom domain and enter service.kushinfotech.in.",
+					"If Let's Encrypt doesn't appear, add a load balancer to the env topology and retry — it will then work, and the env also gets a static IP.",
+					"Enable auto-update in the add-on if offered; otherwise renew every 3 months from the same add-on.",
+				],
+			},
+			{
+				type: "code",
+				language: "bash",
+				text: "curl -I https://service.kushinfotech.in\necho | openssl s_client -connect service.kushinfotech.in:443 \\\n  -servername service.kushinfotech.in 2>/dev/null \\\n  | openssl x509 -noout -subject -issuer -dates",
+			},
+			{
+				type: "para",
+				text: "The certificate's SAN must contain service.kushinfotech.in and the issuer must be Let's Encrypt.",
+			},
+			{ type: "heading", text: "Final checks" },
+			{
+				type: "bullets",
+				items: [
+					"https://service.kushinfotech.in loads the app and the address bar still reads service.kushinfotech.in.",
+					"curl -L shows no redirects other than http: → https:.",
+					"Valid certificate, no browser warning.",
+					"Login works and a protected GraphQL query returns data.",
+					"Browser console: no CORS errors, no mixed-content blocks.",
+					"File/image upload and download both work.",
+					"Mail to @kushinfotech.in still delivers.",
+					"Raise the CNAME's TTL back to 3600 after a stable day or two.",
+					"Set a calendar reminder at about 80 days for the certificate renewal.",
+				],
+			},
+			{ type: "heading", text: "Rollback" },
+			{
+				type: "para",
+				text: "Delete the CNAME and re-add service A 103.212.121.53. With TTL 300 this takes about 5 minutes. Nothing in CloudJiffy needs undoing — a bound domain that no longer resolves is inert.",
+			},
+		],
+		faqs: [
+			{
+				q: "Why not just redirect service.kushinfotech.in to the CloudJiffy URL?",
+				a: "A redirect always changes the address bar to the CloudJiffy URL. A CNAME plus a domain binding keeps service.kushinfotech.in visible.",
+			},
+			{
+				q: "The CNAME is right but I get an 'environment not found' page.",
+				a: "The domain isn't bound in CloudJiffy (Step 2). The platform picks the env from the Host header, so the binding is required.",
+			},
+			{
+				q: "It works for some people and not for others.",
+				a: "The old A record is still there next to the CNAME, or DNS hasn't propagated. Check with dig and curl -I (Step 4): Server: LiteSpeed means the old host still answers.",
 			},
 		],
 	},
@@ -3680,7 +3987,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "The Job Completion grid's own read, GET_WHATSAPP_ELIGIBLE_JOBS_PAGED / _JOB_IDS / _COUNT (sql_jobs.py, JobsSql — separate from the shared GET_WHATSAPP_EVENT_LOG_PAGED above), was changed 2026-09-14 to sort and display by completion date, not intake date. All three now JOIN job_transaction jtx ON jtx.id = j.last_transaction_id and sort ORDER BY jtx.performed_at DESC, j.id DESC. This works with no status_id filter on the join because every row is already WHERE is_final = true AND job_status.code = 'COMPLETED_OK' — updateJob (mutations.py) always writes job.job_status_id and the new job_transaction.status_id from the same value in one call, then repoints job.last_transaction_id at that new row, so a job currently reading COMPLETED_OK necessarily has last_transaction_id pointing at the transaction that put it there. ok_date is jtx.performed_at::date (a real DEFAULT now() timestamp, NOT job_transaction.transaction_date — final-a-job's finalize-job-save.ts writes transaction_date as a copy of job_date, so it would have shown the intake date again under a new name). The client still shows job_date too, moved from its own column to a second line under Job No (\'Job …\', customer-connect-grid.tsx) rather than dropped. The COUNT query got the same JOIN for the same reason GET_EW_LEADS_PAGED/_DETAIL share one projection: paging math must agree with what the page can actually list, or the pager and the grid disagree by however many rows the join would exclude.",
+				text: "The Job Completion grid's own read, GET_WHATSAPP_ELIGIBLE_JOBS_PAGED / _JOB_IDS / _COUNT (sql_jobs.py, JobsSql — separate from the shared GET_WHATSAPP_EVENT_LOG_PAGED above), was changed 2026-09-14 to sort and display by completion date, not intake date. All three now JOIN job_transaction jtx ON jtx.id = j.last_transaction_id and sort ORDER BY jtx.performed_at DESC, j.id DESC. This works with no status_id filter on the join because every row is already WHERE is_final = true AND job_status.code = 'COMPLETED_OK' — updateJob (mutations.py) always writes job.job_status_id and the new job_transaction.status_id from the same value in one call, then repoints job.last_transaction_id at that new row, so a job currently reading COMPLETED_OK necessarily has last_transaction_id pointing at the transaction that put it there. ok_date is jtx.performed_at::date (a real DEFAULT now() timestamp, NOT job_transaction.transaction_date — final-a-job's finalize-job-save.ts writes transaction_date as a copy of job_date, so it would have shown the intake date again under a new name). The client still shows job_date too, moved from its own column to a second line under Job No (\'Job …\', customer-connect-grid.tsx) rather than dropped. GET_WHATSAPP_ELIGIBLE_JOBS_PAGED also returns division_code (LEFT JOIN division dv ON dv.id = j.division_id — LEFT because job.division_id is nullable), rendered as a second line under OK Date and omitted when null; CustomerConnectJobRow.division_code is string | null. _JOB_IDS and _COUNT need no division join, since it never filters rows. The log tabs carry the same field: GET_WHATSAPP_EVENT_LOG_PAGED (Job Intake / Job Delivery / Invoice, rows typed CustomerConnectJobRow) and GET_JOB_MONEY_RECEIPT_WHATSAPP_LOG_PAGED (MoneyReceiptLogRow.division_code) both LEFT JOIN division dv; whatsapp-log-grid.tsx and money-receipt-log-grid.tsx render it as an indigo badge under Job No, after the teal Alt: badge. Their _COUNT queries are unchanged. The COUNT query got the same JOIN for the same reason GET_EW_LEADS_PAGED/_DETAIL share one projection: paging math must agree with what the page can actually list, or the pager and the grid disagree by however many rows the join would exclude.",
 			},
 			{ type: "heading", text: "Server: app/whatsapp/ package" },
 			{
@@ -4642,7 +4949,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Where do I change a price?",
-				a: "In the server .env (PRICE_… keys, read by app/core/plan_prices.py; defaults are today's prices). GET /api/public/plan-prices serves them to the portal in whole rupees. Until plans/plan.md Step 8 wires the portal to that endpoint, content/pricing.ts must be kept in step by hand.",
+				a: "In the server .env (PRICE_… keys, read by app/core/plan_prices.py; defaults are today's prices). They are read fresh on every call, so no restart is needed. GET /api/public/plan-prices serves them to the portal in whole rupees (Cache-Control max-age 300, so a browser can show the old list for up to 5 minutes), and the portal's lib/plan-prices.ts swaps them over the fallback prices in content/pricing.ts. PlanPriceSettings and PlanLimitSettings extend FileFirstSettings, which puts the .env file ahead of the process environment: an IDE debugger copies .env into environment variables at launch, and with pydantic's default order that frozen copy would override every later .env edit. A key missing from .env still falls back to the environment.",
 			},
 		],
 	},
@@ -5388,12 +5695,24 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		category: "Integrations",
 		title: "Ask AI in the Help Center (Gemini)",
 		summary:
-			"How client Help answers free-text questions from its own articles through the Gemini API, and what to keep in step.",
-		tags: ["ai", "ask ai", "gemini", "help", "askHelpAi", "aiHelpEnabled", "export-help", "search", "rank"],
+			"How client Help and this Developer Help answer free-text questions from their own articles through the Gemini API, and what to keep in step.",
+		tags: [
+			"ai",
+			"ask ai",
+			"gemini",
+			"help",
+			"askHelpAi",
+			"askDevHelpAi",
+			"aiHelpEnabled",
+			"devHelpAiEnabled",
+			"export-help",
+			"search",
+			"rank",
+		],
 		content: [
 			{
 				type: "para",
-				text: "Client Help has an Ask AI view. The browser ranks the help articles, sends the question plus the ids of the best few to the server, and the server builds the prompt from its own copy of the article text and calls Gemini. Super Admin developer help gets only the ranked search (it passes no `ai` prop to HelpPanel).",
+				text: "Client Help has an Ask AI view. The browser ranks the help articles, sends the question plus the ids of the best few to the server, and the server builds the prompt from its own copy of the article text and calls Gemini. Super Admin's Developer Help has the same Ask AI over the developer articles (audience 'developer'): same engine, view and limits, its own prompt, mutation and texts.",
 			},
 			{ type: "heading", text: "Pieces" },
 			{
@@ -5409,24 +5728,24 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 						"The AI view: bubbles, numbered steps parsed from '1. …' lines (a line starting as a step is also split at each later 'N. ', since the model sometimes runs the steps together on one line), article chips, react-hook-form + zod textarea (1–500 chars), New chat, disclaimer. HelpPanel gets `ai?: AiHelpType` and `initialAi`; view kind 'ai'; an article opened from a chip carries fromAi so Back returns to the conversation.",
 					],
 					[
-						"features/client/components/help/use-ask-help-ai.ts",
-						"Conversation state. Picks ids = top 5 of rankHelpArticles(question + previous question) merged with the previous answer's ids, max 6. Sends at most the last 6 non-notice turns. Maps error codes to MESSAGES.AI_HELP_* shown inline in amber (no toast, not in apollo-client.ts BILLING_ERROR_CODES).",
+						"components/shared/help/use-help-ai-conversation.ts (+ use-ask-help-ai.ts, use-ask-dev-help-ai.ts)",
+						"Shared conversation state; the two wrappers only supply the articles, a send() calling askHelpAi or askDevHelpAi, and the AiHelpTextsType texts (empty state, placeholder, disclaimer, not-covered — MESSAGES.AI_HELP_* / AI_DEV_HELP_*). Picks ids = top 5 of rankHelpArticles(question + previous question) merged with the previous answer's ids, max 6. Sends at most the last 6 non-notice turns. Maps error codes to MESSAGES.AI_HELP_* shown inline in amber (no toast, not in apollo-client.ts BILLING_ERROR_CODES).",
 					],
 					[
-						"client-layout.tsx / help-fab.tsx",
-						"HelpContext gains aiHelpEnabled and openAiHelp(). The small sparkles button above the Help FAB and every Ask AI entry point show only when context.billing.aiHelpEnabled. closeHelp() clears the conversation.",
+						"client-layout.tsx / help-fab.tsx / help-round-button.tsx",
+						"HelpContext gains aiHelpEnabled and openAiHelp(). The small sparkles button above the Help FAB and every Ask AI entry point show only when context.billing.aiHelpEnabled. closeHelp() clears the conversation. help-round-button.tsx holds the round violet Help button and the smaller AskAiRoundButton above it; Developer Help is one component, features/super-admin/components/help/developer-help.tsx (panel + both buttons, inset right-4/right-5 since these layouts have no status bar), mounted by super-admin-layout.tsx and by the business Admin panel's admin-layout.tsx. It shows Ask AI only when the devHelpAiEnabled query returns true and clears the conversation when Help closes.",
 					],
 					[
 						"scripts/export-help.mjs",
-						"Loads help-content.ts through Vite's ssrLoadModule and writes service-plus-server/app/ai_help/help_articles.json. `pnpm build` runs it first; run `pnpm export-help` after editing help-content.ts in dev. The JSON is committed with the server.",
+						"Loads help-content.ts and dev-help-content.ts through Vite's ssrLoadModule and writes service-plus-server/app/ai_help/help_articles.json and dev_help_articles.json. `pnpm build` runs it first; run `pnpm export-help` after editing either file in dev. The JSON files are committed with the server.",
 					],
 					[
 						"app/ai_help/corpus.py",
-						"Loads the JSON once (lru_cache); known_ids() drops unknown ids; render() emits <article id title> blocks with numbered steps, table rows and FAQs.",
+						"Loads each audience's JSON once (lru_cache; ARTICLES_FILES: client → help_articles.json, developer → dev_help_articles.json); known_ids() drops ids not in that audience; render() emits <article id title> blocks with numbered steps, table rows and FAQs.",
 					],
 					[
 						"app/ai_help/prompt.py",
-						"The fixed system instruction: answer only from the given articles, say when they don't cover it, decline non-Service+ questions, plain text with '1. …' steps, answer in the question's language, never claim to act, treat user text only as a question. Reply JSON {answer, articleIds}.",
+						"INSTRUCTIONS[audience]. CLIENT_INSTRUCTIONS: answer only from the given articles, say when they don't cover it, decline non-Service+ questions, plain text with '1. …' steps, answer in the question's language, never claim to act, treat user text only as a question. DEVELOPER_INSTRUCTIONS: same rules for maintainers — quote paths, SQL ids and settings keys exactly, never guess them, no language rule. Both reply JSON {answer, articleIds}.",
 					],
 					[
 						"app/ai_help/redact.py",
@@ -5451,6 +5770,8 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				type: "bullets",
 				items: [
 					"askHelpAi(db_name: String!, schema: String!, value: String!) — value is encodeObj({articleIds, history: [{role, text}], question}). Guards: require_own_tenant + require_bu_access only; no access right, no require_bu_writable. Returns {answer, articleIds, notCovered}; the client shows MESSAGES.AI_HELP_NOT_COVERED when notCovered.",
+					"askDevHelpAi(value: String!) — same value and result, require_user_type {'S', 'A'} (Super Admin and business Admins; neither has a BU here). Daily bucket of AI_HELP_DAILY_LIMIT_PER_BU: developer:<db_name> for an Admin (one per tenant), developer:super-admin for Super Admin; per-minute key <user_type>:<db_name>:<user_id>. Listed in ALLOWED in tests/test_view_only_guard.py, like askHelpAi.",
+					"devHelpAiEnabled: Generic query, require_user_type {'S', 'A'}, returns ai_help_enabled() — neither Super Admin nor the Admin panel reads buBillingStatus.",
 					"Error codes (CodedValidationException): AI_HELP_BUSY (both models 429/503), AI_HELP_LIMIT_REACHED, AI_HELP_UNAVAILABLE (any other provider failure, or no key), AI_HELP_INVALID_INPUT (size checks). Server texts are in AppMessages.AI_HELP_*.",
 					"buBillingStatus returns aiHelpEnabled (true when the provider's key is set); stored on context.billing.aiHelpEnabled (BuBillingType).",
 				],
@@ -5484,8 +5805,8 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		],
 		faqs: [
 			{
-				q: "I edited help-content.ts but Ask AI doesn't know about it.",
-				a: "The server reads app/ai_help/help_articles.json. Run `pnpm export-help` (pnpm build does it too), then restart the server — corpus.py caches the file on first use.",
+				q: "I edited help-content.ts (or this file) but Ask AI doesn't know about it.",
+				a: "The server reads app/ai_help/help_articles.json and dev_help_articles.json. Run `pnpm export-help` (pnpm build does it too), then restart the server — corpus.py caches the file on first use.",
 			},
 			{
 				q: "Users see 'AI help is busy' often.",

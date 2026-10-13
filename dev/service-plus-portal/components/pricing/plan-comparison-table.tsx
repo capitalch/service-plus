@@ -17,7 +17,7 @@ function buildRows(extraBuMonthlyFee: number): RowType[] {
 		{ label: "Monthly price", value: (p) => (p.monthlyPrice === 0 ? "Free" : formatInr(p.monthlyPrice)) },
 		{ label: "One-time setup", value: (p) => (p.setupFee === 0 ? "—" : formatInr(p.setupFee)) },
 		{ label: "Users", value: (p) => (p.users === "single" ? "1" : "Multiple") },
-		{ label: "Logins / devices", value: () => "Unlimited" },
+		{ label: "Logins / devices", value: () => "Multiple" },
 		{ label: "Jobs / month", value: (p) => (p.jobsPerMonth === null ? "Unlimited" : String(p.jobsPerMonth)) },
 		{
 			label: "WhatsApp messages / month",
@@ -31,7 +31,7 @@ function buildRows(extraBuMonthlyFee: number): RowType[] {
 					? "1"
 					: `${p.businessUnits} included, more at ${formatInr(extraBuMonthlyFee)} / month each`,
 		},
-		{ label: "Branches", value: (p) => (p.branches === null ? "Unlimited" : "1 (head office)") },
+		{ label: "Branches", value: (p) => (p.branches === null ? "Multiple" : "1 (head office)") },
 		{ label: "Dedicated database", value: (p) => p.provisioning === "database" },
 		{ label: "GST & non-GST billing", value: () => true },
 		{ label: "Reports & analytics", value: () => true },

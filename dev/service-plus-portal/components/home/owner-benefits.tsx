@@ -13,7 +13,7 @@ export const OwnerBenefits = () => {
 					intro={MESSAGES.ownerBenefitsIntro}
 					title={MESSAGES.ownerBenefitsTitle}
 				/>
-				<div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+				<div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
 					{ownerBenefits.map((benefit, index) => (
 						<Reveal delay={(index % 4) * 0.06} key={benefit.title}>
 							<TileCard {...benefit} />

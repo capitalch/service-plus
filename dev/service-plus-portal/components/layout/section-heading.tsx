@@ -33,13 +33,13 @@ export const SectionHeading = ({
 			)}
 			<Heading
 				className={cn(
-					"font-bold tracking-tight",
+					"text-balance font-bold tracking-tight",
 					level === "h1" ? "mt-2 text-3xl sm:text-4xl lg:text-5xl" : "mt-2 text-3xl sm:text-4xl",
 				)}
 			>
 				{title}
 			</Heading>
-			{intro && <p className="text-muted-foreground mt-3 sm:text-lg">{intro}</p>}
+			{intro && <p className="text-muted-foreground mt-3 text-pretty sm:text-lg">{intro}</p>}
 		</div>
 	);
 };

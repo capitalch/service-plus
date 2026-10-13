@@ -1,52 +1,11 @@
-# Subscription plans
-- testing
-	- create lite request and see the implementation
-		- Request created and visible in requests
-		- Emails sent
-		- Rejection OK
-		- Approval OK
-			- New user as manager uid: sushant is created
-				- Curb the powers of manager for lite: done
-		- Check for no of jobs limitations for lite, basic and Standard plans: Done
-		- Check for whatsapp messages: Done
-- Proposed changes
-												- Is GSTIN, email required for branch? its already there for division
-												- How to setup default gst rate
-												- Validate and fix the seed values for App Settings
-- Lite
-	- 1 user
-	- 1 bu
-	- 1 branch
-	- 100 jobs per month
-	- 50 whatsapp messages
-	- spare parts inventory
-	- company setup and GST details entry
-	- default hsn and gst rate
-	- deactivation after 1 month of inactivity
-- Basic
-	- 1 user
-	- 1 bu
-	- 1 branch
-	- 200 jobs per month
-	- 200 whatsapp messages
-- Standard
-	- User management Multi Users
-	- 1 bu
-	- Multiple branches
-	- 500 jobs per month
-	- 500 whatsapp messages
-- Enterprise
-	- 
-	
-- Marketting
-	- domain
-		- available
-			- jobservice, serviceworks, servicebase, servicemate, serviceprime, serviceforge, servicemain, servicechoice, servicegate, servicepure, serviceroot, servicework, serviceto, servicedo, serviceop, servicenail.com, serviceclick, servicecon, servicebyte
-			servicebench, myserviceplus, servicebyte, serviceforge, servicevice.com, serviceside, servicelive 
-			servicevista, servicequick, servicepride, servicemake.com, serviceplaza, servicework, servicepure 					
-			- makemyservice, makeservice																:.in: 549/yr
-			- repairjob.in, repairplus.in, repairtrack, repairsuite, repairbase, repaircore  :.in: 549/yr
-		- Not available
-			- serviceplus, servicejob, serviceflow, serviceking, serviceforce, serviceone, servicego, servicefast, servicebest
-			- service360, serviceall, serviceme, servicefast, servicefirst, serviceone, servicebest, serviceall
-			- repairplus.com, repairflow, repairdesk, repairhub, 
+- domain
+	- available
+		- jobservice, serviceworks, servicebase, servicemate, serviceprime, serviceforge, servicemain, servicechoice, servicegate, servicepure, serviceroot, servicework, serviceto, servicedo, serviceop, servicenail.com, serviceclick, servicecon, servicebyte
+		servicebench, myserviceplus, servicebyte, serviceforge, servicevice.com, serviceside, servicelive 
+		servicevista, servicequick, servicepride, servicemake.com, serviceplaza, servicework, servicepure 					
+		- makemyservice, makeservice																:.in: 549/yr
+		- repairjob.in, repairplus.in, repairtrack, repairsuite, repairbase, repaircore  :.in: 549/yr
+	- Not available
+		- serviceplus, servicejob, serviceflow, serviceking, serviceforce, serviceone, servicego, servicefast, servicebest
+		- service360, serviceall, serviceme, servicefast, servicefirst, serviceone, servicebest, serviceall
+		- repairplus.com, repairflow, repairdesk, repairhub, 

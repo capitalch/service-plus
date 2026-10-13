@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 PlanCodeType = Literal["lite", "basic", "standard", "enterprise"]
 
@@ -24,7 +24,30 @@ PLAN_CODES: tuple[PlanCodeType, ...] = ("lite", "basic", "standard", "enterprise
 PAISE_PER_RUPEE = 100
 
 
-class PlanPriceSettings(BaseSettings):
+
+class FileFirstSettings(BaseSettings):
+    """Settings where the .env file wins over the process environment.
+
+    Prices and allowances are read fresh on every call so an edit to .env takes effect
+    without a restart. Environment variables are fixed when the process starts, and an
+    IDE debugger copies .env into them at launch, so with the default order a stale copy
+    would silently override the file. A key missing from .env still falls back to the
+    environment.
+    """
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return init_settings, dotenv_settings, env_settings, file_secret_settings
+
+
+class PlanPriceSettings(FileFirstSettings):
     """Price keys from .env, in whole rupees."""
 
     model_config = SettingsConfigDict(
@@ -87,7 +110,7 @@ def get_plan_price(plan_code: str) -> PlanPriceType:
     return get_price_list().plans[plan_code]
 
 
-class PlanLimitSettings(BaseSettings):
+class PlanLimitSettings(FileFirstSettings):
     """Monthly allowance keys from .env; a blank value means unlimited.
 
     Same numbers as service-plus-portal/content/pricing.ts — change both together.

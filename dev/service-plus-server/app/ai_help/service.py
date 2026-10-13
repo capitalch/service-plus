@@ -62,12 +62,14 @@ def _provider() -> ModuleType:
     return import_module(f"app.ai_help.providers.{settings.ai_help_provider}")
 
 
-async def _generate(provider: ModuleType, articles_text: str, history: list[dict], question: str) -> dict:
+async def _generate(
+    provider: ModuleType, instructions: str, articles_text: str, history: list[dict], question: str
+) -> dict:
     """Main model, then the fallback model once if the main one is busy."""
     models = [m for m in (settings.ai_help_model, settings.ai_help_fallback_model) if m]
     for i, model in enumerate(models):
         try:
-            return await provider.generate(model, INSTRUCTIONS, articles_text, history, question)
+            return await provider.generate(model, instructions, articles_text, history, question)
         except ProviderBusyError as e:
             logger.warning("Ask AI busy: %s", e)
             if i == len(models) - 1:
@@ -75,21 +77,23 @@ async def _generate(provider: ModuleType, articles_text: str, history: list[dict
     raise CodedValidationException(message=AppMessages.AI_HELP_BUSY, code="AI_HELP_BUSY")
 
 
-async def ask_help_ai(db_name: str, schema: str, user_key: str, payload: dict) -> dict:
-    """{answer, articleIds, notCovered}. Only answered questions count toward the limits."""
+async def ask_help_ai(db_name: str, schema: str, user_key: str, payload: dict, audience: str = "client") -> dict:
+    """{answer, articleIds, notCovered}. Only answered questions count toward the limits.
+    `audience` picks the articles and the prompt: "client" (staff) or "developer" (Super Admin)."""
     question, history, ids = _parse(payload)
     if not ai_help_enabled():
         raise CodedValidationException(message=AppMessages.AI_HELP_NOT_CONFIGURED, code="AI_HELP_UNAVAILABLE")
     limits.check(db_name, schema, user_key)
 
-    ids = corpus.known_ids(ids)
+    ids = corpus.known_ids(ids, audience)
     if not ids:
         return _not_covered()
 
     try:
         result = await _generate(
             _provider(),
-            corpus.render(ids),
+            INSTRUCTIONS[audience],
+            corpus.render(ids, audience),
             [{**t, "text": redact(t["text"])} for t in history],
             redact(question),
         )

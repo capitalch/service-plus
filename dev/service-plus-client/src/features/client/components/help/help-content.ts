@@ -174,6 +174,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 					'"AI help is busy" means the AI service is overloaded for the moment. Wait a little and ask again.',
 					"Do not type customer names, mobile numbers or email addresses. Phone numbers and emails are removed before the question is sent, but names are not.",
 					"If you don't see the Ask AI button at all, AI help has not been set up for your Service+ server. Search still works.",
+					"In the Admin panel, the same two round buttons at the bottom right open the Developer Help — technical articles about how Service+ is built — and Ask AI over those articles.",
 				],
 			},
 		],
@@ -1656,7 +1657,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "The four log tabs have no send controls and no checkboxes — they are history, not a second way to send. Each is triggered from its own screen. They also do not update live: use Refresh to pull the latest statuses.",
+				text: "The four log tabs have no send controls and no checkboxes — they are history, not a second way to send. Each is triggered from its own screen. They also do not update live: use Refresh to pull the latest statuses. In these tabs the job's division code shows as an indigo tag under the Job No (below the teal Alt: tag, if any).",
 			},
 			{ type: "heading", text: "Job Completion — why a separate screen instead of a button on Final a Job" },
 			{
@@ -1669,7 +1670,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				headers: ["Column", "Meaning"],
 				rows: [
 					["☑", "Selection checkbox — see Selection rules below"],
-					["OK Date", "When the job reached Completed OK — newest first, and the grid's sort order"],
+					[
+						"OK Date",
+						"When the job reached Completed OK — newest first, and the grid's sort order. The job's division code shows on the line below, when the job has one",
+					],
 					[
 						"Job No",
 						'The finalized job, its alt job no if any, and its original intake date ("Job …") underneath',

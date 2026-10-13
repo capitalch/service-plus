@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import type { AiHelpTurnType, AiHelpType, HelpArticle } from "./help-types";
 
 // ─── Ask AI view ──────────────────────────────────────────────────────────────
-// Rendered by HelpPanel when it is given an `ai` prop (client Help only). The conversation
+// Rendered by HelpPanel when it is given an `ai` prop (client Help and Developer Help). The conversation
 // lives in the caller's hook, so it survives opening an article and coming back.
 
 const MAX_QUESTION = 500;
@@ -174,7 +174,7 @@ export const AiHelpView = ({
 							<Sparkles className="h-7 w-7" />
 						</div>
 						<p className="max-w-[340px] text-[13px] leading-relaxed text-(--cl-text-muted)">
-							{MESSAGES.AI_HELP_EMPTY_STATE}
+							{ai.texts.emptyState}
 						</p>
 					</div>
 				) : (
@@ -201,7 +201,7 @@ export const AiHelpView = ({
 					className="max-h-32 min-h-[64px] w-full resize-none rounded-xl border border-(--cl-border) bg-(--cl-bg) px-3 py-2 text-[13px] text-(--cl-text) transition-all placeholder:text-(--cl-text-muted)/60 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
 					maxLength={MAX_QUESTION + 50}
 					onKeyDown={handleKeyDown}
-					placeholder="Ask about using Service+…"
+					placeholder={ai.texts.placeholder}
 					rows={2}
 				/>
 				{isDirty && errors.question && (
@@ -230,7 +230,7 @@ export const AiHelpView = ({
 					</button>
 				</div>
 				<p className="mt-2 text-center text-[10px] leading-snug text-(--cl-text-muted)/70">
-					{MESSAGES.AI_HELP_DISCLAIMER}
+					{ai.texts.disclaimer}
 				</p>
 			</form>
 		</div>

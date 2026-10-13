@@ -12,6 +12,7 @@ export const MESSAGES = {
 	enquiryIntro: "Tell us about your workshop. We will call you back and set up your account.",
 	enquiryRateLimited: "Too many attempts. Please wait a minute and try again.",
 	enquiryTitle: "Start your subscription",
+	envValueMissing: "Missing env value. Add it to .env.local (see .env.example) and rebuild:",
 	errBusinessName:
 		"Use 3 to 100 characters, starting with a letter or digit: letters, digits, spaces and . & ' ( ) / , -",
 	errCity: "Enter your city and state",
@@ -45,10 +46,10 @@ export const MESSAGES = {
 	paymentPending: "We will share our bank account details when we call you.",
 	pricingIntro: "Start free. Upgrade when your workshop grows. No lock-in.",
 	pricingTitle: "Simple, transparent pricing",
-	reasonBranches: "You run more than one branch, which needs the Enterprise plan",
-	reasonBusinessUnits:
-		"You run more than five branches or several businesses, so you need more than one business unit",
-	reasonInventory: "You stock spare parts, so your plan includes spare-parts inventory",
+	reasonBusinessUnits: "You run more than one business unit, which only the Enterprise plan includes",
+	reasonExtraBusinessUnits:
+		"You need more business units than Enterprise includes, so the extra ones are charged monthly",
+	reasonJobs: "Your plan's monthly job limit covers the number of jobs you take in",
 	reasonStarter: "A single-user shop with no extra needs, so the free Lite plan covers you",
 	reasonTeam: "More than one person needs their own login, which Lite and Basic do not allow",
 	reasonWhatsapp: "You update customers on WhatsApp, so your plan has enough messages for your jobs",
