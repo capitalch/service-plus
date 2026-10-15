@@ -1,9 +1,9 @@
-// Plans and limits. The prices here are the fallback: lib/plan-prices.ts replaces them in the
-// browser with the live list from the server's .env (GET /api/public/plan-prices), so they are
-// shown first and kept if that call fails. The JSON-LD and the pre-built HTML always use these —
-// update them at the next release after a price change.
-// jobsPerMonth and whatsappPerMonth must match the server's PlanLimitSettings
-// (service-plus-server/app/core/plan_prices.py) — that is what is enforced.
+// Plans and limits. The prices and the monthly job / WhatsApp allowances here are the fallback:
+// lib/plan-prices.ts replaces them in the browser with the live values from the server's .env
+// (GET /api/public/plan-prices — PlanPriceSettings and PlanLimitSettings in
+// service-plus-server/app/core/plan_prices.py), so they are shown first and kept if that call
+// fails. The JSON-LD and the pre-built HTML always use these — update them at the next release
+// after a price or limit change.
 
 export type PlanCodeType = "basic" | "enterprise" | "lite" | "standard";
 
@@ -26,8 +26,8 @@ export type PlanType = {
 	setupFee: number;
 	tagline: string;
 	users: "multi" | "single";
-	/** 0 = not included. */
-	whatsappPerMonth: number;
+	/** 0 = not included, null = unlimited. */
+	whatsappPerMonth: number | null;
 };
 
 export const plans: PlanType[] = [
@@ -112,6 +112,7 @@ export function usersLabel(plan: PlanType): string {
 }
 
 export function whatsappLabel(plan: PlanType): string {
+	if (plan.whatsappPerMonth === null) return "Unlimited WhatsApp messages";
 	return plan.whatsappPerMonth === 0
 		? "No WhatsApp messaging"
 		: `${plan.whatsappPerMonth.toLocaleString("en-IN")} WhatsApp messages / month`;

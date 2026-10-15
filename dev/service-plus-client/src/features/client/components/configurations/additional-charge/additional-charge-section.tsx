@@ -14,6 +14,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -179,6 +180,7 @@ function DeleteDialog({ name, saving, onConfirm, onClose }: DeleteDialogProps) {
 // ─── Section ──────────────────────────────────────────────────────────────────
 
 export const AdditionalChargeSection = () => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 
@@ -335,6 +337,7 @@ export const AdditionalChargeSection = () => {
 				</div>
 				<Button
 					className="h-8 gap-1.5 text-xs"
+					disabled={isReadOnly}
 					size="sm"
 					onClick={() => {
 						const nextId = rows.length > 0 ? Math.max(...rows.map((r) => r.id)) + 1 : 1;
@@ -448,6 +451,7 @@ export const AdditionalChargeSection = () => {
 												</Button>
 												<Button
 													className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-red-500 hover:bg-red-500/10"
+													disabled={isReadOnly}
 													size="icon"
 													title="Delete"
 													variant="ghost"

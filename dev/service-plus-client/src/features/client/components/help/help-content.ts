@@ -6,6 +6,7 @@
 export type { HelpArticle, CategoryStyleType } from "@/components/shared/help/help-types";
 import type { CategoryStyleType, HelpArticle } from "@/components/shared/help/help-types";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
+import { BU_FEATURES } from "@/constants/bu-features";
 import { ShieldCheck } from "lucide-react";
 
 // ─── Articles ─────────────────────────────────────────────────────────────────
@@ -2900,6 +2901,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 	{
 		id: "spare-parts-web",
 		category: "Masters",
+		feature: BU_FEATURES.SPARE_PARTS_WEB,
 		title: "Spare Parts Web",
 		summary:
 			"Customer-facing parts catalog per branch — optionally linked to a Parts Master entry, with its own photos. Live on the public company website; orders arrive by email.",
@@ -2917,6 +2919,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			"web order notify email",
 		],
 		content: [
+			{
+				type: "note",
+				text: "Spare Parts Web is an optional feature. It appears only when Service+ has switched it on for your business unit — contact us to have it enabled.",
+			},
 			{
 				type: "para",
 				text: "Go to Masters → Spare Parts Web to manage the branch's customer-facing parts listing. This is a separate list from Spare Parts Master — it's what customers see, not what's used for job costing and stock.",
@@ -4098,6 +4104,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 		],
 		faqs: [
 			{
+				q: "Why can't I delete a business user?",
+				a: "The message says why. A user created when a sign-up request was approved can't be deleted while that request still refers to it — deactivate the user instead. Any other refusal names what still uses the user.",
+			},
+			{
 				q: "A user forgot their password — what do I do?",
 				a: "Admin → Business Users → find the user → row menu → 'Reset password and mail'. This sends a password reset link to their email.",
 			},
@@ -4683,6 +4693,39 @@ export const HELP_ARTICLES: HelpArticle[] = [
 		faqs: [],
 	},
 	{
+		id: "live-demo",
+		category: "Getting Started",
+		title: "The live demo workshop",
+		summary:
+			'What you can do in the demo opened from the website\'s "Try the live demo", and why changes are switched off.',
+		tags: ["demo", "live demo", "try demo", "trial", "sample data", "start free", "lite"],
+		content: [
+			{
+				type: "para",
+				text: '"Try the live demo" on the Service+ website (home page, pricing page and the closing banner) opens a sample repair workshop, Demo Electronics Service Centre, with no sign-up and no password. It is filled with made-up customers and jobs for phones, TVs, ACs, appliances, Sony cameras and sound systems and Casio keyboards and digital pianos, plus parts, purchases, invoices and receipts, and new activity is added every month so it always looks current.',
+			},
+			{
+				type: "bullets",
+				items: [
+					"You can open every screen, search, filter, open job details, view reports and the dashboard, print and save PDFs, and ask Ask AI.",
+					'New, Add, Edit, Save, Delete, status changes, uploads and WhatsApp sends are switched off, and entry screens such as Single Job open on View. Hover a switched-off button for "Demo: changes are switched off".',
+					"A banner under the top bar says you are in the demo. Its Start free button opens the website's pricing page with the free Lite plan already chosen, so you can sign up and use Service+ for your own workshop.",
+					"Logging out of the demo takes you back to the website.",
+				],
+			},
+			{
+				type: "note",
+				text: "Every name, mobile number and email in the demo is invented; no message is ever sent from it. Many visitors share the demo, so its Ask AI questions run out sooner than in your own business unit.",
+			},
+		],
+		faqs: [
+			{
+				q: 'I clicked Save and got "This is a demo workshop".',
+				a: "The demo is read-only for everyone. Use Start free to get your own workshop on the Lite plan, where everything can be added and changed.",
+			},
+		],
+	},
+	{
 		id: "view-only-subscription",
 		category: "Troubleshooting",
 		title: '"View-only" — monthly payment due',
@@ -4707,7 +4750,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "para",
-				text: 'What you see: an amber banner under the top bar in the last days before the paid period ends ("Your payment is due. The app becomes view-only after <date>."), and a red banner once the business unit is view-only. While view-only, the Add buttons on the Masters screens, Save on the job and inventory entry screens and every Delete are switched off (hover for "Read-only: payment pending"); if a save is refused anyway, a View-only dialog explains why.',
+				text: 'What you see: an amber banner under the top bar in the last days before the paid period ends ("Your payment is due. The app becomes view-only after <date>."), and a red banner once the business unit is view-only. While view-only, every New, Add, Edit, Save and Delete is switched off, as are the row actions that change a job (status changes, Set Technician, Final, Deliver, Undo, attachments, WhatsApp sends); hover a switched-off button for "Read-only: payment pending". If a save is refused anyway, a View-only dialog explains why.',
 			},
 		],
 		faqs: [
@@ -4769,6 +4812,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
 		],
 	},
 ];
+
+/** The articles the current BU should see: those of an optional feature (article.feature)
+ *  only when the Super Admin switched it on. Feeds both the Help panel and Ask AI. */
+export function visibleHelpArticles(features: string[] | undefined): HelpArticle[] {
+	return HELP_ARTICLES.filter((article) => !article.feature || (features ?? []).includes(article.feature));
+}
 
 export const HELP_CATEGORIES = [
 	"Getting Started",

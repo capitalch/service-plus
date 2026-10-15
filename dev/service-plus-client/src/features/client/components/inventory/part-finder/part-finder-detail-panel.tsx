@@ -19,6 +19,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TabType = "history" | "overview" | "stock";
@@ -62,6 +63,7 @@ function TabBtn({ active, label, onClick }: { active: boolean; label: string; on
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -311,6 +313,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
 										</div>
 										<Button
 											className="gap-1.5 bg-teal-600 text-xs text-white hover:bg-teal-700"
+											disabled={isReadOnly}
 											size="sm"
 											onClick={() => setLocDialogOpen(true)}
 										>

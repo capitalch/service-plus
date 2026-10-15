@@ -12,9 +12,10 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 
 import { Logo } from "./logo";
-import { navItems } from "./nav-items";
+import { useNavItems } from "./nav-items";
 
 export function Header() {
+  const items = useNavItems();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -24,7 +25,7 @@ export function Header() {
         <Logo />
 
         <nav className="ml-auto hidden items-center gap-1 md:flex">
-          {navItems.map((item) => {
+          {items.map((item) => {
             const active = pathname === item.href;
             return (
               <Link
@@ -64,7 +65,7 @@ export function Header() {
                 </SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-1 p-3">
-                {navItems.map((item) => {
+                {items.map((item) => {
                   const active = pathname === item.href;
                   return (
                     <Link

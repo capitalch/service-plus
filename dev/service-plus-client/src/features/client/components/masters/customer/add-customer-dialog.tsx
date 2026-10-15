@@ -20,6 +20,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectHomeStateId, selectSchema } from "@/store/context-slice";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,6 +82,7 @@ export const AddCustomerDialog = ({
 	open,
 	states,
 }: AddCustomerDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const homeStateId = useAppSelector(selectHomeStateId);
@@ -379,7 +381,7 @@ export const AddCustomerDialog = ({
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

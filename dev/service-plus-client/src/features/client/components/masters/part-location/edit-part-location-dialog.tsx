@@ -21,6 +21,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { BranchOption, PartLocationType } from "@/features/client/types/part-location";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ export const EditPartLocationDialog = ({
 	onSuccess,
 	open,
 }: EditPartLocationDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingLocation, setCheckingLocation] = useState(false);
 	const [locationTaken, setLocationTaken] = useState<boolean | null>(null);
 	const dbName = useAppSelector(selectDbName);
@@ -226,7 +228,7 @@ export const EditPartLocationDialog = ({
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

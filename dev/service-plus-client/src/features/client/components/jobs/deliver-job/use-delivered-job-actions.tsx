@@ -21,6 +21,7 @@ import { buildInvoicePdf, buildDeliveryNotePdf } from "./deliver-job-pdf";
 import { fetchDeliveryNoteJobsByIds } from "./fetch-delivery-note-jobs";
 import type { JobInvoiceFullRow } from "./deliver-job-schema";
 import type { DivisionContextType } from "@/features/client/types/division";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
@@ -51,6 +52,7 @@ export interface DeliveredJobActionContext {
 }
 
 export function useDeliveredJobActions() {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -240,7 +242,7 @@ export function useDeliveredJobActions() {
 								</Button>
 								<Button
 									className="h-8 px-4 text-xs bg-red-600 hover:bg-red-700 text-white font-semibold"
-									disabled={undoSubmitting}
+									disabled={isReadOnly || undoSubmitting}
 									onClick={async () => {
 										if (!undoPendingJob || !dbName || !schema) return;
 										setUndoSubmitting(true);

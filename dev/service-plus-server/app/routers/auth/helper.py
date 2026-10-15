@@ -148,6 +148,20 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         )
         raise AuthorizationException(AppMessages.INVALID_CREDENTIALS)
 
+    return await _build_login_response(body.client_id, db_name, client_code, user, body.identity)
+
+
+async def _build_login_response(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+    client_id: int | str | None,
+    db_name: str,
+    client_code: str | None,
+    user: dict,
+    identity: str,
+    is_demo: bool = False,
+) -> LoginResponse:
+    """Everything a login does once the user is known and allowed in: user type, the user's
+    business units, the token claims and the reply. Shared by login_helper and
+    demo_login_helper so the demo sign-in cannot drift from the real login."""
     # [5] Determine user type
     user_type = "A" if user["is_admin"] else "B"
 
@@ -175,7 +189,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
     token_claims = {
         "sub": str(user["id"]),
         "user_type": user_type,
-        "client_id": body.client_id,
+        "client_id": client_id,
         "db_name": db_name,
         "role_code": user.get("role_code") or "",
         "access_rights": user.get("access_rights") or [],
@@ -186,11 +200,11 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
 
     # [8] Log success
     logger.info("%s: user_id=%s, client_id=%s",
-        AppMessages.LOGIN_SUCCESSFUL, user['id'], body.client_id)
+        AppMessages.LOGIN_SUCCESSFUL, user['id'], client_id)
     await audit_logger.log(
         action=AuditAction.LOGIN,
         actor_type="admin_user" if user["is_admin"] else "user",
-        actor_username=user.get("username", body.identity),
+        actor_username=user.get("username", identity),
         resource_name=db_name,
         resource_type="session",
     )
@@ -205,6 +219,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         db_name=db_name,
         email=user["email"],
         is_default_customer_db=is_default_customer_db(db_name),
+        is_demo=is_demo,
         full_name=user["full_name"],
         id=user["id"],
         last_used_branch_id=user.get("last_used_branch_id"),
@@ -215,6 +230,40 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         user_type=user_type,
         username=user["username"],
     )
+
+
+async def demo_login_helper() -> LoginResponse:
+    """Sign a live-demo visitor in as settings.demo_username, with no password
+    (plans/plan.md Step 3). Refused with DEMO_NOT_AVAILABLE when the demo is not
+    configured, its client is missing or inactive, or the user is missing, inactive,
+    an admin or not assigned to the demo business unit."""
+    if not settings.is_demo_enabled():
+        raise AuthorizationException(AppMessages.DEMO_NOT_AVAILABLE, code="DEMO_NOT_AVAILABLE")
+    client_rows = await exec_sql(
+        db_name=None,
+        sql=SqlStore.GET_ACTIVE_CLIENT_BY_DB_NAME,
+        sql_args={"db_name": settings.demo_db_name},
+    )
+    user_rows = []
+    if client_rows:
+        user_rows = await exec_sql(
+            db_name=settings.demo_db_name,
+            schema="security",
+            sql=SqlStore.GET_USER_BY_IDENTITY,
+            sql_args={"identity": settings.demo_username},
+        )
+    user = user_rows[0] if user_rows else None
+    if not user or not user["is_active"] or user["is_admin"]:
+        logger.warning("Demo login unavailable: client or user %s missing, inactive or admin", settings.demo_username)
+        raise AuthorizationException(AppMessages.DEMO_NOT_AVAILABLE, code="DEMO_NOT_AVAILABLE")
+    response = await _build_login_response(
+        client_rows[0]["id"], settings.demo_db_name, client_rows[0].get("code"), user, settings.demo_username, True
+    )
+    if [bu.get("code", "").lower() for bu in response.available_bus] != [settings.demo_bu_code]:
+        logger.warning("Demo login unavailable: %s is not assigned to %s alone", settings.demo_username, settings.demo_bu_code)
+        raise AuthorizationException(AppMessages.DEMO_NOT_AVAILABLE, code="DEMO_NOT_AVAILABLE")
+    response.portal_url = settings.portal_url
+    return response
 
 
 async def set_password_helper(body: SetPasswordRequest) -> SetPasswordResponse:

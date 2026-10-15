@@ -10,7 +10,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Service+ — Track Your Repair",
   description:
-    "Check the repair status of your device, find genuine spare parts, and get expert help from Service+.",
+    // Static for every page, so it does not promise spare parts: those depend on which
+    // companies have Spare Parts Web switched on, known only in the browser.
+    "Check the repair status of your device and get expert help from Service+.",
 };
 
 const themeInitScript = `

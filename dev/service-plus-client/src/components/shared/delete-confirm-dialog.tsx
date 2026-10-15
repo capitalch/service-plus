@@ -13,8 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MESSAGES } from "@/constants/messages";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -79,6 +78,7 @@ export const DeleteConfirmDialog = ({
 
 	// No deleting while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const isBlocked = !!blockedMessage || inUse === true || isReadOnly;
 	// Require the in-use check to have resolved to false (not null) before enabling delete.
 	// When no onCheckInUse is provided, treat it as resolved.
@@ -119,7 +119,7 @@ export const DeleteConfirmDialog = ({
 						<div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5">
 							<AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
 							<p className="text-sm text-amber-600">
-								{isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : blockedMessage || inUseMessage}
+								{isReadOnly ? readOnlyTooltip : blockedMessage || inUseMessage}
 							</p>
 						</div>
 					)}

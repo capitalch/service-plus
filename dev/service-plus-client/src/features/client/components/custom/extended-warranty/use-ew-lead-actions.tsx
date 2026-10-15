@@ -26,6 +26,7 @@ import { EwLeadDialog } from "./ew-lead-dialog";
 import { deleteEwLead, fillMessage, resendEwLeadAlert, sendEwReminders, toastSendResults } from "./ew-mutations";
 import type { EwActionType } from "./ew-state-machine";
 import { EwTransitionDialog } from "./ew-transition-dialog";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 export type EwLeadActionsType = {
 	dialogs: ReactNode;
@@ -50,6 +51,7 @@ export const useEwLeadActions = ({
 	onChanged: () => void;
 	refreshKey: number;
 }): EwLeadActionsType => {
+	const isReadOnly = useIsReadOnly();
 	const branch = useAppSelector(selectCurrentBranch);
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
@@ -186,7 +188,7 @@ export const useEwLeadActions = ({
 						<AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700"
-							disabled={busy}
+							disabled={isReadOnly || busy}
 							onClick={() => void handleConfirmSend()}
 						>
 							{busy && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -204,7 +206,11 @@ export const useEwLeadActions = ({
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
-						<Button disabled={busy} variant="outline" onClick={() => void handleConfirmDelete()}>
+						<Button
+							disabled={isReadOnly || busy}
+							variant="outline"
+							onClick={() => void handleConfirmDelete()}
+						>
 							{busy && <Loader2 className="h-4 w-4 animate-spin" />}
 							Delete
 						</Button>

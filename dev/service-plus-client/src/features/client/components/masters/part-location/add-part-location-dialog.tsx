@@ -19,6 +19,7 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ function FieldError({ message }: { message?: string }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const AddPartLocationDialog = ({ onOpenChange, onSuccess, open }: AddPartLocationDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingLocation, setCheckingLocation] = useState(false);
 	const [locationTaken, setLocationTaken] = useState<boolean | null>(null);
 	const dbName = useAppSelector(selectDbName);
@@ -179,7 +181,7 @@ export const AddPartLocationDialog = ({ onOpenChange, onSuccess, open }: AddPart
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

@@ -71,6 +71,7 @@ import {
 import { Save } from "lucide-react";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ViewMode is imported from view-mode-toggle
 
@@ -91,6 +92,7 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const PurchaseEntrySection = () => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -716,7 +718,7 @@ export const PurchaseEntrySection = () => {
 						onClick={() => {
 							childRef.current?.triggerSave();
 						}}
-						disabled={!canSave || form.formState.isSubmitting}
+						disabled={isReadOnly || !canSave || form.formState.isSubmitting}
 					>
 						{form.formState.isSubmitting ? (
 							<Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1067,6 +1069,7 @@ export const PurchaseEntrySection = () => {
 
 																<DropdownMenuItem
 																	className={`flex items-center gap-2 cursor-pointer ${inv.is_posted ? "text-(--cl-text-muted) opacity-50 cursor-not-allowed" : "text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"}`}
+																	disabled={isReadOnly}
 																	onClick={() => {
 																		if (inv.is_posted) {
 																			toast.error(
@@ -1084,6 +1087,7 @@ export const PurchaseEntrySection = () => {
 																</DropdownMenuItem>
 																<DropdownMenuItem
 																	className={`flex items-center gap-2 cursor-pointer font-semibold ${inv.is_posted ? "text-(--cl-text-muted) opacity-50 cursor-not-allowed" : "text-red-500 focus:bg-red-500/10 focus:text-red-600"}`}
+																	disabled={isReadOnly}
 																	onClick={() => {
 																		if (inv.is_posted) {
 																			toast.error(
@@ -1243,7 +1247,11 @@ export const PurchaseEntrySection = () => {
 								<Button disabled={deleting} variant="outline" onClick={() => setDeleteId(null)}>
 									Cancel
 								</Button>
-								<Button disabled={deleting} variant="destructive" onClick={() => void handleDelete()}>
+								<Button
+									disabled={isReadOnly || deleting}
+									variant="destructive"
+									onClick={() => void handleDelete()}
+								>
 									{deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
 									Delete
 								</Button>

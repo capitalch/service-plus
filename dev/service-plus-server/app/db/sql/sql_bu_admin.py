@@ -547,6 +547,17 @@ class BuAdminSql(BuAdminDdl):
           AND is_active = true
     """
 
+    GET_ACTIVE_CLIENT_BY_DB_NAME = """
+        with "p_db_name" as (values(%(db_name)s::text))
+        -- with "p_db_name" as (values('service_plus_demo'::text)) -- Test line
+        SELECT id, code, db_name
+        FROM public.client
+        WHERE db_name = (table "p_db_name")
+          AND is_active = true
+        ORDER BY id
+        LIMIT 1
+    """
+
     GET_CLIENT_DB_NAMES = """
         SELECT id, code, name, is_active, db_name,
                address_line1, address_line2, city, country_code,
@@ -1031,6 +1042,7 @@ class BuAdminSql(BuAdminDdl):
         -- with "p_user_id" as (values(1::bigint)) -- Test line
         SELECT b.id, b.code, b.is_active, b.name,
                b.plan_code, b.billing_required, b.paid_through, b.billing_hold, b.branch_limit,
+               to_jsonb(b) -> 'features' AS features,
                EXISTS (
                    SELECT 1 FROM pg_catalog.pg_namespace n
                    WHERE n.nspname = LOWER(b.code)

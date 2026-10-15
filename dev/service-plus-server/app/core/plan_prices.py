@@ -7,8 +7,8 @@ when a customer is approved, so a later .env change affects only new customers a
 new payments (plans/plan.md, constraint 8).
 
 The monthly job and WhatsApp allowances (PlanLimitSettings) follow the same rule: read
-from .env and stamped on security.bu when a plan is set. Keep them in step with
-service-plus-portal/content/pricing.ts (jobsPerMonth, whatsappPerMonth).
+from .env and stamped on security.bu when a plan is set. GET /api/public/plan-prices
+serves them to the portal; service-plus-portal/content/pricing.ts holds only a fallback.
 """
 
 from dataclasses import dataclass
@@ -113,7 +113,7 @@ def get_plan_price(plan_code: str) -> PlanPriceType:
 class PlanLimitSettings(FileFirstSettings):
     """Monthly allowance keys from .env; a blank value means unlimited.
 
-    Same numbers as service-plus-portal/content/pricing.ts — change both together.
+    Served to the portal by GET /api/public/plan-prices (jobs_per_month, whatsapp_per_month).
     """
 
     model_config = SettingsConfigDict(

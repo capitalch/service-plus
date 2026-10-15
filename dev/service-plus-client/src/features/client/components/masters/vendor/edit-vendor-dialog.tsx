@@ -23,6 +23,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { StateOption } from "@/features/client/types/customer";
 import type { VendorType } from "@/features/client/types/vendor";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,6 +82,7 @@ function FieldError({ message }: { message?: string }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const EditVendorDialog = ({ onOpenChange, onSuccess, open, states, vendor }: EditVendorDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingName, setCheckingName] = useState(false);
 	const [nameTaken, setNameTaken] = useState<boolean | null>(null);
 	const dbName = useAppSelector(selectDbName);
@@ -389,7 +391,7 @@ export const EditVendorDialog = ({ onOpenChange, onSuccess, open, states, vendor
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

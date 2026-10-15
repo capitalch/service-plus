@@ -37,6 +37,7 @@ import { ChargeNameCombobox } from "./charge-name-combobox";
 import { finalizeChargeNeedsCost } from "../charge-cost-rule";
 import { isValidGstin, normalizeGstin } from "@/lib/gstin";
 import { allocateFloored, pickResidualKey, snapInclToWholeRupee, type FloorAllocItem } from "@/lib/back-calc";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Apply-target helpers (only used in this view) ───────────────────────────
 
@@ -372,6 +373,7 @@ export function FinalJobForm({
 	onPatchCharge,
 	onDivisionChange,
 }: FinalJobFormProps) {
+	const isReadOnly = useIsReadOnly();
 	const isWarranty = selectedRow.job_type_code === "UNDER_WARRANTY";
 
 	// Persistent (non-toast) warning surfaced when applyBackCalc had to sell parts
@@ -553,7 +555,7 @@ export function FinalJobForm({
 					</div>
 					<Button
 						className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider disabled:opacity-40"
-						disabled={submitting}
+						disabled={isReadOnly || submitting}
 						onClick={() => void onSave()}
 					>
 						{submitting ? (
@@ -682,6 +684,7 @@ export function FinalJobForm({
 							<div className="flex items-center justify-center py-6">
 								<Button
 									className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+									disabled={isReadOnly}
 									size="sm"
 									variant="outline"
 									onClick={onAddPart}
@@ -1056,6 +1059,7 @@ export function FinalJobForm({
 							<div className="flex items-center justify-center py-6">
 								<Button
 									className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+									disabled={isReadOnly}
 									size="sm"
 									variant="outline"
 									onClick={onAddCharge}

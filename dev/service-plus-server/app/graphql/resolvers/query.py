@@ -4,6 +4,7 @@ GraphQL Query resolvers.
 from typing import Any
 from ariadne import QueryType
 from app.ai_help.service import ai_help_enabled
+from app.demo.demo_data import demo_status
 from app.graphql.resolvers.auth_guards import (
     require_bu_access,
     require_own_tenant,
@@ -95,6 +96,14 @@ async def resolve_bu_billing_status(_, info, db_name="", schema="") -> Any:
         **await get_bu_usage(db_name, schema),
         "aiHelpEnabled": ai_help_enabled(),
     }
+
+
+@query.field("demoStatus")
+@handle_query_errors("Unexpected demoStatus failure")
+async def resolve_demo_status(_, info) -> Any:
+    """The live demo's size and data runs, for the Super Admin's System settings card."""
+    require_user_type(info, {"S"})
+    return await demo_status()
 
 
 @query.field("devHelpAiEnabled")

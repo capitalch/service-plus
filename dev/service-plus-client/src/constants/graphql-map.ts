@@ -321,6 +321,16 @@ export const GRAPHQL_MAP = {
 		}
 	`,
 	// Plans and monthly billing (plans/plan.md Steps 12–14).
+	demoStatus: gql`
+		query DemoStatus {
+			demoStatus
+		}
+	`,
+	demoTopUp: gql`
+		mutation DemoTopUp {
+			demoTopUp
+		}
+	`,
 	devHelpAiEnabled: gql`
 		query DevHelpAiEnabled {
 			devHelpAiEnabled
@@ -349,6 +359,11 @@ export const GRAPHQL_MAP = {
 	recordClientSubscriptionPayment: gql`
 		mutation RecordClientSubscriptionPayment($db_name: String!, $schema: String, $value: String!) {
 			recordClientSubscriptionPayment(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	setBuFeatures: gql`
+		mutation SetBuFeatures($db_name: String!, $schema: String, $value: String!) {
+			setBuFeatures(db_name: $db_name, schema: $schema, value: $value)
 		}
 	`,
 	setClientBillingHold: gql`

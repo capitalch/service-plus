@@ -77,7 +77,7 @@ import { getBatchJobSheetBlobUrl } from "../job-sheet-pdf";
 import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { deleteJobFiles } from "@/lib/image-service";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 import { UsageLine } from "@/components/shared/billing/usage-line";
 import { useUsageLimits } from "@/components/shared/billing/use-usage-limits";
 import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
@@ -119,6 +119,7 @@ export const BatchJobSection = ({
 }) => {
 	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	// A new batch is off once the month's job allowance is used up; editing stays open (plans/plan.md Step 8).
 	const { isJobLimitReached, refreshUsage } = useUsageLimits();
 	const dbName = useAppSelector(selectDbName);
@@ -814,13 +815,7 @@ export const BatchJobSection = ({
 					<Button
 						className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
 						disabled={isReadOnly || isNewJobBlocked || !form.formState.isValid || submitting}
-						title={
-							isReadOnly
-								? MESSAGES.READ_ONLY_TOOLTIP
-								: isNewJobBlocked
-									? MESSAGES.BILLING_JOB_LIMIT
-									: undefined
-						}
+						title={isReadOnly ? readOnlyTooltip : isNewJobBlocked ? MESSAGES.BILLING_JOB_LIMIT : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{submitting ? (
@@ -1128,7 +1123,11 @@ export const BatchJobSection = ({
 								<Button disabled={deleting} variant="outline" onClick={() => setDeleteBatchNo(null)}>
 									Cancel
 								</Button>
-								<Button disabled={deleting} variant="destructive" onClick={() => void handleDelete()}>
+								<Button
+									disabled={isReadOnly || deleting}
+									variant="destructive"
+									onClick={() => void handleDelete()}
+								>
 									{deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
 									Delete
 								</Button>
@@ -1166,7 +1165,7 @@ export const BatchJobSection = ({
 								</Button>
 								<Button
 									variant="destructive"
-									disabled={deleting || deleteJobCount <= 2}
+									disabled={isReadOnly || deleting || deleteJobCount <= 2}
 									onClick={() => void handleDeleteSingleJob()}
 								>
 									{deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
@@ -1367,6 +1366,7 @@ function BatchGroupRow({
 	onDeleteJob,
 	onWhatsappJobIntake,
 }: BatchGroupRowProps) {
+	const isReadOnly = useIsReadOnly();
 	const batchDivision = batch.division_id ? availableDivisions.find((d) => d.id === batch.division_id) : null;
 	const isBatchDeletable = batch.jobs.every((j) => j.transaction_count <= 1);
 	return (
@@ -1418,6 +1418,7 @@ function BatchGroupRow({
 								</DropdownMenuItem>
 								<DropdownMenuItem
 									className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
+									disabled={isReadOnly}
 									onClick={onEdit}
 								>
 									<Pencil className="h-4 w-4 text-blue-600" />
@@ -1425,7 +1426,7 @@ function BatchGroupRow({
 								</DropdownMenuItem>
 								<DropdownMenuItem
 									className="flex items-center gap-2 cursor-pointer text-emerald-600 focus:bg-emerald-500/10 focus:text-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
-									disabled={!isValidMobile(batch.mobile)}
+									disabled={isReadOnly || !isValidMobile(batch.mobile)}
 									title={!isValidMobile(batch.mobile) ? "No valid mobile number on file" : undefined}
 									onClick={onWhatsappJobIntake}
 								>
@@ -1434,7 +1435,7 @@ function BatchGroupRow({
 								</DropdownMenuItem>
 								<DropdownMenuItem
 									className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 disabled:opacity-40 disabled:cursor-not-allowed"
-									disabled={!isBatchDeletable}
+									disabled={isReadOnly || !isBatchDeletable}
 									title={
 										!isBatchDeletable ? "Cannot delete: one or more jobs have activity" : undefined
 									}

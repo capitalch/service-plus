@@ -4,6 +4,7 @@ import { Maximize2 } from "lucide-react";
 import { useState } from "react";
 
 import { AnimatedTabsList } from "@/components/layout/animated-tabs";
+import { LiveDemoButton } from "@/components/layout/live-demo-button";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { ScreenshotLightbox } from "@/components/screenshots/screenshot-lightbox";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -73,6 +74,10 @@ export const ScreenshotGallery = () => {
 						</TabsContent>
 					))}
 				</Tabs>
+				<div className="mt-10 flex flex-col items-center gap-3 text-center">
+					<p className="text-muted-foreground text-sm">{MESSAGES.demoGalleryNote}</p>
+					<LiveDemoButton size="lg" />
+				</div>
 			</div>
 
 			<ScreenshotLightbox

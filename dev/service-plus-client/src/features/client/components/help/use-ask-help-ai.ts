@@ -11,7 +11,7 @@ import { encodeObj } from "@/lib/graphql-utils";
 import { selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 
-import { HELP_ARTICLES } from "./help-content";
+import { useVisibleHelpArticles } from "./use-visible-help-articles";
 
 // Ask AI for the client Help panel: staff articles, askHelpAi on the current BU.
 
@@ -25,6 +25,7 @@ const TEXTS: AiHelpTextsType = {
 export const useAskHelpAi = (): AiHelpType => {
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
+	const articles = useVisibleHelpArticles();
 
 	const send = useCallback(
 		async (payload: AskHelpAiPayloadType) => {
@@ -37,5 +38,5 @@ export const useAskHelpAi = (): AiHelpType => {
 		[dbName, schema],
 	);
 
-	return useHelpAiConversation({ articles: HELP_ARTICLES, send, texts: TEXTS });
+	return useHelpAiConversation({ articles, send, texts: TEXTS });
 };

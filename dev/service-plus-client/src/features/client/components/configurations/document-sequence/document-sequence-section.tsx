@@ -16,6 +16,7 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectAvailableDivisions, selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types & Schema ───────────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ type GenericQueryData<T> = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const DocumentSequenceSection = () => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -345,7 +347,7 @@ export const DocumentSequenceSection = () => {
 					<div className="flex justify-end pt-2">
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? (

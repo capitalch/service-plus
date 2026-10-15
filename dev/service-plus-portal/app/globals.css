@@ -33,6 +33,9 @@
 	--chart-4: oklch(0.488 0.243 264.376);
 	--chart-5: oklch(0.424 0.199 265.638);
 	--radius: 0.9rem;
+	/* Stated explicitly so native controls (select, date, scrollbars) render in the light scheme
+	   rather than following a dark OS preference that this class-toggled theme is not using. */
+	color-scheme: light;
 
 	/* Brand gradient — indigo → blue → violet */
 	--gradient-brand: linear-gradient(
@@ -41,6 +44,10 @@
 		oklch(0.505 0.185 262) 45%,
 		oklch(0.48 0.21 292) 100%
 	);
+	/* "Try the live demo" — deep teal → ocean blue, outside the indigo brand range so the demo stands
+	   apart on every page, and well away from red (errors only). Dark enough for white text. */
+	--gradient-demo: linear-gradient(110deg, oklch(0.56 0.11 182) 0%, oklch(0.53 0.12 205) 55%, oklch(0.5 0.13 232) 100%);
+	--glow-demo: oklch(0.53 0.12 205 / 35%);
 	--glow-strong: oklch(0.505 0.185 262 / 14%);
 	--glow-soft: oklch(0.505 0.185 262 / 8%);
 	--bg-decor:
@@ -80,6 +87,8 @@
 		oklch(0.72 0.14 262) 45%,
 		oklch(0.68 0.17 292) 100%
 	);
+	--gradient-demo: linear-gradient(110deg, oklch(0.6 0.11 182) 0%, oklch(0.57 0.12 205) 55%, oklch(0.54 0.13 232) 100%);
+	--glow-demo: oklch(0.6 0.12 205 / 30%);
 	--glow-strong: oklch(0.72 0.14 262 / 18%);
 	--glow-soft: oklch(0.72 0.14 262 / 8%);
 	/* Dark mode used to drop the ambient wash entirely, which left it flat next to the light
@@ -184,6 +193,24 @@
 
 @utility bg-gradient-brand {
 	background-image: var(--gradient-brand);
+}
+
+@utility bg-gradient-demo {
+	background-image: var(--gradient-demo);
+}
+
+@utility text-gradient-demo {
+	background-image: var(--gradient-demo);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+/* A soft coloured lift plus a 1px top highlight, so the gradient reads as a raised surface. */
+@utility glow-demo {
+	box-shadow:
+		inset 0 1px 0 oklch(1 0 0 / 22%),
+		0 6px 18px -6px var(--glow-demo);
 }
 
 @utility text-gradient-brand {

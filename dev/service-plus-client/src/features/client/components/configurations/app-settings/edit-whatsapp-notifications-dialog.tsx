@@ -14,6 +14,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { AppSettingRecord } from "@/features/client/types/app-setting";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ export const EditWhatsappNotificationsDialog = ({
 	open,
 	record,
 }: EditWhatsappNotificationsDialogProps) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentUser = useAppSelector(selectCurrentUser);
@@ -151,7 +153,7 @@ export const EditWhatsappNotificationsDialog = ({
 					</Button>
 					<Button
 						className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-						disabled={submitting}
+						disabled={isReadOnly || submitting}
 						type="button"
 						onClick={() => void handleSave()}
 					>

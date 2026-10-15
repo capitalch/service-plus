@@ -142,10 +142,14 @@ def build_html(text: str, title: str | None = None) -> str:
 </html>"""
 
 
-async def send_text_email(to: str, subject: str, text: str, reply_to: str | None = None) -> bool:
+async def send_text_email(
+    to: str, subject: str, text: str, reply_to: str | None = None, db_name: str | None = None
+) -> bool:
     """Send one plain-text + HTML email; log and return False on failure, never raise."""
     try:
-        await send_email(to=to, subject=subject, body=text, html_body=build_html(text, subject), reply_to=reply_to)
+        await send_email(
+            to=to, subject=subject, body=text, html_body=build_html(text, subject), reply_to=reply_to, db_name=db_name
+        )
         return True
     except Exception as e:  # pylint: disable=broad-except
         logger.warning("Failed to send sign-up email '%s' to %s: %s", subject, to, e)

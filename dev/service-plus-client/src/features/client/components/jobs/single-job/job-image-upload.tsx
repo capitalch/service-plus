@@ -29,6 +29,7 @@ import type { JobFileRow } from "@/features/client/types/job";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName, selectClientCode } from "@/features/auth/store/auth-slice";
 import { selectSchema, selectCurrentBu, selectCurrentBranch } from "@/store/context-slice";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
@@ -49,6 +50,7 @@ type Props = {
 };
 
 export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCountChange, readOnly = false }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const clientCode = useAppSelector(selectClientCode) ?? "";
@@ -336,7 +338,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
 								<Button
 									type="button"
 									size="sm"
-									disabled={isUploadDisabled}
+									disabled={isReadOnly || isUploadDisabled}
 									onClick={handleUploadAll}
 									className="bg-blue-600 hover:bg-blue-700 text-white h-7 text-xs px-2 shadow-sm font-bold"
 								>

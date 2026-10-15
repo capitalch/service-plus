@@ -21,6 +21,7 @@ import { MESSAGES } from "@/constants/messages";
 /** Write refusals explained in the read-only dialog rather than a toast (plans/plan.md Steps 8, 14). */
 const BILLING_ERROR_CODES: BillingNoticeType["code"][] = [
 	"BRANCH_LIMIT_REACHED",
+	"DEMO_READ_ONLY",
 	"JOB_LIMIT_REACHED",
 	"SUBSCRIPTION_READ_ONLY",
 ];

@@ -20,6 +20,7 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { LocationOptionType, StockBalanceWithLocationType } from "@/features/client/types/set-part-location";
 import { SetLocationForSelectedDialog } from "./set-location-for-selected-dialog";
 import { SetPartLocationDialog } from "./set-part-location-dialog";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ const rowVariants = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SetPartLocationSection = () => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -170,7 +172,7 @@ export const SetPartLocationSection = () => {
 						{selectedCount > 0 && (
 							<Button
 								className="bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50"
-								disabled={noLocations}
+								disabled={isReadOnly || noLocations}
 								size="sm"
 								onClick={() => setSelectedDialogOpen(true)}
 							>
@@ -180,7 +182,7 @@ export const SetPartLocationSection = () => {
 						)}
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={noLocations || loading}
+							disabled={isReadOnly || noLocations || loading}
 							size="sm"
 							onClick={() => setDialogOpen(true)}
 						>

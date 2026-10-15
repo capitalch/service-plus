@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 import App from "../app";
 import ErrorPage from "../pages/error-page";
+import DemoPage from "../features/auth/pages/demo-page";
 import LoginPage from "../features/auth/pages/login-page";
 import { ResetPasswordPage } from "../features/auth/pages/reset-password-page";
 import NotFoundPage from "../pages/not-found-page";
@@ -46,6 +47,8 @@ export const router = createBrowserRouter([
 				element: <ProtectedRoute />,
 				children: [{ element: <App />, index: true }],
 			},
+			// The portal's "Try the live demo" (plans/plan.md Step 4).
+			{ element: <DemoPage />, path: "demo" },
 			{ element: <LoginPage />, path: "login" },
 			{ element: <ResetPasswordPage />, path: "reset-password" },
 		],

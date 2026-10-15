@@ -10,6 +10,7 @@ import {
   RefreshCw,
   ShoppingCart,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -25,6 +26,7 @@ import { PartDetailDialog } from "@/components/spare-parts/part-detail-dialog";
 import { PartsGrid } from "@/components/spare-parts/parts-grid";
 import { PartsSearch } from "@/components/spare-parts/parts-search";
 import { fetchCompanyInfo, fetchParts, submitPartOrder } from "@/lib/api";
+import { usePartsAvailable } from "@/lib/companies";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/lib/use-cart";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
@@ -33,6 +35,7 @@ import { ApiError, type Branch, type CompanyInfo, type PartOrderResult, type Par
 const PAGE_SIZE = 20;
 
 export default function SparePartsPage() {
+  const partsAvailable = usePartsAvailable();
   const [company, setCompany] = useState("");
   const [branch, setBranch] = useState<string | null>(null);
   const [branches, setBranches] = useState<Branch[] | null>(null);
@@ -123,6 +126,26 @@ export default function SparePartsPage() {
   const shownStart = partsPage && partsPage.total > 0 ? startIndex + 1 : 0;
   const shownEnd = partsPage ? Math.min(startIndex + partsPage.items.length, partsPage.total) : 0;
 
+  // No company has Spare Parts Web switched on (Super Admin → Clients → Features): the menu
+  // and home page hide every link here, and a direct visit gets this instead of empty filters.
+  if (partsAvailable === false) {
+    return (
+      <div className="mx-auto flex max-w-xl flex-col items-center gap-4 px-4 py-20 text-center">
+        <span className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+          <PackageSearch className="size-6" />
+        </span>
+        <h1 className="text-2xl font-bold tracking-tight">Spare parts aren&apos;t available yet</h1>
+        <p className="text-muted-foreground">
+          No service center offers its parts catalogue online right now. You can still track your
+          repair.
+        </p>
+        <Button asChild>
+          <Link href="/#job-status">Track your repair</Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 lg:py-12">
       <div className="mx-auto max-w-2xl text-center">
@@ -141,6 +164,7 @@ export default function SparePartsPage() {
       <div className="mt-10 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
           <CompanySelect
+            onlyPartsEnabled
             showPartsCount
             value={company}
             onChange={(value) => {

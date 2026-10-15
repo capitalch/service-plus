@@ -5,6 +5,8 @@ import json
 import re
 from urllib.parse import unquote
 
+from app.config import settings
+from app.core.bu_features import SPARE_PARTS_WEB
 from app.core.exceptions import AppMessages, AuthorizationException
 from app.db.sql.sql_base import SqlStore
 
@@ -83,12 +85,14 @@ SECURITY_ADMIN_ONLY_TABLES = frozenset({
 # internal-note mutations, so authorship and the edit right cannot be bypassed.
 SECURITY_SERVER_ONLY_TABLES = frozenset({"bu_payment", "bu_usage", "job_internal_note", "sales_enquiry"})
 
-# security.bu billing columns: set only by approval, plan change and payment
-# mutations, never by genericUpdate (edit / activate / deactivate BU write none of them).
+# security.bu billing and Super-Admin-only columns: set only by approval, plan change,
+# payment and setBuFeatures mutations, never by genericUpdate (edit / activate / deactivate
+# BU write none of them). `features` here is what stops a tenant Admin granting itself one.
 BU_BILLING_COLUMNS = frozenset({
     "billing_hold",
     "billing_required",
     "branch_limit",
+    "features",
     "job_limit_monthly",
     "last_reminder_kind",
     "last_reminder_on",
@@ -144,11 +148,18 @@ async def require_bu_writable(info, db_name: str | None, schema: str | None) -> 
     require_own_tenant and require_bu_access, so a foreign BU gets "forbidden", not a
     billing message. The `security`, `public` and empty schemas are never billed; only the
     Super Admin is exempt — an Admin's BU writes are blocked like anyone's.
+
+    The live-demo BU (settings.is_demo_bu) is refused first with DEMO_READ_ONLY, unless
+    DEMO_WRITABLE is on, so a visitor never sees a payment message.
     """
     context = info.context or {}
     _reject_bad_token(context)
     if context.get("user_type") == "S" or (schema or "").lower() in TENANT_WIDE_SCHEMAS or not db_name:
         return
+    if settings.is_demo_bu(db_name, (schema or "").lower()) and not settings.demo_writable:
+        raise AuthorizationException(
+            message=AppMessages.DEMO_READ_ONLY, code="DEMO_READ_ONLY", extensions={"reason": "demo_read_only"}
+        )
     # Imported here, like require_default_customer_db: the pure guard tests never load the DB.
     from app.services.bu_billing import get_bu_billing  # pylint: disable=import-outside-toplevel
 
@@ -385,6 +396,49 @@ def require_generic_update_access(info, schema: str | None, value: str) -> None:
             extensions={"reason": "admin_only_table", "tables": tables},
         )
     require_bu_access(info, schema)
+
+
+# BU tables that belong to an optional feature (app/core/bu_features.py): genericUpdate on
+# them needs the feature switched on for the BU. A new feature's tables go here.
+FEATURE_TABLES: dict[str, str] = {"spare_part_web": SPARE_PARTS_WEB}
+
+
+async def require_bu_feature(context: dict, db_name: str | None, schema: str | None, feature: str) -> None:
+    """
+    Raise AuthorizationException FEATURE_NOT_ENABLED unless the Super Admin has switched
+    `feature` on for the BU named by `schema`. `context` is the GraphQL info.context or the
+    REST token claims — both carry user_type. The Super Admin passes, as with
+    require_bu_writable. Read from the cached billing row (services/bu_billing.py).
+    """
+    if (context or {}).get("user_type") == "S":
+        return
+    # Imported here, like require_bu_writable: the pure guard tests never load the DB.
+    from app.services.bu_billing import get_bu_billing  # pylint: disable=import-outside-toplevel
+
+    billing = await get_bu_billing(db_name or "", schema or "")
+    if feature not in billing["features"]:
+        raise AuthorizationException(
+            message=AppMessages.FEATURE_NOT_ENABLED,
+            code="FEATURE_NOT_ENABLED",
+            extensions={"feature": feature, "reason": "feature_not_enabled"},
+        )
+
+
+def generic_update_features(value: str) -> set[str]:
+    """The features a genericUpdate payload needs, from every table it touches at any depth."""
+    try:
+        payload = json.loads(unquote(value or ""))
+    except (ValueError, TypeError):
+        return set()
+    if not isinstance(payload, (dict, list)):
+        return set()
+    return {FEATURE_TABLES[t] for n in _sql_object_nodes(payload) if (t := n.get("tableName")) in FEATURE_TABLES}
+
+
+async def require_generic_update_features(info, db_name: str | None, schema: str | None, value: str) -> None:
+    """require_bu_feature for every feature table the genericUpdate payload touches."""
+    for feature in sorted(generic_update_features(value)):
+        await require_bu_feature(info.context or {}, db_name, schema, feature)
 
 
 def subscriber_may_receive(context: dict, data: dict) -> bool:

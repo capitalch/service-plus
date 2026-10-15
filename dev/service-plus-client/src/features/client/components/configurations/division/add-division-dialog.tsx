@@ -23,6 +23,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectHomeStateId, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
 import { addDivisionSchema } from "./division-schema";
 import type { AddDivisionFormValues } from "./division-schema";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,6 +87,7 @@ const DEFAULT_SALE_INVOICE = { ...DEFAULT_INVOICE, contactsId: 0 };
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const AddDivisionDialog = ({ onOpenChange, onSuccess, open }: AddDivisionDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingName, setCheckingName] = useState(false);
 	const [nameTaken, setNameTaken] = useState<boolean | null>(null);
 	const [checkingCode, setCheckingCode] = useState(false);
@@ -975,7 +977,7 @@ export const AddDivisionDialog = ({ onOpenChange, onSuccess, open }: AddDivision
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

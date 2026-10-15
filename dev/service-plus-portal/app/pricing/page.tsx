@@ -10,8 +10,14 @@ import { siteConfig } from "@/content/site-config";
 
 export const metadata: Metadata = {
 	alternates: { canonical: "/pricing/" },
-	description: "Service+ plans: Lite (free), Basic, Standard and Enterprise. Monthly pricing in INR.",
+	description: "Service+ plans: Lite (free), Basic, Standard and Enterprise. Monthly pricing in INR, plus GST.",
 	title: "Pricing",
+	openGraph: {
+		description: "Start free. Upgrade when your workshop grows. Simple, transparent INR pricing with no lock-in.",
+		title: "Pricing | Service+",
+		type: "website",
+		url: "/pricing/",
+	},
 };
 
 const jsonLd = {
@@ -25,6 +31,13 @@ const jsonLd = {
 		name: plan.name,
 		price: plan.monthlyPrice,
 		priceCurrency: "INR",
+		priceSpecification: {
+			"@type": "UnitPriceSpecification",
+			price: plan.monthlyPrice,
+			priceCurrency: "INR",
+			unitCode: "MON",
+			valueAddedTaxIncluded: false,
+		},
 	})),
 	operatingSystem: "Web",
 	url: siteConfig.url,
@@ -43,7 +56,8 @@ const PricingPage = () => {
 			<section className="mx-auto w-full max-w-6xl px-page pt-8 lg:px-page-lg">
 				<h2 className="mb-4 text-2xl font-bold tracking-tight">Compare plans</h2>
 				<PlanComparisonTable />
-				<p className="mt-3 text-xs text-muted-foreground">{MESSAGES.limitsNote}</p>
+				<p className="mt-3 text-xs text-muted-foreground">{MESSAGES.gstNote}</p>
+				<p className="mt-1 text-xs text-muted-foreground">{MESSAGES.limitsNote}</p>
 				<p className="mt-1 text-xs text-muted-foreground">{MESSAGES.setupFeeNote}</p>
 			</section>
 

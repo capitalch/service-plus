@@ -20,6 +20,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import { LocalCombobox } from "./local-combobox";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ function FieldError({ message }: { message?: string }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const AddModelDialog = ({ brands, onOpenChange, onSuccess, open, products }: AddModelDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingModel, setCheckingModel] = useState(false);
 	const [modelTaken, setModelTaken] = useState<boolean | null>(null);
 	const dbName = useAppSelector(selectDbName);
@@ -282,7 +284,7 @@ export const AddModelDialog = ({ brands, onOpenChange, onSuccess, open, products
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

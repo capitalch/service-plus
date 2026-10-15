@@ -15,6 +15,7 @@ import hashlib
 import time
 from dataclasses import dataclass
 
+from app.core.bu_features import SPARE_PARTS_WEB
 from app.db.connection.psycopg_driver import exec_sql_query
 from app.db.sql.sql_public import PublicSql
 from app.logger import logger
@@ -27,6 +28,7 @@ class Company:
     id: str
     label: str
     parts_count: int
+    parts_enabled: bool
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,10 @@ class _CompanyEntry:
     bu_code: str
     label: str
     parts_count: int
+    # The Super Admin switched Spare Parts Web on for this BU (app/core/bu_features.py).
+    # Every BU stays listed — job status and open jobs use the same list — and only the
+    # spare-parts routes and page filter on this.
+    parts_enabled: bool
 
 
 def _company_token(db_name: str, bu_code: str) -> str:
@@ -51,7 +57,7 @@ class PublicDirectory:
     async def list_companies(self) -> list[Company]:
         await self._refresh_if_stale()
         return [
-            Company(id=token, label=entry.label, parts_count=entry.parts_count)
+            Company(id=token, label=entry.label, parts_count=entry.parts_count, parts_enabled=entry.parts_enabled)
             for token, entry in self._companies.items()
         ]
 
@@ -60,6 +66,17 @@ class PublicDirectory:
         await self._refresh_if_stale()
         entry = self._companies.get(token)
         return (entry.db_name, entry.bu_code) if entry else None
+
+    async def resolve_parts_company(self, token: str) -> tuple[str, str] | None:
+        """resolve_company for the spare-parts routes: None also when the BU does not have
+        Spare Parts Web, so the website gets the same 404 as for an unknown company."""
+        await self._refresh_if_stale()
+        entry = self._companies.get(token)
+        return (entry.db_name, entry.bu_code) if entry and entry.parts_enabled else None
+
+    def invalidate(self) -> None:
+        """Rebuild on the next request — after the Super Admin changes a BU's features."""
+        self._expires_at = 0.0
 
     async def _refresh_if_stale(self) -> None:
         if self._companies and time.monotonic() < self._expires_at:
@@ -91,11 +108,13 @@ class PublicDirectory:
                 bu_code = bu["code"]
                 label = f"{client_name} — {bu['name']}" if multi_bu else client_name
                 token = _company_token(db_name, bu_code)
+                parts_enabled = SPARE_PARTS_WEB in (bu.get("features") or [])
                 companies[token] = _CompanyEntry(
                     db_name=db_name,
                     bu_code=bu_code,
                     label=label,
-                    parts_count=await self._count_parts(db_name, bu_code),
+                    parts_count=await self._count_parts(db_name, bu_code) if parts_enabled else 0,
+                    parts_enabled=parts_enabled,
                 )
 
         self._companies = companies

@@ -7,6 +7,11 @@ export interface Company {
    * instead of showing a bogus number.
    */
   partsCount: number | null;
+  /**
+   * The company has the Spare Parts Web feature switched on (Service+ Super Admin → Clients →
+   * Features). Only the spare-parts page filters on it; job lookups list every company.
+   */
+  partsEnabled: boolean;
 }
 
 export interface JobStatus {

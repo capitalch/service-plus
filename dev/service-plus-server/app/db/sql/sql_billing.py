@@ -35,6 +35,17 @@ class BillingSql:
         ORDER BY (b.billing_required AND b.paid_through IS NULL) DESC, b.name
     """
 
+    # Super Admin → Clients → Features: every BU of the client with its granted features
+    # (app/core/bu_features.py). to_jsonb, as in GET_BU_BILLING_BY_CODE, so a database not yet
+    # given the column lists its BUs with none.
+    GET_BU_FEATURES = """
+        with "dummy" as (values(1::int))
+        SELECT b.id, b.code, b.name, b.is_active,
+               COALESCE(to_jsonb(b) -> 'features', '[]'::jsonb) AS features
+        FROM security.bu b
+        ORDER BY b.name
+    """
+
     # Ledger, newest first: one BU's rows plus the client-level rows (bu_id null); every row
     # when p_bu_id is null.
     GET_BU_PAYMENTS = """
@@ -172,16 +183,29 @@ class BillingServerSql:
     """
 
     # View-only guard (Step 11): one BU's billing columns, found by its schema (= code).
+    # features is read through to_jsonb so a database not yet given the column
+    # (scripts/run_bu_features_ddl.py) reads as "no features" instead of failing every write.
     GET_BU_BILLING_BY_CODE = """
-        SELECT plan_code, billing_required, paid_through, billing_hold, branch_limit
-        FROM security.bu
-        WHERE LOWER(code) = LOWER(%(code)s::text)
+        SELECT b.plan_code, b.billing_required, b.paid_through, b.billing_hold, b.branch_limit,
+               to_jsonb(b) -> 'features' AS features
+        FROM security.bu b
+        WHERE LOWER(b.code) = LOWER(%(code)s::text)
     """
 
     # ── Plan change and payments (Steps 12, 13). Security schema of the BU's database. ──
 
     LOCK_BU_BY_ID = """
         SELECT * FROM security.bu WHERE id = %(id)s FOR UPDATE
+    """
+
+    # setBuFeatures (Super Admin). The ids are the client's own BUs, checked first.
+    LOCK_ALL_BUS = """
+        SELECT id, code FROM security.bu ORDER BY id FOR UPDATE
+    """
+
+    SET_BU_FEATURES = """
+        UPDATE security.bu SET features = %(features)s::text[], updated_at = now()
+        WHERE id = %(id)s::bigint
     """
 
     LOCK_BILLED_BUS = """

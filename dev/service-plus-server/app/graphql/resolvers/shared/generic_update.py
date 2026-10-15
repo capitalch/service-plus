@@ -6,11 +6,34 @@ import json
 from typing import Any
 from urllib.parse import unquote
 
+from psycopg import errors as pg_errors
+
 from app.db.connection.psycopg_driver import exec_sql, exec_sql_object
 from app.db.sql.sql_base import SqlStore
 from app.core.exceptions import AppMessages, ValidationException
 from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
+
+
+# What the user is told still refers to a row they tried to delete, by the referencing table.
+# Any other table is named as-is ("job transaction records").
+REFERENCING_TABLE_LABELS: dict[str, str] = {
+    "sales_enquiry": "its sign-up request",
+}
+
+
+def _in_use_error(e: pg_errors.ForeignKeyViolation) -> ValidationException | None:
+    """A readable refusal for a delete blocked by a row that still points at it (Postgres
+    "update or delete on table … violates foreign key constraint"), or None for the other kind
+    (an insert or update naming a row that does not exist), which stays a plain failure."""
+    if not (e.diag.message_primary or "").startswith("update or delete on table"):
+        return None
+    table = e.diag.table_name or ""
+    what = REFERENCING_TABLE_LABELS.get(table) or f"{table.replace('_', ' ')} records"
+    return ValidationException(
+        message=AppMessages.RECORD_IN_USE.format(what=what),
+        extensions={"constraint": e.diag.constraint_name, "reason": "record_in_use", "table": table},
+    )
 
 
 async def resolve_generic_update_helper(
@@ -43,7 +66,11 @@ async def resolve_generic_update_helper(
             extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
         )
 
-    record_id = await exec_sql_object(db_name_arg, schema or "public", sql_object)
+    try:
+        record_id = await exec_sql_object(db_name_arg, schema or "public", sql_object)
+    except pg_errors.ForeignKeyViolation as e:
+        raise _in_use_error(e) or e
+
 
     logger.debug("Database entry updated in: %s", db_name_arg or "client_db")
     return record_id

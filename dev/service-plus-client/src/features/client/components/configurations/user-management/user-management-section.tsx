@@ -18,12 +18,14 @@ import { selectCurrentBu, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import { AddStaffUserDialog } from "./add-staff-user-dialog";
 import type { StaffUserType } from "./staff-user";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type GenericQueryDataType = { genericQuery: StaffUserType[] | null };
 
 const THEAD_CLASS = "text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)";
 
 export const UserManagementSection = () => {
+	const isReadOnly = useIsReadOnly();
 	const canManage = useCanManageStaffUsers();
 	const currentBu = useAppSelector(selectCurrentBu);
 	const dbName = useAppSelector(selectDbName);
@@ -84,7 +86,7 @@ export const UserManagementSection = () => {
 						<RefreshButton loading={loading} onClick={loadData} />
 						<Button
 							className="gap-1.5 bg-teal-600 text-white hover:bg-teal-700"
-							disabled={!currentBu}
+							disabled={isReadOnly || !currentBu}
 							onClick={() => setAddOpen(true)}
 						>
 							<Plus className="h-4 w-4" />

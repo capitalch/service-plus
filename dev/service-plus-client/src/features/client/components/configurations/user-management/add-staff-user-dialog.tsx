@@ -29,6 +29,7 @@ import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { selectCurrentBu, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { StaffRoleType } from "./staff-user";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,7 @@ function serverMessage(err: unknown): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const AddStaffUserDialog = ({ onOpenChange, onSuccess, open }: AddStaffUserDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const currentBu = useAppSelector(selectCurrentBu);
 	const dbName = useAppSelector(selectDbName);
 	const buSchema = useAppSelector(selectSchema);
@@ -354,7 +356,7 @@ export const AddStaffUserDialog = ({ onOpenChange, onSuccess, open }: AddStaffUs
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

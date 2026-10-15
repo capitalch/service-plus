@@ -5,7 +5,10 @@
  * IDLE_LOGOUT_MS - client mode signs the user out after this long without any input.
  * IDLE_WARNING_MS - how long before the idle logout the warning toast appears.
  * IDLE_CHECK_INTERVAL_MS - how often the idle clock is compared with the last activity.
+ * DEMO_STATUS_POLL_MS - how often the Super Admin's Live demo card re-reads a running demo data run.
  */
+
+export const DEMO_STATUS_POLL_MS = 4000;
 
 export const SEARCH_DEBOUNCE_MS = 1600;
 export const FIELD_VALIDATION_DEBOUNCE_MS = 1600;

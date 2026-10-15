@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Loader2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { enquiryErrorCode, enquiryErrorMessage } from "@/components/shared/enquiries/enquiry-mutation";
 import {
 	Dialog,
 	DialogContent,
@@ -60,8 +61,14 @@ export const DeleteBusinessUserDialog = ({
 			toast.success(MESSAGES.SUCCESS_BUSINESS_USER_DELETED);
 			onSuccess();
 			onOpenChange(false);
-		} catch {
-			toast.error(MESSAGES.ERROR_BUSINESS_USER_DELETE_FAILED);
+		} catch (error) {
+			// A refusal the server explains (e.g. a sign-up request still refers to this user)
+			// is shown as sent; anything unexpected keeps the generic message.
+			toast.error(
+				enquiryErrorCode(error) === "VALIDATION_ERROR"
+					? enquiryErrorMessage(error, MESSAGES.ERROR_BUSINESS_USER_DELETE_FAILED)
+					: MESSAGES.ERROR_BUSINESS_USER_DELETE_FAILED,
+			);
 		} finally {
 			setSubmitting(false);
 		}

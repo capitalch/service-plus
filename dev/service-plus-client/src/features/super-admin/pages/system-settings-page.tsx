@@ -10,6 +10,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { PageLoader } from "@/components/ui/page-loader";
+import { DemoDataCard } from "../components/demo-data-card";
 import { SuperAdminLayout } from "../components/super-admin-layout";
 import type { SystemSettingsType } from "@/features/super-admin/types";
 
@@ -153,6 +154,8 @@ export const SystemSettingsPage = () => {
 						server and restart the server.
 					</div>
 				</div>
+
+				<DemoDataCard />
 
 				{loading && <PageLoader />}
 

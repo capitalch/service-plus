@@ -32,6 +32,10 @@ function toDigits(value: string): string {
 }
 
 // NEXT_PUBLIC_* values are inlined at build time only when read as literal process.env.NEXT_PUBLIC_X expressions.
+const appUrl = (optionalEnv(process.env.NEXT_PUBLIC_APP_URL) ?? "https://serviceplus.cloudjiffy.net").replace(
+	/\/$/,
+	"",
+);
 const addressCity = optionalEnv(process.env.NEXT_PUBLIC_ADDRESS_CITY) ?? "Kolkata";
 const addressCountry = optionalEnv(process.env.NEXT_PUBLIC_ADDRESS_COUNTRY) ?? "India";
 const addressLine1 = optionalEnv(process.env.NEXT_PUBLIC_ADDRESS_LINE1) ?? "";
@@ -57,7 +61,7 @@ export const siteConfig = {
 		pincode: addressPincode,
 		state: addressState,
 	},
-	appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://serviceplus.cloudjiffy.net",
+	appUrl,
 	// null unless account number and IFSC are set; the enquiry success card then says details come by phone.
 	bank: (bankAccountNumber && bankIfsc
 		? {
@@ -71,6 +75,8 @@ export const siteConfig = {
 		: null) as BankDetailsType | null,
 	businessHours: optionalEnv(process.env.NEXT_PUBLIC_BUSINESS_HOURS) ?? "Mon–Sat, 10:00 AM – 7:00 PM IST",
 	company: "Kush Infotech",
+	// The app's /demo page signs a visitor straight into the read-only demo workshop.
+	demoUrl: `${appUrl}/demo`,
 	description:
 		"Service+ is cloud software for electronics repair workshops and service centres: job cards, technicians, spare parts, GST invoicing, WhatsApp updates and reports.",
 	email: requireEnv(process.env.NEXT_PUBLIC_CONTACT_EMAIL, "NEXT_PUBLIC_CONTACT_EMAIL"),

@@ -320,6 +320,17 @@ export const MESSAGES = {
 		'Admin user account was created, but the password setup email could not be sent. Use "Mail the Reset Password Link" to resend.',
 	SUCCESS_INITIALIZE_DB: "Database created successfully.",
 
+	// BU Features (Super Admin → Clients → Features)
+	BU_FEATURES_DIALOG_INTRO:
+		"Switch optional features on for this client's business units. A feature that is off is hidden from that business unit's users.",
+	BU_FEATURES_NO_BUS: "This client has no business units yet.",
+	BU_FEATURES_NO_CHANGES: "No unsaved changes",
+	BU_FEATURES_ON_COUNT: "On for {on} of {total} business units",
+	BU_FEATURES_UNSAVED: "{count} unsaved change(s)",
+	ERROR_BU_FEATURES_LOAD_FAILED: "Failed to load business unit features. Please try again.",
+	ERROR_BU_FEATURES_SAVE_FAILED: "Failed to save features. Please try again.",
+	SUCCESS_BU_FEATURES_SAVED: "Features saved.",
+
 	// System Settings
 	ERROR_SETTINGS_LOAD_FAILED: "Failed to load system settings. Please try again.",
 
@@ -762,6 +773,24 @@ export const MESSAGES = {
 		"Ask a question about the Service+ code, in your own words. For example: what must change when I add a new access right?",
 	AI_DEV_HELP_NOT_COVERED:
 		"The developer help doesn't cover this. Try searching the developer help with other words, or read the code and the plans folder.",
+
+	// Live demo (plans/plan.md Steps 4–5)
+	DEMO_BANNER_TEXT: "You are looking at a demo workshop. New and Edit are switched off.",
+	DEMO_NOT_AVAILABLE: "The live demo is not available right now. Please try again later.",
+	DEMO_OPENING: "Opening the demo workshop…",
+	DEMO_READ_ONLY_DIALOG_BODY:
+		"This is the live demo, so changes are switched off. Start free on the Lite plan to use Service+ for your own workshop.",
+	DEMO_READ_ONLY_DIALOG_TITLE: "This is a demo workshop",
+	DEMO_READ_ONLY_TOOLTIP: "Demo: changes are switched off",
+	DEMO_DATA_ADDED:
+		"Demo data added: {jobs} jobs, {customers} customers, {purchases} purchases, {sales} counter sales, {deliveries} deliveries, from {from} to {to}.",
+	DEMO_DATA_CARD_HELP:
+		"Click once a month to add activity from the newest demo job up to today. The first click on an empty demo business unit fills the last 90 days.",
+	DEMO_DATA_FAILED: "Adding demo data failed: {error}",
+	DEMO_DATA_NOT_CONFIGURED:
+		"No live demo is configured. Set DEMO_DB_NAME, DEMO_BU_CODE and DEMO_USERNAME in the server .env.",
+	DEMO_DATA_RUNNING:
+		"Adding demo data… The first fill takes about half an hour, a monthly top-up about ten minutes. You can leave this page.",
 } as const;
 
 // Builds the Post/Unpost "Select All" confirmation title + description from central templates.

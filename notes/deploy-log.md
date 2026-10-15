@@ -3,6 +3,19 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-15 21:12 (main)
+BU features: Super Admin grants Spare Parts Web; live demo sign-in
+
+- server, client: per-BU features (security.bu.features) set by the Super Admin in Clients > Features; Spare Parts Web is the first, off by default, enforced on writes, photo routes and public parts routes; new run_bu_features_ddl.py
+- client, web: Spare Parts Web menu, screen and help (Help panel and Ask AI) hidden per BU; website hides every spare-parts entry point unless a company has it, and gets a wrench tab icon
+- live demo: one-click read-only demo login (/demo), demo banner, demo-data generator card in System settings, WhatsApp sends dropped for the demo, read-only tooltips across job and inventory screens
+- portal: plan limits and prices read live from the server, GST-exclusive pricing, "authorised service centre" recommender question, restyled teal live-demo button, new screenshots
+- generic update: a delete blocked by a referencing row now returns a readable reason, shown in the delete-business-user dialog
+- config: server app/config.py and .env.example updated, contents not read
+
+Files: 243 changed (+2290 / -652) — Base: 7f86c4e
+Version: 0.24.8 → 0.24.9
+
 ## 2026-10-13 20:24 (main)
 Help: Developer Help with Ask AI; portal pricing and env-based contacts
 

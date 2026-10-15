@@ -6,8 +6,8 @@ import { useState } from "react";
 import { Reveal } from "@/components/layout/reveal";
 import { Button } from "@/components/ui/button";
 import { MESSAGES } from "@/constants/messages";
-import { findPlan, formatInr, plans as planList, type PlanCodeType, type PlanType } from "@/content/pricing";
-import { findLivePlan, usePlanPrices } from "@/lib/plan-prices";
+import { formatInr, type PlanCodeType, type PlanType } from "@/content/pricing";
+import { usePlanPrices } from "@/lib/plan-prices";
 import { cn } from "@/lib/utils";
 
 type QuestionType = {
@@ -18,8 +18,8 @@ type QuestionType = {
 
 // Every plan includes spare-parts inventory, so stock is not a deciding question. The monthly job
 // limit is: one option per limited plan ("Up to 75", "Up to 150", …) plus one above the highest,
-// built from the plan definitions so the choices follow any change to the limits.
-function jobOptions(): QuestionType["options"] {
+// built from the live plan list so the choices follow any change to the limits in the server .env.
+function jobOptions(planList: PlanType[]): QuestionType["options"] {
 	const limits = [
 		...new Set(planList.map((plan) => plan.jobsPerMonth).filter((limit): limit is number => limit !== null)),
 	].sort((a, b) => a - b);
@@ -31,7 +31,7 @@ function jobOptions(): QuestionType["options"] {
 }
 
 // One, up to the most any plan includes ("2–5"), and beyond that (extra units at a monthly fee).
-function businessUnitOptions(): QuestionType["options"] {
+function businessUnitOptions(planList: PlanType[]): QuestionType["options"] {
 	const most = Math.max(...planList.map((plan) => plan.businessUnits));
 	return [
 		{ label: "One", value: 1 },
@@ -40,43 +40,54 @@ function businessUnitOptions(): QuestionType["options"] {
 	];
 }
 
-const questions: QuestionType[] = [
-	{
-		id: "team",
-		options: [
-			{ label: "Just me", value: 1 },
-			{ label: "2–3 people", value: 2 },
-			{ label: "4 or more", value: 3 },
-		],
-		prompt: "How many people will use it?",
-	},
-	{
-		id: "jobs",
-		options: jobOptions(),
-		prompt: "How many jobs do you take in a month?",
-	},
-	{
-		id: "whatsapp",
-		options: [
-			{ label: "Not yet", value: 0 },
-			{ label: "A few a week", value: 1 },
-			{ label: "Most jobs", value: 2 },
-		],
-		prompt: "Do you send job updates on WhatsApp?",
-	},
-	{
-		id: "businessUnits",
-		options: businessUnitOptions(),
-		prompt: "How many business units?",
-	},
-];
+function buildQuestions(planList: PlanType[]): QuestionType[] {
+	return [
+		{
+			id: "team",
+			options: [
+				{ label: "Just me", value: 1 },
+				{ label: "2–3 people", value: 2 },
+				{ label: "4 or more", value: 3 },
+			],
+			prompt: "How many people will use it?",
+		},
+		{
+			id: "jobs",
+			options: jobOptions(planList),
+			prompt: "How many jobs do you take in a month?",
+		},
+		{
+			id: "whatsapp",
+			options: [
+				{ label: "Not yet", value: 0 },
+				{ label: "A few a week", value: 1 },
+				{ label: "Most jobs", value: 2 },
+			],
+			prompt: "Do you send job updates on WhatsApp?",
+		},
+		{
+			id: "businessUnits",
+			options: businessUnitOptions(planList),
+			prompt: "How many business units?",
+		},
+		{
+			id: "serviceCentre",
+			options: [
+				{ label: "No", value: 0 },
+				{ label: "Yes", value: 1 },
+			],
+			prompt: "Are you an authorised service centre for any company?",
+		},
+	];
+}
 
 type AnswersType = Record<string, number>;
 
 // The recommendation is derived from the plan definitions rather than a hand-written mapping, so
 // it cannot drift from what the plans actually include. It walks the ladder and takes the first
 // plan that covers every answer, which is why the ladder is ordered cheapest to dearest.
-function recommend(answers: AnswersType): { plan: PlanType; reasons: string[] } {
+function recommend(answers: AnswersType, planList: PlanType[]): { plan: PlanType; reasons: string[] } {
+	const findPlan = (code: PlanCodeType) => planList.find((plan) => plan.code === code);
 	const jobs = answers.jobs ?? 0;
 	const needsMultiUser = (answers.team ?? 1) > 1;
 	const needsWhatsapp = (answers.whatsapp ?? 0) > 0;
@@ -84,6 +95,8 @@ function recommend(answers: AnswersType): { plan: PlanType; reasons: string[] } 
 	const needsWhatsappPerJob = (answers.whatsapp ?? 0) > 1;
 	const businessUnits = answers.businessUnits ?? 1;
 	const mostIncluded = Math.max(...planList.map((plan) => plan.businessUnits));
+	// An authorised service centre handles brand warranty volumes, so Standard is the floor.
+	const isServiceCentre = (answers.serviceCentre ?? 0) > 0;
 
 	const reasons: string[] = [];
 	if (needsMultiUser) reasons.push(MESSAGES.reasonTeam);
@@ -91,16 +104,23 @@ function recommend(answers: AnswersType): { plan: PlanType; reasons: string[] } 
 	if (needsWhatsapp) reasons.push(MESSAGES.reasonWhatsapp);
 	if (businessUnits > 1 && businessUnits <= mostIncluded) reasons.push(MESSAGES.reasonBusinessUnits);
 	if (businessUnits > mostIncluded) reasons.push(MESSAGES.reasonExtraBusinessUnits);
+	if (isServiceCentre) reasons.push(MESSAGES.reasonServiceCentre);
 	if (reasons.length === 0) reasons.push(MESSAGES.reasonStarter);
 
 	const ladder: PlanCodeType[] = ["lite", "basic", "standard", "enterprise"];
 	const code = ladder.find((candidate) => {
 		const plan = findPlan(candidate);
 		if (!plan) return false;
+		if (isServiceCentre && ladder.indexOf(candidate) < ladder.indexOf("standard")) return false;
 		if (plan.jobsPerMonth !== null && plan.jobsPerMonth < jobs) return false;
 		if (needsMultiUser && plan.users === "single") return false;
 		if (needsWhatsapp && plan.whatsappPerMonth === 0) return false;
-		if (needsWhatsappPerJob && plan.jobsPerMonth !== null && plan.whatsappPerMonth * 2 < plan.jobsPerMonth)
+		if (
+			needsWhatsappPerJob &&
+			plan.jobsPerMonth !== null &&
+			plan.whatsappPerMonth !== null &&
+			plan.whatsappPerMonth * 2 < plan.jobsPerMonth
+		)
 			return false;
 		// Units beyond the most a plan includes are bought extra, so the largest plan still fits.
 		if (plan.businessUnits < Math.min(businessUnits, mostIncluded)) return false;
@@ -115,9 +135,9 @@ export const PlanRecommender = ({ onSelect }: { onSelect: (code: PlanCodeType) =
 	const [answers, setAnswers] = useState<AnswersType | null>(null);
 
 	const { plans } = usePlanPrices();
-	const result = answers ? recommend(answers) : null;
-	// The recommendation reads the plan features; the price shown is the live one.
-	const resultPlan = result ? (findLivePlan(plans, result.plan.code) ?? result.plan) : null;
+	const questions = buildQuestions(plans);
+	const result = answers ? recommend(answers, plans) : null;
+	const resultPlan = result?.plan ?? null;
 
 	function answer(id: string, value: number) {
 		setAnswers((current) => {
@@ -184,6 +204,8 @@ export const PlanRecommender = ({ onSelect }: { onSelect: (code: PlanCodeType) =
 									? "Free"
 									: `${formatInr(resultPlan?.monthlyPrice ?? 0)} / month`}
 								{(resultPlan?.setupFee ?? 0) > 0 && ` + ${formatInr(resultPlan?.setupFee ?? 0)} setup`}
+								{(resultPlan?.monthlyPrice ?? 0) > 0 &&
+									((resultPlan?.setupFee ?? 0) > 0 ? ", both + GST" : " + GST")}
 							</span>
 						</p>
 						<p className="text-muted-foreground mt-2 text-sm italic">{result.plan.tagline}</p>

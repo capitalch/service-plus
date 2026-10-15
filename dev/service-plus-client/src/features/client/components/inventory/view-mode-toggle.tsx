@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { Eye, Pencil, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 
 export type ViewMode = "new" | "view";
 
@@ -12,6 +14,15 @@ interface ViewModeToggleProps {
 }
 
 export function ViewModeToggle({ mode, isEditing, onNewClick, onViewClick, disableNew = false }: ViewModeToggleProps) {
+	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
+
+	// A read-only BU (the live demo, or an unpaid month) cannot add anything, so the screen
+	// opens on View instead of an entry form whose Save is switched off.
+	useEffect(() => {
+		if (isReadOnly && mode === "new") onViewClick();
+	}, [isReadOnly, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	return (
 		<div className="flex shrink-0 items-center gap-2 rounded-xl border-2 border-(--cl-border) bg-(--cl-surface-2) p-1 shadow-md">
 			<Button
@@ -23,8 +34,9 @@ export function ViewModeToggle({ mode, isEditing, onNewClick, onViewClick, disab
 							: "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-emerald-600 hover:scale-105 font-semibold"
 				}`}
 				size="sm"
-				disabled={disableNew}
+				disabled={isReadOnly || disableNew}
 				onClick={onNewClick}
+				title={isReadOnly ? readOnlyTooltip : undefined}
 			>
 				{mode === "new" && isEditing ? <Pencil className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
 				{mode === "new" && isEditing ? "Edit" : "New"}

@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, Loader2, ShieldAlert, XCircle } from "luci
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 export type PhysicalValues = {
 	qty: number;
@@ -38,6 +39,7 @@ export function PhysicalInvoiceModal({
 	isIgst,
 	totals,
 }: PhysicalInvoiceModalProps) {
+	const isReadOnly = useIsReadOnly();
 	const {
 		watch,
 		setValue,
@@ -282,7 +284,7 @@ export function PhysicalInvoiceModal({
 					</Button>
 					<Button
 						className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-40"
-						disabled={submitting}
+						disabled={isReadOnly || submitting}
 						onClick={() => void validateAndSubmit()}
 					>
 						{submitting ? (

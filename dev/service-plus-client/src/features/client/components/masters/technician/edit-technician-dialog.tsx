@@ -23,6 +23,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { BranchOption, TechnicianType } from "@/features/client/types/technician";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ export const EditTechnicianDialog = ({
 	open,
 	technician,
 }: EditTechnicianDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingCode, setCheckingCode] = useState(false);
 	const [codeTaken, setCodeTaken] = useState<boolean | null>(null);
 	const dbName = useAppSelector(selectDbName);
@@ -327,7 +329,7 @@ export const EditTechnicianDialog = ({
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

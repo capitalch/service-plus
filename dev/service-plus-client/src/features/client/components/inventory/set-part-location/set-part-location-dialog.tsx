@@ -22,6 +22,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import { PartCodeInput } from "../part-code-input";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -203,6 +204,7 @@ function LocationRow({
 // ─── Dialog ───────────────────────────────────────────────────────────────────
 
 export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -384,7 +386,14 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
 						</table>
 					</div>
 
-					<Button className="self-start" size="sm" type="button" variant="outline" onClick={handleAddRow}>
+					<Button
+						className="self-start"
+						disabled={isReadOnly}
+						size="sm"
+						type="button"
+						variant="outline"
+						onClick={handleAddRow}
+					>
 						<Plus className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
 						Add Row
 					</Button>
@@ -401,7 +410,7 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
 					</Button>
 					<Button
 						className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-						disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
+						disabled={isReadOnly || !form.formState.isValid || !linesValid || form.formState.isSubmitting}
 						type="button"
 						onClick={() => void form.handleSubmit(executeSave)()}
 					>

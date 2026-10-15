@@ -22,6 +22,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { TechnicianType } from "@/features/client/types/technician";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ export const DeleteTechnicianDialog = ({
 	open,
 	technician,
 }: DeleteTechnicianDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingInUse, setCheckingInUse] = useState(false);
 	const [confirmValue, setConfirmValue] = useState("");
 	const [inUse, setInUse] = useState<boolean | null>(null);
@@ -151,7 +153,7 @@ export const DeleteTechnicianDialog = ({
 					</Button>
 					<Button
 						className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-						disabled={submitting || checkingInUse || !deleteEnabled}
+						disabled={isReadOnly || submitting || checkingInUse || !deleteEnabled}
 						onClick={handleDelete}
 					>
 						{submitting || checkingInUse ? (

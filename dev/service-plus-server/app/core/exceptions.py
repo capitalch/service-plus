@@ -130,9 +130,16 @@ class AppMessages:
     )
     INVALID_BU_CODE = "Code must be 3–30 lower-case letters, digits or underscores, and not a reserved name."
     BU_NOT_BILLED = "This business unit is not on a paid plan."
+    BU_FEATURE_UNKNOWN = "Unknown feature: {feature}."
+    BU_FEATURES_BU_UNKNOWN = "Business unit {bu_id} does not belong to this client."
+    FEATURE_NOT_ENABLED = "This feature is not enabled for this business unit."
+    RECORD_IN_USE = "This can't be deleted because it is still used by {what}."
     DOWNGRADE_BLOCKED_BRANCHES = (
         "Lite and Basic include the head office only. Delete the other branches and their data first."
     )
+    DEMO_NOT_AVAILABLE = "The live demo is not available right now. Please try again later."
+    DEMO_NO_SEND = "Messages are not sent from the live demo."
+    DEMO_READ_ONLY = "This is the live demo, so changes are switched off. Sign up free to use Service+ for real."
     PAID_THROUGH_INVALID = "The paid-through date must be today or later, and at most 5 years ahead."
     PAYMENT_AMOUNT_BELOW_DUE = "The amount is less than the monthly fee × months."
     PAYMENT_EXTRA_NOTE_REQUIRED = "Add a note explaining an amount above the monthly fee × months."

@@ -138,6 +138,10 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		],
 		faqs: [
 			{
+				q: "What does the client get when a genericUpdate delete hits a foreign key?",
+				a: "resolve_generic_update_helper (shared/generic_update.py) catches psycopg ForeignKeyViolation. For a blocked delete ('update or delete on table … violates …') it raises ValidationException AppMessages.RECORD_IN_USE — \"This can't be deleted because it is still used by {what}.\" — where {what} comes from REFERENCING_TABLE_LABELS by the referencing table (sales_enquiry → 'its sign-up request'), else '<table name> records'; extensions carry reason record_in_use, table and constraint. An insert/update naming a missing row is not caught and stays 'Operation failed'. Dialogs show the message when extensions.code is VALIDATION_ERROR (delete-business-user-dialog.tsx does). Known case: in the default customer database a Lite/Basic/Standard sign-up's Manager is referenced by security.sales_enquiry.user_id (no ON DELETE), so that user cannot be deleted.",
+			},
+			{
 				q: "When should I add a bespoke resolver instead of using genericUpdate?",
 				a: "When the operation needs server-side business logic beyond a straight column write (e.g. accountsPosting, seedSecurityData, createJobPayment) — genericUpdate is for direct table writes only.",
 			},
@@ -860,7 +864,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				rows: [
 					[
 						"auth_router.py + auth_router_helper.py",
-						"POST /api/auth/login, refresh token, password reset — the one place login actually happens",
+						"POST /api/auth/login, refresh token, password reset, and POST /api/auth/demo-login (live demo, no password) — both logins end in the shared _build_login_response",
 					],
 					["base_router.py", "Shared/base route setup"],
 					[
@@ -1666,7 +1670,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "steps",
 				items: [
-					"POST /api/auth/login → auth_router_helper.py::login_helper.",
+					"POST /api/auth/login → auth_router_helper.py::login_helper. After the password check it calls _build_login_response (user type, BUs, token claims, reply), which demo_login_helper (POST /api/auth/demo-login) also uses — see 'Live Demo'.",
 					"Looks up the user via SqlStore.GET_USER_BY_IDENTITY, which returns role_code and the aggregated access_rights array.",
 					"Issues a JWT with token_claims: sub, user_type, client_id, db_name, role_code, access_rights, bu_codes (the last one added by the tenant/BU enforcement fix — see 'Tenant & BU Enforcement').",
 					"Client stores the login response (roleCode, accessRights typed in src/lib/auth-service.ts) into Redux via auth-slice.ts, persisted through src/lib/auth-storage.ts.",
@@ -1873,7 +1877,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 						"Nobody, Super Admin included, in any schema and at any xDetails depth. sales_enquiry / bu_payment change only by the sign-up and payment mutations (Steps 9, 10, 13); job_internal_note only by the three internal-note mutations (see 'Job Internal Notes — Implementation').",
 					],
 					[
-						"BU_BILLING_COLUMNS of security.bu: plan_code, billing_required, monthly_fee_paise, paid_through, billing_hold, branch_limit, job_limit_monthly, whatsapp_limit_monthly, last_reminder_on, last_reminder_kind",
+						"BU_BILLING_COLUMNS of security.bu: plan_code, billing_required, monthly_fee_paise, paid_through, billing_hold, branch_limit, job_limit_monthly, whatsapp_limit_monthly, last_reminder_on, last_reminder_kind, features (Super-Admin-granted BU features — see 'BU features (Super Admin)')",
 						"Nobody. The edit / activate / deactivate / delete BU dialogs write only name, is_active or deletedIds, and still work.",
 					],
 					[
@@ -4700,8 +4704,14 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			"file server",
 			"branch scoping",
 			"public directory",
+			"bu feature",
+			"spare_parts_web",
 		],
 		content: [
+			{
+				type: "note",
+				text: "Gated by the spare_parts_web BU feature (see 'BU features (Super Admin)'): off by default for every BU. Without it the Masters menu item, the screen and the staff help article are hidden, genericUpdate on spare_part_web and the four /api/images/spare-part-web/... routes answer FEATURE_NOT_ENABLED, /api/public/companies sends parts_enabled false (the website's Spare Parts page skips the company; when no company has it, service-plus-web hides every entry point — the 'Buy genuine parts' menu item in header and footer, the hero's 'Browse spare parts' button, text and 'Genuine parts' bullet — and /spare-parts shows 'Spare parts aren't available yet'), and /branches, /parts, /parts/{id} and /part-orders answer 404 through public_directory.resolve_parts_company. /company-info, /job-status and /open-jobs are not gated.",
+			},
 			{
 				type: "para",
 				text: "As-built implementation summary for plans/plan-parts-web.md — a public spare-parts catalogue and order-request feature (no payment gateway, no automated fulfillment) shipped through Phase 3 (schema + admin CRUD, public read-only browsing, and order submission); the optional Phase 4 staff-order-list screen and 'copy to branch' bulk action were deliberately deferred, not built. It spans four repos: service-plus-server (schema, public API, image routes), service-plus-client (the Masters admin screen), service-plus-web (the public browse/order pages), and service-plus-file-server (one new route).",
@@ -4864,7 +4874,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 				rows: [
 					[
 						"content/pricing.ts",
-						"The only source for plans, prices, setup fees and limits (Lite, Basic, Standard, Enterprise). Cards, the comparison table, the enquiry form and JSON-LD all read it.",
+						"The only source for plans, prices, setup fees and limits (Lite, Basic, Standard, Enterprise). Cards, the comparison table, the enquiry form and JSON-LD all read it. Every price is exclusive of GST: each paid card has a second line under the price ('+ ₹X one-time setup' then 'Both prices exclude GST'), the recommender and sign-up summary end ', both + GST', MESSAGES.gstNote sits under the cards and the comparison table, the FAQ and the terms say so, and the JSON-LD offers carry valueAddedTaxIncluded: false. A new place that shows a price must say the same.",
 					],
 					[
 						"content/site-config.ts",
@@ -4888,7 +4898,11 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					],
 					[
 						"lib/plan-prices.ts",
-						"usePlanPrices(): content/pricing.ts amounts first, then the live /plan-prices list, fetched once per page load and shared (module-level promise). Every price display reads it; the JSON-LD and pre-built HTML keep the fallback.",
+						"usePlanPrices(): content/pricing.ts amounts and allowances first, then the live /plan-prices list (fees plus jobsPerMonth / whatsappPerMonth, null = unlimited), fetched once per page load and shared (module-level promise). Every price and limit display reads it, including the plan recommender's job options and pick; the JSON-LD and pre-built HTML keep the fallback.",
+					],
+					[
+						"components/pricing/plan-recommender.tsx",
+						"'Which plan is right for you': five questions (team, jobs, WhatsApp, business units, authorised service centre). recommend() walks lite → basic → standard → enterprise and takes the first plan that covers every answer; a 'Yes' to authorised service centre skips Lite and Basic, so Standard is the floor (Enterprise still wins when the business units need it). Each rule adds a MESSAGES.reason… line.",
 					],
 					[
 						"components/pricing/sales-enquiry-form.tsx + lite-confirm-dialog.tsx",
@@ -4949,7 +4963,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				q: "Where do I change a price?",
-				a: "In the server .env (PRICE_… keys, read by app/core/plan_prices.py; defaults are today's prices). They are read fresh on every call, so no restart is needed. GET /api/public/plan-prices serves them to the portal in whole rupees (Cache-Control max-age 300, so a browser can show the old list for up to 5 minutes), and the portal's lib/plan-prices.ts swaps them over the fallback prices in content/pricing.ts. PlanPriceSettings and PlanLimitSettings extend FileFirstSettings, which puts the .env file ahead of the process environment: an IDE debugger copies .env into environment variables at launch, and with pydantic's default order that frozen copy would override every later .env edit. A key missing from .env still falls back to the environment.",
+				a: "In the server .env (PRICE_… keys, read by app/core/plan_prices.py; defaults are today's prices). They are read fresh on every call, so no restart is needed. GET /api/public/plan-prices serves them to the portal in whole rupees (Cache-Control max-age 300, so a browser can show the old list for up to 5 minutes), and the portal's lib/plan-prices.ts swaps them over the fallback prices in content/pricing.ts. The monthly allowances (LIMIT_… keys, PlanLimitSettings) travel in the same response as jobs_per_month and whatsapp_per_month, so an .env limit change reaches the portal the same way. PlanPriceSettings and PlanLimitSettings extend FileFirstSettings, which puts the .env file ahead of the process environment: an IDE debugger copies .env into environment variables at launch, and with pydantic's default order that frozen copy would override every later .env edit. A key missing from .env still falls back to the environment.",
 			},
 		],
 	},
@@ -4982,7 +4996,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					[
 						"GET /api/public/plan-prices",
 						"60/min",
-						"get_price_list() in whole rupees: per plan setup_fee and monthly_fee, plus enterprise_included_bus and extra_bu_monthly_fee. Cache-Control max-age=300.",
+						"get_price_list() in whole rupees and get_plan_limits(): per plan setup_fee, monthly_fee, jobs_per_month and whatsapp_per_month (null = unlimited), plus enterprise_included_bus and extra_bu_monthly_fee. Cache-Control max-age=300.",
 					],
 					[
 						"POST /api/public/signup",
@@ -5147,12 +5161,12 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "bullets",
 				items: [
-					"require_bu_writable(info, db_name, schema) in auth_guards.py (async): skips S and the security/public/empty schemas; otherwise reads get_bu_billing and raises AuthorizationException code SUBSCRIPTION_READ_ONLY with extensions.paidThrough. It runs after require_own_tenant + require_bu_access, so a foreign BU still gets 'forbidden'. Admins are blocked like anyone.",
-					"app/services/bu_billing.py: get_bu_billing caches {status, paidThrough, planCode, branchLimit} per (database, BU) for 60 s (BillingServerSql.GET_BU_BILLING_BY_CODE + compute_billing_status). clear_bu_billing(db, schema=None) is called by set_bu_plan and the extra-BU billing; payment recording (Step 13) must call it too. buBillingStatus also returns jobLimit / jobsUsed / whatsappLimit / whatsappUsed from app/services/bu_usage.py — read fresh, never through this cache — and aiHelpEnabled (see 'Ask AI in the Help Center').",
+					"require_bu_writable(info, db_name, schema) in auth_guards.py (async): skips S and the security/public/empty schemas; refuses the live-demo BU first with DEMO_READ_ONLY (see 'Live Demo'); otherwise reads get_bu_billing and raises AuthorizationException code SUBSCRIPTION_READ_ONLY with extensions.paidThrough. It runs after require_own_tenant + require_bu_access, so a foreign BU still gets 'forbidden'. Admins are blocked like anyone.",
+					"app/services/bu_billing.py: get_bu_billing caches {status, paidThrough, planCode, branchLimit, features} per (database, BU) for 60 s (BillingServerSql.GET_BU_BILLING_BY_CODE + compute_billing_status). clear_bu_billing(db, schema=None) is called by set_bu_plan and the extra-BU billing; payment recording (Step 13) must call it too. buBillingStatus also returns jobLimit / jobsUsed / whatsappLimit / whatsappUsed from app/services/bu_usage.py — read fresh, never through this cache — and aiHelpEnabled (see 'Ask AI in the Help Center').",
 					"Guarded: genericUpdate, genericUpdateScript, addBranch and every BU-schema mutation (jobs, invoices, payments, inventory import/delete, accountsPosting, WhatsApp sends, delivery OTP/confirmation, the four EW mutations). Not guarded: provisioning, users/roles, mail credentials, Super Admin and enquiry/payment/plan mutations. tests/test_view_only_guard.py keeps every mutation in exactly one of the two lists — a new mutation fails the test until classified.",
-					"REST: image_router's _require_media_scope refuses uploads/deletes (403 detail.code SUBSCRIPTION_READ_ONLY); public /part-orders answers 409 PART_ORDER_UNAVAILABLE. Public job-intake/delivery/receipt pages are GET-only and stay readable; WhatsApp status callbacks and the stock snapshot are untouched.",
+					"REST: image_router's _require_media_scope refuses uploads/deletes (403 detail.code SUBSCRIPTION_READ_ONLY, or DEMO_READ_ONLY for the live-demo BU); public /part-orders answers 409 PART_ORDER_UNAVAILABLE, for the live-demo BU too. Public job-intake/delivery/receipt pages are GET-only and stay readable; WhatsApp status callbacks and the stock snapshot are untouched.",
 					"Login: GET_USER_BUS returns the billing columns and each availableBus entry carries billing (the summary) with paid_through as ISO text. GET_ALL_BUS_WITH_SCHEMA_STATUS returns the billing columns too. New query buBillingStatus(db_name, schema) — guarded by tenant and BU access.",
-					"Client (Step 14): components/shared/billing/use-billing-sync.ts (mounted in client-layout.tsx) reads buBillingStatus on BU change, window focus and context.billingRefreshTick into context.billing; never computed in the browser. apollo-client.ts's error link turns SUBSCRIPTION_READ_ONLY / BRANCH_LIMIT_REACHED / JOB_LIMIT_REACHED (BILLING_ERROR_CODES) into showBillingNotice (read-only-dialog.tsx) + requestBillingRefresh. billing-banner.tsx shows due_soon (amber) / read_only. The plan badge just before the BU selector (bu-branch-switcher.tsx) reads context.billing.planCode through PLAN_NAMES (enquiry-types.ts) — so it shows only in client mode, where useBillingSync runs, is absent for a BU with a null plan_code, and is hidden below the sm breakpoint. useIsReadOnly (selectIsReadOnly) disables the Masters Add buttons, Save on the job/receipt/sales/stock-adjustment/branch-transfer/loan/opening-stock screens, and DeleteConfirmDialog.",
+					"Client (Step 14): components/shared/billing/use-billing-sync.ts (mounted in client-layout.tsx) reads buBillingStatus on BU change, window focus and context.billingRefreshTick into context.billing; never computed in the browser. apollo-client.ts's error link turns SUBSCRIPTION_READ_ONLY / BRANCH_LIMIT_REACHED / JOB_LIMIT_REACHED (BILLING_ERROR_CODES) into showBillingNotice (read-only-dialog.tsx) + requestBillingRefresh. billing-banner.tsx shows due_soon (amber) / read_only. The plan badge just before the BU selector (bu-branch-switcher.tsx) reads context.billing.planCode through PLAN_NAMES (enquiry-types.ts) — so it shows only in client mode, where useBillingSync runs, is absent for a BU with a null plan_code, and is hidden below the sm breakpoint. useIsReadOnly (selectIsReadOnly) disables every write control in features/client/components: New/Add/Edit/Save/Delete buttons, dialog submit buttons, and the write items of row-action menus (status transitions, Set Technician, Final, Deliver, Undo, attach, WhatsApp sends), plus DeleteConfirmDialog. selectIsReadOnly is also true for a live-demo session (auth user.isDemo); useReadOnlyTooltip() gives the matching hover text (MESSAGES.READ_ONLY_TOOLTIP or DEMO_READ_ONLY_TOOLTIP). The shared New/View toggle (features/client/components/inventory/view-mode-toggle.tsx) disables New and switches a read-only screen to View on load. A new write control must use the hook too.",
 				],
 			},
 		],
@@ -5269,7 +5283,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 		content: [
 			{
 				type: "para",
-				text: "Each BU has a monthly allowance of new jobs and WhatsApp messages, per calendar month in India time; usage resets on the 1st. Over the limit the action is blocked, not warned. Defaults: Lite 75 jobs / 20 messages, Basic 150 / 150, Standard 400 / 300, Enterprise unlimited. The portal shows the same numbers in service-plus-portal/content/pricing.ts — change both together.",
+				text: "Each BU has a monthly allowance of new jobs and WhatsApp messages, per calendar month in India time; usage resets on the 1st. Over the limit the action is blocked, not warned. Defaults: Lite 75 jobs / 20 messages, Basic 150 / 150, Standard 400 / 300, Enterprise unlimited. The portal reads the live numbers from GET /api/public/plan-prices; service-plus-portal/content/pricing.ts holds only the fallback (and the JSON-LD copy), refreshed at the next portal release.",
 			},
 			{ type: "heading", text: "Where the numbers live" },
 			{
@@ -5329,7 +5343,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				type: "bullets",
 				items: [
-					"No code calls send_template directly; grep for it outside metered.py must stay empty. send_metered reserves 1 then sends; send_reserved sends a message the caller already reserved. Both give the message back when Meta does not accept it (or the call raises). limit_result() is the refusal: ok False, error_code WHATSAPP_LIMIT_REACHED, Meta not called.",
+					"No code calls send_template directly; grep for it outside metered.py must stay empty. send_metered reserves 1 then sends; send_reserved sends a message the caller already reserved. Both give the message back when Meta does not accept it (or the call raises). limit_result() is the refusal: ok False, error_code WHATSAPP_LIMIT_REACHED, Meta not called. Both also drop every send for the live-demo database (settings.is_demo_db) before Meta: demo_result(), error_code DEMO_NO_SEND (send_reserved gives the reserved message back first).",
 					"Grouped sends (sender.py: completion, job intake, delivery) reserve the whole request up front — one per chunk, two per delivery chunk (summary + OTP) — and are refused whole: _refuse_chunks_at_limit records a FAILED attempt with the limit message on every job and nothing is sent. A refused delivery has no OTP; staff confirm pickup manually.",
 					"Money receipt and invoice: send_metered. Their responses, and the grouped ones, carry limitReached.",
 					"ew_sender.py: the lead alert (automatic, to the shop's own number) uses send_metered. Reminders reserve as many as fit (reserve_whatsapp_up_to) after the daily cap; the rest return status LIMIT; a reserved lead whose claim fails is released. Response carries limitReached.",
@@ -5413,7 +5427,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 					"require_default_customer_db on every lt approval and billing mutation; require_user_type {S} on every Enterprise one.",
 					"require_bu_writable on every BU write; tests/test_view_only_guard.py keeps the GUARDED and ALLOWED lists complete.",
 					"addBranch is the only way to add a branch: it locks the security.bu row, counts against branch_limit and inserts with the Main division in one transaction. genericUpdate refuses branch inserts so there is one door, and there is deliberately no database trigger. changeBuPlan takes the same lock, so a downgrade and an insert cannot interleave.",
-					"Refusal codes travel as extensions.code through CodedValidationException / AuthorizationException: SIGNUP_* (REST detail.code), PAYMENT_NOT_RECEIVED, EXTRA_BU_CONFIRM_REQUIRED, BRANCH_LIMIT_REACHED, DOWNGRADE_BLOCKED_BRANCHES, JOB_INSERT_VIA_JOB_SCREENS, JOB_LIMIT_REACHED, PREPAID_LIMIT_EXCEEDED, SUBSCRIPTION_READ_ONLY. WHATSAPP_LIMIT_REACHED is not an error: it arrives as a send result's error_code / limitReached flag.",
+					"Refusal codes travel as extensions.code through CodedValidationException / AuthorizationException: SIGNUP_* (REST detail.code), PAYMENT_NOT_RECEIVED, EXTRA_BU_CONFIRM_REQUIRED, BRANCH_LIMIT_REACHED, DOWNGRADE_BLOCKED_BRANCHES, JOB_INSERT_VIA_JOB_SCREENS, JOB_LIMIT_REACHED, PREPAID_LIMIT_EXCEEDED, SUBSCRIPTION_READ_ONLY, DEMO_READ_ONLY. WHATSAPP_LIMIT_REACHED and DEMO_NO_SEND are not errors: it arrives as a send result's error_code / limitReached flag.",
 				],
 			},
 			{ type: "heading", text: "Settings" },
@@ -5815,6 +5829,213 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "How do I test without calling Gemini?",
 				a: "tests/ai_help/test_ai_help.py replaces service._provider with a fake; it covers redaction, id filtering, the busy → fallback → busy path and both limits.",
+			},
+		],
+	},
+	{
+		id: "dev-live-demo",
+		category: "Configuration",
+		title: "Live Demo (Try the Demo)",
+		summary:
+			"Which database and business unit are the portal's live demo, the settings that name them, and the helpers every demo check goes through.",
+		tags: [
+			"demo",
+			"live demo",
+			"try demo",
+			"DEMO_BU_CODE",
+			"DEMO_DB_NAME",
+			"DEMO_USERNAME",
+			"DEMO_WRITABLE",
+			"is_demo_bu",
+			"is_demo_db",
+			"servicedemo",
+		],
+		content: [
+			{
+				type: "para",
+				text: "The portal's 'Try the live demo' signs a visitor in as one shared business user of one demo business unit. The demo is configured only in the server .env; with DEMO_DB_NAME or DEMO_BU_CODE empty, no demo exists and nothing else changes. The full design is in plans/plan.md (Live demo from the portal).",
+			},
+			{ type: "heading", text: "Settings (app/core/settings/demo_settings.py)" },
+			{
+				type: "table",
+				headers: ["Key", "Meaning"],
+				rows: [
+					["DEMO_DB_NAME", "Tenant database holding the demo, e.g. service_plus_demo (client 'demo')."],
+					[
+						"DEMO_BU_CODE",
+						"Business unit code (= schema) used as the demo, e.g. servicedemo. demo1, the template BU in the same database, is not the demo.",
+					],
+					[
+						"DEMO_USERNAME",
+						"Business user every visitor becomes, e.g. demouser1 (Manager role, not an admin).",
+					],
+					["DEMO_WRITABLE", "Default false: the demo BU is read-only for everyone except the Super Admin."],
+				],
+			},
+			{
+				type: "para",
+				text: "DemoSettings is mixed into Settings in app/config.py like the other per-concern classes. Its helpers are methods, so callers use settings.is_demo_db(db_name), settings.is_demo_bu(db_name, schema) and settings.is_demo_enabled() (database, BU and user all set). Each returns False when its setting is empty, so a server without a demo never takes a demo branch.",
+			},
+			{
+				type: "note",
+				text: "Check the BU with is_demo_bu, not is_demo_db, wherever a rule should apply to the demo BU only: the demo database also holds demo1.",
+			},
+			{ type: "heading", text: "Read-only and silent (Step 2)" },
+			{
+				type: "table",
+				headers: ["Where", "What"],
+				rows: [
+					[
+						"auth_guards.py require_bu_writable",
+						"After the Super Admin and tenant-wide-schema skips, is_demo_bu(db_name, schema) and not DEMO_WRITABLE raises AuthorizationException code DEMO_READ_ONLY (AppMessages.DEMO_READ_ONLY, extensions.reason demo_read_only) before the billing lookup, so a visitor never sees the payment message. Admins are refused too; only the Super Admin writes (the demo-data generator runs as that).",
+					],
+					[
+						"routers/media/image_router.py _require_media_scope",
+						"Same check: 403 detail.code DEMO_READ_ONLY for uploads and deletes.",
+					],
+					[
+						"routers/public/website_router.py part orders",
+						"The demo BU takes no public part orders (409 PART_ORDER_UNAVAILABLE), like a view-only shop.",
+					],
+					[
+						"whatsapp/metered.py send_metered / send_reserved",
+						"Any send for the demo database (both BUs) returns demo_result(): ok False, permanent, error_code DEMO_NO_SEND; Meta is never called and nothing stays reserved. Every Meta call already goes through these two.",
+					],
+					[
+						"core/email.py send_email(..., db_name=None)",
+						"An email whose db_name is the demo database is logged and dropped. Passed by the extended-warranty interest e-mail and the billing reminders (send_text_email gained db_name too). Admin/Super Admin set-up mails (new users, credentials) pass no db_name and still send, so demo users can still be onboarded.",
+					],
+				],
+			},
+			{
+				type: "note",
+				text: "tests/test_live_demo.py covers the refusal (A and B users, before the payment check), the Super Admin and DEMO_WRITABLE passes, demo1 and other databases unchanged, WhatsApp never reaching Meta, and the email drop. A new tenant-scoped email call should pass db_name.",
+			},
+			{ type: "heading", text: "Demo sign-in (Step 3)" },
+			{
+				type: "para",
+				text: "POST /api/auth/demo-login (routers/auth/router.py, rate-limited 10/min per IP, no body) calls demo_login_helper in routers/auth/helper.py: client by GET_ACTIVE_CLIENT_BY_DB_NAME(DEMO_DB_NAME), user by GET_USER_BY_IDENTITY(DEMO_USERNAME), then the same _build_login_response the password login uses, so the token and reply cannot drift. It refuses (503, detail.code DEMO_NOT_AVAILABLE) when the demo is not configured, the client or user is missing or inactive, the user is an admin, or the user's BUs are not exactly [DEMO_BU_CODE]. The reply adds isDemo: true and portalUrl (settings.portal_url). Token refresh is unchanged; the demo token is pinned to the demo database and servicedemo by the usual guards.",
+			},
+			{ type: "heading", text: "Client (Steps 4–5)" },
+			{
+				type: "bullets",
+				items: [
+					"Route /demo → features/auth/pages/demo-page.tsx: logout + clearContext, demoLogin() (lib/auth-service.ts), setCredentials with toUserInstance (features/auth/utils/login-session.ts, shared with login-form.tsx), session mode client, navigate to /client/jobs.",
+					"UserInstanceType gains isDemo and portalUrl (persisted with the user); selectors selectIsDemo / selectDemoPortalUrl in auth-slice.ts.",
+					"selectIsReadOnly (store/context-slice.ts) = billing read_only OR auth.user.isDemo — every control on useIsReadOnly switches off; the payment banner reads billing directly and never shows for the demo.",
+					"components/shared/demo-banner.tsx (in client-layout.tsx above BillingBanner): text plus Start free → <portalUrl>/pricing?plan=lite.",
+					"apollo-client.ts BILLING_ERROR_CODES includes DEMO_READ_ONLY; read-only-dialog.tsx shows the demo title/body and a Start free button for it.",
+					"client-top-nav.tsx and client-activity-bar.tsx: logout of a demo session goes to portalUrl instead of /login.",
+				],
+			},
+			{ type: "heading", text: "Portal (Step 8)" },
+			{
+				type: "para",
+				text: "service-plus-portal: content/site-config.ts demoUrl = `${NEXT_PUBLIC_APP_URL}/demo`. Every entry point uses components/layout/live-demo-button.tsx (LiveDemoButton, sizes nav / default / lg, built on buttonVariants sm / default / lg so its height, radius and padding match the <Button>s beside it — keep that mapping): the teal --gradient-demo (teal → ocean blue, light and dark in app/globals.css, utilities bg-gradient-demo, text-gradient-demo, glow-demo — the glow carries an inset top highlight) plus a pulsing live dot, an up-right arrow for the new tab and the sheen sweep. Placed in: the header on every width (site-header.tsx; between md and lg the header drops Login, Get started and the theme toggle to make room, and the menu button shows up to lg), the mobile menu, the mobile bottom bar (mobile-action-bar.tsx, first of four), the home hero (first, lg with a No sign-up chip), under the screenshot gallery (MESSAGES.demoGalleryNote), the pricing strip (demoPricingNote), the closing band (cta-band.tsx), the features page hero and closing row, the workflow CTA and the footer. The app's Start free links go to <portalUrl>/pricing?plan=lite, which the pricing page reads to preselect Lite.",
+			},
+			{ type: "heading", text: "Demo data (Steps 6–7)" },
+			{
+				type: "para",
+				text: "app/demo/demo_data.py builds the workshop by calling the resolvers' helpers directly (resolve_generic_update_helper, resolve_create_single_job_helper with skip_usage, resolve_update_job_helper, resolve_deliver_job_helper, resolve_create_job_payment_helper, resolve_create_job_invoice_helper, resolve_create_sales_invoice_helper) with the same payloads the screens send, so numbering, stock_transaction/stock_balance and job_transaction stay consistent. Data comes from app/demo/demo_catalogue.py (invented names, 90000 1xxxx mobiles, example.com emails; product.name must be UPPER_SNAKE by check constraint). Reads are DemoServerSql (app/db/sql/sql_demo.py, not in SqlStore).",
+			},
+			{
+				type: "bullets",
+				items: [
+					"First fill (no jobs in the BU): branch/division details, SALES_INVOICE prefix CS (a fresh BU shares SI with SERVICE_INVOICE), 3 technicians, 4 suppliers, 6 products, 9 brands, ~30 models, a part list per brand+product (category = product), 80 customers, a purchase per brand to stock every part, then 90 days ending today.",
+					"Top-up: every day after max(job.job_date) up to today, at most 90. A run whose newest job is today adds no activity.",
+					"Catalogue sync on every run (_sync_catalogue): any product, brand, model or part in demo_catalogue.py that the BU lacks is added (matched by product name, brand code, brand+product+model name, brand+category+part name) and the new parts get a stocking purchase. So a catalogue edit reaches the live demo on the next Add demo data.",
+					"run_demo_brand_backfill(brand_codes, days=30): one-off server-side call (no button) that adds catalogue items and `days` days of jobs for those brands, moving other open jobs on those days as usual. Used on 14 Oct 2026 for CASIO (digital pianos, electronic keyboards) and SONY (mirrorless cameras, home theatre, soundbars). Its jobs take the next job numbers, so they are numbered after jobs of the same dates.",
+					"Each day (seeded random per date, so reruns of a day are reproducible): Monday restock purchases for brands running low; each open job moves at most one step once it has waited (RECEIVED → ASSIGNED/ESTIMATED → … → IN_PROGRESS → COMPLETED_OK or RETURN → final with parts and labour → receipt, deliverJob, invoice); 2–4 new jobs (1–2 on Sunday, 30% new customers); a counter sale on ~35% of days. About 10% of delivered jobs keep half the amount unpaid.",
+					"deliverJob stamps today's date on its job_transaction; the generator rewrites that row's transaction_date to the replayed day. performed_by_user_id is the demo user (NOT NULL column).",
+					"The demo uses its single non-GST division: no GST lines anywhere. Not generated: batches, opening stock, stock adjustments, extended-warranty leads, photos.",
+					"Safety: DB and BU only from settings; pg_try_advisory_lock(DemoServerSql.LOCK_KEY) for the run; DemoNotConfiguredError when settings or the head office are missing.",
+					"GraphQL (Super Admin only): demoStatus query → {configured, dbName, buCode, jobs, customers, newestJobDate, running, lastResult}; demoTopUp mutation starts run_demo_top_up as a background task and returns {started}. Run state is in-process (_state), so a restart forgets lastResult; a restart mid-run leaves the days already written, and the next run continues after the newest job date. Every helper call opens its own connection, so the first fill takes about half an hour against a remote database and a monthly top-up about ten minutes. demoTopUp is in ALLOWED in tests/test_view_only_guard.py.",
+					"Client: features/super-admin/components/demo-data-card.tsx on the System settings page; polls demoStatus every DEMO_STATUS_POLL_MS while running, then toasts the summary.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "How do I switch the demo off?",
+				a: "Empty DEMO_DB_NAME (or DEMO_BU_CODE) in .env and restart the server.",
+			},
+		],
+	},
+	{
+		id: "dev-bu-features",
+		category: "Access Control & Security",
+		title: "BU features (Super Admin)",
+		summary:
+			"Optional features the Super Admin switches on per business unit (security.bu.features). Off means hidden in the app and refused by the server. Spare Parts Web is the first one.",
+		tags: [
+			"bu features",
+			"feature flag",
+			"features",
+			"setBuFeatures",
+			"GET_BU_FEATURES",
+			"require_bu_feature",
+			"FEATURE_TABLES",
+			"FEATURE_NOT_ENABLED",
+			"selectHasBuFeature",
+			"visibleHelpArticles",
+			"parts_enabled",
+			"spare_parts_web",
+		],
+		content: [
+			{
+				type: "para",
+				text: "A feature is a name in security.bu.features (text[], NOT NULL, default empty) of a BU. It is not tied to a plan and only the Super Admin changes it: Super Admin → Clients → row menu → Features (features/super-admin/components/client-features-dialog.tsx): one section per feature with its description, an 'On for N of M' count and an 'All business units' tick for 'this client gets it', then one On/Off tile per BU. The tiles use the dialog's own large teal tick box (BigCheckbox, on the Radix primitive) rather than components/ui/checkbox, whose emerald tick vanishes on a filled box. The footer counts unsaved changes; Save is off until there is one. Every BU starts with none, including new ones.",
+			},
+			{ type: "heading", text: "The two catalogues" },
+			{
+				type: "bullets",
+				items: [
+					'Server: app/core/bu_features.py — BU_FEATURES {name: description} and one constant per name (SPARE_PARTS_WEB = "spare_parts_web"). setBuFeatures refuses any other name.',
+					"Client: src/constants/bu-features.ts — BU_FEATURES (keys) and BU_FEATURE_LIST (label, description, dialog order). tests/core/test_bu_features.py fails when a server name is missing from this file.",
+				],
+			},
+			{ type: "heading", text: "Server" },
+			{
+				type: "bullets",
+				items: [
+					"Column: sql_bu_admin_ddl.py for new tenant databases; scripts/run_bu_features_ddl.py (--dry-run, --db) adds it to existing ones and the template.",
+					"Reads go through to_jsonb(b) -> 'features' (GET_BU_BILLING_BY_CODE, GET_USER_BUS, GET_BU_FEATURES, PublicSql.LIST_ACTIVE_BUS), so a database without the column reads as 'no features' instead of breaking logins and writes. Keep that until every database has the column.",
+					"Status: billing_summary adds features (sorted), so get_bu_billing caches it with the billing row (60 s) and buBillingStatus and login's availableBus[].billing return it.",
+					"Save: setBuFeatures(db_name, value {bus: [{id, features}]}) — require_user_type {'S'}; resolvers/bu_admin/bu_features.py locks every BU (BillingServerSql.LOCK_ALL_BUS), refuses unknown names and foreign BU ids, writes SET_BU_FEATURES, then clear_bu_billing(db_name) and public_directory.invalidate(); audit SET_BU_FEATURES.",
+					"Read for the dialog: genericQuery GET_BU_FEATURES (BillingSql) on the client's security schema; it names security, so ADMIN_ONLY_SQL_IDS keeps it from business users.",
+					"Tenants cannot grant themselves one: features is in BU_BILLING_COLUMNS, which require_generic_update_access refuses on bu.",
+					"Enforcement: auth_guards.require_bu_feature(context, db, schema, feature) → AuthorizationException FEATURE_NOT_ENABLED (S passes). genericUpdate runs require_generic_update_features, which maps every table in the payload, at any depth, through FEATURE_TABLES (spare_part_web → spare_parts_web). REST routes check it themselves (image_router._require_spare_parts_web).",
+					"Public website: the directory keeps every active BU (job status and open jobs use the same list) and adds parts_enabled; resolve_parts_company returns None without the feature, so the parts routes 404. The directory cache is 5 minutes in other server processes. service-plus-web: lib/companies.ts loads /companies once per page (loadCompanies, shared with CompanySelect; Retry asks again) and usePartsAvailable() is true when any company has parts_enabled; nav-items.ts needsParts + useNavItems(), hero.tsx, footer.tsx and app/spare-parts/page.tsx hide spare parts until it is true. A server without the flag counts as not enabled (parts_enabled must be exactly true), so the website shows no spare parts until the server with this feature is deployed and a BU is switched on. The site-wide meta description no longer mentions spare parts, since it is static.",
+				],
+			},
+			{ type: "heading", text: "Client" },
+			{
+				type: "bullets",
+				items: [
+					"BuBillingType.features (store/context-slice.ts), filled from buBillingStatus on BU change and window focus — a change shows without a new login. selectHasBuFeature(state, BU_FEATURES.X) is false until it loads.",
+					"Help: HelpArticle.feature (components/shared/help/help-types.ts). visibleHelpArticles(features) in help-content.ts, used through useVisibleHelpArticles by both the Help panel (client-layout.tsx) and Ask AI (use-ask-help-ai.ts), so neither shows nor quotes a feature the BU lacks.",
+				],
+			},
+			{ type: "heading", text: "Adding the next feature" },
+			{
+				type: "steps",
+				items: [
+					"Add the name to app/core/bu_features.py and src/constants/bu-features.ts (with its label and description).",
+					"Hide its menu item and guard its screen with selectHasBuFeature.",
+					"Set feature on its staff help article(s).",
+					"Server: add its tables to FEATURE_TABLES; add require_bu_feature to any dedicated mutation or REST route it has.",
+					"Update this article and the feature's own developer article.",
+				],
+			},
+		],
+		faqs: [
+			{
+				q: "I switched a feature on but the user still doesn't see it.",
+				a: "The app reads features with buBillingStatus on BU change and window focus. Switch BU or click back into the window. The server may serve the old list for up to 60 s from another process's cache.",
+			},
+			{
+				q: "Is this the same as the Custom tab add-ons?",
+				a: "No. Extended Warranty is switched on by the tenant in App Settings (extended_warranty.enabled). BU features are granted by the Super Admin and the tenant cannot change them.",
 			},
 		],
 	},

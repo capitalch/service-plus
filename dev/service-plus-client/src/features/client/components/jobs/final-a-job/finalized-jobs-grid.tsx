@@ -37,6 +37,7 @@ import { JobTypeBadge } from "../job-badges";
 import type { FinalizedJobRow } from "./final-a-job-schema";
 import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
 import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	rows: FinalizedJobRow[];
@@ -90,6 +91,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 	},
 	ref,
 ) {
+	const isReadOnly = useIsReadOnly();
 	const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore } = useGridRowRetention(loading);
 	useImperativeHandle(ref, () => ({ armRestore }), [armRestore]);
 	const [maxHeight, setMaxHeight] = useState(0);
@@ -358,6 +360,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 														</DropdownMenuItem>
 														<DropdownMenuItem
 															className="gap-2 text-xs text-violet-700 dark:text-violet-400 focus:text-violet-700 dark:focus:text-violet-400"
+															disabled={isReadOnly}
 															onSelect={() => onOpenAttach(row.id, row.job_no)}
 														>
 															<Paperclip className="h-3.5 w-3.5 text-slate-600" />
@@ -366,6 +369,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 														<DropdownMenuSeparator />
 														<DropdownMenuItem
 															className="gap-2 text-xs text-blue-700 dark:text-blue-400 focus:text-blue-700 dark:focus:text-blue-400"
+															disabled={isReadOnly}
 															onSelect={() => onDeliver(row.id)}
 														>
 															{deliveryLoadingJobId === row.id ? (
@@ -406,7 +410,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 														<DropdownMenuSeparator />
 														<DropdownMenuItem
 															className="gap-2 text-xs text-orange-700 dark:text-orange-400 focus:text-orange-700 dark:focus:text-orange-400"
-															disabled={row.is_posted}
+															disabled={isReadOnly || row.is_posted}
 															title={
 																row.is_posted ? "Cannot revise a posted job" : undefined
 															}
@@ -419,6 +423,7 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                         cost correction is deliberately allowed on posted jobs. */}
 														<DropdownMenuItem
 															className="gap-2 text-xs text-rose-700 dark:text-rose-400 focus:text-rose-700 dark:focus:text-rose-400"
+															disabled={isReadOnly}
 															onSelect={() => onCorrectCosts(row)}
 														>
 															<IndianRupee className="h-3.5 w-3.5 text-slate-600" />
@@ -426,7 +431,9 @@ export const FinalizedJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 														</DropdownMenuItem>
 														<DropdownMenuItem
 															className="gap-2 text-xs text-amber-700 dark:text-amber-400 focus:text-amber-700 dark:focus:text-amber-400"
-															disabled={undoingJobId === row.id || row.is_posted}
+															disabled={
+																isReadOnly || undoingJobId === row.id || row.is_posted
+															}
 															title={
 																row.is_posted ? "Cannot undo a posted job" : undefined
 															}

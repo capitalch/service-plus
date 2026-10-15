@@ -13,7 +13,7 @@ Endpoints:
     GET /api/public/parts/{id}   - Single catalogue part, with its full photo gallery
     POST /api/public/part-orders - Submit a spare-parts order request (no payment, §7)
     POST /api/public/contact     - kush-infotech-web contact-form submission (email only, no DB row)
-    GET /api/public/plan-prices    - service-plus-portal price list (whole rupees)
+    GET /api/public/plan-prices    - service-plus-portal price list (whole rupees) and monthly allowances
     POST /api/public/sales-enquiry - service-plus-portal Enterprise enquiry (DB row in
                                     service_plus_client.public.sales_enquiry, then email)
     POST /api/public/signup        - Lite / Basic / Standard sign-up (DB row in the default
@@ -39,7 +39,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.core.dependencies import require_website_key
 from app.core.exceptions import AppMessages, ServicePlusException
-from app.core.plan_prices import PAISE_PER_RUPEE, PLAN_CODES, get_price_list
+from app.core.plan_prices import PAISE_PER_RUPEE, PLAN_CODES, get_plan_limits, get_price_list
 from app.core.email import send_email
 from app.core.rate_limit import rate_limit
 from app.db.connection.psycopg_driver import exec_sql, exec_sql_query, get_service_db_connection
@@ -62,6 +62,8 @@ class CompanyOut(BaseModel):
     id: str
     label: str
     parts_count: int
+    # Spare Parts Web is switched on for the BU; only the spare-parts page filters on it.
+    parts_enabled: bool
 
 
 class JobStatusOut(BaseModel):
@@ -217,7 +219,7 @@ async def resolve_branch(
 async def list_companies() -> list[CompanyOut]:
     """Return the public company (business unit) dropdown list."""
     companies = await public_directory.list_companies()
-    return [CompanyOut(id=c.id, label=c.label, parts_count=c.parts_count) for c in companies]
+    return [CompanyOut(id=c.id, label=c.label, parts_count=c.parts_count, parts_enabled=c.parts_enabled) for c in companies]
 
 
 @router.get(
@@ -320,7 +322,7 @@ async def list_branches(company: str = Query(..., min_length=1)) -> list[BranchO
     no dropdown is rendered at all, more than one means a dropdown preselected to
     the first result.
     """
-    resolved = await public_directory.resolve_company(company)
+    resolved = await public_directory.resolve_parts_company(company)
     if resolved is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown company")
     db_name, bu_code = resolved
@@ -391,7 +393,7 @@ async def list_parts(
     `image_url` (the cover, `image_urls[1]`) and the full `images` gallery, so the
     catalogue grid can let shoppers flip through photos without opening the detail
     dialog."""
-    resolved = await public_directory.resolve_company(company)
+    resolved = await public_directory.resolve_parts_company(company)
     if resolved is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown company")
     db_name, bu_code = resolved
@@ -436,7 +438,7 @@ async def get_part_detail(
     """Single catalogue part with its full photo gallery, already in display order
     straight off `image_urls` — no second query, no join (§3c/§5). 404 if the part
     doesn't exist, is inactive, or belongs to a different branch than resolved."""
-    resolved = await public_directory.resolve_company(company)
+    resolved = await public_directory.resolve_parts_company(company)
     if resolved is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown company")
     db_name, bu_code = resolved
@@ -571,13 +573,13 @@ async def submit_part_order(payload: PartOrderIn) -> PartOrderOut:
     every line must belong to the resolved branch or the whole submission is
     rejected (§3b).
     """
-    resolved = await public_directory.resolve_company(payload.company)
+    resolved = await public_directory.resolve_parts_company(payload.company)
     if resolved is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown company")
     db_name, bu_code = resolved
     schema = bu_code.lower()
-    # A view-only shop (an unpaid month, plans/plan.md Step 11) takes no orders.
-    if (await get_bu_billing(db_name, schema))["status"] == "read_only":
+    # The live demo and a view-only shop (an unpaid month, plans/plan.md Step 11) take no orders.
+    if settings.is_demo_bu(db_name, schema) or (await get_bu_billing(db_name, schema))["status"] == "read_only":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=AppMessages.PART_ORDER_UNAVAILABLE)
 
     branches = await _get_active_branches(db_name, schema)
@@ -789,9 +791,11 @@ def _signup_http_error(e: ServicePlusException) -> HTTPException:
 
 
 class PlanPriceOut(BaseModel):
+    jobs_per_month: int | None
     monthly_fee: int
     plan_code: str
     setup_fee: int
+    whatsapp_per_month: int | None
 
 
 class PlanPricesOut(BaseModel):
@@ -939,18 +943,22 @@ async def _notify_team_of_enterprise_enquiry(enquiry: dict, recipients: list[str
     dependencies=[Depends(rate_limit("plan-prices", limit=60, window_seconds=60))],
 )
 async def get_plan_prices(response: Response) -> PlanPricesOut:
-    """The portal's price list in whole rupees: per plan the setup and monthly fee, plus
-    the Enterprise included-BU count and extra-BU fee. Nothing else."""
+    """The portal's price list in whole rupees: per plan the setup and monthly fee and the
+    monthly job and WhatsApp allowances (None = unlimited), plus the Enterprise
+    included-BU count and extra-BU fee. Nothing else."""
     prices = get_price_list()
+    limits = {code: get_plan_limits(code) for code in PLAN_CODES}
     response.headers["Cache-Control"] = f"public, max-age={PRICE_CACHE_SECONDS}"
     return PlanPricesOut(
         enterprise_included_bus=prices.enterprise_included_bus,
         extra_bu_monthly_fee=prices.extra_bu_monthly_paise // PAISE_PER_RUPEE,
         plans=[
             PlanPriceOut(
+                jobs_per_month=limits[code].jobs,
                 monthly_fee=p.monthly_fee_paise // PAISE_PER_RUPEE,
                 plan_code=code,
                 setup_fee=p.setup_fee_paise // PAISE_PER_RUPEE,
+                whatsapp_per_month=limits[code].whatsapp,
             )
             for code, p in ((c, prices.plans[c]) for c in PLAN_CODES)
         ],

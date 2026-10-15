@@ -47,6 +47,7 @@ import { EwStateBadge } from "./ew-state-badge";
 import { EW_FOLLOW_UP_ACTIONS, EW_NOTES_MAX, EW_STAGES, EW_STATE_META, daysLeftLabel } from "./ew-state-machine";
 import { combineDateTime, ewFollowUpSchema } from "./extended-warranty-schema";
 import type { EwFollowUpFormType } from "./extended-warranty-schema";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	onClose: () => void;
@@ -93,6 +94,7 @@ function historyLine(item: EwTimelineItemType): string {
  * (the brief); Cancel / X ask before discarding typed work.
  */
 export const EwFollowUpDialog = ({ onClose, onSaved, row }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const branch = useAppSelector(selectCurrentBranch);
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
@@ -319,7 +321,7 @@ export const EwFollowUpDialog = ({ onClose, onSaved, row }: Props) => {
 							</Button>
 							<Button
 								className="bg-teal-600 text-white hover:bg-teal-700"
-								disabled={!isValid || saving}
+								disabled={isReadOnly || !isValid || saving}
 								type="submit"
 							>
 								{saving && <Loader2 className="h-4 w-4 animate-spin" />}

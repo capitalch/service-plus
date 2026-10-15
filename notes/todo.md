@@ -1,12 +1,24 @@
 # To Do
-Enhancements
+- Website parts
+	- Remove website parts for customers
+	- Configurable databases and BU' for which website parts are enabled
+- Mock drill before launch
+- Domain book
+	- implement domain myserviceplus.in
+- Guideline for getting started with 1st job
+	- Masters setup
+	- Receive
+	- Process
+	- Ready
+	- Final
+	- Delivery
+- Enhancements
 										- Set correctly, the app settings default values for seed data
 										- One internal remarks, not printable, for internal working
 	- Intimation for immediate collection of your set
 	- Creation of CRM for subscription for sales team
 	- Define hierarchy in portal and help system
-	- Define user rights in help system
-	- AI interface
+										- AI help interface
 	- Subscription
 		- Live demo and practice in demo site which is fully functional for demo purposes. You can make entry and see the results
 			- Demo user name and password available on demand
@@ -22,27 +34,6 @@ Enhancements
 				- Masters > Entities > Technician: Add technician
 				- In Single Job: Add a new model and select it
 								- Show workflow in portal
-- Subscription testing
-	- Enhancement / Alteration of portal
-	- Manually create a new user as manager and login as manager
-		- dummymanager, lohar49064@hudzer.com, s...3
-	- Super admin
-		- Remove customers client
-		- Create customers client
-			- Create admin user
-			- Login admin user
-			- Create dummy BU
-				- Check full cycle of job entry
-	- Enquiry for a lite version
-		- Create enquiry from dummy email
-			- Check thanks mail
-			- Check admin info mail
-			- Check notification to admin
-		- Admin creates a lite version
-		- Customer gets notification mail with credentials
-		- Customer checks full cycle
-	- Similar enquiry cycle for basic and standard and Ent version
-		- Check the options available as promised at site
 
 						- Bug fix
 									- Warranty parts show as loss, although charged to customers

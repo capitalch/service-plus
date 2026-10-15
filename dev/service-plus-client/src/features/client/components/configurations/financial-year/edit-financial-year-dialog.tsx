@@ -21,6 +21,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { FinancialYearType } from "@/features/client/types/financial-year";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +57,7 @@ function FieldError({ message }: { message?: string }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const EditFinancialYearDialog = ({ fy, onOpenChange, onSuccess, open }: EditFinancialYearDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingOverlap, setCheckingOverlap] = useState(false);
 
 	const dbName = useAppSelector(selectDbName);
@@ -198,7 +200,7 @@ export const EditFinancialYearDialog = ({ fy, onOpenChange, onSuccess, open }: E
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

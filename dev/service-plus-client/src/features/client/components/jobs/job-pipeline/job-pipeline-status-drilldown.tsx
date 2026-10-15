@@ -80,6 +80,7 @@ import {
 	type ChargesViewChargeLine,
 } from "../final-a-job/job-charges-readonly-modal";
 import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	status: JobBoardStatusCount;
@@ -154,6 +155,7 @@ const thClass =
 const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -865,6 +867,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 																				<DropdownMenuItem
 																					key={`${t.targetId}-${t.targetName}`}
 																					className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
+																					disabled={isReadOnly}
 																					onClick={() =>
 																						setPendingTran({
 																							job: row,
@@ -894,6 +897,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 																	)}
 																	<DropdownMenuItem
 																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
+																		disabled={isReadOnly}
 																		onClick={() => setUndoPendingJob(row)}
 																	>
 																		<Undo2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
@@ -906,6 +910,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 																	<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
 																	<DropdownMenuItem
 																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
+																		disabled={isReadOnly}
 																		onClick={() =>
 																			setChargesJob({
 																				id: row.id,
@@ -927,6 +932,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 																	<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
 																	<DropdownMenuItem
 																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
+																		disabled={isReadOnly}
 																		onClick={() => setFinalJobId(row.id)}
 																	>
 																		<CheckSquare className="h-3.5 w-3.5 shrink-0" />
@@ -939,7 +945,9 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 																	<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
 																	<DropdownMenuItem
 																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50 dark:focus:bg-orange-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
-																		disabled={row.invoice_is_posted === true}
+																		disabled={
+																			isReadOnly || row.invoice_is_posted === true
+																		}
 																		title={
 																			row.invoice_is_posted === true
 																				? "Cannot revise a posted job"
@@ -952,7 +960,9 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 																	</DropdownMenuItem>
 																	<DropdownMenuItem
 																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50 dark:focus:bg-amber-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
-																		disabled={row.invoice_is_posted === true}
+																		disabled={
+																			isReadOnly || row.invoice_is_posted === true
+																		}
 																		title={
 																			row.invoice_is_posted === true
 																				? "Cannot undo a posted job"
@@ -970,6 +980,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 																	<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
 																	<DropdownMenuItem
 																		className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
+																		disabled={isReadOnly}
 																		onClick={() => void handleOpenDelivery(row.id)}
 																	>
 																		<Truck className="h-3.5 w-3.5 shrink-0 text-orange-600" />
@@ -1005,6 +1016,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 															)}
 															<DropdownMenuItem
 																className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer"
+																disabled={isReadOnly}
 																onClick={() => setSetTechnicianJob(row)}
 															>
 																<UserCog className="h-3.5 w-3.5 shrink-0 text-blue-600" />

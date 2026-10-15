@@ -28,6 +28,7 @@ import { isDuplicateLeadError } from "./ew-mutations";
 import { isCompleteMobile } from "./ew-state-machine";
 import { buildEwLeadSchema } from "./extended-warranty-schema";
 import type { EwLeadFormType } from "./extended-warranty-schema";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type OptionType = { id: number; name: string };
 
@@ -76,6 +77,7 @@ function toForm(row: EwLeadType): EwLeadFormType {
  * mutations. A mobile lookup fills blank fields from an earlier lead or a Jobs customer.
  */
 export const EwLeadDialog = ({ editing, onClose, onSaved }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const branch = useAppSelector(selectCurrentBranch);
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
@@ -354,7 +356,7 @@ export const EwLeadDialog = ({ editing, onClose, onSaved }: Props) => {
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700"
-							disabled={!isValid || saving}
+							disabled={isReadOnly || !isValid || saving}
 							type="submit"
 						>
 							{saving && <Loader2 className="h-4 w-4 animate-spin" />}

@@ -46,6 +46,8 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
 	const dispatch = useAppDispatch();
 	const navigate = useNavigate();
 	const user = useAppSelector(selectCurrentUser);
+	const isDemo = user?.isDemo ?? false;
+	const demoPortalUrl = user?.portalUrl ?? null;
 	const currentBu = useAppSelector(selectCurrentBu);
 	const isAdmin = user?.userType === "A";
 
@@ -63,7 +65,9 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
 
 	function handleLogout() {
 		dispatch(logout());
-		navigate(ROUTES.login);
+		// A live-demo visitor goes back to the portal, not to a sign-in form they have no account for.
+		if (isDemo && demoPortalUrl) window.location.assign(demoPortalUrl);
+		else navigate(ROUTES.login);
 	}
 
 	return (

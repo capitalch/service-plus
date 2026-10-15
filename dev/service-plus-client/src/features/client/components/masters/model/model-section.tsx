@@ -18,7 +18,6 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MESSAGES } from "@/constants/messages";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -39,7 +38,7 @@ import { AddModelDialog } from "@/features/client/components/shared/model";
 import { DeleteModelDialog } from "./delete-model-dialog";
 import { EditModelDialog } from "./edit-model-dialog";
 import type { ModelType, BrandOption, ProductOption } from "@/features/client/types/model";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +63,7 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text
 export const ModelSection = () => {
 	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const dbName = useAppSelector(selectDbName);
 	const schema_ = useAppSelector(selectSchema);
 
@@ -227,7 +227,7 @@ export const ModelSection = () => {
 							className="bg-teal-600 text-white hover:bg-teal-700"
 							size="sm"
 							disabled={isReadOnly}
-							title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+							title={isReadOnly ? readOnlyTooltip : undefined}
 							onClick={() => setAddOpen(true)}
 						>
 							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -366,6 +366,7 @@ export const ModelSection = () => {
 														<DropdownMenuContent align="end" className="w-44">
 															<DropdownMenuItem
 																className="cursor-pointer text-sky-600 focus:text-sky-600"
+																disabled={isReadOnly}
 																onClick={() => setEditModel(model)}
 															>
 																<PencilIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
@@ -375,6 +376,7 @@ export const ModelSection = () => {
 															{model.is_active ? (
 																<DropdownMenuItem
 																	className="cursor-pointer text-amber-600 focus:text-amber-600"
+																	disabled={isReadOnly}
 																	onClick={() => handleToggleActive(model)}
 																>
 																	<ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -383,6 +385,7 @@ export const ModelSection = () => {
 															) : (
 																<DropdownMenuItem
 																	className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+																	disabled={isReadOnly}
 																	onClick={() => handleToggleActive(model)}
 																>
 																	<ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -392,6 +395,7 @@ export const ModelSection = () => {
 															<DropdownMenuSeparator />
 															<DropdownMenuItem
 																className="cursor-pointer text-red-600 focus:text-red-600"
+																disabled={isReadOnly}
 																onClick={() => setDeleteModel(model)}
 															>
 																<Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />

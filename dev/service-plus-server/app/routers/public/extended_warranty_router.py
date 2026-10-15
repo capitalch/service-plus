@@ -87,6 +87,7 @@ async def _notify_by_email(db_name: str, schema: str, row: dict, remarks: str = 
             return
         expiry = row.get("warranty_end_date")
         await send_email(
+            db_name=db_name,
             to=notify_email,
             subject=f"Extended warranty interest — {row.get('full_name') or 'customer'}",
             body=(

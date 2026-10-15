@@ -41,6 +41,7 @@ import type {
 	WhatsappAttempt,
 	WhatsappCompletionState,
 } from "./customer-connect-schema";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
@@ -71,6 +72,7 @@ type DispatchBanner = {
 type ActiveTab = "completion" | "intake" | "delivery" | "moneyReceipt" | "invoice";
 
 export function CustomerConnectSection() {
+	const isReadOnly = useIsReadOnly();
 	const [activeTab, setActiveTab] = useState<ActiveTab>("completion");
 	// Job Intake / Job Delivery / Money Receipt own their row/loading state
 	// internally (whatsapp-log-section.tsx / money-receipt-log-section.tsx)
@@ -641,7 +643,11 @@ export function CustomerConnectSection() {
 							<Button
 								className="h-9 gap-2 px-4 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md tracking-wide disabled:opacity-40 disabled:cursor-not-allowed"
 								disabled={
-									selectedIds.size === 0 || loadingGroups || !branchId || isWhatsappLimitReached
+									isReadOnly ||
+									selectedIds.size === 0 ||
+									loadingGroups ||
+									!branchId ||
+									isWhatsappLimitReached
 								}
 								title={
 									isWhatsappLimitReached

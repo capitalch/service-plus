@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { addReceiptSchema, getAddReceiptDefaults, type AddReceiptFormValues } from "./deliver-job-schema";
 import { PAYMENT_MODES } from "./deliver-job-helpers";
 import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,7 @@ type Props = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function AddReceiptModal({ open, defaultAmount = 0, subtitle, onClose, onSave }: Props) {
+	const isReadOnly = useIsReadOnly();
 	const form = useForm<AddReceiptFormValues>({
 		defaultValues: getAddReceiptDefaults(defaultAmount),
 		mode: "onChange",
@@ -147,7 +149,7 @@ export function AddReceiptModal({ open, defaultAmount = 0, subtitle, onClose, on
 					</Button>
 					<Button
 						className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed"
-						disabled={!form.formState.isValid || isSubmitting}
+						disabled={isReadOnly || !form.formState.isValid || isSubmitting}
 						onClick={form.handleSubmit(handleSave)}
 					>
 						{isSubmitting ? (

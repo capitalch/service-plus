@@ -1,6 +1,7 @@
 import { ArrowRight, Phone } from "lucide-react";
 import Link from "next/link";
 
+import { LiveDemoButton } from "@/components/layout/live-demo-button";
 import { Reveal } from "@/components/layout/reveal";
 import { Button } from "@/components/ui/button";
 import { MESSAGES } from "@/constants/messages";
@@ -13,9 +14,9 @@ export const CtaBand = () => {
 				{/* sheen runs the highlight sweep across the gradient band itself, so the whole
 				    surface breathes rather than just the button. */}
 				<div className="sheen bg-gradient-brand rounded-3xl px-6 py-12 text-center text-white shadow-xl sm:px-12">
-					<p className="text-sm font-semibold tracking-wide text-white/80 uppercase">{MESSAGES.ctaKicker}</p>
+					<p className="text-sm font-semibold tracking-wide text-white/90 uppercase">{MESSAGES.ctaKicker}</p>
 					<h2 className="mt-2 text-2xl font-bold sm:text-3xl">{MESSAGES.ctaTitle}</h2>
-					<p className="mx-auto mt-3 max-w-xl text-white/85">{MESSAGES.ctaBody}</p>
+					<p className="mx-auto mt-3 max-w-xl text-white/90">{MESSAGES.ctaBody}</p>
 					<div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
 						<Button asChild className="bg-white text-primary hover:bg-white/90" size="lg">
 							<Link href="/pricing">
@@ -23,6 +24,7 @@ export const CtaBand = () => {
 								<ArrowRight />
 							</Link>
 						</Button>
+						<LiveDemoButton className="ring-2 ring-white/40" size="lg" />
 						<Button
 							asChild
 							className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white dark:bg-transparent"

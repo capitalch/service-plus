@@ -40,7 +40,7 @@ import { DeleteVendorDialog } from "./delete-vendor-dialog";
 import { EditVendorDialog } from "./edit-vendor-dialog";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { StateOption } from "@/features/client/types/customer";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,6 +65,7 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text
 export const VendorSection = () => {
 	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 
@@ -222,7 +223,7 @@ export const VendorSection = () => {
 							className="bg-teal-600 text-white hover:bg-teal-700"
 							size="sm"
 							disabled={isReadOnly}
-							title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+							title={isReadOnly ? readOnlyTooltip : undefined}
 							onClick={() => setAddOpen(true)}
 						>
 							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -363,6 +364,7 @@ export const VendorSection = () => {
 														<DropdownMenuContent align="end" className="w-44">
 															<DropdownMenuItem
 																className="cursor-pointer text-sky-600 focus:text-sky-600"
+																disabled={isReadOnly}
 																onClick={() => setEditVendor(vendor)}
 															>
 																<PencilIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
@@ -372,6 +374,7 @@ export const VendorSection = () => {
 															{vendor.is_active ? (
 																<DropdownMenuItem
 																	className="cursor-pointer text-amber-600 focus:text-amber-600"
+																	disabled={isReadOnly}
 																	onClick={() => handleToggleActive(vendor)}
 																>
 																	<ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -380,6 +383,7 @@ export const VendorSection = () => {
 															) : (
 																<DropdownMenuItem
 																	className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+																	disabled={isReadOnly}
 																	onClick={() => handleToggleActive(vendor)}
 																>
 																	<ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -389,6 +393,7 @@ export const VendorSection = () => {
 															<DropdownMenuSeparator />
 															<DropdownMenuItem
 																className="cursor-pointer text-red-600 focus:text-red-600"
+																disabled={isReadOnly}
 																onClick={() => setDeleteVendor(vendor)}
 															>
 																<Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />

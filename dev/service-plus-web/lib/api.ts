@@ -67,6 +67,7 @@ interface CompanyApiResponse {
   id: string;
   label: string;
   parts_count?: number | null;
+  parts_enabled?: boolean;
 }
 
 export async function fetchCompanies(): Promise<Company[]> {
@@ -75,6 +76,9 @@ export async function fetchCompanies(): Promise<Company[]> {
     id: company.id,
     label: company.label,
     partsCount: typeof company.parts_count === "number" ? company.parts_count : null,
+    // Off unless the server says so: a server older than per-BU features sends no flag, and
+    // the website then offers no spare parts at all rather than every company's catalogue.
+    partsEnabled: company.parts_enabled === true,
   }));
 }
 

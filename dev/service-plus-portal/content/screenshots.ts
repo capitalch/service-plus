@@ -11,13 +11,13 @@ export type ScreenshotGroupType = {
 };
 
 function shot(file: string, caption: string): ScreenshotType {
-	return { alt: `Service+ ${caption} screen`, caption, src: `/images/screens/${file}.jpg` };
+	return { alt: `Service+ ${caption} screen`, caption, src: `/images/screens/${file}.webp` };
 }
 
 // Looks up a shot by its filename (no extension) across every group, for content that
 // references a screenshot by name rather than owning its own copy (e.g. content/features.ts).
 export function findScreenshot(file: string): ScreenshotType | undefined {
-	const target = `/images/screens/${file}.jpg`;
+	const target = `/images/screens/${file}.webp`;
 	return screenshotGroups.flatMap((group) => group.shots).find((candidate) => candidate.src === target);
 }
 

@@ -43,6 +43,8 @@ class AuditAction:
     SET_BILLING_HOLD           = "SET_BILLING_HOLD"
     SET_MONTHLY_FEE            = "SET_MONTHLY_FEE"
     START_CLIENT_BILLING       = "START_CLIENT_BILLING"
+    # Optional features per BU (app/core/bu_features.py)
+    SET_BU_FEATURES            = "SET_BU_FEATURES"
     # Sign-up enquiries (plans/plan.md Steps 9, 10)
     APPROVE_SALES_ENQUIRY      = "APPROVE_SALES_ENQUIRY"
     CONTACT_ENTERPRISE_ENQUIRY = "CONTACT_ENTERPRISE_ENQUIRY"

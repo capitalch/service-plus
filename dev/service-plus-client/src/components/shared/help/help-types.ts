@@ -23,6 +23,9 @@ export type HelpArticle = {
 	tags: string[];
 	content: ContentBlock[];
 	faqs: HelpFaq[];
+	/** Optional BU feature (constants/bu-features.ts) the article belongs to. The client help
+	 *  leaves it out, from the panel and from Ask AI, for a BU that does not have the feature. */
+	feature?: string;
 };
 
 export type CategoryStyleType = {

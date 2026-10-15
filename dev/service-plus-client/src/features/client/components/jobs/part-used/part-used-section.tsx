@@ -47,6 +47,7 @@ import { NewPartUsedForm } from "./new-part-used-form";
 import { EditPartUsedDialog } from "./edit-part-used-dialog";
 import { DeletePartUsedDialog } from "./delete-part-used-dialog";
 import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const PartUsedSection = () => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -363,7 +365,7 @@ export const PartUsedSection = () => {
 					</Button>
 					<Button
 						className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-						disabled={!selectedJob || !linesValid || form.formState.isSubmitting}
+						disabled={isReadOnly || !selectedJob || !linesValid || form.formState.isSubmitting}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{form.formState.isSubmitting ? (
@@ -581,7 +583,7 @@ export const PartUsedSection = () => {
 															</Button>
 															<Button
 																className="h-7 w-7 p-0 text-amber-500 hover:bg-amber-500/10 disabled:opacity-30 disabled:cursor-not-allowed"
-																disabled={row.is_closed || row.is_final}
+																disabled={isReadOnly || row.is_closed || row.is_final}
 																size="icon"
 																title={
 																	row.is_closed || row.is_final
@@ -595,7 +597,7 @@ export const PartUsedSection = () => {
 															</Button>
 															<Button
 																className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10 disabled:opacity-30 disabled:cursor-not-allowed"
-																disabled={row.is_closed || row.is_final}
+																disabled={isReadOnly || row.is_closed || row.is_final}
 																size="icon"
 																title={
 																	row.is_closed || row.is_final

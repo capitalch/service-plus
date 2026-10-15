@@ -22,6 +22,7 @@ import { useAppSelector } from "@/store/hooks";
 import { correctJobCosts } from "./correct-job-costs";
 import { isMissingCost } from "./cost-correction-helpers";
 import type { CostLine, EditableCostLine } from "./cost-correction-schema";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	open: boolean;
@@ -46,6 +47,7 @@ function fmt(n: number): string {
 // finalize screen's cost handler recomputes selling price from the markup, which
 // would move the price on an already-invoiced job.
 export function CorrectCostsModal({ open, jobId, jobNo, branchId, onClose, onSaved }: Props) {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 
@@ -239,7 +241,7 @@ export function CorrectCostsModal({ open, jobId, jobNo, branchId, onClose, onSav
 						<Button disabled={saving} variant="outline" onClick={onClose}>
 							Cancel
 						</Button>
-						<Button disabled={!canSave} onClick={() => void handleSave()}>
+						<Button disabled={isReadOnly || !canSave} onClick={() => void handleSave()}>
 							{saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
 							Save Costs
 						</Button>

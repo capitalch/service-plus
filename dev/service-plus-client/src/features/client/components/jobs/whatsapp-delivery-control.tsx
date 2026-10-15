@@ -9,6 +9,7 @@ import { isValidMobile } from "@/lib/mobile";
 import { useSendWhatsappJobDelivery } from "./use-send-whatsapp-job-delivery";
 import { getJobDeliveryOtpPending } from "./get-job-delivery-otp-pending";
 import { VerifyOtpDialog } from "./deliver-job/verify-otp-dialog";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // One control, two independent entry points (delivery-modal.tsx and
 // batch-warranty-transactions' results screen — plans/plan.md, Step 4,
@@ -55,6 +56,7 @@ export function WhatsappDeliveryControl({
 	disabledReason,
 	onConfirmed,
 }: Props) {
+	const isReadOnly = useIsReadOnly();
 	const { sending, send, ConfirmDialog } = useSendWhatsappJobDelivery();
 	const [otpDialogOpen, setOtpDialogOpen] = useState(false);
 	const [otpJobIds, setOtpJobIds] = useState<number[]>(jobIds);
@@ -102,7 +104,7 @@ export function WhatsappDeliveryControl({
 				size="sm"
 				variant="outline"
 				className="h-9 gap-1.5 px-3 text-sm border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed"
-				disabled={disabled || sending || !mobileValid}
+				disabled={isReadOnly || disabled || sending || !mobileValid}
 				title={
 					!mobileValid
 						? "No valid mobile number on file — use Invoice + Receipt / Delivery Note to print instead"

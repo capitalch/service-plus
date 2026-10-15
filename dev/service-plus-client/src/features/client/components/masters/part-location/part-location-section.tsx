@@ -39,7 +39,7 @@ import { AddPartLocationDialog } from "./add-part-location-dialog";
 import { DeletePartLocationDialog } from "./delete-part-location-dialog";
 import { EditPartLocationDialog } from "./edit-part-location-dialog";
 import type { BranchOption, PartLocationType } from "@/features/client/types/part-location";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +64,7 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text
 export const PartLocationSection = () => {
 	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 
@@ -216,7 +217,7 @@ export const PartLocationSection = () => {
 							className="bg-teal-600 text-white hover:bg-teal-700"
 							size="sm"
 							disabled={isReadOnly}
-							title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+							title={isReadOnly ? readOnlyTooltip : undefined}
 							onClick={() => setAddOpen(true)}
 						>
 							<PlusIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -342,6 +343,7 @@ export const PartLocationSection = () => {
 														<DropdownMenuContent align="end" className="w-44">
 															<DropdownMenuItem
 																className="cursor-pointer text-sky-600 focus:text-sky-600"
+																disabled={isReadOnly}
 																onClick={() => setEditLocation(loc)}
 															>
 																<PencilIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
@@ -351,6 +353,7 @@ export const PartLocationSection = () => {
 															{loc.is_active ? (
 																<DropdownMenuItem
 																	className="cursor-pointer text-amber-600 focus:text-amber-600"
+																	disabled={isReadOnly}
 																	onClick={() => handleToggleActive(loc)}
 																>
 																	<ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -359,6 +362,7 @@ export const PartLocationSection = () => {
 															) : (
 																<DropdownMenuItem
 																	className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+																	disabled={isReadOnly}
 																	onClick={() => handleToggleActive(loc)}
 																>
 																	<ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -368,6 +372,7 @@ export const PartLocationSection = () => {
 															<DropdownMenuSeparator />
 															<DropdownMenuItem
 																className="cursor-pointer text-red-600 focus:text-red-600"
+																disabled={isReadOnly}
 																onClick={() => setDeleteLocation(loc)}
 															>
 																<Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />

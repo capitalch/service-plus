@@ -64,6 +64,7 @@ ALLOWED = {
     "createBusinessUser",
     "createClient",
     "createServiceDb",
+    "demoTopUp",  # Super Admin only; writes the demo BU through the helpers, not the resolvers
     "extendClientPaidThrough",
     "deleteBuSchema",
     "deleteClient",
@@ -82,6 +83,7 @@ ALLOWED = {
     "rejectEnterpriseEnquiry",
     "rejectSalesEnquiry",
     "seedSecurityData",
+    "setBuFeatures",  # Super Admin only; a grant, not BU data
     "setClientBillingHold",
     "setClientMonthlyFee",
     "setEnterpriseEnquiryFee",
@@ -172,7 +174,7 @@ def test_summary_of_a_missing_bu_is_not_billed():
 def test_summary_of_an_unpaid_billed_bu_is_read_only():
     row = {"billing_required": True, "branch_limit": 1, "paid_through": None, "plan_code": "basic"}
     summary = billing_summary(row, date(2026, 10, 3))
-    assert summary == {"branchLimit": 1, "paidThrough": None, "planCode": "basic", "status": "read_only"}
+    assert summary == {"branchLimit": 1, "features": [], "paidThrough": None, "planCode": "basic", "status": "read_only"}
 
 
 def test_summary_dates_are_iso_text():

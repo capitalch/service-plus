@@ -68,7 +68,7 @@ import { buildReceiptPdf } from "@/features/client/components/jobs/deliver-job/d
 import type { JobDetailType } from "@/features/client/types/job";
 import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
 import { useSendWhatsappMoneyReceipt } from "./use-send-whatsapp-money-receipt";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -118,6 +118,7 @@ function modeBadgeClass(mode: string) {
 export const ReceiptsSection = () => {
 	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -469,6 +470,7 @@ export const ReceiptsSection = () => {
 				<div className="flex-1" />
 				<Button
 					className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest"
+					disabled={isReadOnly}
 					onClick={handleNewReceipt}
 				>
 					+ New Receipt
@@ -725,7 +727,11 @@ export const ReceiptsSection = () => {
 														Receipt
 													</DropdownMenuItem>
 													<DropdownMenuItem
-														disabled={!isValidMobile(row.mobile) || sendingWhatsappReceipt}
+														disabled={
+															isReadOnly ||
+															!isValidMobile(row.mobile) ||
+															sendingWhatsappReceipt
+														}
 														title={
 															isValidMobile(row.mobile)
 																? undefined
@@ -738,7 +744,7 @@ export const ReceiptsSection = () => {
 													</DropdownMenuItem>
 													<DropdownMenuSeparator />
 													<DropdownMenuItem
-														disabled={isReceiptJobRestricted(row)}
+														disabled={isReadOnly || isReceiptJobRestricted(row)}
 														onClick={() => {
 															if (!isReceiptJobRestricted(row)) handleEditReceipt(row);
 														}}
@@ -747,6 +753,7 @@ export const ReceiptsSection = () => {
 													</DropdownMenuItem>
 													<DropdownMenuItem
 														className="text-red-600 focus:text-red-600"
+														disabled={isReadOnly}
 														onClick={() => setDeleteRow(row)}
 													>
 														<Trash2 className="mr-2 h-3.5 w-3.5 text-red-600" /> Delete
@@ -851,7 +858,7 @@ export const ReceiptsSection = () => {
 						<Button
 							className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed"
 							disabled={isReadOnly || !form.formState.isValid || form.formState.isSubmitting}
-							title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+							title={isReadOnly ? readOnlyTooltip : undefined}
 							onClick={form.handleSubmit(executeSave)}
 						>
 							{form.formState.isSubmitting ? (
@@ -928,7 +935,11 @@ export const ReceiptsSection = () => {
 						<Button disabled={deleting} variant="outline" onClick={() => setDeleteRow(null)}>
 							Cancel
 						</Button>
-						<Button disabled={deleting} variant="destructive" onClick={() => void handleDelete()}>
+						<Button
+							disabled={isReadOnly || deleting}
+							variant="destructive"
+							onClick={() => void handleDelete()}
+						>
 							{deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
 							Delete
 						</Button>

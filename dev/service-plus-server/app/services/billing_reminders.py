@@ -68,7 +68,7 @@ async def _remind_database(db_name: str, today: date) -> int:
         subject = AppMessages.BILLING_EMAIL_REMINDER_SUBJECT.format(bu_name=bu["name"])
         recipients = await exec_sql(db_name, "security", BillingServerSql.GET_BU_BILLING_RECIPIENTS, {"bu_id": bu["id"]})
         for row in recipients:
-            await send_text_email(row["email"], subject, text)
+            await send_text_email(row["email"], subject, text, db_name=db_name)
         await exec_sql(db_name, "security", BillingServerSql.SET_BU_REMINDER, {"id": bu["id"], "kind": kind, "on": today})
         sent += 1
     return sent

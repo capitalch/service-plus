@@ -21,6 +21,7 @@ import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectHomeStateId, selectSchema } from "@/store/context-slice";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,7 @@ function FieldError({ message }: { message?: string }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const AddBranchDialog = ({ onOpenChange, onSuccess, open }: AddBranchDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingCode, setCheckingCode] = useState(false);
 	const [checkingName, setCheckingName] = useState(false);
 	const [codeTaken, setCodeTaken] = useState<boolean | null>(null);
@@ -417,7 +419,7 @@ export const AddBranchDialog = ({ onOpenChange, onSuccess, open }: AddBranchDial
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

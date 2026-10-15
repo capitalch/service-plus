@@ -8,15 +8,32 @@ Every Meta call in sender.py and ew_sender.py goes through here, never straight 
   messages reserves them all first, so it is refused whole instead of half-sent); gives it
   back if Meta did not accept it.
 - `limit_result` — the result of a send refused at the limit; Meta is never called.
+- `demo_result` — the result of a send for the live-demo database; Meta is never called,
+  whatever the BU's WhatsApp settings say.
 
 Kept apart from client.py so the Cloud API client stays free of database imports.
 """
 
+from app.config import settings
 from app.core.exceptions import AppMessages
+from app.logger import logger
 from app.services.bu_usage import release_whatsapp, reserve_whatsapp
 from app.whatsapp.client import WhatsappSendResult, send_template
 
+DEMO_NO_SEND = "DEMO_NO_SEND"
 WHATSAPP_LIMIT_REACHED = "WHATSAPP_LIMIT_REACHED"
+
+
+def demo_result(db_name: str, schema: str) -> WhatsappSendResult:
+    """A send dropped because it belongs to the live-demo database."""
+    logger.info("WhatsApp send dropped for live demo %s.%s", db_name, schema)
+    return WhatsappSendResult(
+        error_code=DEMO_NO_SEND,
+        error_message=AppMessages.DEMO_NO_SEND,
+        ok=False,
+        permanent=True,
+        provider_message_id=None,
+    )
 
 
 def limit_result() -> WhatsappSendResult:
@@ -31,7 +48,10 @@ def limit_result() -> WhatsappSendResult:
 
 
 async def send_metered(db_name: str, schema: str, *args, **kwargs) -> WhatsappSendResult:
-    """Reserve one message, then send it; refused without calling Meta at the limit."""
+    """Reserve one message, then send it; refused without calling Meta at the limit or for
+    the live-demo database."""
+    if settings.is_demo_db(db_name):
+        return demo_result(db_name, schema)
     if not await reserve_whatsapp(db_name, schema, 1):
         return limit_result()
     return await send_reserved(db_name, schema, *args, **kwargs)
@@ -39,7 +59,10 @@ async def send_metered(db_name: str, schema: str, *args, **kwargs) -> WhatsappSe
 
 async def send_reserved(db_name: str, schema: str, *args, **kwargs) -> WhatsappSendResult:
     """Send one message the caller already reserved; give it back when Meta did not accept
-    it, including when the call raised."""
+    it, including when the call raised. The live-demo database never reaches Meta."""
+    if settings.is_demo_db(db_name):
+        await release_whatsapp(db_name, schema, 1)
+        return demo_result(db_name, schema)
     try:
         result = await send_template(*args, **kwargs)
     except Exception:

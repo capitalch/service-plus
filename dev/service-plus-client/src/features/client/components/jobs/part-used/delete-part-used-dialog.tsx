@@ -13,6 +13,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 
 import type { ConsumptionRow } from "./part-used-schema";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	row: ConsumptionRow | null;
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export const DeletePartUsedDialog = ({ row, onClose, onDeleted }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const [deleting, setDeleting] = useState(false);
@@ -79,7 +81,7 @@ export const DeletePartUsedDialog = ({ row, onClose, onDeleted }: Props) => {
 					<Button disabled={deleting} variant="outline" onClick={onClose}>
 						Cancel
 					</Button>
-					<Button disabled={deleting} variant="destructive" onClick={() => void handleDelete()}>
+					<Button disabled={isReadOnly || deleting} variant="destructive" onClick={() => void handleDelete()}>
 						{deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
 						Delete
 					</Button>

@@ -4,8 +4,12 @@ Authentication router.
 Endpoints:
     POST /api/auth/clients   - Return all clients (public)
     POST /api/auth/login     - Authenticate user and return JWT
+    POST /api/auth/demo-login - Sign a live-demo visitor in as the demo user (no password)
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.core.exceptions import AuthorizationException
+from app.core.rate_limit import rate_limit
 from app.logger import logger
 from app.routers.auth.auth_schema import (
     ClientRequest,
@@ -20,6 +24,7 @@ from app.routers.auth.auth_schema import (
     ValidateResetTokenResponse,
 )
 from app.routers.auth.helper import (
+    demo_login_helper,
     get_clients_helper,
     login_helper,
     refresh_token_helper,
@@ -46,6 +51,22 @@ async def login(body: LoginRequest) -> LoginResponse:
         body.client_id,
     )
     return await login_helper(body)
+
+
+@router.post(
+    "/demo-login",
+    response_model=LoginResponse,
+    dependencies=[Depends(rate_limit("demo-login", limit=10, window_seconds=60))],
+)
+async def demo_login() -> LoginResponse:
+    """Sign a live-demo visitor in as the demo user (plans/plan.md Step 3). 503 with
+    detail.code DEMO_NOT_AVAILABLE when there is no usable demo."""
+    try:
+        return await demo_login_helper()
+    except AuthorizationException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail={"code": exc.code, "message": exc.message}
+        ) from exc
 
 
 @router.post("/set-password", response_model=SetPasswordResponse)

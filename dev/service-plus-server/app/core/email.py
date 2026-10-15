@@ -16,6 +16,7 @@ async def send_email(
     body: str,
     html_body: str | None = None,
     reply_to: str | None = None,
+    db_name: str | None = None,
 ) -> None:
     """Send an email asynchronously — plain-text only, or plain-text + HTML.
 
@@ -33,7 +34,12 @@ async def send_email(
                    MIMEText message exactly as before.
         reply_to:  Optional Reply-To address (e.g. so replying to a contact-form
                    notification goes straight to the submitter, not smtp_from).
+        db_name:   Tenant database the email is about, when there is one. An email for
+                   the live-demo database (settings.is_demo_db) is logged and dropped.
     """
+    if settings.is_demo_db(db_name):
+        logger.info("Email dropped for live demo %s: %s", db_name, subject)
+        return
     if not settings.smtp_host:
         raise RuntimeError(f"SMTP not configured — cannot send email to {to} (subject: {subject})")
 

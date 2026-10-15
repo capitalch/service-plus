@@ -22,6 +22,7 @@ import { JobTypeBadge } from "../job-badges";
 import type { FinalJobRow } from "./final-a-job-schema";
 import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
 import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	rows: FinalJobRow[];
@@ -59,6 +60,7 @@ export const PendingJobsGrid = forwardRef<GridRetentionHandle, Props>(function P
 	},
 	ref,
 ) {
+	const isReadOnly = useIsReadOnly();
 	const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore } = useGridRowRetention(loading);
 	useImperativeHandle(ref, () => ({ armRestore }), [armRestore]);
 	const [maxHeight, setMaxHeight] = useState(0);
@@ -314,7 +316,7 @@ export const PendingJobsGrid = forwardRef<GridRetentionHandle, Props>(function P
 												</Button>
 												<Button
 													className="h-7 gap-1 px-2 text-xs font-semibold text-emerald-700 border border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950/30"
-													disabled={loadingDetail !== null}
+													disabled={isReadOnly || loadingDetail !== null}
 													size="sm"
 													title="Finalise this job"
 													variant="outline"

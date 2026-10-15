@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Lock, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -51,6 +51,7 @@ export const InternalNotesPanel = ({ branchId, jobId, onChanged }: Props) => {
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const canManage = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_INTERNAL_NOTES_MANAGE);
 
 	const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -196,7 +197,7 @@ export const InternalNotesPanel = ({ branchId, jobId, onChanged }: Props) => {
 													disabled={isReadOnly}
 													onClick={() => setEditId(n.id)}
 													size="icon"
-													title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : "Edit"}
+													title={isReadOnly ? readOnlyTooltip : "Edit"}
 													type="button"
 													variant="ghost"
 												>
@@ -208,7 +209,7 @@ export const InternalNotesPanel = ({ branchId, jobId, onChanged }: Props) => {
 													disabled={isReadOnly}
 													onClick={() => setDeleteId(n.id)}
 													size="icon"
-													title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : "Delete"}
+													title={isReadOnly ? readOnlyTooltip : "Delete"}
 													type="button"
 													variant="ghost"
 												>

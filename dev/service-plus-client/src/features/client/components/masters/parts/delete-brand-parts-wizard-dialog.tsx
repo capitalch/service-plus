@@ -21,6 +21,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ export const DeleteBrandPartsWizardDialog = ({
 	onClose,
 	onDeleted,
 }: DeleteBrandPartsWizardDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema_ = useAppSelector(selectSchema);
 
@@ -221,7 +223,7 @@ export const DeleteBrandPartsWizardDialog = ({
 					</Button>
 					<Button
 						className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-						disabled={!deleteEnabled}
+						disabled={isReadOnly || !deleteEnabled}
 						onClick={handleDelete}
 					>
 						{submitting ? (

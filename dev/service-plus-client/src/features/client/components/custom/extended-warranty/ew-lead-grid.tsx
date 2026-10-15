@@ -51,6 +51,7 @@ import {
 } from "./ew-state-machine";
 import type { EwLeadActionsType } from "./use-ew-lead-actions";
 import { SerialNoLine } from "@/features/client/components/shared/device-cell";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // Selecting leads to send is this grid's main action, so its boxes are bigger and carry the
 // teal accent rather than the default hairline square. [&_svg] beats the tick's own colour.
@@ -91,6 +92,7 @@ type Props = {
  * checkbox; the send bar sends the selection through the shared confirm.
  */
 export const EwLeadGrid = ({ actions, filter, refreshKey, showStateFilter = false }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const branch = useAppSelector(selectCurrentBranch);
 	const [page, setPage] = useState(0);
 	const [search, setSearch] = useState("");
@@ -222,6 +224,7 @@ export const EwLeadGrid = ({ actions, filter, refreshKey, showStateFilter = fals
 					</span>
 					<Button
 						className="bg-teal-600 text-white hover:bg-teal-700"
+						disabled={isReadOnly}
 						size="sm"
 						onClick={() => actions.sendMany(selectedRows)}
 					>

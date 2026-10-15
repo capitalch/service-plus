@@ -23,6 +23,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import type { BrandOption } from "@/features/client/types/model";
 import type { ImportPartsResult, ParsedPart } from "@/features/client/types/import-parts";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type ImportPartDialogPropsType = {
 	brands: BrandOption[];
@@ -105,6 +106,7 @@ export const ImportPartDialog = ({
 	open,
 	schema,
 }: ImportPartDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [brandId, setBrandId] = useState<number | null>(null);
 	const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
 	const [columns, setColumns] = useState<string[]>([]);
@@ -883,7 +885,7 @@ export const ImportPartDialog = ({
 						)}
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700"
-							disabled={isLoading || parsedParts.filter((p) => p.isValid).length === 0}
+							disabled={isReadOnly || isLoading || parsedParts.filter((p) => p.isValid).length === 0}
 							onClick={doImport}
 						>
 							{isLoading ? (

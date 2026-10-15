@@ -52,6 +52,7 @@ import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { STATUS_COLORS } from "./status-transitions";
 import { UndoTransactionDialog } from "./undo-transaction-dialog";
 import { SerialNoLine } from "@/features/client/components/shared/device-cell";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	jobId: number;
@@ -146,6 +147,7 @@ function NarrativeBlock({ color, label, value }: { color: string; label: string;
 }
 
 export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -596,7 +598,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
 										size="sm"
 										variant="outline"
 										className="h-7 px-2.5 text-[11px] gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed"
-										disabled={sendingJobIntake || !isValidMobile(job.mobile)}
+										disabled={isReadOnly || sendingJobIntake || !isValidMobile(job.mobile)}
 										title={
 											isValidMobile(job.mobile)
 												? "Send Job Intake Notice via WhatsApp"
@@ -887,6 +889,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
 											<p className="text-sm text-slate-400">No files attached.</p>
 											<Button
 												className="h-7 px-3 text-xs text-blue-700 border-blue-300 hover:bg-blue-50"
+												disabled={isReadOnly}
 												size="sm"
 												variant="outline"
 												onClick={() => setAttachOpen(true)}
@@ -1068,6 +1071,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
 												variant="outline"
 												className="h-6 px-2 text-[11px] text-amber-700 border-amber-300 hover:bg-amber-50 disabled:opacity-40"
 												disabled={
+													isReadOnly ||
 													undoing ||
 													loading ||
 													!transactions.some((t) => t.id > 0) ||

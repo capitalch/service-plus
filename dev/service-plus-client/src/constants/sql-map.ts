@@ -368,6 +368,8 @@ export const SQL_MAP = {
 
 	// Sign-up enquiries (plans/plan.md Steps 9, 10) — SignupSql, admin-only. The lt pair runs in
 	// the default customer database's security schema; the Enterprise pair in the control plane.
+	// Super Admin → Clients → Features (per-BU optional features, BillingSql)
+	GET_BU_FEATURES: "GET_BU_FEATURES",
 	GET_BU_PAYMENTS: "GET_BU_PAYMENTS",
 	GET_BU_SUBSCRIPTIONS: "GET_BU_SUBSCRIPTIONS",
 	GET_ENTERPRISE_ENQUIRIES: "GET_ENTERPRISE_ENQUIRIES",

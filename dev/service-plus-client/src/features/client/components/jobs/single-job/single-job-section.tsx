@@ -73,7 +73,7 @@ import { JobAttachDialog } from "./job-attach-dialog";
 import { getJobSheetBlobUrl } from "../job-sheet-pdf";
 import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 import { UsageLine } from "@/components/shared/billing/usage-line";
 import { useUsageLimits } from "@/components/shared/billing/use-usage-limits";
 import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
@@ -103,6 +103,7 @@ export const SingleJobSection = ({
 }) => {
 	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	// A new job is off once the month's job allowance is used up; editing stays open (plans/plan.md Step 8).
 	const { isJobLimitReached, refreshUsage } = useUsageLimits();
 	const dbName = useAppSelector(selectDbName);
@@ -739,13 +740,7 @@ export const SingleJobSection = ({
 					<Button
 						className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
 						disabled={isReadOnly || isNewJobBlocked || !form.formState.isValid || submitting}
-						title={
-							isReadOnly
-								? MESSAGES.READ_ONLY_TOOLTIP
-								: isNewJobBlocked
-									? MESSAGES.BILLING_JOB_LIMIT
-									: undefined
-						}
+						title={isReadOnly ? readOnlyTooltip : isNewJobBlocked ? MESSAGES.BILLING_JOB_LIMIT : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{submitting ? (
@@ -1013,7 +1008,7 @@ export const SingleJobSection = ({
 															>
 																<DropdownMenuItem
 																	className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600 disabled:opacity-40 disabled:cursor-not-allowed"
-																	disabled={!!job.is_final}
+																	disabled={isReadOnly || !!job.is_final}
 																	title={
 																		job.is_final
 																			? "Job is finalized — edit not allowed"
@@ -1043,6 +1038,7 @@ export const SingleJobSection = ({
 																</DropdownMenuItem>
 																<DropdownMenuItem
 																	className="flex items-center gap-2 cursor-pointer text-violet-500 focus:bg-violet-500/10 focus:text-violet-600 font-semibold"
+																	disabled={isReadOnly}
 																	onClick={() => {
 																		setAttachJobId(job.id);
 																		setAttachJobNo(job.job_no);
@@ -1054,7 +1050,7 @@ export const SingleJobSection = ({
 																</DropdownMenuItem>
 																<DropdownMenuItem
 																	className="flex items-center gap-2 cursor-pointer text-emerald-600 focus:bg-emerald-500/10 focus:text-emerald-700 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-																	disabled={!isValidMobile(job.mobile)}
+																	disabled={isReadOnly || !isValidMobile(job.mobile)}
 																	title={
 																		!isValidMobile(job.mobile)
 																			? "No valid mobile number on file"
@@ -1075,7 +1071,7 @@ export const SingleJobSection = ({
 																</DropdownMenuItem>
 																<DropdownMenuItem
 																	className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-																	disabled={job.transaction_count > 1}
+																	disabled={isReadOnly || job.transaction_count > 1}
 																	title={
 																		job.transaction_count > 1
 																			? "Cannot delete: job has activity"
@@ -1174,7 +1170,11 @@ export const SingleJobSection = ({
 								<Button disabled={deleting} variant="outline" onClick={() => setDeleteId(null)}>
 									Cancel
 								</Button>
-								<Button disabled={deleting} variant="destructive" onClick={() => void handleDelete()}>
+								<Button
+									disabled={isReadOnly || deleting}
+									variant="destructive"
+									onClick={() => void handleDelete()}
+								>
 									{deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
 									Delete
 								</Button>

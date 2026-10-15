@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle, Phone, Rocket } from "lucide-react";
+import { MessageCircle, Phone, PlayCircle, Rocket } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -31,7 +31,16 @@ export const MobileActionBar = () => {
 				menuOpen && "translate-y-full",
 			)}
 		>
-			<div className="grid grid-cols-3 divide-x divide-border">
+			<div className="grid grid-cols-4 divide-x divide-border">
+				<a
+					className="bg-gradient-demo flex flex-col items-center gap-1 py-2.5 text-xs font-semibold text-white focus-visible:ring-ring/40 focus-visible:ring-3 focus-visible:outline-none"
+					href={siteConfig.demoUrl}
+					rel="noopener"
+					target="_blank"
+				>
+					<PlayCircle aria-hidden className="size-5" />
+					Live demo
+				</a>
 				<a
 					className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/40 flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors focus-visible:ring-3 focus-visible:outline-none"
 					href={`tel:${siteConfig.phoneE164}`}

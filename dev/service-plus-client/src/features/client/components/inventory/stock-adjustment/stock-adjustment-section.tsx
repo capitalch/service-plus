@@ -46,7 +46,7 @@ import type { StockAdjustmentType } from "@/features/client/types/stock-adjustme
 import { stockAdjFormSchema, type StockAdjFormValues, getStockAdjDefaultValues } from "./stock-adjustment-schema";
 import { NewStockAdjustment } from "./new-stock-adjustment";
 import { Save } from "lucide-react";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +67,7 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 export const StockAdjustmentSection = () => {
 	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -459,7 +460,7 @@ export const StockAdjustmentSection = () => {
 						disabled={
 							!form.formState.isValid || !linesValid || !selectedBrandId || form.formState.isSubmitting
 						}
-						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+						title={isReadOnly ? readOnlyTooltip : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{form.formState.isSubmitting ? (
@@ -665,6 +666,7 @@ export const StockAdjustmentSection = () => {
 															>
 																<DropdownMenuItem
 																	className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
+																	disabled={isReadOnly}
 																	onClick={() => {
 																		setEditAdjustment(adj);
 																		setSelectedBrand(String(adj.brand_id));
@@ -676,6 +678,7 @@ export const StockAdjustmentSection = () => {
 																</DropdownMenuItem>
 																<DropdownMenuItem
 																	className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
+																	disabled={isReadOnly}
 																	onClick={() => setDeleteId(adj.id)}
 																>
 																	<Trash2 className="h-4 w-4 text-red-600" />
@@ -783,7 +786,11 @@ export const StockAdjustmentSection = () => {
 								<Button disabled={deleting} variant="outline" onClick={() => setDeleteId(null)}>
 									Cancel
 								</Button>
-								<Button disabled={deleting} variant="destructive" onClick={() => void handleDelete()}>
+								<Button
+									disabled={isReadOnly || deleting}
+									variant="destructive"
+									onClick={() => void handleDelete()}
+								>
 									{deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
 									Delete
 								</Button>

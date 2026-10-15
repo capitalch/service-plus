@@ -2008,6 +2008,7 @@ CREATE TABLE security.bu (
     last_reminder_kind text,
     job_limit_monthly integer,
     whatsapp_limit_monthly integer,
+    features text[] DEFAULT '{}'::text[] NOT NULL,
     CONSTRAINT bu_branch_limit_check CHECK (((branch_limit IS NULL) OR (branch_limit >= 1))),
     CONSTRAINT bu_job_limit_check CHECK (((job_limit_monthly IS NULL) OR (job_limit_monthly >= 0))),
     CONSTRAINT bu_last_reminder_kind_check CHECK (((last_reminder_kind IS NULL) OR (last_reminder_kind = ANY (ARRAY['due_soon'::text, 'due_today'::text, 'lapsed'::text, 'first_payment'::text])))),

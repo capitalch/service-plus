@@ -27,8 +27,10 @@ function merge(response: PlanPricesResponseType): LivePricesType {
 						...plan,
 						businessUnits:
 							plan.code === "enterprise" ? response.enterprise_included_bus : plan.businessUnits,
+						jobsPerMonth: live.jobs_per_month,
 						monthlyPrice: live.monthly_fee,
 						setupFee: live.setup_fee,
+						whatsappPerMonth: live.whatsapp_per_month,
 					}
 				: plan;
 		}),
@@ -46,7 +48,7 @@ function loadPrices(): Promise<LivePricesType> {
 	return request;
 }
 
-/** The price list: the built-in fallback first, then the server's live prices once loaded. */
+/** The price list and monthly allowances: the built-in fallback first, then the server's live values once loaded. */
 export const usePlanPrices = (): LivePricesType => {
 	const [prices, setPrices] = useState<LivePricesType>(loaded ?? FALLBACK);
 

@@ -41,7 +41,7 @@ import { DeleteDivisionDialog } from "./delete-division-dialog";
 import { EditDivisionDialog } from "./edit-division-dialog";
 import type { DivisionType } from "@/features/client/types/division";
 import { useHasEnterpriseFeatures } from "@/components/shared/billing/use-has-enterprise-features";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +66,7 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text
 export const DivisionSection = () => {
 	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	// Lite / Basic / Standard: no Add Division button at all, same as Add Branch.
 	const canAddDivisionOnPlan = useHasEnterpriseFeatures();
 	const dbName = useAppSelector(selectDbName);
@@ -222,7 +223,7 @@ export const DivisionSection = () => {
 								className="bg-teal-600 text-white hover:bg-teal-700"
 								size="sm"
 								disabled={isReadOnly}
-								title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+								title={isReadOnly ? readOnlyTooltip : undefined}
 								onClick={() => setAddOpen(true)}
 							>
 								<PlusIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -378,6 +379,7 @@ export const DivisionSection = () => {
 														<DropdownMenuContent align="end" className="w-44">
 															<DropdownMenuItem
 																className="cursor-pointer text-sky-600 focus:text-sky-600"
+																disabled={isReadOnly}
 																onClick={() => setEditDivision(division)}
 															>
 																<PencilIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
@@ -388,6 +390,7 @@ export const DivisionSection = () => {
 															{division.is_default ? null : division.is_active ? (
 																<DropdownMenuItem
 																	className="cursor-pointer text-amber-600 focus:text-amber-600"
+																	disabled={isReadOnly}
 																	onClick={() => handleToggleActive(division)}
 																>
 																	<ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -396,6 +399,7 @@ export const DivisionSection = () => {
 															) : (
 																<DropdownMenuItem
 																	className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+																	disabled={isReadOnly}
 																	onClick={() => handleToggleActive(division)}
 																>
 																	<ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -407,6 +411,7 @@ export const DivisionSection = () => {
 																	<DropdownMenuSeparator />
 																	<DropdownMenuItem
 																		className="cursor-pointer text-red-600 focus:text-red-600"
+																		disabled={isReadOnly}
 																		onClick={() => setDeleteDivision(division)}
 																	>
 																		<Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />

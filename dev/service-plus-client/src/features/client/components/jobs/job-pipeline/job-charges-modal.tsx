@@ -24,6 +24,7 @@ import {
 	selectDefaultHsnForSparePart,
 	selectDefaultHsnForServiceCharge,
 } from "@/store/context-slice";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -121,6 +122,7 @@ function applyMarkup(costPrice: number | null, markupPct: number): number | null
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const isWarranty = job.job_type_code === "UNDER_WARRANTY";
 	const defaultGstRate = useAppSelector(selectDefaultGstRate);
 	const defaultHsnForSparePart = useAppSelector(selectDefaultHsnForSparePart);
@@ -495,6 +497,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 								<div className="flex items-center justify-center py-6">
 									<Button
 										className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+										disabled={isReadOnly}
 										size="sm"
 										type="button"
 										variant="outline"
@@ -684,6 +687,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 								<div className="flex items-center justify-center py-6">
 									<Button
 										className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+										disabled={isReadOnly}
 										size="sm"
 										type="button"
 										variant="outline"
@@ -848,7 +852,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 					</Button>
 					<Button
 						className="bg-teal-600 hover:bg-teal-700 text-white font-semibold"
-						disabled={saving || loading}
+						disabled={isReadOnly || saving || loading}
 						type="button"
 						onClick={() => void handleSave()}
 					>

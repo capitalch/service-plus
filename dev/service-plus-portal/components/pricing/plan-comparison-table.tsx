@@ -14,14 +14,20 @@ type RowType = {
 // Built per render because the business-unit row names the live extra-unit fee.
 function buildRows(extraBuMonthlyFee: number): RowType[] {
 	return [
-		{ label: "Monthly price", value: (p) => (p.monthlyPrice === 0 ? "Free" : formatInr(p.monthlyPrice)) },
-		{ label: "One-time setup", value: (p) => (p.setupFee === 0 ? "—" : formatInr(p.setupFee)) },
+		{
+			label: "Monthly price (excl. GST)",
+			value: (p) => (p.monthlyPrice === 0 ? "Free" : formatInr(p.monthlyPrice)),
+		},
+		{ label: "One-time setup (excl. GST)", value: (p) => (p.setupFee === 0 ? "—" : formatInr(p.setupFee)) },
 		{ label: "Users", value: (p) => (p.users === "single" ? "1" : "Multiple") },
 		{ label: "Logins / devices", value: () => "Multiple" },
 		{ label: "Jobs / month", value: (p) => (p.jobsPerMonth === null ? "Unlimited" : String(p.jobsPerMonth)) },
 		{
 			label: "WhatsApp messages / month",
-			value: (p) => (p.whatsappPerMonth === 0 ? false : p.whatsappPerMonth.toLocaleString("en-IN")),
+			value: (p) => {
+				if (p.whatsappPerMonth === null) return "Unlimited";
+				return p.whatsappPerMonth === 0 ? false : p.whatsappPerMonth.toLocaleString("en-IN");
+			},
 		},
 		{ label: "Spare-parts inventory", value: (p) => p.inventory },
 		{

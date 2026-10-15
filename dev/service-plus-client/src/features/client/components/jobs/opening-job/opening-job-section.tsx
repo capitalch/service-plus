@@ -56,7 +56,7 @@ import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { STATUS_FLAGS } from "../job-pipeline/status-transitions";
 import { OpeningJobForm } from "./opening-job-form";
 import { openingJobFormSchema, type OpeningJobFormValues, getOpeningJobDefaultValues } from "./opening-job-schema";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -76,6 +76,7 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 export const OpeningJobSection = () => {
 	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -575,7 +576,7 @@ export const OpeningJobSection = () => {
 					<Button
 						className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
 						disabled={isReadOnly || !form.formState.isValid || form.formState.isSubmitting}
-						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+						title={isReadOnly ? readOnlyTooltip : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{form.formState.isSubmitting ? (
@@ -790,7 +791,7 @@ export const OpeningJobSection = () => {
 																</DropdownMenuItem>
 																<DropdownMenuItem
 																	className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600 disabled:opacity-40 disabled:cursor-not-allowed"
-																	disabled={!!job.is_final}
+																	disabled={isReadOnly || !!job.is_final}
 																	title={
 																		job.is_final
 																			? "Job is finalized — edit not allowed"
@@ -808,6 +809,7 @@ export const OpeningJobSection = () => {
 																</DropdownMenuItem>
 																<DropdownMenuItem
 																	className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
+																	disabled={isReadOnly}
 																	onClick={() => setDeleteId(job.id)}
 																>
 																	<Trash2 className="h-4 w-4 text-red-600" />
@@ -898,7 +900,11 @@ export const OpeningJobSection = () => {
 								<Button disabled={deleting} variant="outline" onClick={() => setDeleteId(null)}>
 									Cancel
 								</Button>
-								<Button disabled={deleting} variant="destructive" onClick={() => void handleDelete()}>
+								<Button
+									disabled={isReadOnly || deleting}
+									variant="destructive"
+									onClick={() => void handleDelete()}
+								>
 									{deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
 									Delete
 								</Button>

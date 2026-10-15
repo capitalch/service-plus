@@ -23,6 +23,7 @@ import type { TechnicianRow } from "@/features/client/types/job";
 import type { DivisionContextType } from "@/features/client/types/division";
 import { STATUS_COLORS } from "./status-transitions";
 import type { Transition } from "./status-transitions";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ const today = new Date().toISOString().slice(0, 10);
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const StatusTransitionModal = ({ divisions, job, transition, technicians, onClose, onSubmit }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const { fields } = transition;
 	const showEstimate = fields.includes("E");
 	const showTechnician = fields.includes("T") || fields.includes("t");
@@ -358,7 +360,7 @@ export const StatusTransitionModal = ({ divisions, job, transition, technicians,
 					</Button>
 					<Button
 						className="bg-teal-600 hover:bg-teal-700 text-white font-semibold"
-						disabled={isSubmitting}
+						disabled={isReadOnly || isSubmitting}
 						type="button"
 						onClick={() => void form.handleSubmit(handleSubmit)()}
 					>

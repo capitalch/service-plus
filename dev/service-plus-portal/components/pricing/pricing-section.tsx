@@ -4,6 +4,7 @@ import { ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { LiveDemoButton } from "@/components/layout/live-demo-button";
 import { Reveal } from "@/components/layout/reveal";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { PlanCard } from "@/components/pricing/plan-card";
@@ -14,11 +15,13 @@ import { MESSAGES } from "@/constants/messages";
 import { findPlan, type PlanCodeType } from "@/content/pricing";
 import { usePlanPrices } from "@/lib/plan-prices";
 
-// Owns the selected plan shared by the recommender, the cards and the enquiry form. Picking a
-// plan anywhere preselects it and scrolls to the form; an incoming /pricing?plan=basic link does
-// the same on load.
+// Owns the selected plan shared by the recommender, the cards and the enquiry form. Nothing is
+// selected on first load, so "Selected" only ever appears once the visitor has actually chosen;
+// the form still defaults to Standard underneath for anyone who never picks. Choosing a plan
+// anywhere highlights it and scrolls to the form; an incoming /pricing?plan=basic link does the
+// same on load.
 export const PricingSection = () => {
-	const [selectedPlan, setSelectedPlan] = useState<PlanCodeType>("standard");
+	const [selectedPlan, setSelectedPlan] = useState<PlanCodeType | null>(null);
 	const formRef = useRef<HTMLDivElement>(null);
 	const { extraBuMonthlyFee, plans } = usePlanPrices();
 
@@ -41,12 +44,15 @@ export const PricingSection = () => {
 	// it, then move the visitor to the form they now need to fill in.
 	return (
 		<>
+			<div className="mb-10 flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-card/70 px-5 py-5 text-center shadow-sm sm:flex-row sm:text-left">
+				<p className="text-sm font-medium text-foreground sm:text-base">{MESSAGES.demoPricingNote}</p>
+				<LiveDemoButton />
+			</div>
 			<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
 				{plans.map((plan, index) => (
 					<Reveal delay={index * 0.06} key={plan.code}>
 						<PlanCard
 							extraBuMonthlyFee={extraBuMonthlyFee}
-							onPick={setSelectedPlan}
 							onSelect={handleSelect}
 							plan={plan}
 							selected={plan.code === selectedPlan}
@@ -54,6 +60,7 @@ export const PricingSection = () => {
 					</Reveal>
 				))}
 			</div>
+			<p className="mt-4 text-center text-xs text-muted-foreground">{MESSAGES.gstNote}</p>
 
 			<div className="mx-auto mt-12 max-w-3xl">
 				<PlanRecommender onSelect={handleSelect} />
@@ -80,7 +87,7 @@ export const PricingSection = () => {
 					</Button>
 				</div>
 				<div className="relative mt-8 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-8">
-					<SalesEnquiryForm selectedPlan={selectedPlan} />
+					<SalesEnquiryForm selectedPlan={selectedPlan ?? "standard"} />
 				</div>
 			</div>
 		</>

@@ -40,7 +40,7 @@ export const ContactEnquiryForm = () => {
 							{selected && <Check aria-hidden className="mr-1 inline size-3.5" />}
 							{option.name}
 							<span className="text-muted-foreground ml-1.5 text-xs">
-								{option.monthlyPrice === 0 ? "Free" : `${formatInr(option.monthlyPrice)}/mo`}
+								{option.monthlyPrice === 0 ? "Free" : `${formatInr(option.monthlyPrice)}/mo + GST`}
 							</span>
 						</button>
 					);

@@ -2,10 +2,9 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { MESSAGES } from "@/constants/messages";
 
 import { INTERNAL_NOTE_MAX, internalNoteSchema } from "./internal-note-schema";
 import type { InternalNoteFormType } from "./internal-note-schema";
@@ -20,6 +19,7 @@ type Props = {
 /** Add Note (no Cancel) and inline edit (with Cancel). Resets after a successful add. */
 export const InternalNoteForm = ({ defaultValue = "", onCancel, onSubmit, submitLabel }: Props) => {
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const {
 		control,
 		formState: { errors, isSubmitting, isValid },
@@ -71,7 +71,7 @@ export const InternalNoteForm = ({ defaultValue = "", onCancel, onSubmit, submit
 						className="h-7 px-3 text-xs"
 						disabled={!isValid || isSubmitting || isReadOnly}
 						size="sm"
-						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+						title={isReadOnly ? readOnlyTooltip : undefined}
 						type="submit"
 					>
 						{isSubmitting && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}

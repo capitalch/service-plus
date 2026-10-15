@@ -15,8 +15,6 @@ import { cn } from "@/lib/utils";
 
 type PlanCardPropsType = {
 	extraBuMonthlyFee: number;
-	/** Clicking the card body: select the plan and stay put. */
-	onPick: (code: PlanCodeType) => void;
 	/** The card's button: select the plan and go on to the enquiry form. */
 	onSelect: (code: PlanCodeType) => void;
 	plan: PlanType;
@@ -34,7 +32,7 @@ function planLines(plan: PlanType, extraBuMonthlyFee: number): LineType[] {
 		{ included: true, label: usersLabel(plan) },
 		{ included: true, label: jobsLabel(plan) },
 		{ included: true, label: "GST & non-GST billing" },
-		{ included: plan.whatsappPerMonth > 0, label: whatsappLabel(plan) },
+		{ included: plan.whatsappPerMonth !== 0, label: whatsappLabel(plan) },
 		{ included: plan.inventory, label: plan.inventory ? "Spare-parts inventory" : "No spare-parts inventory" },
 		{ included: true, label: businessUnitsLabel(plan, extraBuMonthlyFee) },
 		{ included: true, label: branchesLabel(plan) },
@@ -42,27 +40,33 @@ function planLines(plan: PlanType, extraBuMonthlyFee: number): LineType[] {
 	];
 }
 
-export const PlanCard = ({ extraBuMonthlyFee, onPick, onSelect, plan, selected }: PlanCardPropsType) => {
+export const PlanCard = ({ extraBuMonthlyFee, onSelect, plan, selected }: PlanCardPropsType) => {
 	const isFree = plan.monthlyPrice === 0;
 
+	// The whole card is clickable to select the plan and scroll to the form.
 	return (
 		<article
 			aria-current={selected ? "true" : undefined}
+			tabIndex={0}
+			role="button"
 			className={cn(
-				"relative flex h-full cursor-pointer flex-col rounded-2xl border bg-card p-6 transition-all duration-300",
-				// Selected: a crisp 2px brand outline (border + 1px ring, no blur) and no shadow. "Most popular"
-				// is plain teal, so the two never look alike — Standard is both on first load, and then the
-				// blue wins.
+				"relative flex h-full flex-col rounded-2xl border bg-card p-6 transition-all duration-300 outline-none focus-visible:ring-3 focus-visible:ring-primary/40 cursor-pointer",
 				selected
 					? "border-primary shadow-none ring-1 ring-primary"
 					: plan.highlighted
-						? "border-2 border-teal-500 p-[23px] dark:border-teal-400"
-						: "border-border shadow-xs hover:-translate-y-0.5 hover:shadow-md",
+						? "border-2 border-primary/20 p-[23px] shadow-md"
+						: "border-border shadow-xs hover:shadow-md",
 			)}
-			onClick={() => onPick(plan.code)}
+			onClick={() => onSelect(plan.code)}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					onSelect(plan.code);
+				}
+			}}
 		>
 			{plan.highlighted && (
-				<span className="absolute -top-3 left-4 inline-flex items-center gap-1 rounded-full bg-teal-600 px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap text-white shadow-sm">
+				<span className="bg-gradient-brand text-white absolute -top-3 left-4 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap shadow-sm">
 					<Star aria-hidden className="size-3 fill-current" />
 					Most popular
 				</span>
@@ -84,8 +88,18 @@ export const PlanCard = ({ extraBuMonthlyFee, onPick, onSelect, plan, selected }
 				</span>
 				{!isFree && <span className="text-sm text-muted-foreground">/ month</span>}
 			</p>
-			<p className="mt-1 text-xs text-muted-foreground">
-				{plan.setupFee > 0 ? `+ ${formatInr(plan.setupFee)} one-time setup` : "No setup fee"}
+			{/* Two lines on every card, so the feature lists below start level. */}
+			<p className="mt-1 min-h-8 text-xs text-muted-foreground">
+				{isFree ? (
+					"No setup fee"
+				) : (
+					<>
+						{plan.setupFee > 0 && (
+							<span className="block">+ {formatInr(plan.setupFee)} one-time setup</span>
+						)}
+						<span className="block">{plan.setupFee > 0 ? "Both prices exclude GST" : "Excludes GST"}</span>
+					</>
+				)}
 			</p>
 
 			<ul className="mt-6 flex-1 space-y-2.5 text-sm">
@@ -106,10 +120,7 @@ export const PlanCard = ({ extraBuMonthlyFee, onPick, onSelect, plan, selected }
 
 			<Button
 				aria-pressed={selected}
-				className={cn(
-					"mt-6 w-full",
-					plan.highlighted && !selected && "bg-teal-600 text-white hover:bg-teal-700",
-				)}
+				className="mt-6 w-full"
 				onClick={(e) => {
 					e.stopPropagation();
 					onSelect(plan.code);

@@ -27,7 +27,15 @@ export type SalesEnquiryType = {
 export type PlanPricesResponseType = {
 	enterprise_included_bus: number;
 	extra_bu_monthly_fee: number;
-	plans: { monthly_fee: number; plan_code: string; setup_fee: number }[];
+	plans: {
+		/** null = unlimited. */
+		jobs_per_month: number | null;
+		monthly_fee: number;
+		plan_code: string;
+		setup_fee: number;
+		/** null = unlimited. */
+		whatsapp_per_month: number | null;
+	}[];
 };
 
 export type SignupStatusType = {

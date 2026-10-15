@@ -387,6 +387,7 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 							<span className="font-medium text-foreground">{plan.name}:</span>{" "}
 							{plan.monthlyPrice === 0 ? "Free" : `${formatInr(plan.monthlyPrice)} / month`}
 							{plan.setupFee > 0 && ` + ${formatInr(plan.setupFee)} setup`}
+							{plan.monthlyPrice > 0 && (plan.setupFee > 0 ? ", both + GST" : " + GST")}
 						</p>
 					) : (
 						<span />

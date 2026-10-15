@@ -62,9 +62,11 @@ export type LoginResponseType = {
 	fullName?: string;
 	id?: string;
 	isDefaultCustomerDb?: boolean;
+	isDemo?: boolean;
 	lastUsedBranchId?: number | null;
 	lastUsedBuId?: number | null;
 	mobile?: string;
+	portalUrl?: string | null;
 	roleCode?: string;
 	roleName?: string;
 	username: string;
@@ -83,9 +85,13 @@ export type UserInstanceType = {
 	id?: string;
 	// Only shows or hides the platform owner's screens; the server re-checks every action.
 	isDefaultCustomerDb?: boolean;
+	// A live-demo session (POST /api/auth/demo-login): the screens are read-only.
+	isDemo?: boolean;
 	lastUsedBranchId?: number | null;
 	lastUsedBuId?: number | null;
 	mobile?: string;
+	// Portal base URL, set only for a live-demo session (its "Start free" links).
+	portalUrl?: string | null;
 	roleCode?: string;
 	roleName?: string;
 	userType: "A" | "B" | "S";
@@ -101,11 +107,24 @@ function extractApiError(err: unknown): ApiError {
 	if (err instanceof AxiosError && err.response) {
 		return {
 			errors: err.response.data?.errors,
-			message: err.response.data?.detail || err.response.data?.message || "Request failed",
+			message:
+				err.response.data?.detail?.message ||
+				err.response.data?.detail ||
+				err.response.data?.message ||
+				"Request failed",
 			status: err.response.status,
 		};
 	}
 	return { message: "Request failed", status: 0 };
+}
+
+export async function demoLogin(): Promise<LoginResponseType> {
+	try {
+		const response = await axiosInstance.post("/api/auth/demo-login");
+		return response.data;
+	} catch (err) {
+		throw extractApiError(err);
+	}
 }
 
 export async function forgotPasswordRequest(data: ForgotPasswordRequest): Promise<ForgotPasswordResponse> {

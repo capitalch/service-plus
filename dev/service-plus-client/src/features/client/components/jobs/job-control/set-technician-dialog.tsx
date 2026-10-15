@@ -14,6 +14,7 @@ import { encodeObj } from "@/lib/graphql-utils";
 import { selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobControlRow, TechnicianRow } from "@/features/client/types/job";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,7 @@ type SetTechnicianDialogPropsType = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SetTechnicianDialog = ({ job, onClose, onSuccess, technicians }: SetTechnicianDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [submitting, setSubmitting] = useState(false);
 	const [technicianId, setTechnicianId] = useState<string>(job.technician_id ? String(job.technician_id) : "");
 	const currentUser = useAppSelector(selectCurrentUser);
@@ -139,7 +141,7 @@ export const SetTechnicianDialog = ({ job, onClose, onSuccess, technicians }: Se
 					</Button>
 					<Button
 						className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-						disabled={unchanged || submitting}
+						disabled={isReadOnly || unchanged || submitting}
 						type="button"
 						onClick={() => void handleSubmit()}
 					>

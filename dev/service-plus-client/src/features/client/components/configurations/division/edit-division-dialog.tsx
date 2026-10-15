@@ -24,6 +24,7 @@ import { selectCurrentBranch, selectPostDataToAccounts, selectSchema } from "@/s
 import { divisionSchema } from "./division-schema";
 import type { DivisionFormValues } from "./division-schema";
 import type { DivisionType } from "@/features/client/types/division";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,6 +106,7 @@ function buildAccountSetting(division: DivisionType) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: EditDivisionDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingName, setCheckingName] = useState(false);
 	const [nameTaken, setNameTaken] = useState<boolean | null>(null);
 	const [checkingCode, setCheckingCode] = useState(false);
@@ -951,7 +953,7 @@ export const EditDivisionDialog = ({ division, onOpenChange, onSuccess, open }: 
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

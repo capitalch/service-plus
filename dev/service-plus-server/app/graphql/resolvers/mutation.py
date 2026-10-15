@@ -7,7 +7,9 @@ from typing import Any
 from urllib.parse import unquote
 from ariadne import MutationType  # pylint: disable=import-error
 from app.ai_help.service import ask_help_ai
-from app.core.exceptions import AppMessages, AuthorizationException
+from app.config import settings
+from app.core.exceptions import AppMessages, AuthorizationException, ValidationException
+from app.demo.demo_data import start_demo_top_up
 from app.graphql.resolvers.bu_admin.staff_users import require_manager_creates_staff_user
 from app.graphql.resolvers.auth_guards import (
     BYPASS_USER_TYPES,
@@ -17,6 +19,7 @@ from app.graphql.resolvers.auth_guards import (
     require_bu_writable,
     require_default_customer_db,
     require_generic_update_access,
+    require_generic_update_features,
     require_own_tenant,
     require_user_type,
 )
@@ -47,6 +50,7 @@ from app.graphql.resolvers.bu_admin.billing import (
     resolve_set_client_monthly_fee_helper,
     resolve_start_client_billing_helper,
 )
+from app.graphql.resolvers.bu_admin.bu_features import resolve_set_bu_features_helper
 from app.graphql.resolvers.bu_admin.enterprise_enquiries import (
     resolve_mark_enterprise_enquiry_contacted_helper,
     resolve_mark_enterprise_enquiry_payment_failed_helper,
@@ -346,6 +350,8 @@ async def resolve_generic_update(_, info, db_name="", schema="public", value="")
     require_generic_update_access(info, schema, value)
     await require_bu_writable(info, db_name, schema)
     _require_generic_update_table_right(info, value)
+    # Tables of an optional BU feature (auth_guards.FEATURE_TABLES) need it switched on.
+    await require_generic_update_features(info, db_name, schema, value)
     # Every branch keeps exactly one default division (plans/plan2.md Step 2): branches
     # are created only through addBranch, and a default division cannot be deleted,
     # deactivated, moved or re-flagged here. Applies to every user type.
@@ -535,6 +541,15 @@ async def resolve_set_client_billing_hold(_, info, db_name="", schema="", value=
     # pylint: disable=unused-argument
     require_user_type(info, {"S"})
     return await resolve_set_client_billing_hold_helper(db_name, value)
+
+
+@mutation.field("setBuFeatures")
+@handle_graphql_errors("Error in setBuFeatures")
+async def resolve_set_bu_features(_, info, db_name="", schema="", value="") -> Any:
+    """Switch optional features on or off per BU of one client. Super Admin only."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_set_bu_features_helper(db_name, value)
 
 
 @mutation.field("startClientBilling")
@@ -1004,6 +1019,17 @@ async def resolve_ask_dev_help_ai(_, info, value: str = "") -> Any:
     bucket = f"developer:{context.get('db_name') or 'super-admin'}"
     user_key = f"{context.get('user_type')}:{context.get('db_name')}:{context.get('user_id')}"
     return await ask_help_ai(bucket, "", user_key, payload, audience="developer")
+
+
+@mutation.field("demoTopUp")
+@handle_graphql_errors("Error starting the demo data run")
+async def resolve_demo_top_up(_, info) -> Any:
+    """Super Admin: add demo data up to today in the background (first fill when the demo
+    BU is empty). Poll demoStatus for the result."""
+    require_user_type(info, {"S"})
+    if not settings.is_demo_enabled():
+        raise ValidationException(message=AppMessages.DEMO_NOT_AVAILABLE)
+    return {"started": start_demo_top_up()}
 
 
 @mutation.field("resendEwLeadAlert")

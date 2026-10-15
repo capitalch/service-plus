@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { fetchCompanies } from "@/lib/api";
+import { loadCompanies } from "@/lib/companies";
 import type { Company } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,8 @@ type Props = {
   error?: string;
   /** Show each company's catalogue size — only meaningful on the spare-parts page. */
   showPartsCount?: boolean;
+  /** List only companies with Spare Parts Web switched on — the spare-parts page. */
+  onlyPartsEnabled?: boolean;
 };
 
 export function CompanySelect({
@@ -30,21 +32,23 @@ export function CompanySelect({
   onChange,
   error,
   showPartsCount = false,
+  onlyPartsEnabled = false,
 }: Props) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
-  function load() {
+  // fresh: the Retry button asks the server again instead of reusing the page's shared list.
+  function load(fresh = false) {
     setLoading(true);
     setFailed(false);
-    fetchCompanies()
-      .then(setCompanies)
+    loadCompanies(fresh)
+      .then((list) => setCompanies(onlyPartsEnabled ? list.filter((c) => c.partsEnabled) : list))
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(() => load(), []);
 
   return (
     <div className="space-y-1.5">
@@ -65,7 +69,17 @@ export function CompanySelect({
               )}
             >
               <Building2 className="size-4 shrink-0" />
-              <SelectValue placeholder={failed ? "Couldn't load companies" : "Select a company"} />
+              <SelectValue
+                placeholder={
+                  failed
+                    ? "Couldn't load companies"
+                    : companies.length === 0
+                      ? onlyPartsEnabled
+                        ? "No parts catalogues available"
+                        : "No companies available"
+                      : "Select a company"
+                }
+              />
             </span>
           </SelectTrigger>
           <SelectContent>
@@ -92,7 +106,7 @@ export function CompanySelect({
           Couldn&apos;t load companies.
           <button
             type="button"
-            onClick={load}
+            onClick={() => load(true)}
             className="inline-flex cursor-pointer items-center gap-0.5 font-medium underline underline-offset-2"
           >
             <RefreshCw className="size-3" />

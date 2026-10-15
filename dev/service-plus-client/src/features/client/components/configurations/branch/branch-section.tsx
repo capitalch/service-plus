@@ -41,7 +41,7 @@ import { DeleteBranchDialog } from "./delete-branch-dialog";
 import { EditBranchDialog } from "./edit-branch-dialog";
 import type { BranchType } from "./branch";
 import { useHasEnterpriseFeatures } from "@/components/shared/billing/use-has-enterprise-features";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +66,7 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text
 export const BranchSection = () => {
 	// Add is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const billing = useAppSelector(selectBilling);
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
@@ -226,7 +227,7 @@ export const BranchSection = () => {
 								disabled={isReadOnly || atBranchLimit}
 								title={
 									isReadOnly
-										? MESSAGES.READ_ONLY_TOOLTIP
+										? readOnlyTooltip
 										: atBranchLimit
 											? MESSAGES.BILLING_BRANCH_LIMIT
 											: undefined
@@ -377,6 +378,7 @@ export const BranchSection = () => {
 														<DropdownMenuContent align="end" className="w-44">
 															<DropdownMenuItem
 																className="cursor-pointer text-sky-600 focus:text-sky-600"
+																disabled={isReadOnly}
 																onClick={() => setEditBranch(branch)}
 															>
 																<PencilIcon className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
@@ -389,7 +391,7 @@ export const BranchSection = () => {
 															{branch.is_active ? (
 																<DropdownMenuItem
 																	className="cursor-pointer text-amber-600 focus:text-amber-600"
-																	disabled={branch.is_head_office}
+																	disabled={isReadOnly || branch.is_head_office}
 																	onClick={() => handleToggleActive(branch)}
 																>
 																	<ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -398,6 +400,7 @@ export const BranchSection = () => {
 															) : (
 																<DropdownMenuItem
 																	className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+																	disabled={isReadOnly}
 																	onClick={() => handleToggleActive(branch)}
 																>
 																	<ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -407,6 +410,7 @@ export const BranchSection = () => {
 															<DropdownMenuSeparator />
 															<DropdownMenuItem
 																className="cursor-pointer text-red-600 focus:text-red-600"
+																disabled={isReadOnly}
 																onClick={() => setDeleteBranch(branch)}
 															>
 																<Trash2Icon className="mr-1.5 h-3.5 w-3.5 text-red-600" />

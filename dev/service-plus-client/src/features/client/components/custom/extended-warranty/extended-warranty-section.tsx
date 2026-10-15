@@ -24,6 +24,7 @@ import { EwDrilldownView } from "./ew-drilldown-view";
 import { EwLeadGrid } from "./ew-lead-grid";
 import { EwStateFlowDiagram } from "./ew-state-flow-diagram";
 import { useEwLeadActions } from "./use-ew-lead-actions";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type DrillType = { filter: EwLeadsFilterType; title: string };
 
@@ -36,6 +37,7 @@ type NavStateType = { ewDrill?: "INTERESTED"; ewLeadId?: number };
  * dialogs, and live refresh from the WhatsApp webhook.
  */
 export const ExtendedWarrantySection = () => {
+	const isReadOnly = useIsReadOnly();
 	const branch = useAppSelector(selectCurrentBranch);
 	const dbName = useAppSelector(selectDbName);
 	const location = useLocation();
@@ -107,6 +109,7 @@ export const ExtendedWarrantySection = () => {
 					</TabsList>
 					<Button
 						className="h-10 gap-2 bg-teal-600 px-5 text-sm font-semibold text-white shadow-md hover:bg-teal-700"
+						disabled={isReadOnly}
 						onClick={actions.openNewLead}
 					>
 						<Plus className="size-5" />

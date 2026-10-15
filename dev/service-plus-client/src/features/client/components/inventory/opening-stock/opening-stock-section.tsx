@@ -28,7 +28,7 @@ import {
 	getInitialOpeningStockLine,
 } from "./opening-stock-schema";
 import { NewOpeningStock } from "./new-opening-stock";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +39,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 export const OpeningStockSection = () => {
 	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -357,7 +358,7 @@ export const OpeningStockSection = () => {
 				{existingEntry && (
 					<Button
 						className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-red-600 hover:bg-red-500/10 hover:text-red-700"
-						disabled={form.formState.isSubmitting || entryLoading}
+						disabled={isReadOnly || form.formState.isSubmitting || entryLoading}
 						variant="ghost"
 						onClick={() => setDeleteConfirmOpen(true)}
 					>
@@ -388,7 +389,7 @@ export const OpeningStockSection = () => {
 							form.formState.isSubmitting ||
 							entryLoading
 						}
-						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+						title={isReadOnly ? readOnlyTooltip : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{form.formState.isSubmitting ? (
@@ -432,7 +433,11 @@ export const OpeningStockSection = () => {
 						<Button disabled={deleting} variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
 							Cancel
 						</Button>
-						<Button disabled={deleting} variant="destructive" onClick={() => void handleDelete()}>
+						<Button
+							disabled={isReadOnly || deleting}
+							variant="destructive"
+							onClick={() => void handleDelete()}
+						>
 							{deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
 							Delete
 						</Button>

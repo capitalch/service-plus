@@ -133,6 +133,8 @@ export const { logout, setCredentials, setSessionMode } = authSlice.actions;
 export const selectCurrentUser = (state: { auth: AuthState }) => state.auth.user;
 export const selectDbName = (state: { auth: AuthState }) => state.auth.user?.dbName ?? null;
 export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
+export const selectIsDemo = (state: { auth: AuthState }) => state.auth.user?.isDemo ?? false;
+export const selectDemoPortalUrl = (state: { auth: AuthState }) => state.auth.user?.portalUrl ?? null;
 export const selectIsDefaultCustomerDb = (state: { auth: AuthState }) => state.auth.user?.isDefaultCustomerDb ?? false;
 export const selectClientCode = (state: { auth: AuthState }) =>
 	state.auth.user?.clientCode ?? getAuthItem("clientCode");

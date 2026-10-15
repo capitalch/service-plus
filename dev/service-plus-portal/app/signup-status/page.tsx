@@ -8,6 +8,12 @@ export const metadata: Metadata = {
 	alternates: { canonical: "/signup-status/" },
 	description: "Check the progress of your Service+ sign-up with your mobile number and email.",
 	title: "Sign-up status",
+	openGraph: {
+		description: "Check the progress of your Service+ sign-up with your mobile number and email.",
+		title: "Sign-up status | Service+",
+		type: "website",
+		url: "/signup-status/",
+	},
 };
 
 // A static page: the lookup runs in the browser against POST /api/public/signup/status.

@@ -19,6 +19,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { LookupConfig } from "@/features/client/types/lookup";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ function FieldError({ message }: { message?: string }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const AddLookupDialog = ({ config, onOpenChange, onSuccess, open }: AddLookupDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingCode, setCheckingCode] = useState(false);
 	const [codeTaken, setCodeTaken] = useState<boolean | null>(null);
 	const dbName = useAppSelector(selectDbName);
@@ -278,7 +280,7 @@ export const AddLookupDialog = ({ config, onOpenChange, onSuccess, open }: AddLo
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={submitDisabled}
+							disabled={isReadOnly || submitDisabled}
 							type="submit"
 						>
 							{form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}

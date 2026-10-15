@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	jobs: JobDeliveryFullDetail[];
@@ -95,6 +96,7 @@ export function DeliveryModalInvoicesSection({
 	onDeleteInvoice,
 	onRegenerateInvoice,
 }: Props) {
+	const isReadOnly = useIsReadOnly();
 	return (
 		<div className="space-y-3">
 			{jobs.map((job) => {
@@ -146,7 +148,7 @@ export function DeliveryModalInvoicesSection({
 								{invoiceable && job.invoice_id && onDeleteInvoice && (
 									<Button
 										className="h-8 gap-1 px-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
-										disabled={deletingInvoiceJobId === job.id}
+										disabled={isReadOnly || deletingInvoiceJobId === job.id}
 										size="sm"
 										variant="ghost"
 										onClick={() => onDeleteInvoice(job)}

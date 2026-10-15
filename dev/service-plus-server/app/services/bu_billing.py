@@ -20,12 +20,14 @@ _cache: dict[tuple[str, str], tuple[float, dict]] = {}
 
 
 def billing_summary(row: dict | None, today: date) -> dict[str, Any]:
-    """{status, paidThrough, planCode, branchLimit} of a security.bu row (None = no such BU,
-    treated as not billed)."""
+    """{status, paidThrough, planCode, branchLimit, features} of a security.bu row (None = no
+    such BU, treated as not billed). features are the BU's Super-Admin-granted features
+    (app/core/bu_features.py); missing or null reads as none."""
     row = row or {}
     paid_through = row.get("paid_through")
     return {
         "branchLimit": row.get("branch_limit"),
+        "features": sorted(row.get("features") or []),
         "paidThrough": paid_through.isoformat() if isinstance(paid_through, date) else paid_through,
         "planCode": row.get("plan_code"),
         "status": compute_billing_status(row, today),

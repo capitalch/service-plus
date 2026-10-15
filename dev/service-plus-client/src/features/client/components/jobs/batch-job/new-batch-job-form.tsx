@@ -21,6 +21,7 @@ import type { CustomerTypeOption, StateOption } from "@/features/client/types/cu
 import type { DivisionContextType } from "@/features/client/types/division";
 
 import { type BatchJobFormValues, getInitialBatchJobRow } from "./batch-job-schema";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,7 @@ export function NewBatchJobForm({
 	onAttachFiles,
 	form,
 }: Props) {
+	const isReadOnly = useIsReadOnly();
 	const [showAddModel, setShowAddModel] = useState(false);
 	const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 	const [customerMobile, setCustomerMobile] = useState<string>("");
@@ -647,6 +649,7 @@ export function NewBatchJobForm({
 					variant="outline"
 					size="default"
 					className="gap-2 text-sm font-semibold border-2 border-dashed border-(--cl-accent)/30 text-(--cl-accent) hover:bg-(--cl-accent)/5 hover:border-(--cl-accent)"
+					disabled={isReadOnly}
 					onClick={handleAddRow}
 				>
 					<Plus className="h-4 w-4 text-emerald-600" />

@@ -20,6 +20,7 @@ import { DATE_INPUT_MAX, DATE_INPUT_MIN } from "@/lib/date-utils";
 import { encodeObj } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ type SetLocationForSelectedFormValues = z.infer<typeof setLocationForSelectedSch
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSuccess, open, parts }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const currentBranch = useAppSelector(selectCurrentBranch);
@@ -248,7 +250,9 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
 					</Button>
 					<Button
 						className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-						disabled={!form.formState.isValid || !allRowsHaveLocation || form.formState.isSubmitting}
+						disabled={
+							isReadOnly || !form.formState.isValid || !allRowsHaveLocation || form.formState.isSubmitting
+						}
 						type="button"
 						onClick={() => void form.handleSubmit(executeSave)()}
 					>

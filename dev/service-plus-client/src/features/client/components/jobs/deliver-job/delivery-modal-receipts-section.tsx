@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { MESSAGES } from "@/constants/messages";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency } from "./deliver-job-helpers";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	jobs: JobDeliveryFullDetail[];
@@ -29,6 +30,7 @@ function modeBadgeClass(mode: string): string {
 }
 
 export function DeliveryModalReceiptsSection({ jobs, onAddReceipt, loadingPdfJobId, onPrintReceipt }: Props) {
+	const isReadOnly = useIsReadOnly();
 	return (
 		<div className="space-y-3">
 			{jobs.map((job) => {
@@ -58,7 +60,7 @@ export function DeliveryModalReceiptsSection({ jobs, onAddReceipt, loadingPdfJob
 								)}
 								<Button
 									className="h-8 gap-1.5 px-3 text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-									disabled={due === 0}
+									disabled={isReadOnly || due === 0}
 									onClick={() => onAddReceipt(job)}
 								>
 									<Plus className="h-3.5 w-3.5" />

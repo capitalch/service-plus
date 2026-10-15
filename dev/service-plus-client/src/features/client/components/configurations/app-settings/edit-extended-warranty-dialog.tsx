@@ -19,6 +19,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectSchema, setExtendedWarrantyEnabled } from "@/store/context-slice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	onOpenChange: (open: boolean) => void;
@@ -64,6 +65,7 @@ function toForm(value: unknown): EwSettingsFormType {
  * about them. Saving refreshes the Custom menu flag straight away.
  */
 export const EditExtendedWarrantyDialog = ({ onOpenChange, onSuccess, open, record }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const dispatch = useAppDispatch();
 	const schema = useAppSelector(selectSchema);
@@ -204,7 +206,7 @@ export const EditExtendedWarrantyDialog = ({ onOpenChange, onSuccess, open, reco
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-							disabled={!isValid || submitting}
+							disabled={isReadOnly || !isValid || submitting}
 							type="submit"
 						>
 							{submitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}

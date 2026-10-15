@@ -1,6 +1,7 @@
 import { ArrowRight, Phone } from "lucide-react";
 import Link from "next/link";
 
+import { LiveDemoButton } from "@/components/layout/live-demo-button";
 import { Button } from "@/components/ui/button";
 import { MESSAGES } from "@/constants/messages";
 import { siteConfig } from "@/content/site-config";
@@ -17,6 +18,7 @@ export const WorkflowCta = () => {
 					<p className="text-muted-foreground mt-2">{MESSAGES.ctaBody}</p>
 				</div>
 				<div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+					<LiveDemoButton size="lg" />
 					<Button asChild size="lg">
 						<Link href="/pricing">
 							Choose a plan

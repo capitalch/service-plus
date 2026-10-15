@@ -47,7 +47,8 @@ import { selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ACCESS_RIGHTS, hasAccessRight } from "@/features/auth/utils/access-rights";
 import { ROUTES } from "@/router/routes";
 import { useAppSelector } from "@/store/hooks";
-import { selectExtendedWarrantyEnabled, selectPostDataToAccounts } from "@/store/context-slice";
+import { selectExtendedWarrantyEnabled, selectHasBuFeature, selectPostDataToAccounts } from "@/store/context-slice";
+import { BU_FEATURES } from "@/constants/bu-features";
 import { getVisibleCustomMenuItems } from "./custom-menu-registry";
 import { HelpHint } from "@/components/shared/help/help-hint";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
@@ -393,6 +394,9 @@ function JobsExplorer() {
 }
 
 function MastersExplorer() {
+	// Switched on per BU by the Super Admin (Clients → Features).
+	const hasSparePartsWeb = useAppSelector((state) => selectHasBuFeature(state, BU_FEATURES.SPARE_PARTS_WEB));
+
 	return (
 		<div className="space-y-3">
 			<CollapsibleGroup label="Entities">
@@ -406,7 +410,7 @@ function MastersExplorer() {
 				<TreeItem icon={UserCog} iconColor="text-purple-600" label="Technician" helpArticleId="technicians" />
 			</CollapsibleGroup>
 			<CollapsibleGroup label="Product & Parts" defaultOpen={false}>
-				<TreeItem icon={Globe} iconColor="text-cyan-600" label="Spare Parts Web" />
+				{hasSparePartsWeb && <TreeItem icon={Globe} iconColor="text-cyan-600" label="Spare Parts Web" />}
 				<TreeItem icon={Tag} iconColor="text-slate-600" label="Brand" />
 				<TreeItem icon={Package} iconColor="text-slate-600" label="Product" />
 				<TreeItem icon={BookOpen} iconColor="text-sky-600" label="Model" />

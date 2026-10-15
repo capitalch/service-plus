@@ -27,6 +27,7 @@ import {
 	XCircleIcon,
 	X,
 	CreditCardIcon,
+	ToggleRightIcon,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { useQuery } from "@apollo/client/react";
@@ -65,6 +66,7 @@ import { SeedRolesDialog } from "../components/seed-roles-dialog";
 import { OrphanDatabasesDialog } from "../components/orphan-databases-dialog";
 import { SuperAdminLayout } from "../components/super-admin-layout";
 import { ViewClientDialog } from "../components/view-client-dialog";
+import { ClientFeaturesDialog } from "../components/client-features-dialog";
 import { ClientSubscriptionDialog } from "../components/client-subscription-dialog";
 import { selectClients, setClients } from "@/features/super-admin/store/super-admin-slice";
 import type { ClientAdminType, ClientType } from "@/features/super-admin/types";
@@ -131,6 +133,7 @@ export const ClientsPage = () => {
 	const [deleteClient, setDeleteClient] = useState<ClientType | null>(null);
 	const [detachDbClient, setDetachDbClient] = useState<ClientType | null>(null);
 	const [editClient, setEditClient] = useState<ClientType | null>(null);
+	const [featuresClient, setFeaturesClient] = useState<ClientType | null>(null);
 	const [initializeClient, setInitializeClient] = useState<ClientType | null>(null);
 	const [orphanDbsOpen, setOrphanDbsOpen] = useState(false);
 	const [seedRolesClient, setSeedRolesClient] = useState<ClientType | null>(null);
@@ -760,6 +763,14 @@ export const ClientsPage = () => {
 																<CreditCardIcon className="mr-2 h-4 w-4" />
 																Subscription
 															</DropdownMenuItem>
+															<DropdownMenuItem
+																className="cursor-pointer text-cyan-600 focus:text-cyan-600"
+																disabled={!client.db_name}
+																onClick={() => setFeaturesClient(client)}
+															>
+																<ToggleRightIcon className="mr-2 h-4 w-4" />
+																Features
+															</DropdownMenuItem>
 															<DropdownMenuSeparator />
 															{client.is_active ? (
 																<DropdownMenuItem
@@ -1020,6 +1031,12 @@ export const ClientsPage = () => {
 						if (!open) setSeedRolesClient(null);
 					}}
 					onSuccess={handleRefetch}
+				/>
+			)}
+			{featuresClient && (
+				<ClientFeaturesDialog
+					client={featuresClient}
+					onOpenChange={(open) => !open && setFeaturesClient(null)}
 				/>
 			)}
 			{subscriptionClient && (

@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { usePartsAvailable } from "@/lib/companies";
 import { statusPillClass } from "@/lib/status-colors";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,8 @@ const fadeUp = {
 };
 
 export function Hero() {
+  // Spare parts appear only while some company has Spare Parts Web switched on.
+  const partsAvailable = usePartsAvailable() === true;
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_at_top,black_35%,transparent_75%)]" />
@@ -52,8 +55,17 @@ export function Hero() {
             animate="show"
             className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground"
           >
-            Check your device&apos;s repair status in seconds, browse genuine spare parts from
-            your nearest service center, and get expert help before you visit.
+            {partsAvailable ? (
+              <>
+                Check your device&apos;s repair status in seconds, browse genuine spare parts from
+                your nearest service center, and get expert help before you visit.
+              </>
+            ) : (
+              <>
+                Check your device&apos;s repair status in seconds and get expert help before you
+                visit.
+              </>
+            )}
           </motion.p>
 
           <motion.div
@@ -69,12 +81,14 @@ export function Hero() {
                 <ArrowRight className="transition-transform duration-300 group-hover:translate-x-0.5" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href="/spare-parts">
-                <PackageSearch />
-                Browse spare parts
-              </Link>
-            </Button>
+            {partsAvailable && (
+              <Button asChild size="lg" variant="outline">
+                <Link href="/spare-parts">
+                  <PackageSearch />
+                  Browse spare parts
+                </Link>
+              </Button>
+            )}
           </motion.div>
 
           <motion.ul
@@ -84,7 +98,7 @@ export function Hero() {
             animate="show"
             className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground"
           >
-            {["No login needed", "Genuine parts", "Fast & free lookup"].map((point) => (
+            {["No login needed", ...(partsAvailable ? ["Genuine parts"] : []), "Fast & free lookup"].map((point) => (
               <li key={point} className="flex items-center gap-1.5">
                 <ShieldCheck className="size-4 text-primary" />
                 {point}

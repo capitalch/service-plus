@@ -9,6 +9,10 @@ export const faqs: FaqType[] = [
 		question: "Do I need to pay to try Service+?",
 	},
 	{
+		answer: "No. All prices are exclusive of GST. GST is charged extra at the applicable rate on the setup fee and on every monthly fee.",
+		question: "Do the prices include GST?",
+	},
+	{
 		answer: "By bank transfer for now. Pay the one-time setup fee first; your account is created once it is received. After that you pay the monthly fee each month, in advance. If a month goes unpaid, a paid plan becomes view-only — you can still see and print everything, but not add or change anything — until it is paid. Online payment is coming soon.",
 		question: "How do I pay?",
 	},

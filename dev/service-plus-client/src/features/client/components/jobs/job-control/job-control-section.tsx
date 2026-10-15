@@ -92,6 +92,7 @@ import {
 	type ChargesViewChargeLine,
 } from "../final-a-job/job-charges-readonly-modal";
 import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -154,6 +155,7 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const JobControlSection = () => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -1111,7 +1113,10 @@ export const JobControlSection = () => {
 																		{job.invoice_is_posted !== null && (
 																			<DropdownMenuItem
 																				className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-																				disabled={sendInvoiceWhatsapp.sending}
+																				disabled={
+																					isReadOnly ||
+																					sendInvoiceWhatsapp.sending
+																				}
 																				onClick={() => {
 																					if (!dbName || !schema || !branchId)
 																						return;
@@ -1129,6 +1134,7 @@ export const JobControlSection = () => {
 																		)}
 																		<DropdownMenuItem
 																			className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer"
+																			disabled={isReadOnly}
 																			onClick={() => setSetTechnicianJob(job)}
 																		>
 																			<UserCog className="h-3.5 w-3.5 shrink-0 text-blue-600" />{" "}
@@ -1153,6 +1159,7 @@ export const JobControlSection = () => {
                                                                         correction is allowed on posted jobs. */}
 																		<DropdownMenuItem
 																			className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+																			disabled={isReadOnly}
 																			onClick={() => setCorrectCostsJob(job)}
 																		>
 																			<IndianRupee className="h-3.5 w-3.5 shrink-0 text-slate-600" />{" "}
@@ -1161,7 +1168,10 @@ export const JobControlSection = () => {
 																		<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
 																		<DropdownMenuItem
 																			className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-50 disabled:cursor-not-allowed"
-																			disabled={job.invoice_is_posted === true}
+																			disabled={
+																				isReadOnly ||
+																				job.invoice_is_posted === true
+																			}
 																			title={
 																				job.invoice_is_posted === true
 																					? "Cannot undo: invoice is already posted"
@@ -1277,6 +1287,9 @@ export const JobControlSection = () => {
 																								<DropdownMenuItem
 																									key={`${t.targetId}-${t.targetName}`}
 																									className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
+																									disabled={
+																										isReadOnly
+																									}
 																									onClick={() =>
 																										setPendingTran({
 																											job,
@@ -1307,6 +1320,7 @@ export const JobControlSection = () => {
 																					)}
 																					<DropdownMenuItem
 																						className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer"
+																						disabled={isReadOnly}
 																						onClick={() =>
 																							setSetTechnicianJob(job)
 																						}
@@ -1323,6 +1337,7 @@ export const JobControlSection = () => {
 																					)}
 																					<DropdownMenuItem
 																						className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
+																						disabled={isReadOnly}
 																						onClick={() =>
 																							setUndoPendingJob(job)
 																						}
@@ -1337,6 +1352,7 @@ export const JobControlSection = () => {
 																					<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
 																					<DropdownMenuItem
 																						className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
+																						disabled={isReadOnly}
 																						onClick={() =>
 																							setChargesJob({
 																								id: job.id,
@@ -1363,6 +1379,7 @@ export const JobControlSection = () => {
 																					<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
 																					<DropdownMenuItem
 																						className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
+																						disabled={isReadOnly}
 																						onClick={() => {
 																							pendingRestoreRef.current = true;
 																							setFinalJobId(job.id);
@@ -1379,8 +1396,9 @@ export const JobControlSection = () => {
 																					<DropdownMenuItem
 																						className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50 dark:focus:bg-orange-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
 																						disabled={
+																							isReadOnly ||
 																							job.invoice_is_posted ===
-																							true
+																								true
 																						}
 																						title={
 																							job.invoice_is_posted ===
@@ -1399,8 +1417,9 @@ export const JobControlSection = () => {
 																					<DropdownMenuItem
 																						className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50 dark:focus:bg-amber-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
 																						disabled={
+																							isReadOnly ||
 																							job.invoice_is_posted ===
-																							true
+																								true
 																						}
 																						title={
 																							job.invoice_is_posted ===
@@ -1422,6 +1441,7 @@ export const JobControlSection = () => {
 																					<DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
 																					<DropdownMenuItem
 																						className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
+																						disabled={isReadOnly}
 																						onClick={() =>
 																							void handleOpenDelivery(
 																								job.id,

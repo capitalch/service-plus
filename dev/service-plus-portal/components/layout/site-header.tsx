@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { LiveDemoButton } from "@/components/layout/live-demo-button";
 import { Logo } from "@/components/layout/logo";
 import { ScrollProgress } from "@/components/layout/scroll-progress";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -59,9 +60,9 @@ export const SiteHeader = () => {
 						<Link
 							aria-current={isActive(pathname, item.href) ? "page" : undefined}
 							className={cn(
-								"rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+								"relative rounded-lg px-3 py-2 text-sm font-medium transition-colors",
 								isActive(pathname, item.href)
-									? "bg-primary/10 text-primary"
+									? "bg-white text-primary shadow-sm ring-1 ring-primary/30"
 									: "text-muted-foreground hover:bg-muted hover:text-foreground",
 							)}
 							href={item.href}
@@ -73,15 +74,34 @@ export const SiteHeader = () => {
 				</nav>
 
 				<div className="ml-auto flex items-center gap-2 md:ml-2">
-					<ThemeToggle />
-					<Button asChild className="hidden sm:inline-flex" size="sm" variant="ghost">
+					{/* On every screen size: the demo is the fastest way to judge the product. */}
+					<LiveDemoButton size="nav" />
+					{/* md–lg: in the menu instead, to make room for the demo pill. */}
+					<ThemeToggle className="md:hidden lg:inline-flex" />
+					{/* Wide desktop only: a visible phone number is the trust signal this audience
+					    looks for, but there is no room beside the full nav until xl. Below that it
+					    stays in the menu, the mobile action bar and the footer. */}
+					<Button asChild className="hidden xl:inline-flex" size="sm" variant="ghost">
+						<a href={`tel:${siteConfig.phoneE164}`}>
+							<Phone />
+							{siteConfig.phone}
+						</a>
+					</Button>
+					{/* md–lg has the full nav plus the demo pill and no room left; the bottom action bar
+					    (lg:hidden) carries Get started there, and Login is in the menu, which shows up to lg. */}
+					<Button
+						asChild
+						className="hidden sm:inline-flex md:hidden lg:inline-flex"
+						size="sm"
+						variant="ghost"
+					>
 						<a href={siteConfig.appUrl} rel="noopener">
 							<LogIn />
 							Login
 						</a>
 					</Button>
 					{/* typedRoutes rejects a hash inside a string href, so the path and hash go separately. */}
-					<Button asChild className="hidden sm:inline-flex" size="sm">
+					<Button asChild className="hidden sm:inline-flex md:hidden lg:inline-flex" size="sm">
 						<Link href={{ hash: "#enquire", pathname: "/pricing/" }}>Get started</Link>
 					</Button>
 
@@ -89,7 +109,7 @@ export const SiteHeader = () => {
 						<SheetTrigger asChild>
 							<Button
 								aria-label="Open menu"
-								className="md:hidden"
+								className="lg:hidden"
 								size="icon"
 								type="button"
 								variant="outline"
@@ -108,9 +128,9 @@ export const SiteHeader = () => {
 									<Link
 										aria-current={isActive(pathname, item.href) ? "page" : undefined}
 										className={cn(
-											"rounded-xl px-3 py-3 text-sm font-medium transition-colors",
+											"relative rounded-xl px-3 py-3 text-sm font-medium transition-colors",
 											isActive(pathname, item.href)
-												? "bg-primary/10 text-primary"
+												? "bg-white text-primary shadow-sm ring-1 ring-primary/30"
 												: "text-muted-foreground hover:bg-muted hover:text-foreground",
 										)}
 										href={item.href}
@@ -122,6 +142,7 @@ export const SiteHeader = () => {
 								))}
 							</nav>
 							<div className="mt-auto space-y-2 border-t border-border/60 p-3">
+								<LiveDemoButton className="w-full" onClick={() => setMobileOpen(false)} />
 								<Button asChild className="w-full">
 									<Link
 										href={{ hash: "#enquire", pathname: "/pricing/" }}

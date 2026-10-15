@@ -16,6 +16,12 @@ export const metadata: Metadata = {
 	description:
 		"The complete Service+ job workflow: intake, assignment and estimates, repair tracking, finalization, delivery with GST invoicing and WhatsApp, and accounts posting.",
 	title: "Workflow",
+	openGraph: {
+		description: "The complete Service+ job workflow — from intake through delivery with GST invoicing, WhatsApp updates and posting.",
+		title: "Workflow | Service+",
+		type: "website",
+		url: "/workflow/",
+	},
 };
 
 /** Reading order: the whole flow at a glance (map), then each stage in depth, then who does the

@@ -12,6 +12,9 @@ import { SparePartWebSection } from "@/features/client/components/masters/spare-
 import { TechnicianSection } from "@/features/client/components/masters/technician/technician-section";
 import { VendorSection } from "@/features/client/components/masters/vendor/vendor-section";
 import { BRAND_CONFIG } from "@/features/client/config/lookup-configs";
+import { BU_FEATURES } from "@/constants/bu-features";
+import { useAppSelector } from "@/store/hooks";
+import { selectHasBuFeature } from "@/store/context-slice";
 
 // ─── Coming Soon ──────────────────────────────────────────────────────────────
 
@@ -35,6 +38,7 @@ function ComingSoon({ label }: { label: string }) {
 
 function MastersContent() {
 	const { selected } = useClientSelection();
+	const hasSparePartsWeb = useAppSelector((state) => selectHasBuFeature(state, BU_FEATURES.SPARE_PARTS_WEB));
 
 	if (selected === "Brand") return <LookupSection config={BRAND_CONFIG} />;
 	if (selected === "Customer") return <CustomerSection />;
@@ -42,7 +46,8 @@ function MastersContent() {
 	if (selected === "Parts") return <PartsSection />;
 	if (selected === "Part Location") return <PartLocationSection />;
 	if (selected === "Product") return <ProductSection />;
-	if (selected === "Spare Parts Web") return <SparePartWebSection />;
+	// A BU without the feature (Super Admin → Clients → Features) falls through to Coming soon.
+	if (selected === "Spare Parts Web" && hasSparePartsWeb) return <SparePartWebSection />;
 	if (selected === "Technician") return <TechnicianSection />;
 	if (selected === "Vendor / Supplier") return <VendorSection />;
 

@@ -52,7 +52,7 @@ import {
 	getInitialLoanLine,
 } from "./loan-entry-schema";
 import { NewLoanEntry } from "./new-loan-entry";
-import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
+import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,6 +73,7 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 export const LoanEntrySection = () => {
 	// Save is off while the BU is view-only for an unpaid month (plans/plan.md Step 14).
 	const isReadOnly = useIsReadOnly();
+	const readOnlyTooltip = useReadOnlyTooltip();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const globalBranch = useAppSelector(selectCurrentBranch);
@@ -462,7 +463,7 @@ export const LoanEntrySection = () => {
 						disabled={
 							!form.formState.isValid || !linesValid || !selectedBrandId || form.formState.isSubmitting
 						}
-						title={isReadOnly ? MESSAGES.READ_ONLY_TOOLTIP : undefined}
+						title={isReadOnly ? readOnlyTooltip : undefined}
 						onClick={form.handleSubmit(executeSave)}
 					>
 						{form.formState.isSubmitting ? (
@@ -663,6 +664,7 @@ export const LoanEntrySection = () => {
 															>
 																<DropdownMenuItem
 																	className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
+																	disabled={isReadOnly}
 																	onClick={() => {
 																		setEditLoan(loan);
 																		setSelectedBrand(String(loan.brand_id));
@@ -674,6 +676,7 @@ export const LoanEntrySection = () => {
 																</DropdownMenuItem>
 																<DropdownMenuItem
 																	className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
+																	disabled={isReadOnly}
 																	onClick={() => setDeleteId(loan.id)}
 																>
 																	<Trash2 className="h-4 w-4 text-red-600" />
@@ -781,7 +784,11 @@ export const LoanEntrySection = () => {
 								<Button disabled={deleting} variant="outline" onClick={() => setDeleteId(null)}>
 									Cancel
 								</Button>
-								<Button disabled={deleting} variant="destructive" onClick={() => void handleDelete()}>
+								<Button
+									disabled={isReadOnly || deleting}
+									variant="destructive"
+									onClick={() => void handleDelete()}
+								>
 									{deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
 									Delete
 								</Button>

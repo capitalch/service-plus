@@ -13,6 +13,7 @@ import {
 	selectSchema,
 } from "@/store/context-slice";
 import { BillingBanner } from "@/components/shared/billing/billing-banner";
+import { DemoBanner } from "@/components/shared/demo-banner";
 import { ReadOnlyDialog } from "@/components/shared/billing/read-only-dialog";
 import { useBillingSync } from "@/components/shared/billing/use-billing-sync";
 import { loadAppSettings } from "@/features/client/utils/load-app-settings";
@@ -25,7 +26,8 @@ import { getVisibleCustomMenuItems } from "./custom-menu-registry";
 import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
 import { ClientTopNav } from "./client-top-nav";
-import { CLIENT_CAT_STYLE, CLIENT_POPULAR_IDS, HELP_ARTICLES, HELP_CATEGORIES } from "../help/help-content";
+import { CLIENT_CAT_STYLE, CLIENT_POPULAR_IDS, HELP_CATEGORIES } from "../help/help-content";
+import { useVisibleHelpArticles } from "../help/use-visible-help-articles";
 import { useAskHelpAi } from "../help/use-ask-help-ai";
 
 export type Section = "admin" | "configurations" | "custom" | "inventory" | "jobs" | "masters" | "reports";
@@ -147,6 +149,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 	const [helpAiOpen, setHelpAiOpen] = useState(false);
 	const aiHelp = useAskHelpAi();
 	const aiHelpEnabled = useAppSelector(selectBilling)?.aiHelpEnabled ?? false;
+	const helpArticles = useVisibleHelpArticles();
 	const [isDark, setIsDark] = useState(() => {
 		const stored = localStorage.getItem("client-theme");
 		return stored ? stored === "dark" : false;
@@ -265,6 +268,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 									className={`absolute bottom-6 right-0 top-9.5 flex flex-col p-4 pt-3 sm:p-6 sm:pt-4 transition-[left] duration-200 ${mainLeft}`}
 								>
 									<div className="-mx-4 mb-2 sm:-mx-6">
+										<DemoBanner />
 										<BillingBanner />
 									</div>
 									<div className="mb-3 flex items-center justify-between sm:mb-2 gap-4">
@@ -306,7 +310,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 								<ClientStatusBar />
 								<HelpPanel
 									ai={aiHelpEnabled ? aiHelp : undefined}
-									articles={HELP_ARTICLES}
+									articles={helpArticles}
 									categories={HELP_CATEGORIES}
 									categoryStyles={CLIENT_CAT_STYLE}
 									isDark={isDark}

@@ -28,6 +28,16 @@ export const SiteFooter = () => {
 						))}
 						<li>
 							<a
+								className="text-gradient-demo font-semibold"
+								href={siteConfig.demoUrl}
+								rel="noopener"
+								target="_blank"
+							>
+								Try the live demo
+							</a>
+						</li>
+						<li>
+							<a
 								className="text-muted-foreground hover:text-foreground"
 								href={siteConfig.appUrl}
 								rel="noopener"

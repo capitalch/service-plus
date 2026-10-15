@@ -22,6 +22,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema, selectCurrentBranch, selectAvailableDivisions } from "@/store/context-slice";
 import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	onAttach?: (jobs: { jobId: number; jobNo: string }[]) => void;
@@ -35,6 +36,7 @@ type Props = {
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, refreshTrigger }: Props) {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const branch = useAppSelector(selectCurrentBranch);
@@ -233,6 +235,7 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
 											type="button"
 											size="sm"
 											className="h-5 px-1.5 text-[10px] font-medium bg-teal-500 hover:bg-teal-600 text-white shrink-0"
+											disabled={isReadOnly}
 											onClick={() => onAttachJob?.(row.job_id, row.job_no)}
 										>
 											<Paperclip className="h-2.5 w-2.5 mr-0.5" />
@@ -251,6 +254,7 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
 								type="button"
 								size="sm"
 								className="h-7 px-3 text-[11px] font-semibold bg-amber-500 hover:bg-amber-600 text-white"
+								disabled={isReadOnly}
 								onClick={() => onEdit?.(batchNo)}
 							>
 								<Pencil className="h-3.5 w-3.5 mr-1.5" />
@@ -278,7 +282,7 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
 								type="button"
 								size="sm"
 								className="h-7 px-3 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed"
-								disabled={sendingJobIntake || !isValidMobile(rows[0]?.mobile)}
+								disabled={isReadOnly || sendingJobIntake || !isValidMobile(rows[0]?.mobile)}
 								title={
 									isValidMobile(rows[0]?.mobile)
 										? "Send Job Intake Notice via WhatsApp"
@@ -296,6 +300,7 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
 							{/* <Button
                             type="button" size="sm"
                             className="h-7 px-3 text-[11px] font-semibold bg-violet-500 hover:bg-violet-600 text-white"
+                            disabled={isReadOnly}
                             onClick={() => onAttach?.(rows.map(r => ({ jobId: r.job_id, jobNo: r.job_no })))}
                         >
                             <Paperclip className="h-3.5 w-3.5 mr-1.5" />

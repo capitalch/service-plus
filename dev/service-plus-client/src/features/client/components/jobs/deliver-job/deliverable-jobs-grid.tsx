@@ -22,6 +22,7 @@ import { PAGE_SIZE, thClass, tdClass, fmtCurrency } from "./deliver-job-helpers"
 import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
 import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -102,6 +103,7 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
 	},
 	ref,
 ) {
+	const isReadOnly = useIsReadOnly();
 	const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore } = useGridRowRetention(loading);
 	useImperativeHandle(ref, () => ({ armRestore }), [armRestore]);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -163,7 +165,7 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
 					{selectedIds.size > 0 && (
 						<Button
 							className="h-9 gap-2 px-4 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md tracking-wide"
-							disabled={loadingDetail !== null}
+							disabled={isReadOnly || loadingDetail !== null}
 							onClick={onDeliverSelected}
 						>
 							{loadingDetail === -1 ? (
@@ -419,7 +421,7 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
 												</Button>
 												<Button
 													className="h-8 gap-1.5 px-3 text-xs font-semibold text-emerald-700 border border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950/30"
-													disabled={loadingDetail === row.id}
+													disabled={isReadOnly || loadingDetail === row.id}
 													size="sm"
 													variant="outline"
 													onClick={() => onDeliver(row)}

@@ -21,6 +21,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { LookupConfig, LookupRecord } from "@/features/client/types/lookup";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,7 @@ type InUseQueryDataType = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const DeleteLookupDialog = ({ config, onOpenChange, onSuccess, open, record }: DeleteLookupDialogPropsType) => {
+	const isReadOnly = useIsReadOnly();
 	const [checkingInUse, setCheckingInUse] = useState(false);
 	const [confirmValue, setConfirmValue] = useState("");
 	const [inUse, setInUse] = useState<boolean | null>(null);
@@ -162,7 +164,7 @@ export const DeleteLookupDialog = ({ config, onOpenChange, onSuccess, open, reco
 					{!record.is_system && (
 						<Button
 							className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-							disabled={submitting || checkingInUse || !deleteEnabled}
+							disabled={isReadOnly || submitting || checkingInUse || !deleteEnabled}
 							onClick={handleDelete}
 						>
 							{submitting || checkingInUse ? (

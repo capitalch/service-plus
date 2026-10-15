@@ -23,6 +23,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema, selectCurrentBranch, selectAvailableDivisions } from "@/store/context-slice";
 import { useSendWhatsappJobIntake } from "../use-send-whatsapp-job-intake";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type QuickInfoCardProps = {
 	onView?: (job: JobControlRow) => void;
@@ -37,6 +38,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 const JOB_COMMON_ARGS = { search: "", from_date: "2000-01-01", to_date: "3000-12-31", limit: 1 };
 
 export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refreshTrigger }: QuickInfoCardProps) {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const branch = useAppSelector(selectCurrentBranch);
@@ -324,6 +326,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
 								type="button"
 								size="sm"
 								className="h-7 px-3 text-[11px] font-semibold bg-amber-500 hover:bg-amber-600 text-white"
+								disabled={isReadOnly}
 								onClick={() => onEdit?.(currentJob)}
 							>
 								<Pencil className="h-3.5 w-3.5 mr-1.5" />
@@ -351,6 +354,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
 								type="button"
 								size="sm"
 								className="h-7 px-3 text-[11px] font-semibold bg-violet-500 hover:bg-violet-600 text-white"
+								disabled={isReadOnly}
 								onClick={() => onAttach?.(currentJob.job_no, currentJob.id)}
 							>
 								<Paperclip className="h-3.5 w-3.5 mr-1.5" />
@@ -360,7 +364,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
 								type="button"
 								size="sm"
 								className="h-7 px-3 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed"
-								disabled={sendingJobIntake || !isValidMobile(currentJob.mobile)}
+								disabled={isReadOnly || sendingJobIntake || !isValidMobile(currentJob.mobile)}
 								title={
 									isValidMobile(currentJob.mobile)
 										? "Send Job Intake Notice via WhatsApp"

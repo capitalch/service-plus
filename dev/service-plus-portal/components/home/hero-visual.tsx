@@ -4,6 +4,8 @@ import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } fro
 import { useRef } from "react";
 
 import { Check, Sparkles } from "lucide-react";
+
+import { siteConfig } from "@/content/site-config";
 import { cn } from "@/lib/utils";
 
 // Illustrative fragments of the app UI. These are examples of what the screens do, not claims
@@ -27,6 +29,17 @@ const floatingCards = [
 ];
 
 const FRACTION = 100;
+
+// The address chip shows the real app host rather than an invented domain, so the frame reads as
+// this product and stays correct if the app ever moves. Falls back to a bare label if appUrl is
+// not a parseable URL at build time.
+const appHost = (() => {
+	try {
+		return new URL(siteConfig.appUrl).host;
+	} catch {
+		return "Service+";
+	}
+})();
 
 /** The hero's product visual: a browser-chrome frame around the dashboard screenshot, with two
  *  floating UI chips, tilted to follow the pointer.
@@ -69,7 +82,7 @@ export const HeroVisual = () => {
 					<span className="size-2.5 rounded-full bg-success/60" />
 				</span>
 				<span className="text-muted-foreground mx-auto max-w-[60%] truncate rounded-md bg-background px-3 py-0.5 text-xs">
-					serviceplus.app / dashboard
+					{appHost} / dashboard
 				</span>
 			</div>
 			{/* eslint-disable-next-line @next/next/no-img-element -- static export, images unoptimized */}
@@ -78,7 +91,7 @@ export const HeroVisual = () => {
 				className="block w-full"
 				fetchPriority="high"
 				height={651}
-				src="/images/screens/dashboard.jpg"
+				src="/images/screens/dashboard.webp"
 				width={1400}
 			/>
 		</div>

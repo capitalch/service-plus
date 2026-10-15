@@ -27,6 +27,7 @@ import { EwStatePill } from "./ew-state-badge";
 import { EW_NOTES_MAX, EW_STAGES, EW_STATE_META, transitionLabel } from "./ew-state-machine";
 import { ewTransitionSchema } from "./extended-warranty-schema";
 import type { EwTransitionFormType } from "./extended-warranty-schema";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	onClose: () => void;
@@ -39,6 +40,7 @@ type Props = {
 
 /** Confirms one state move or stage advance (§C7.8), with optional notes. */
 export const EwTransitionDialog = ({ onClose, onDone, progressStage, row, toState }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const branch = useAppSelector(selectCurrentBranch);
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
@@ -151,7 +153,7 @@ export const EwTransitionDialog = ({ onClose, onDone, progressStage, row, toStat
 						</Button>
 						<Button
 							className="bg-teal-600 text-white hover:bg-teal-700"
-							disabled={!isValid || saving}
+							disabled={isReadOnly || !isValid || saving}
 							type="submit"
 						>
 							{saving && <Loader2 className="h-4 w-4 animate-spin" />}

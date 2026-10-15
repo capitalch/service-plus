@@ -13,6 +13,12 @@ export const metadata: Metadata = {
 	alternates: { canonical: "/contact/" },
 	description: "Call, WhatsApp or email the Service+ team, send an enquiry, or visit our office.",
 	title: "Contact us",
+	openGraph: {
+		description: "Call, WhatsApp or email the Service+ team, send an enquiry, or visit our office.",
+		title: "Contact us | Service+",
+		type: "website",
+		url: "/contact/",
+	},
 };
 
 const ContactPage = () => {

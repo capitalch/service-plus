@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import type { CustomerGroup } from "./customer-connect-schema";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 type Props = {
 	isOpen: boolean;
@@ -16,6 +17,7 @@ type Props = {
 // Pre-send confirmation — per-customer message preview, with a drop-a-customer
 // escape hatch before the click actually fires the sends (plan-whatsapp.md §5e).
 export function SendMessagesModal({ isOpen, groups, sending, onClose, onConfirm }: Props) {
+	const isReadOnly = useIsReadOnly();
 	const [droppedIds, setDroppedIds] = useState<Set<number>>(new Set());
 
 	useEffect(() => {
@@ -110,7 +112,7 @@ export function SendMessagesModal({ isOpen, groups, sending, onClose, onConfirm 
 					</Button>
 					<Button
 						className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed"
-						disabled={sending || activeGroups.length === 0}
+						disabled={isReadOnly || sending || activeGroups.length === 0}
 						onClick={() => onConfirm(activeGroups)}
 					>
 						{sending ? (

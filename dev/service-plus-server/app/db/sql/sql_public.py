@@ -19,12 +19,13 @@ class PublicSql:
         ORDER BY name
     """
 
+    # features via to_jsonb, so a database not yet given the column lists its BUs with none.
     LIST_ACTIVE_BUS = """
         with "dummy" as (values(1::int))
-        SELECT id, code, name
-        FROM security.bu
-        WHERE is_active = true
-        ORDER BY name
+        SELECT b.id, b.code, b.name, to_jsonb(b) -> 'features' AS features
+        FROM security.bu b
+        WHERE b.is_active = true
+        ORDER BY b.name
     """
 
     GET_PUBLIC_JOB_STATUS = """

@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 
 
 from app.config import settings
+from app.core.bu_features import SPARE_PARTS_WEB
 from app.core.dependencies import get_current_user, get_token_claims
 from app.db.connection.psycopg_driver import exec_sql, exec_sql_object
 from app.db.sql.sql_base import SqlStore
@@ -60,8 +61,13 @@ async def _require_media_scope(
         own_code = (rows[0].get("code") or "") if rows else ""
         if not own_code or own_code.lower() != client_code.lower():
             raise _forbidden("client_code_mismatch")
-    # Every route that calls this one writes, so a view-only BU (an unpaid month,
-    # plans/plan.md Step 11) may not upload or delete media either.
+    # Every route that calls this one writes, so the live-demo BU and a view-only BU (an
+    # unpaid month, plans/plan.md Step 11) may not upload or delete media either.
+    if settings.is_demo_bu(db_name, normalized) and not settings.demo_writable:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "DEMO_READ_ONLY", "message": AppMessages.DEMO_READ_ONLY},
+        )
     billing = await get_bu_billing(db_name, normalized)
     if billing["status"] == "read_only":
         raise HTTPException(
@@ -233,6 +239,19 @@ async def delete_image(
     return {"deleted": image_id}
 
 
+async def _require_spare_parts_web(claims: dict[str, Any], db_name: str, schema: str) -> None:
+    """The Spare Parts Web photo routes need the BU feature switched on by the Super Admin
+    (app/core/bu_features.py) — the REST twin of auth_guards.require_bu_feature."""
+    if claims.get("user_type") == "S":
+        return
+    billing = await get_bu_billing(db_name, (schema or "").lower())
+    if SPARE_PARTS_WEB not in billing["features"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "FEATURE_NOT_ENABLED", "message": AppMessages.FEATURE_NOT_ENABLED},
+        )
+
+
 async def _resolve_spare_part_web_context(
     db_name: str, schema: str, spare_part_web_id: int
 ) -> dict[str, Any]:
@@ -264,6 +283,7 @@ async def upload_spare_part_web_images(
 ) -> dict[str, Any]:
     """Upload photos for a web-catalogue part, appending to image_urls (§3c/§4)."""
     await _require_media_scope(claims, db_name, schema, client_code, bu_code)
+    await _require_spare_parts_web(claims, db_name, schema)
     if not files:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -313,6 +333,7 @@ async def delete_spare_part_web_image(
 ) -> dict[str, Any]:
     """Delete a single web-catalogue part image, keyed by url (§3c/§4)."""
     await _require_media_scope(claims, db_name, schema)
+    await _require_spare_parts_web(claims, db_name, schema)
     url = body.get("url", "")
     if not url:
         raise HTTPException(
@@ -353,6 +374,7 @@ async def reorder_spare_part_web_images(
     """Persist a reordered gallery — a full-array write, validated as a permutation
     of the currently stored urls so a stale client can't inject or drop urls (§4)."""
     await _require_media_scope(claims, db_name, schema)
+    await _require_spare_parts_web(claims, db_name, schema)
     new_urls = body.get("image_urls")
     if not isinstance(new_urls, list):
         raise HTTPException(
@@ -392,6 +414,7 @@ async def delete_spare_part_web_part_images(
     folder — mirrors delete_job_images. Called before the GraphQL row delete (§6a)
     so a removed part never strands its folder on disk."""
     await _require_media_scope(claims, db_name, schema, client_code, bu_code)
+    await _require_spare_parts_web(claims, db_name, schema)
     context = await _resolve_spare_part_web_context(db_name, schema, spare_part_web_id)
     current_urls: list[str] = context["image_urls"] or []
 

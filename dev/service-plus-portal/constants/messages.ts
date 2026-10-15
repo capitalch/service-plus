@@ -6,7 +6,7 @@ export const MESSAGES = {
 	contactPlanQuestion: "Which plan are you thinking of?",
 	contactTitle: "Get in touch",
 	ctaBody: "Start on the free Lite plan, or tell us about your workshop and we will set you up.",
-	ctaKicker: "Move smart — use Service+ before your competitors get the edge",
+	ctaKicker: "Free to start · Setup, import and training included · No lock-in",
 	ctaTitle: "Ready to run your workshop on Service+?",
 	enquiryFailed: "We could not send your enquiry. Please try again or call us.",
 	enquiryIntro: "Tell us about your workshop. We will call you back and set up your account.",
@@ -26,15 +26,22 @@ export const MESSAGES = {
 	featuresIntro: "Everything a repair workshop or service centre runs on, in one place.",
 	featuresPageIntro: "A closer look at each part of Service+, with real screens from the app.",
 	featuresPageTitle: "Everything, in detail",
+	demoGalleryNote:
+		"Like what you see? Open the same workshop and click around — it is live, read-only and needs no sign-up.",
+	demoPricingNote: "Not sure yet? Look around a fully stocked demo workshop first — no sign-up needed.",
 	featuresTitle: "Built for electronics repair workshops",
 	galleryIntro: "Real screens from Service+, running on our demo workshop.",
 	galleryTitle: "See it in action",
-	heroBody:
-		"Service+ handles job intake, technician assignment, spare parts, invoicing, WhatsApp updates and reports for electronics repair shops and authorised service centres.",
+	heroPromise:
+		"Track every repair, keep customers updated, and know where your parts go — from one workshop dashboard.",
+	heroTagline:
+		"Repair workshop management software for Indian mobile, electronics and appliance repair businesses, specially suited for authorised service centres.",
 	heroTitle: "Run your repair workshop end to end",
 	liteConfirmBody:
 		"Your free Lite account is created after we approve your request. We email you when it is ready, usually within one business day.",
 	liteConfirmTitle: "Confirm your Lite signup",
+	gstNote:
+		"All prices, including the one-time setup fee, are in Indian rupees and exclude GST, which is charged extra at the applicable rate.",
 	limitsNote: "Plan limits apply per business unit, per calendar month.",
 	notFoundBody: "The page you are looking for does not exist or has moved.",
 	notFoundTitle: "Page not found",
@@ -50,12 +57,13 @@ export const MESSAGES = {
 	reasonExtraBusinessUnits:
 		"You need more business units than Enterprise includes, so the extra ones are charged monthly",
 	reasonJobs: "Your plan's monthly job limit covers the number of jobs you take in",
+	reasonServiceCentre: "You are an authorised service centre, so you need Standard or higher for brand warranty jobs",
 	reasonStarter: "A single-user shop with no extra needs, so the free Lite plan covers you",
 	reasonTeam: "More than one person needs their own login, which Lite and Basic do not allow",
 	reasonWhatsapp: "You update customers on WhatsApp, so your plan has enough messages for your jobs",
 	recommenderEyebrow: "Not sure?",
 	recommenderIntro:
-		"Answer four questions about your workshop and we will point you at the plan that fits — you can still change it later.",
+		"Answer a few quick questions about your workshop and we will point you at the plan that fits — you can still change it later.",
 	recommenderTitle: "Which plan is right for you?",
 	serviceCentreHighlightBody:
 		"Running an OEM-authorised centre, or a group of them? We customise workflows, branding and reporting across multiple centres on one account.",

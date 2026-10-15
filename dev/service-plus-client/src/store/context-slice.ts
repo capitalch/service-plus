@@ -1,5 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
+import type { BuFeatureType } from "../constants/bu-features";
 import type { DivisionContextType } from "../features/client/types/division";
 import { logout, setCredentials } from "../features/auth/store/auth-slice";
 
@@ -19,6 +20,8 @@ export type BuBillingType = {
 	/** Ask AI in Help is configured on the server (GEMINI_API_KEY set). Only from buBillingStatus. */
 	aiHelpEnabled?: boolean;
 	branchLimit: number | null;
+	/** Optional features the Super Admin switched on for this BU (constants/bu-features.ts). */
+	features?: string[];
 	/** This month's job allowance; null = unlimited. Only from buBillingStatus, not from login. */
 	jobLimit?: number | null;
 	jobsUsed?: number;
@@ -32,7 +35,7 @@ export type BuBillingType = {
 
 /** A write the server refused for billing reasons, shown in the read-only dialog. */
 export type BillingNoticeType = {
-	code: "BRANCH_LIMIT_REACHED" | "JOB_LIMIT_REACHED" | "SUBSCRIPTION_READ_ONLY";
+	code: "BRANCH_LIMIT_REACHED" | "DEMO_READ_ONLY" | "JOB_LIMIT_REACHED" | "SUBSCRIPTION_READ_ONLY";
 	message: string;
 	paidThrough: string | null;
 };
@@ -274,7 +277,16 @@ export const selectAvailableBranches = (state: ContextRootState) => state.contex
 export const selectBilling = (state: ContextRootState) => state.context.billing;
 export const selectBillingNotice = (state: ContextRootState) => state.context.billingNotice;
 export const selectBillingRefreshTick = (state: ContextRootState) => state.context.billingRefreshTick;
-export const selectIsReadOnly = (state: ContextRootState) => state.context.billing?.status === "read_only";
+/** The Super Admin switched `feature` on for the current BU. False until the BU status has loaded. */
+export const selectHasBuFeature = (state: ContextRootState, feature: BuFeatureType) =>
+	state.context.billing?.features?.includes(feature) ?? false;
+/**
+ * True while the screens must not write: the BU is view-only for an unpaid month, or the
+ * session is the live demo (auth user's isDemo). The demo half reads the auth slice by shape
+ * so this slice does not import it.
+ */
+export const selectIsReadOnly = (state: ContextRootState & { auth?: { user?: { isDemo?: boolean } | null } }) =>
+	state.context.billing?.status === "read_only" || !!state.auth?.user?.isDemo;
 export const selectJobLimitReached = (state: ContextRootState) =>
 	isLimitReached(state.context.billing?.jobLimit, state.context.billing?.jobsUsed);
 export const selectWhatsappLimitReached = (state: ContextRootState) =>

@@ -33,6 +33,7 @@ import { PAGE_SIZE, thClass, tdClass, fmtCurrency } from "./deliver-job-helpers"
 import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
 import { DeviceCell, MobileLine } from "@/features/client/components/shared/device-cell";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -129,6 +130,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 	},
 	ref,
 ) {
+	const isReadOnly = useIsReadOnly();
 	const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore } = useGridRowRetention(loading);
 	useImperativeHandle(ref, () => ({ armRestore }), [armRestore]);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -490,6 +492,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 														</DropdownMenuItem>
 														<DropdownMenuItem
 															className="gap-2 text-xs text-violet-700 dark:text-violet-400 cursor-pointer"
+															disabled={isReadOnly}
 															onClick={() => onOpenAttach(row.id, row.job_no)}
 														>
 															<Paperclip className="h-3.5 w-3.5 text-slate-600" /> Attach
@@ -514,6 +517,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 														{row.invoice_no && (
 															<DropdownMenuItem
 																className="gap-2 text-xs text-emerald-700 dark:text-emerald-400 cursor-pointer"
+																disabled={isReadOnly}
 																onClick={() => onSendInvoiceWhatsapp(row)}
 															>
 																<WhatsAppIcon className="h-3.5 w-3.5" /> Send Invoice
@@ -524,6 +528,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                         correction is allowed on posted jobs. */}
 														<DropdownMenuItem
 															className="gap-2 text-xs text-rose-700 dark:text-rose-400 cursor-pointer"
+															disabled={isReadOnly}
 															onClick={() => onCorrectCosts(row)}
 														>
 															<IndianRupee className="h-3.5 w-3.5 text-slate-600" />{" "}
@@ -532,7 +537,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
 														<DropdownMenuSeparator />
 														<DropdownMenuItem
 															className="gap-2 text-xs text-amber-700 dark:text-amber-400 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
-															disabled={!!row.invoice_is_posted}
+															disabled={isReadOnly || !!row.invoice_is_posted}
 															onClick={() => onUndoDelivery(row)}
 															title={
 																row.invoice_is_posted

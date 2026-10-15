@@ -15,6 +15,7 @@ import { selectDefaultGstRate, selectDefaultHsnForSparePart, selectSchema } from
 import { PartCodeInput, type PartRow } from "@/features/client/components/inventory/part-code-input";
 
 import type { ConsumptionRow } from "./part-used-schema";
+import { useIsReadOnly } from "@/components/shared/billing/use-is-read-only";
 
 const applyMarkup = (cost: number, pct: number) => Math.round(cost * (1 + pct / 100) * 100) / 100;
 
@@ -58,6 +59,7 @@ type Props = {
 };
 
 export const EditPartUsedDialog = ({ row, markupPct, onClose, onSaved }: Props) => {
+	const isReadOnly = useIsReadOnly();
 	const dbName = useAppSelector(selectDbName);
 	const schema = useAppSelector(selectSchema);
 	const defaultGstRate = useAppSelector(selectDefaultGstRate);
@@ -265,7 +267,7 @@ export const EditPartUsedDialog = ({ row, markupPct, onClose, onSaved }: Props) 
 					</Button>
 					<Button
 						className="bg-amber-600 hover:bg-amber-700 text-white"
-						disabled={saving || editQty <= 0 || !editPartId}
+						disabled={isReadOnly || saving || editQty <= 0 || !editPartId}
 						onClick={() => void handleSave()}
 					>
 						{saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}

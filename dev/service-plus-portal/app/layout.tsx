@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
 
 import { MotionProvider } from "@/components/layout/motion-provider";
@@ -34,6 +34,16 @@ export const metadata: Metadata = {
 		default: "Service+ — Repair workshop management software",
 		template: "%s | Service+",
 	},
+};
+
+// Tints the mobile browser chrome (address bar, task switcher) to match the page ground, so the
+// site does not sit under a stray white or black strip. The two entries follow the OS preference,
+// which is the closest a class-toggled theme can get; the values mirror --background in globals.css.
+export const viewport: Viewport = {
+	themeColor: [
+		{ color: "#f9fbfd", media: "(prefers-color-scheme: light)" },
+		{ color: "#0b0f17", media: "(prefers-color-scheme: dark)" },
+	],
 };
 
 // Applies the stored theme before first paint, so dark-mode visitors never see a light flash.
