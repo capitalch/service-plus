@@ -261,6 +261,7 @@ export const MESSAGES = {
 	// Admin CRUD
 	ERROR_ADMIN_ACTIVATE_FAILED: "Failed to activate admin user. Please try again.",
 	ERROR_ADMIN_DEACTIVATE_FAILED: "Failed to deactivate admin user. Please try again.",
+	ERROR_ADMIN_DELETE_FAILED: "Failed to delete admin user. Please try again.",
 	ERROR_ADMIN_MAIL_CREDENTIALS_FAILED: "Failed to send credentials email. Please try again.",
 	ERROR_ADMIN_EMAIL_EXISTS: "This email is already registered for this client.",
 	ERROR_ADMIN_EMAIL_EXISTS_EDIT: "This email is already registered for another user.",
@@ -276,6 +277,7 @@ export const MESSAGES = {
 	WARN_ADMIN_EMAIL_NOT_SENT:
 		'Admin user account was created, but the password setup email could not be sent. Use "Mail the Reset Password Link" to resend.',
 	SUCCESS_ADMIN_DEACTIVATED: "Admin user has been deactivated.",
+	SUCCESS_ADMIN_DELETED: "Admin user has been deleted.",
 	SUCCESS_ADMIN_UPDATED: "Admin user updated successfully.",
 
 	// Client CRUD
@@ -773,6 +775,17 @@ export const MESSAGES = {
 		"Ask a question about the Service+ code, in your own words. For example: what must change when I add a new access right?",
 	AI_DEV_HELP_NOT_COVERED:
 		"The developer help doesn't cover this. Try searching the developer help with other words, or read the code and the plans folder.",
+
+	// Getting started checklist (plans/plan.md)
+	GS_ALL_DONE: "You're all set — your first job is delivered.",
+	GS_HINT_ASSIGN: "In Job Control, give the job to a technician and update its status as work goes on.",
+	GS_HINT_BRANDS:
+		"The makers and device types you repair, e.g. Samsung and Mobile. Models can be added later from the job form.",
+	GS_HINT_DELIVER: "Hand the device back: print the invoice and take the payment.",
+	GS_HINT_FINALIZE: "Add the parts and charges, and fix what the customer pays.",
+	GS_HINT_JOB: "Book in a device. You can add the customer and the model right from the job form.",
+	GS_HINT_TECHNICIAN: "Who repairs the devices. Jobs are assigned to a technician.",
+	GS_INTRO: "Six steps from an empty workshop to your first delivered job.",
 
 	// Live demo (plans/plan.md Steps 4–5)
 	DEMO_BANNER_TEXT: "You are looking at a demo workshop. New and Edit are switched off.",

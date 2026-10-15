@@ -1,7 +1,11 @@
 # To Do
-- Website parts
-	- Remove website parts for customers
-	- Configurable databases and BU' for which website parts are enabled
+									- Website parts
+										- Remove website parts for customers
+										- Configurable databases and BU' for which website parts are enabled
+- Situation
+	- One user is rejected, cannot re apply
+	- A use already created a bu, cannot create another bu even if does payment
+	- One user cannot own multiple bu's. Maybe manual creation.
 - Mock drill before launch
 - Domain book
 	- implement domain myserviceplus.in

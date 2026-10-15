@@ -3,6 +3,19 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-16 00:48 (main)
+Onboarding: Getting started checklist; fix sign-up approval
+
+- client: Getting started pill and panel for Managers and Admins of a new BU; six self-ticking steps to the first delivered job (GET_GETTING_STARTED_PROGRESS), Go there and Show me, opens once per sign-in; first-time-setup help rewritten
+- sign-up approval: head office no longer writes the dropped branch.gstin (every Lite/Basic/Standard approval and Enterprise provisioning failed); "City, State" split into branch city and state
+- new default customer database gets security.sales_enquiry at Initialize; sales_enquiry.user_id is ON DELETE SET NULL; blocked deletes return a readable "still used by" reason
+- account-ready email: branded HTML with sign-in details, Set password and Open Service+ buttons, and which Client to pick at login
+- super admin: delete a deactivated admin user; shared delete dialog shows the server's reason
+- portal: separate City and State (dropdown) on the sign-up form; plans/plan.md adds the multi-BU checklist plan
+
+Files: 21 changed (+663 / -368) — Base: 8d87d82
+Version: 0.24.9 → 0.24.10
+
 ## 2026-10-15 21:12 (main)
 BU features: Super Admin grants Spare Parts Web; live demo sign-in
 

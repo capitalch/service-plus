@@ -90,42 +90,76 @@ export const HELP_ARTICLES: HelpArticle[] = [
 	{
 		id: "first-time-setup",
 		category: "Getting Started",
-		title: "First-Time Setup Checklist",
-		summary: "Step-by-step guide to go from zero to your first job.",
-		tags: ["setup", "onboarding", "configuration", "document sequence", "division", "getting started"],
+		title: "Getting started: your first job",
+		summary: "Six steps from an empty workshop to your first delivered job — and what is already set up for you.",
+		tags: [
+			"setup",
+			"onboarding",
+			"getting started",
+			"first job",
+			"checklist",
+			"new business unit",
+			"document sequence",
+			"division",
+		],
 		content: [
 			{
 				type: "para",
-				text: "Complete these steps in order before creating your first job. Skipping steps — especially document sequences — will cause errors later.",
+				text: "Managers and Admins of a new business unit see a 'Getting started' button at the top of the screen, with a count such as 2/6. It opens a checklist of the steps below. Each step ticks itself when it is done, 'Go there' opens the right screen and 'Show me' opens the help for it. It opens by itself each time you sign in until the steps are done; 'Close' just closes it, and the button stays. It goes away once your first job is delivered.",
 			},
 			{
 				type: "steps",
 				items: [
-					"Create a Branch (Configurations → Branch). At least one branch is required.",
-					"Create a Division (Configurations → Divisions). Fill GSTIN for a GST division; leave GSTIN blank for non-GST.",
-					"Configure Numbering / Auto Series (Configurations → Numbering / Auto Series). JOB_SHEET (prefix J), PURCHASE_INVOICE (prefix P), and PURCHASE_RETURN_INVOICE (prefix PR) already come pre-filled for the new BU's Head Office branch — the Main division's series also come pre-filled: MONEY_RECEIPT (MR), SALES_INVOICE (SI), SALES_RETURN_INVOICE (SR), SERVICE_INVOICE (SI) and SERVICE_RETURN_INVOICE (RI). Change any of them if you prefer. Any other division you add needs its own prefixes.",
-					"Set App Settings (Configurations → App Settings): default GST rate, default HSN codes, number of print copies. Yes/no settings such as post_data_to_accounts are edited with an on/off switch instead of typing true or false.",
-					"Add lookup values: Job Types, Job Statuses, Receive/Delivery Manners, Receive Conditions (Configurations → Service Config, Admin only).",
-					"Add Brands, Products, and Models (Masters → Brand / Product / Model). Jobs require all three.",
-					"Add Spare Parts with Cost Price, HSN code, and GST Rate (Masters → Parts).",
-					"Add Customers and Technicians (Masters → Customer and Technician).",
-					"Add Opening Stock if inventory already exists before the system goes live (Inventory → Opening Stock).",
-					"Optionally: enter historical jobs as Opening Jobs (Jobs → Opening Jobs).",
+					"Add brands and products (Masters → Brand, Masters → Product): the makers and device types you repair, e.g. Samsung and Mobile.",
+					"Add a technician (Masters → Technician). Jobs are assigned to a technician.",
+					"Create your first job (Jobs → Single Job). You can add the customer and the model right from the job form — there is no need to add them in Masters first.",
+					"Assign a technician (Jobs → Job Control) and update the job's status as the work goes on.",
+					"Finalize the job (Jobs → Final a Job): add the parts and charges, and fix what the customer pays.",
+					"Deliver the job (Jobs → Deliver Job): print the invoice and take the payment.",
+				],
+			},
+			{
+				type: "heading",
+				text: "Already set up for you",
+			},
+			{
+				type: "bullets",
+				items: [
+					"Your head office branch and its Main division.",
+					"Numbering (Configurations → Numbering / Auto Series): job sheets, invoices, receipts and returns already have prefixes. Change them if you prefer.",
+					"Job types, job statuses, receive and delivery manners, receive conditions, states and the current financial year.",
+				],
+			},
+			{
+				type: "heading",
+				text: "When you're ready",
+			},
+			{
+				type: "bullets",
+				items: [
+					"Spare parts with cost price, HSN code and GST rate (Masters → Parts), and Opening Stock for parts you already hold (Inventory → Opening Stock).",
+					"GST: the division's GSTIN (Configurations → Divisions) and default GST rate and HSN codes (Configurations → App Settings).",
+					"WhatsApp updates to customers (Configurations → App Settings).",
+					"Old jobs still in the workshop, as Opening Jobs (Jobs → Opening Jobs). They do not count towards the checklist.",
 				],
 			},
 			{
 				type: "warning",
-				text: "If a prefix was cleared, or you add a second branch or division (which does not inherit the first one's numbering), you will see an error such as: 'Job Sheet document sequence is not configured or has no prefix.' Go to Configurations → Numbering / Auto Series and add a prefix to resolve it. (The in-app message currently says 'Settings → Document Sequence' — that wording is stale; the real menu path is Configurations → Numbering / Auto Series.)",
+				text: "A branch or division you add later does not inherit the first one's numbering. If you see 'Job Sheet document sequence is not configured or has no prefix', go to Configurations → Numbering / Auto Series and give it a prefix.",
 			},
 		],
 		faqs: [
+			{
+				q: "I don't see the Getting started button.",
+				a: "It is shown only to Managers and Admins, and only until the business unit's first job is delivered. This help page always has the same steps.",
+			},
 			{
 				q: "Why can't I create a new job?",
 				a: "On the BU's original Head Office branch this is unlikely — JOB_SHEET (prefix J) is pre-configured when the BU is created. On any branch added afterward, or if the prefix was cleared, go to Configurations → Numbering / Auto Series, find JOB_SHEET, and set a prefix (e.g., 'SVC').",
 			},
 			{
 				q: "Do I need to create the customer before the job?",
-				a: "Yes. Search for an existing customer on the job form. If they are new, add them in Masters → Customer first.",
+				a: "No. Search for the customer on the job form; if they are new, use 'Add new customer' right there. Masters → Customer is for editing customers later.",
 			},
 			{
 				q: "Can I have multiple divisions?",
@@ -4105,7 +4139,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 		faqs: [
 			{
 				q: "Why can't I delete a business user?",
-				a: "The message says why. A user created when a sign-up request was approved can't be deleted while that request still refers to it — deactivate the user instead. Any other refusal names what still uses the user.",
+				a: "The message says why — it names what still uses the user. A user created when a sign-up request was approved can be deleted: the request is kept and simply no longer points to a user. If it is the business unit's only Manager, consider deactivating instead.",
 			},
 			{
 				q: "A user forgot their password — what do I do?",

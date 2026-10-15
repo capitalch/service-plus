@@ -55,6 +55,7 @@ import { AddClientDialog } from "../components/add-client-dialog";
 import { AttachDbDialog } from "../components/attach-db-dialog";
 import { CreateAdminDialog } from "../components/create-admin-dialog";
 import { DeactivateAdminDialog } from "../components/deactivate-admin-dialog";
+import { DeleteAdminDialog } from "../components/delete-admin-dialog";
 import { DeactivateClientDialog } from "../components/deactivate-client-dialog";
 import { DeleteClientDialog } from "../components/delete-client-dialog";
 import { DetachDbDialog } from "../components/detach-db-dialog";
@@ -143,6 +144,7 @@ export const ClientsPage = () => {
 	// ── Admin dialog state ───────────────────────────────────────────────────
 	const [activateAdmin, setActivateAdmin] = useState<{ admin: ClientAdminType; client: ClientType } | null>(null);
 	const [deactivateAdmin, setDeactivateAdmin] = useState<{ admin: ClientAdminType; client: ClientType } | null>(null);
+	const [deleteAdmin, setDeleteAdmin] = useState<{ admin: ClientAdminType; client: ClientType } | null>(null);
 	const [editAdmin, setEditAdmin] = useState<{ admin: ClientAdminType; client: ClientType } | null>(null);
 	const [mailAdminCredentials, setMailAdminCredentials] = useState<{
 		admin: ClientAdminType;
@@ -238,6 +240,7 @@ export const ClientsPage = () => {
 	// ── Admin handlers ───────────────────────────────────────────────────────
 	const handleActivateAdmin = (admin: ClientAdminType, client: ClientType) => setActivateAdmin({ admin, client });
 	const handleDeactivateAdmin = (admin: ClientAdminType, client: ClientType) => setDeactivateAdmin({ admin, client });
+	const handleDeleteAdmin = (admin: ClientAdminType, client: ClientType) => setDeleteAdmin({ admin, client });
 	const handleEditAdmin = (admin: ClientAdminType, client: ClientType) => setEditAdmin({ admin, client });
 	const handleMailAdminCredentials = (admin: ClientAdminType, client: ClientType) =>
 		setMailAdminCredentials({ admin, client });
@@ -980,6 +983,21 @@ export const ClientsPage = () => {
 																								Activate
 																							</DropdownMenuItem>
 																						)}
+																						{/* Only a deactivated admin can be deleted. */}
+																						{!admin.is_active && (
+																							<DropdownMenuItem
+																								className="cursor-pointer text-red-600 focus:text-red-600"
+																								onClick={() =>
+																									handleDeleteAdmin(
+																										admin,
+																										client,
+																									)
+																								}
+																							>
+																								<Trash2Icon className="mr-2 h-4 w-4 text-red-600" />
+																								Delete
+																							</DropdownMenuItem>
+																						)}
 																					</DropdownMenuContent>
 																				</DropdownMenu>
 																			</TableCell>
@@ -1140,6 +1158,18 @@ export const ClientsPage = () => {
 					open={!!deactivateAdmin}
 					onOpenChange={(open) => {
 						if (!open) setDeactivateAdmin(null);
+					}}
+					onSuccess={handleRefetch}
+				/>
+			)}
+			{deleteAdmin && (
+				<DeleteAdminDialog
+					admin={deleteAdmin.admin}
+					clientName={deleteAdmin.client.name}
+					dbName={deleteAdmin.client.db_name!}
+					open={!!deleteAdmin}
+					onOpenChange={(open) => {
+						if (!open) setDeleteAdmin(null);
 					}}
 					onSuccess={handleRefetch}
 				/>

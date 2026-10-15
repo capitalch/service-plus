@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsReadOnly, useReadOnlyTooltip } from "@/components/shared/billing/use-is-read-only";
+import { enquiryErrorCode, enquiryErrorMessage } from "@/components/shared/enquiries/enquiry-mutation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,8 +93,13 @@ export const DeleteConfirmDialog = ({
 			toast.success(toastMessages.success);
 			onSuccess();
 			onOpenChange(false);
-		} catch {
-			toast.error(toastMessages.error);
+		} catch (error) {
+			// A refusal the server explains (e.g. "still used by …") is shown as sent.
+			toast.error(
+				enquiryErrorCode(error) === "VALIDATION_ERROR"
+					? enquiryErrorMessage(error, toastMessages.error)
+					: toastMessages.error,
+			);
 		} finally {
 			setSubmitting(false);
 		}

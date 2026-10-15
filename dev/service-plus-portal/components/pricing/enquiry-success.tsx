@@ -20,6 +20,7 @@ type EnquirySuccessPropsType = {
 		gstin: string;
 		mobile: string;
 		name: string;
+		state: string;
 	};
 };
 
@@ -110,7 +111,8 @@ export const EnquirySuccess = ({ onReset, plan, reference, values }: EnquirySucc
 		{ label: "Business", value: values.businessName },
 		{ label: "Mobile", value: values.mobile },
 		{ label: "Email", value: values.email },
-		{ label: "City / State", value: values.city },
+		{ label: "City", value: values.city },
+		{ label: "State", value: values.state },
 		{ label: "Plan", value: plan.name },
 	];
 	if (values.gstin) recap.push({ label: "GSTIN", value: values.gstin });

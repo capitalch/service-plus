@@ -21,6 +21,7 @@ from app.core.exceptions import AppMessages, ValidationException
 from app.graphql.resolvers.bu_admin.mailers import _build_reset_link
 from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
+from app.services.signup_emails import build_html
 
 
 async def resolve_create_admin_user_helper(
@@ -223,14 +224,18 @@ async def resolve_create_business_user_helper(
 
     email_sent = False
     try:
+        html_body = None
         if signup_client_name:
             subject = AppMessages.EMAIL_SIGNUP_USER_LINK_SUBJECT
             body = AppMessages.EMAIL_SIGNUP_USER_LINK_BODY.format(
                 client_name=signup_client_name,
                 full_name=full_name,
+                # The login page sits beside /reset-password on the same app address.
+                login_link=reset_link.split("/reset-password", 1)[0] + "/login",
                 reset_link=reset_link,
                 username=username,
             )
+            html_body = build_html(body, subject)
         else:
             subject = AppMessages.EMAIL_NEW_BU_USER_LINK_SUBJECT
             body = AppMessages.EMAIL_NEW_BU_USER_LINK_BODY.format(
@@ -238,7 +243,7 @@ async def resolve_create_business_user_helper(
                 reset_link=reset_link,
                 username=username,
             )
-        await send_email(to=email, subject=subject, body=body)
+        await send_email(to=email, subject=subject, body=body, html_body=html_body)
         email_sent = True
     except Exception as mail_err:  # pylint: disable=broad-except
         logger.warning("Failed to send setup link email to %s: %s", email, mail_err)

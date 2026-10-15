@@ -332,15 +332,22 @@ class SignupServerSql:
     # Run in the new BU schema: the applicant's city (and GSTIN, if given) on the head office
     # and on its default division Main (plans/plan2.md). Two statements: psycopg cannot send
     # several parameterised statements at once.
+    # The applicant's city and state on the new BU's head office. GSTIN is not set here: the
+    # branch has no gstin column (it lives only on the division since the branch GSTIN drop).
+    # An unknown or missing state keeps the branch's existing state.
     SET_HEAD_OFFICE_CITY_GSTIN = """
         UPDATE branch
-        SET city = %(city)s, gstin = COALESCE(%(gstin)s, gstin), updated_at = now()
+        SET city = %(city)s,
+            state_id = COALESCE((SELECT id FROM state WHERE LOWER(name) = LOWER(%(state)s)), state_id),
+            updated_at = now()
         WHERE code = 'HO'
     """
 
     SET_MAIN_DIVISION_CITY_GSTIN = """
         UPDATE division
-        SET city = %(city)s, gstin = COALESCE(%(gstin)s, gstin), updated_at = now()
+        SET city = %(city)s, gstin = COALESCE(%(gstin)s, gstin),
+            state_id = COALESCE((SELECT id FROM state WHERE LOWER(name) = LOWER(%(state)s)), state_id),
+            updated_at = now()
         WHERE is_default AND branch_id = (SELECT id FROM branch WHERE code = 'HO')
     """
 
@@ -504,8 +511,10 @@ class SignupServerSql:
             FOREIGN KEY (bu_id) REFERENCES security.bu (id);
 
         ALTER TABLE security.sales_enquiry DROP CONSTRAINT IF EXISTS sales_enquiry_user_id_fkey;
+        -- Deleting the login user an approved sign-up created keeps the request (reference,
+        -- email, approval history) and only clears its link to the user.
         ALTER TABLE security.sales_enquiry ADD CONSTRAINT sales_enquiry_user_id_fkey
-            FOREIGN KEY (user_id) REFERENCES security."user" (id);
+            FOREIGN KEY (user_id) REFERENCES security."user" (id) ON DELETE SET NULL;
         """
         + _PAYMENT_CONSTRAINTS.format(table="security.sales_enquiry", not_valid="")
         + """

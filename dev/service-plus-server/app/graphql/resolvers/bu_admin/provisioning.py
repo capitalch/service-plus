@@ -6,6 +6,7 @@ import re
 
 import psycopg.sql as pgsql
 
+from app.config import settings
 from app.core.audit_log import AuditAction, audit_logger
 from app.core.email import send_email
 from app.db.connection.psycopg_driver import exec_sql, exec_sql_dml, exec_sql_object
@@ -13,6 +14,7 @@ from app.db.seeds.seed_bu_data import SeedBuData
 from app.db.seeds.seed_security_data import SeedSecurityData
 from app.db.sql.sql_base import SqlStore
 from app.db.sql.sql_billing import BillingServerSql
+from app.db.sql.sql_signups import SignupServerSql
 from app.core.exceptions import AppMessages, ValidationException
 from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
@@ -308,6 +310,16 @@ async def resolve_create_service_db_helper(
         schema="security",
         sql=BillingServerSql.BU_BILLING_DDL,
     )
+    # Lite / Basic / Standard sign-ups are saved in security.sales_enquiry of the default
+    # customer database only, so that table is not in the template dump either. Without it a
+    # recreated default database refuses every sign-up ("Database query failed").
+    if new_db_name == settings.default_customer_db_name:
+        logger.info("Creating sign-up table in default customer database: %s", new_db_name)
+        await exec_sql(
+            db_name=new_db_name,
+            schema="security",
+            sql=SignupServerSql.SALES_ENQUIRY_DDL,
+        )
 
     # 4a. Seed baseline security data (default roles, etc.) — folds what used to be a
     # separate client-driven wizard step into schema creation itself.

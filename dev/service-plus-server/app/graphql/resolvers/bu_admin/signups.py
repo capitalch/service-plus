@@ -232,9 +232,19 @@ async def set_bu_plan(db_name: str, bu_id: int, plan_code: str, monthly_fee_pais
     clear_bu_billing(db_name)
 
 
+def split_city_state(city: str) -> tuple[str, str | None]:
+    """The portal sends "City, State" in one city field ("Kolkata, West Bengal"); older
+    sign-ups carry the city alone. Returns (city, state or None)."""
+    head, sep, tail = (city or "").rpartition(",")
+    return (head.strip(), tail.strip() or None) if sep and head.strip() else ((city or "").strip(), None)
+
+
 async def set_head_office_city_gstin(db_name: str, schema: str, city: str, gstin: str | None) -> None:
-    """The applicant's city (and GSTIN) on the new BU's HO branch and its Main division."""
-    args = {"city": city, "gstin": gstin or None}
+    """The applicant's city and state on the new BU's HO branch and its Main division, and
+    their GSTIN on the division (the branch has none). A state the BU's state table does
+    not know leaves the seeded state in place."""
+    city_only, state = split_city_state(city)
+    args = {"city": city_only, "gstin": gstin or None, "state": state}
     await exec_sql(db_name, schema, SignupServerSql.SET_HEAD_OFFICE_CITY_GSTIN, args)
     await exec_sql(db_name, schema, SignupServerSql.SET_MAIN_DIVISION_CITY_GSTIN, args)
 

@@ -22,6 +22,7 @@ export type SalesEnquiryType = {
 	mobile: string;
 	name: string;
 	plan: PlanCodeType;
+	state: string;
 };
 
 export type PlanPricesResponseType = {
@@ -94,7 +95,8 @@ function publicPost<T>(path: string, body: unknown): Promise<T> {
 function enquiryBody(enquiry: SalesEnquiryType) {
 	return {
 		business_name: enquiry.businessName,
-		city: enquiry.city,
+		// The server keeps one city field; the form asks city and state separately.
+		city: `${enquiry.city}, ${enquiry.state}`,
 		email: enquiry.email,
 		gstin: enquiry.gstin || null,
 		message: enquiry.message || null,

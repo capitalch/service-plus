@@ -4,6 +4,7 @@ import { LogOut, Menu, Moon, PackageX, PanelLeft, ShieldCheck, Sun, Timer, Uploa
 import { NotificationBell } from "@/components/shared/notifications/notification-bell";
 import type { NotificationItem } from "@/components/shared/notifications/notification-bell";
 import { BuBranchSwitcher } from "@/features/admin/components/bu-branch-switcher";
+import { GettingStartedPill } from "@/features/client/components/getting-started/getting-started-pill";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout, selectCurrentUser } from "@/features/auth/store/auth-slice";
 import {
@@ -177,6 +178,9 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 				<div className="border-r border-(--cl-border) pr-2 lg:pr-2">
 					<BuBranchSwitcher variant="client" />
 				</div>
+
+				{/* Managers and Admins of a new BU: steps to the first delivered job (plans/plan.md). */}
+				<GettingStartedPill />
 
 				<button
 					onClick={toggleTheme}

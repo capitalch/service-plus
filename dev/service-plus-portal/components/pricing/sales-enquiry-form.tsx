@@ -20,6 +20,7 @@ import { findPlan, formatInr, planCodes, type PlanCodeType } from "@/content/pri
 import { ApiError, submitSalesEnquiry, submitSignup } from "@/lib/api";
 import { findLivePlan, usePlanPrices } from "@/lib/plan-prices";
 import { cn } from "@/lib/utils";
+import { indianStates } from "@/content/indian-states";
 import { BU_NAME_REGEX, GSTIN_REGEX, MOBILE_REGEX, normalizeGstin, normalizeMobile } from "@/lib/validators";
 
 const MESSAGE_LIMIT = 2000;
@@ -27,13 +28,15 @@ const MESSAGE_LIMIT = 2000;
 const enquirySchema = z.object({
 	// The business name becomes the business unit's name, so it follows the BU name rule.
 	businessName: z.string().trim().regex(BU_NAME_REGEX, MESSAGES.errBusinessName),
-	city: z.string().trim().min(2, MESSAGES.errCity).max(100, MESSAGES.errCity),
+	// City and state reach the server as one "City, State" field of at most 100 characters.
+	city: z.string().trim().min(2, MESSAGES.errCity).max(60, MESSAGES.errCity),
 	email: z.email(MESSAGES.errEmail).max(200, MESSAGES.errEmail),
 	gstin: z.string().refine((v) => v === "" || GSTIN_REGEX.test(v), MESSAGES.errGstin),
 	message: z.string().max(MESSAGE_LIMIT, MESSAGES.errMessage),
 	mobile: z.string().regex(MOBILE_REGEX, MESSAGES.errMobile),
 	name: z.string().trim().min(2, MESSAGES.errName).max(100, MESSAGES.errName),
 	plan: z.enum(planCodes, { error: MESSAGES.errPlan }),
+	state: z.enum(indianStates, { error: MESSAGES.errState }),
 	// Honeypot: hidden from people, filled in by bots.
 	website: z.string(),
 });
@@ -53,7 +56,8 @@ const fieldOrder: FieldMetaType[] = [
 	{ id: "businessName", label: "Business name" },
 	{ id: "mobile", label: "Mobile" },
 	{ id: "email", label: "Email" },
-	{ id: "city", label: "City / State" },
+	{ id: "city", label: "City" },
+	{ id: "state", label: "State" },
 	{ id: "gstin", label: "GSTIN" },
 	{ id: "message", label: "Message" },
 ];
@@ -167,6 +171,7 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 			mobile: "",
 			name: "",
 			plan: selectedPlan,
+			state: "" as EnquiryFormType["state"],
 			website: "",
 		},
 		// Validate as the visitor types: errors show at once and the submit button stays disabled
@@ -241,7 +246,17 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 	}
 
 	function handleReset() {
-		reset({ ...watch(), businessName: "", city: "", email: "", gstin: "", message: "", mobile: "", name: "" });
+		reset({
+			...watch(),
+			businessName: "",
+			city: "",
+			email: "",
+			gstin: "",
+			message: "",
+			mobile: "",
+			name: "",
+			state: "" as EnquiryFormType["state"],
+		});
 		setServerError(null);
 		setSubmitted(null);
 	}
@@ -325,8 +340,31 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 				{(aria) => <Input autoComplete="email" type="email" {...aria} {...register("email")} />}
 			</Field>
 
-			<Field error={errors.city?.message} htmlFor="city" label="City / State" required>
+			<Field error={errors.city?.message} htmlFor="city" label="City" required>
 				{(aria) => <Input autoComplete="address-level2" {...aria} {...register("city")} />}
+			</Field>
+
+			<Field error={errors.state?.message} htmlFor="state" label="State" required>
+				{(aria) => (
+					<Controller
+						control={control}
+						name="state"
+						render={({ field }) => (
+							<Select onValueChange={field.onChange} value={field.value}>
+								<SelectTrigger className="w-full" onBlur={field.onBlur} {...aria}>
+									<SelectValue placeholder="Choose your state" />
+								</SelectTrigger>
+								<SelectContent>
+									{indianStates.map((state) => (
+										<SelectItem key={state} value={state}>
+											{state}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						)}
+					/>
+				)}
 			</Field>
 
 			<Field error={errors.gstin?.message} htmlFor="gstin" label="GSTIN">

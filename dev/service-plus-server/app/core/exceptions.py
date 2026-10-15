@@ -327,16 +327,27 @@ class AppMessages:
 
     # Login email for a sign-up approved on the portal (plans/plan.md Step 9): names the
     # client to pick on the login screen, since the shared database holds many customers.
+    # Sent to the Manager an approved sign-up creates. Written for signup_emails.build_html: the
+    # "Label: value" block becomes a details table and each lone "Label: link" line a button.
+    # The client name matters most: these BUs live inside a shared client, so the login page's
+    # Client list shows that name, never the customer's own business name.
     EMAIL_SIGNUP_USER_LINK_BODY = (
         "Hello {full_name},\n\n"
-        "Your Service+ sign-up has been approved. Welcome!\n\n"
-        "Here are your sign-in details:\n\n"
-        "  Client   : {client_name}\n"
-        "  Login ID : {username}\n\n"
-        "Set your password with the secure link below (valid for 48 hours):\n\n"
-        "  {reset_link}\n\n"
-        "Then sign in to Service+: choose the client \"{client_name}\", enter your Login ID and "
-        "the password you chose.\n\n"
+        "Good news — your Service+ sign-up is approved and your account is ready.\n\n"
+        "These are your sign-in details. Please keep this email.\n\n"
+        "Client: {client_name}\n"
+        "Login ID: {username}\n\n"
+        "Step 1 — Set your password. The link works for 48 hours.\n\n"
+        "Set your password: {reset_link}\n\n"
+        "Step 2 — Sign in.\n"
+        "1. Open the Service+ login page.\n"
+        "2. In the Client list, choose \"{client_name}\".\n"
+        "3. Enter your Login ID ({username}) and the password you set in Step 1.\n\n"
+        "Important: Your business is set up inside the client \"{client_name}\". Look for "
+        "\"{client_name}\" in the Client list — your own business name is not listed there.\n\n"
+        "Open Service+: {login_link}\n\n"
+        "After you sign in, open \"Getting started\" at the top of the screen. It walks you "
+        "through your first job, from adding your brands to delivering the device.\n\n"
         "Welcome aboard,\n"
         "The Service+ Team"
     )

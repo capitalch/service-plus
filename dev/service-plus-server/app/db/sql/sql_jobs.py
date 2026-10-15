@@ -7,6 +7,21 @@ Split from app/db/sql_store.py — see plans/plan.md Step 3.
 class JobsSql:
     """SQL constants for the jobs domain."""
 
+    # ── Getting started checklist (plans/plan.md) ─────────────────────────────
+    # One row of yes/no per checklist step for the current BU. Opening jobs never count:
+    # importing old jobs is not creating or delivering one in Service+.
+
+    GET_GETTING_STARTED_PROGRESS = """
+        with "dummy" as (values(1::int))
+        SELECT
+            EXISTS (SELECT 1 FROM brand) AND EXISTS (SELECT 1 FROM product) AS has_brands_products,
+            EXISTS (SELECT 1 FROM technician) AS has_technician,
+            EXISTS (SELECT 1 FROM job WHERE NOT is_opening_job) AS has_job,
+            EXISTS (SELECT 1 FROM job WHERE NOT is_opening_job AND technician_id IS NOT NULL) AS has_assigned_job,
+            EXISTS (SELECT 1 FROM job WHERE NOT is_opening_job AND is_final) AS has_final_job,
+            EXISTS (SELECT 1 FROM job WHERE NOT is_opening_job AND delivery_date IS NOT NULL) AS has_delivered_job
+    """
+
     # ── Job Delivery Manners ──────────────────────────────────────────────────
 
     CHECK_JOB_DELIVERY_MANNER_CODE_EXISTS = """

@@ -1,385 +1,349 @@
-# Plan — Per-BU features, switched on by the Super Admin
+# Plan — "Getting started" checklist for a new Manager
 
-Source: chat request, 15 Oct 2026, revised the same day. Built 15 Oct 2026 (Steps 1–11 ✅); Your Parts A and B are still to do.
+Source: chat request, 15 Oct 2026. Built 15 Oct 2026 (Steps 1–7 ✅). (The previous plan in this file, per-BU features, is in git at commit 8d87d82.)
 
 ## Goal
 
-The Super Admin decides which business units get which optional features. A feature that is off for a BU does not exist for that BU's users: no menu item, no screen, no help article, and the server refuses its writes. **Spare Parts Web** is the first such feature, and from now on it is off everywhere until the Super Admin switches it on for chosen BUs.
+A Manager who signs in to a brand-new business unit is guided, inside the app, from an empty workshop to their first delivered job. They see what to do next, can jump straight to the right screen, and can open the help for each step.
 
 Decisions:
-- **Generic, not a one-off.** One feature list, one place to switch features on, and one check used everywhere. A future selective feature is added by naming it in the list and wrapping its menu item, screen, help article and server writes in the same check.
-- **Stored per BU.** "This client gets it" means switching it on for all of that client's BUs. The Super Admin screen has an "all BUs" tick per feature to do that in one click.
-- **Not tied to plans.** Plans keep their limits. Features are a separate, hand-picked switch per BU.
-- **Off by default.** A new BU, and every existing BU after the upgrade, starts with no features. Nothing is switched on automatically.
-- **Only the Super Admin changes it.** A tenant's own Admin can see nothing about it and cannot change it, not even through the generic update call.
-- **Hidden, not deleted.** Turning a feature off keeps its data. Turning it back on brings everything back as it was.
-- **The public website follows the switch.** A BU with Spare Parts Web off drops out of the website's Spare Parts page, while its job-status and open-jobs lookups on the same website keep working.
+- **A checklist, not a click-by-click tour.** Tours pin bubbles to screen elements and break when screens change. A checklist lists the steps in order and leaves the work on the real screens.
+- **It ticks itself.** Each step is done when the data shows it (for example, a delivered job exists). Nobody ticks anything by hand, so it never drifts from reality.
+- **A pill in the top bar opens it**, showing progress such as "Getting started 2/6". It opens a panel; it is not a card on the job screen. The Manager lands on Jobs → Single Job, the new-job form, and a card there would get in the way of entering jobs.
+- **It opens by itself once.** The first time a Manager or Admin enters a BU that has not finished it, the panel opens automatically.
+- **It goes away when done.** After the first delivered job it shows a short "You're all set" and then disappears. It can also be hidden by hand.
+- **Only Managers and Admins see it.** Receptionists and Technicians do not set up masters. The live demo never shows it.
+- **Only the real work is listed.** A new BU already has its branch, division, numbering, job types and statuses, lookups, states and financial year, so none of those are steps.
+- **No live-demo link inside the app.** Opening `/demo` signs the browser in as the demo user, which would replace the Manager's own session.
 
 ## Present context
 
-- **Per-BU settings the Super Admin controls already exist, for billing.** `security.bu` (in every tenant database) carries `plan_code`, `paid_through`, `branch_limit`, the monthly limits and more. The Super Admin edits them from the Clients page's row menu (`client-subscription-dialog.tsx`). That dialog reads `GET_BU_SUBSCRIPTIONS` with `genericQuery` on the client's database, and saves through dedicated mutations that only userType `S` may call (`require_user_type(info, {"S"})`, `bu_admin/billing.py`).
-- **Those columns are already protected from tenants.** `require_generic_update_access` (`auth_guards.py`) refuses any `genericUpdate` that touches a column in `BU_BILLING_COLUMNS` on `bu`.
-- **The app already re-reads a per-BU status.** `buBillingStatus` (`query.py`) returns the BU's billing summary, usage and `aiHelpEnabled`. The client reads it on BU change, on window focus and on `billingRefreshTick` (`use-billing-sync.ts`) and keeps it in `context.billing` (`BuBillingType`, `store/context-slice.ts`). The billing part comes from `get_bu_billing` (`services/bu_billing.py`), cached for 60 seconds per BU and cleared by `clear_bu_billing`. `require_bu_writable` reads the same cache on every write.
-- **The existing add-on works differently.** Extended Warranty is switched on by the tenant itself in App Settings (`extended_warranty.enabled`, `custom-menu-registry.ts`). It is a tenant choice, not a Super Admin grant, and is not changed by this plan.
-- **Spare Parts Web today:**
-    - **Menu and screen.** Masters → *Product & Parts* → **Spare Parts Web** (`client-explorer-panel.tsx`, `MastersExplorer`), opening `SparePartWebSection` (`client-masters-page.tsx`). Everyone who can open Masters sees it.
-    - **Help.** The staff article `spare-parts-web` (`help-content.ts`). `HELP_ARTICLES` feeds both the Help panel (`client-layout.tsx`) and Ask AI (`use-ask-help-ai.ts`, which sends the article text to the server).
-    - **Server writes.** `genericUpdate` on table `spare_part_web` (right `MASTERS_MENU`). Photos go through four `/spare-part-web/...` routes in `routers/media/image_router.py`.
-    - **Public website.** `service-plus-web`'s `/spare-parts` page uses `/api/public/companies`, `/branches`, `/company-info`, `/parts`, `/parts/{id}` and `/part-orders` (`website_router.py`). `/companies` lists every active BU of every active client (`public_directory.py`). The website's job-status and open-jobs forms use the same `/companies` list.
-- **New tenant databases** get `security.bu` from `sql_bu_admin_ddl.py`. Existing databases get new columns from a one-off script, as `scripts/run_plan_limits_ddl.py` did for the monthly limits.
-- **Data today** (live databases, 15 Oct 2026): only `demo1` in `service_plus_demo` has web parts (2 rows). `servicedemo`, `capitalelectronics`, `navtechnology`, `dummy` and `abc` have none.
+- **Where the Manager lands.** `/client` opens Jobs with "Single Job" selected (`SECTION_DEFAULTS` in `client-layout.tsx`).
+- **Opening a screen by name.** `navigate(ROUTES.client.<section>, { state: { subItem: "<menu label>" } })` opens a section with a menu item selected. `client-layout.tsx` reads `navState.subItem`, and `client-top-nav.tsx` already uses this for its shortcuts.
+- **Opening a help article.** `useHelp().openHelp(articleId)` from `client-layout.tsx`. Articles that exist: `brands-models`, `technicians`, `create-job`, `job-control`, `finalize-job`, `deliver-job`, `first-time-setup`.
+- **The job form adds a customer and a model on the spot.** It has "Add new customer" (`customer-select.tsx` → `AddCustomerDialog`) and `AddModelDialog`. A model needs an existing brand and product, so brands and products must come first. Technicians are only added in Masters.
+- **What a job records.** In the `job` table (BU schema), `technician_id` is set once a technician is assigned, `is_final` once the job is finalized, and `delivery_date` once it is delivered. `is_opening_job` marks opening jobs, which must not count. The master tables are `brand`, `product` and `technician`.
+- **The existing help article is out of date.** "First-Time Setup Checklist" (`first-time-setup` in `help-content.ts`) tells a Manager to create a branch, a division, numbering, App Settings and lookup values. A sign-up BU already has all of these (`seed_bu_data.py`). It also says a customer must exist before the job, which is no longer true.
+- **Who is who.** A Manager is `user.userType === "B" && user.roleCode === "MANAGER"`, as in `use-can-manage-staff-users.ts`. An Admin is `userType === "A"`. The live demo is `user.isDemo`.
+- **UI parts.** `components/ui/popover.tsx` exists; there is no Sheet component. Reads go through `useGenericQuery`.
 
 ## New design brief
 
-- A `features` list on every `security.bu` row, plus one feature catalogue on the server and one in the client (Step 1, Step 6).
-- `buBillingStatus` also returns the BU's features, and tenants cannot write the column (Step 2).
-- The Super Admin reads and saves features per client and BU (Step 3, Step 7).
-- The server refuses Spare Parts Web writes and hides its public pages for BUs without the feature (Step 4).
-- The app hides the Spare Parts Web menu item, screen and help article for BUs without it (Step 8, Step 9).
-- The public website's Spare Parts page lists only BUs that have it (Step 10).
-- Help for staff and developers (Step 11).
+- One read of the BU's progress, `GET_GETTING_STARTED_PROGRESS` (Step 1).
+- The six steps, defined in one place on the client (Step 2).
+- A hook that reads the progress and decides whether the checklist shows (Step 3).
+- The top-bar pill and its panel (Step 4).
+- The help article brought up to date, and a pointer in the welcome email (Step 5, Step 6).
+
+The six steps:
+1. Add brands and products.
+2. Add a technician.
+3. Create your first job (the customer and model can be added from the job form).
+4. Assign a technician.
+5. Finalize the job.
+6. Deliver the job.
 
 ## Key constraints
 
-1. **The client must never be the only gate.** A hidden menu item does not stop a direct API call. Resolution: the server checks the feature on every Spare Parts Web write and public catalogue route (Step 4). The client only hides things (Steps 8–9).
-2. **A tenant must not be able to switch a feature on for itself.** An Admin can run `genericUpdate` on `security.bu`. Resolution: `features` joins the protected columns that `require_generic_update_access` refuses (Step 2). Only the Super-Admin-only `setBuFeatures` mutation writes it (Step 3).
-3. **The check must be cheap.** It runs on writes. Resolution: features are read with the billing row that is already cached for 60 seconds (Step 2). `setBuFeatures` clears that cache, so the change is seen at once by that server process and within a minute by any other.
-4. **The app must pick up a change without logging in again.** Resolution: features ride on `buBillingStatus`, which the app already re-reads on BU change and window focus (Step 2, Step 6).
-5. **Unknown names must not creep in.** A typo in a feature name would silently do nothing. Resolution: the server keeps the list of known features and refuses any other name in `setBuFeatures` (Steps 1, 3). The client list mirrors it, the same way access rights are mirrored.
-6. **The website's job lookups must keep working.** `/companies` also feeds job status and open jobs. Resolution: `/companies` keeps every BU and adds a `parts_enabled` flag. Only the Spare Parts page filters on it (Steps 4, 10). The parts routes themselves refuse a BU without the feature.
-7. **Help must not describe a missing feature.** Ask AI uses the same article list as the Help panel. Resolution: an article can name the feature it belongs to, and both the Help panel and Ask AI get the list already filtered for the current BU (Step 9).
-8. **Existing data on the website disappears until switched on.** `demo1`'s 2 parts leave the public Spare Parts page after the upgrade. Resolution: accepted. Switch the feature on for `demo1` if they should stay (Your Part B).
-9. **Super Admin in the app.** userType `S` bypasses access rights, but a feature belongs to the BU, not the user. Resolution: the client hides the feature by BU for every user. The server lets `S` through, as `require_bu_writable` already does.
+1. **It must stay correct without anyone ticking boxes.** Resolution: every step's "done" comes from one server read of real data (Step 1). It is re-read when the panel opens, on window focus and on BU change (Step 3).
+2. **Opening jobs must not count.** A Manager who imports old jobs as opening jobs has not created or delivered a job in Service+. Resolution: every job check excludes `is_opening_job` (Step 1).
+3. **It must not get in the way.** Resolution: it lives behind a pill (Step 4). It auto-opens only once per user per BU, and hiding it is remembered (Step 3). It disappears after the first delivery.
+4. **"Hidden" and "auto-opened once" are conveniences, not data.** They are kept in the browser's localStorage, keyed by database, BU and user, with every read and write wrapped in try/catch. If storage is unavailable the checklist still works: it just auto-opens again. Resolution: Step 3.
+5. **Steps must name screens exactly as the menu does.** `subItem` is matched against the menu label, so a renamed menu item would silently break "Go there". Resolution: Step 2 keeps every target next to its step, and Step 7 clicks every "Go there".
+6. **Read-only BUs and the demo.** A BU that is view-only for an unpaid month can't do the steps, and the demo is read-only. Resolution: hidden for the demo (`isDemo`). For a read-only BU the panel still shows; the steps wait until payment, which the billing banner already explains.
 
 ## Steps
 
 ### Step 0 — Your Part
 
-None now. Your parts come after the steps they wait for (A after Step 1, B after Step 7).
+None.
 
-### Step 1 — The feature list and the `features` column (server) ✅
+### Step 1 — Progress read (server) ✅
 
 Needs: —
 
-- **Explanation:** a server catalogue of known features, the new column for new tenant databases, and a one-off script that adds it to existing ones.
-- **Path:** `service-plus-server/app/core/bu_features.py` (new)
+- **Explanation:** one row of yes/no answers for the current BU. It runs in the BU schema and names only BU tables, so business users may run it (it is not in `ADMIN_ONLY_SQL_IDS`).
+- **Path:** `service-plus-server/app/db/sql/sql_jobs.py` (on `JobsSql`, part of `SqlStore`)
 - **Code:**
 
 ```python
-"""Optional features the Super Admin switches on per BU (security.bu.features).
-Mirror of service-plus-client/src/constants/bu-features.ts — add a feature to both."""
-
-SPARE_PARTS_WEB = "spare_parts_web"
-
-# name -> what the Super Admin sees in the Features dialog
-BU_FEATURES: dict[str, str] = {
-    SPARE_PARTS_WEB: "Spare Parts Web — public parts catalogue and order requests",
-}
+# "Getting started" checklist (plans/plan.md): one row of yes/no per step for the current BU.
+# Opening jobs never count.
+GET_GETTING_STARTED_PROGRESS = """
+    with "dummy" as (values(1::int))
+    SELECT
+        EXISTS (SELECT 1 FROM brand) AND EXISTS (SELECT 1 FROM product) AS has_brands_products,
+        EXISTS (SELECT 1 FROM technician) AS has_technician,
+        EXISTS (SELECT 1 FROM job WHERE NOT is_opening_job) AS has_job,
+        EXISTS (SELECT 1 FROM job WHERE NOT is_opening_job AND technician_id IS NOT NULL) AS has_assigned_job,
+        EXISTS (SELECT 1 FROM job WHERE NOT is_opening_job AND is_final) AS has_final_job,
+        EXISTS (SELECT 1 FROM job WHERE NOT is_opening_job AND delivery_date IS NOT NULL) AS has_delivered_job
+"""
 ```
 
-- **Path:** `service-plus-server/app/db/sql/sql_bu_admin_ddl.py` (the `CREATE TABLE security.bu` for new tenant databases)
-- **Code:** add after `whatsapp_limit_monthly integer,`:
+- **Path:** `src/constants/sql-map.ts`: add `GET_GETTING_STARTED_PROGRESS`.
 
-```sql
-features text[] NOT NULL DEFAULT '{}',
-```
-
-- **Path:** `service-plus-server/scripts/run_bu_features_ddl.py` (new, modelled on `run_plan_limits_ddl.py`)
-- **Explanation:** for every client database in `public.client`, plus `service_plus_service` when present, it runs `ALTER TABLE security.bu ADD COLUMN IF NOT EXISTS features text[] NOT NULL DEFAULT '{}'` in its own transaction. It then prints each BU with its features. It accepts `--dry-run` (do everything, then roll back) and `--db <name>`, and is safe to run again.
-- **Path:** `service-plus-server/app/db/schema_dumps/service_plus_service.sql`: add the column to `security.bu`.
-
-### 🧑 Your Part A — Add the column
+### Step 2 — The six steps (client) ✅
 
 Needs: Step 1
 
-- Back up the tenant databases, then run `python scripts/run_bu_features_ddl.py` from `service-plus-server/`, and then `pnpm gen-types-security` in `service-plus-client/`.
-
-### Step 2 — Features in the BU status, protected from tenants (server) ✅
-
-Needs: Step 1, Your Part A
-
-- **Explanation:** read `features` with the cached billing row, return it from `buBillingStatus`, and stop tenants writing it.
-- **Path:** `service-plus-server/app/db/sql/sql_billing.py` (`GET_BU_BILLING_BY_CODE`)
-- **Code:**
-
-Old:
-```sql
-SELECT plan_code, billing_required, paid_through, billing_hold, branch_limit
-```
-New:
-```sql
-SELECT plan_code, billing_required, paid_through, billing_hold, branch_limit, features
-```
-
-- **Path:** `service-plus-server/app/services/bu_billing.py` (`billing_summary`)
-- **Code:** add `"features": list(row.get("features") or []),` to the returned dict. `buBillingStatus` already spreads `get_bu_billing`, so it returns `features` with no change of its own.
-- **Path:** `service-plus-server/app/graphql/resolvers/auth_guards.py`
-- **Code:** add `"features"` to `BU_BILLING_COLUMNS`, and change its comment to "billing and Super-Admin-only columns".
-
-### Step 3 — Read and save features as Super Admin (server) ✅
-
-Needs: Step 2
-
-- **Explanation:** one query listing a client's BUs with their features, and one mutation saving them all in one transaction.
-- **Path:** `service-plus-server/app/db/sql/sql_billing.py` (`BillingSql`, part of `SqlStore`, beside `GET_BU_SUBSCRIPTIONS`). As built, it reads `features` through `to_jsonb` like the reads in Step 2.
-- **Code:**
-
-```python
-GET_BU_FEATURES = """
-    with "dummy" as (values(1::int))
-    SELECT id, code, name, is_active, features
-    FROM security.bu
-    ORDER BY name
-"""
-```
-
-- **Path:** `service-plus-server/app/db/sql/sql_billing.py` (`BillingServerSql`, server-only)
-- **Code:**
-
-```python
-SET_BU_FEATURES = """
-    UPDATE security.bu SET features = %(features)s::text[], updated_at = now()
-    WHERE id = %(id)s::bigint
-"""
-```
-
-- **Path:** `service-plus-server/app/graphql/resolvers/bu_admin/bu_features.py` (new): `resolve_set_bu_features_helper(db_name, value)`.
-    - The value is `{ bus: [{ id, features: [...] }] }`.
-    - It refuses any name not in `BU_FEATURES`, with a `ValidationException` that names the bad feature.
-    - It sorts each list and removes duplicates, then updates every BU in one transaction.
-    - It calls `clear_bu_billing(db_name)` and writes one audit-log entry with the action `SET_BU_FEATURES` and, per BU, its code and new list.
-    - It returns `{ bus: [{ id, features }] }`.
-- **Path:** `service-plus-server/app/graphql/schema.graphql` and `resolvers/mutation.py`
-- **Code:**
-
-```graphql
-setBuFeatures(db_name: String!, schema: String, value: String!): Generic
-```
-```python
-@mutation.field("setBuFeatures")
-@handle_graphql_errors("Error in setBuFeatures")
-async def resolve_set_bu_features(_, info, db_name="", schema="", value="") -> Any:
-    """Switch optional features on or off per BU of one client. Super Admin only."""
-    # pylint: disable=unused-argument
-    require_user_type(info, {"S"})
-    return await resolve_set_bu_features_helper(db_name, value)
-```
-
-- Add `SET_BU_FEATURES` to the `AuditAction` list.
-
-### Step 4 — The server enforces Spare Parts Web ✅
-
-Needs: Step 2
-
-- **Explanation:** one guard, used by the generic update, the photo routes and the public catalogue.
-- **Path:** `service-plus-server/app/graphql/resolvers/auth_guards.py`
-- **Code:**
-
-```python
-# Tables that belong to an optional BU feature: writing them needs the feature on.
-FEATURE_TABLES: dict[str, str] = {"spare_part_web": SPARE_PARTS_WEB}
-
-
-async def require_bu_feature(info_or_claims, db_name: str | None, schema: str | None, feature: str) -> None:
-    """Raise FEATURE_NOT_ENABLED unless `feature` is on for the BU. Super Admin passes."""
-    # S passes; otherwise get_bu_billing(db_name, schema)["features"] must contain `feature`
-```
-
-- **Path:** `service-plus-server/app/graphql/resolvers/mutation.py` (`genericUpdate`, after `require_generic_update_access`)
-- **Code:** for every node whose `tableName` is in `FEATURE_TABLES`, `await require_bu_feature(info, db_name, schema, FEATURE_TABLES[table])`.
-- **Path:** `service-plus-server/app/routers/media/image_router.py`: the four `/spare-part-web/...` routes call the same check right after `_require_media_scope`.
-- **Path:** `service-plus-server/app/core/exceptions.py` and messages: a new `FEATURE_NOT_ENABLED` code and the message "This feature is not enabled for this business unit."
-- **Path:** `service-plus-server/app/services/public_directory.py` and `app/db/sql/sql_public.py`
-    - `LIST_ACTIVE_BUS` also selects `features`, and each directory entry keeps `parts_enabled = SPARE_PARTS_WEB in features`.
-    - `CompanyOut` gains `parts_enabled: bool`.
-    - `parts_count` is reported as 0 when the feature is off.
-- **Path:** `service-plus-server/app/routers/public/website_router.py`: `/branches`, `/parts`, `/parts/{id}` and `/part-orders` answer 404 "company not found" when the resolved company has `parts_enabled` false. `/companies`, `/company-info`, `/job-status` and `/open-jobs` are unchanged.
-
-### Step 5 — Server tests ✅
-
-Needs: Steps 3, 4
-
-- **Path:** `service-plus-server/tests/core/test_bu_features.py` (new):
-    - `setBuFeatures` refuses an unknown name and refuses a non-`S` caller.
-    - It stores a sorted list with no duplicates.
-- **Path:** `service-plus-server/tests/test_view_only_guard.py` (or a sibling):
-    - `genericUpdate` on `spare_part_web` is refused without the feature and allowed with it.
-    - A tenant `genericUpdate` that sets `bu.features` is refused.
-
-### Step 6 — Client: types, feature list and BU status ✅
-
-Needs: Step 2
-
-- **Explanation:** regenerate the security types, mirror the feature list, and carry `features` in the BU status.
-- Run `pnpm gen-types-security`, which adds `features` to `Bu` in `src/types/db-schema-security.ts`.
-- **Path:** `src/constants/bu-features.ts` (new)
+- **Explanation:** the single list the panel renders. Each step has its label, a one-line hint, how to tell it is done, where "Go there" leads, and which help article "Show me" opens.
+- **Path:** `src/features/client/components/getting-started/getting-started-steps.ts` (new)
 - **Code:**
 
 ```ts
-// Optional features the Super Admin switches on per BU (security.bu.features).
-// Mirror of service-plus-server/app/core/bu_features.py — add a feature to both.
-export const BU_FEATURES = {
-	SPARE_PARTS_WEB: "spare_parts_web",
-} as const;
+export type GettingStartedProgressType = {
+	has_assigned_job: boolean;
+	has_brands_products: boolean;
+	has_delivered_job: boolean;
+	has_final_job: boolean;
+	has_job: boolean;
+	has_technician: boolean;
+};
 
-export type BuFeatureType = (typeof BU_FEATURES)[keyof typeof BU_FEATURES];
+export type GettingStartedStepType = {
+	done: (p: GettingStartedProgressType) => boolean;
+	helpArticleId: string;
+	hint: string;
+	id: string;
+	label: string;
+	target: { route: string; subItem: string };
+};
 
-// Shown in the Super Admin's Features dialog, in this order.
-export const BU_FEATURE_LIST: { description: string; key: BuFeatureType; label: string }[] = [
-	{ description: "Public parts catalogue and order requests", key: BU_FEATURES.SPARE_PARTS_WEB, label: "Spare Parts Web" },
+export const GETTING_STARTED_STEPS: GettingStartedStepType[] = [
+	{ done: (p) => p.has_brands_products, helpArticleId: "brands-models", hint: MESSAGES.GS_HINT_BRANDS,
+	  id: "brands", label: "Add brands and products", target: { route: ROUTES.client.masters, subItem: "Brand" } },
+	{ done: (p) => p.has_technician, helpArticleId: "technicians", hint: MESSAGES.GS_HINT_TECHNICIAN,
+	  id: "technician", label: "Add a technician", target: { route: ROUTES.client.masters, subItem: "Technician" } },
+	{ done: (p) => p.has_job, helpArticleId: "create-job", hint: MESSAGES.GS_HINT_JOB,
+	  id: "job", label: "Create your first job", target: { route: ROUTES.client.jobs, subItem: "Single Job" } },
+	{ done: (p) => p.has_assigned_job, helpArticleId: "job-control", hint: MESSAGES.GS_HINT_ASSIGN,
+	  id: "assign", label: "Assign a technician", target: { route: ROUTES.client.jobs, subItem: "Job Control" } },
+	{ done: (p) => p.has_final_job, helpArticleId: "finalize-job", hint: MESSAGES.GS_HINT_FINALIZE,
+	  id: "finalize", label: "Finalize the job", target: { route: ROUTES.client.jobs, subItem: "Final a Job" } },
+	{ done: (p) => p.has_delivered_job, helpArticleId: "deliver-job", hint: MESSAGES.GS_HINT_DELIVER,
+	  id: "deliver", label: "Deliver the job", target: { route: ROUTES.client.jobs, subItem: "Deliver Job" } },
 ];
 ```
 
-- **Path:** `src/store/context-slice.ts`
-- **Code:** add `features?: string[];` to `BuBillingType` (with the comment "Optional features switched on by the Super Admin. Only from buBillingStatus."), and a selector:
+- **Path:** `src/constants/messages.ts`, new keys:
+    - `GS_HINT_BRANDS`: "The makers and device types you repair, e.g. Samsung and Mobile. Models can be added later from the job form."
+    - `GS_HINT_TECHNICIAN`: "Who repairs the devices. Jobs are assigned to a technician."
+    - `GS_HINT_JOB`: "Book in a device. You can add the customer and the model right from the job form."
+    - `GS_HINT_ASSIGN`: "In Job Control, give the job to a technician and update its status as work goes on."
+    - `GS_HINT_FINALIZE`: "Add the parts and charges, and fix what the customer pays."
+    - `GS_HINT_DELIVER`: "Hand the device back: print the invoice and take the payment."
+    - `GS_INTRO`: "Six steps from an empty workshop to your first delivered job."
+    - `GS_ALL_DONE`: "You're all set — your first job is delivered."
 
-```ts
-export const selectHasBuFeature = (state: ContextRootState, feature: BuFeatureType) =>
-	state.context.billing?.features?.includes(feature) ?? false;
-```
+### Step 3 — `useGettingStarted` hook (client) ✅
 
-- **Path:** `src/constants/graphql-map.ts`: add `setBuFeatures` with the standard `($db_name, $schema, $value)` signature. `buBillingStatus` returns a `Generic` JSON value, so `features` arrives with no change to its document. `src/constants/sql-map.ts`: add `GET_BU_FEATURES`.
+Needs: Step 2
 
-### Step 7 — Super Admin: Features dialog (client) ✅
+- **Path:** `src/features/client/components/getting-started/use-getting-started.ts` (new)
+- **Explanation:** reads `GET_GETTING_STARTED_PROGRESS` with `useGenericQuery` for the current `dbName` and `schema`. It refetches when the panel opens, on window focus and on BU change. It returns:
+    - `steps`: each step with its `done` flag;
+    - `doneCount` and `total`;
+    - `nextStep`: the first step not done;
+    - `visible`: true only when the user is a Manager or Admin, is not a demo session, the progress has loaded, and the checklist is not hidden. When all six are done it stays visible once more, showing the "all set" state, and then hides itself;
+    - `autoOpen`: true the first time per user per BU;
+    - `hide()`, which remembers the choice.
+- localStorage keys: `gs-seen:<db>:<bu>:<userId>` and `gs-done:<db>:<bu>:<userId>`, every read and write wrapped in try/catch (constraint 4). (Revised 16 Oct 2026: no `gs-hidden`; see As built.)
 
-Needs: Steps 3, 6
+### Step 4 — Top-bar pill and panel (client) ✅
 
-- **Explanation:** a new **Features** item in each client's row menu on the Clients page, next to **Subscription**. It opens a dialog listing that client's BUs as rows and the features as columns, with a tick box in each cell.
-    - The column header has an "All BUs" tick for "this client gets it".
-    - Inactive BUs are shown greyed but can still be ticked.
-    - **Save** sends every BU in one `setBuFeatures` call and is disabled until something changes.
-    - A sonner toast confirms the save. The server's message shows on a refusal.
-    - The layout is responsive: on a phone each BU becomes a card with one tick per feature.
-- **Path:** `src/features/super-admin/components/client-features-dialog.tsx` (new). It reads `GET_BU_FEATURES` with `genericQuery` on `client.db_name`, as `client-subscription-dialog.tsx` reads `GET_BU_SUBSCRIPTIONS`.
-- **Path:** `src/features/super-admin/pages/clients-page.tsx`: `featuresClient` state, the menu item, and the dialog.
-- **Path:** `src/constants/messages.ts`: `SUCCESS_BU_FEATURES_SAVED`, `ERROR_BU_FEATURES_LOAD_FAILED`, `ERROR_BU_FEATURES_SAVE_FAILED`, `BU_FEATURES_DIALOG_INTRO` ("Switch optional features on for this client's business units. A feature that is off is hidden from that business unit's users.").
+Needs: Step 3
 
-### 🧑 Your Part B — Choose who gets Spare Parts Web
+- **Path:** `src/features/client/components/getting-started/getting-started-pill.tsx` (new), placed in `client-top-nav.tsx` before the help and user controls.
+- **Pill:** a small rounded button labelled "Getting started", with a "2/6" badge. On narrow screens it shows only the icon and the badge.
+- **Panel:** a `Popover` about 24rem wide (full width on phones) holding:
+    - a header with the title, `GS_INTRO` and a progress bar;
+    - the six steps in order:
+        - a done step shows a green tick and a muted label;
+        - the next step is highlighted and expanded, showing its hint, a **Go there** button (`navigate(step.target.route, { state: { subItem: step.target.subItem } })`, which also closes the panel) and a **Show me** link (`openHelp(step.helpArticleId)`);
+        - later steps are collapsed and can be expanded;
+    - a footer with "Close" (revised 16 Oct 2026: it was "Hide checklist"). When everything is done, `GS_ALL_DONE` with a check mark replaces the list.
+- **Auto-open:** if `autoOpen`, the panel opens once on mount and the "seen" flag is set.
+- **Look:** uses the client theme variables (`--cl-*`), so light and dark both work. Ticks are green; nothing is red. It must work at phone width.
 
-Needs: Step 7
+### Step 5 — Bring the help article up to date (client) ✅
 
-- In Super Admin → Clients → a client's menu → Features, tick Spare Parts Web for each BU that should have it (for example `demo1`, if its 2 parts should stay on the website).
+Needs: Step 2
 
-### Step 8 — Hide Spare Parts Web in the app ✅
+- **Path:** `src/features/client/components/help/help-content.ts`, article `first-time-setup`.
+- **Explanation:** retitle it "Getting started: your first job". Lead with "use the Getting started checklist in the top bar" and the six steps in Step 2's order and wording. Then a short "Already set up for you" list: branch, division, numbering, job types and statuses, lookups, states, financial year. Then "When you're ready": parts and opening stock, GST (division GSTIN, App Settings), WhatsApp, staff users. Fix the FAQ that says a customer must be created before the job (it can be added from the job form), and keep the FAQs that still hold.
 
-Needs: Step 6
-
-- **Path:** `src/features/client/components/layout/client-explorer-panel.tsx` (`MastersExplorer`)
-- **Code:**
-
-Old:
-```tsx
-<TreeItem icon={Globe} iconColor="text-cyan-600" label="Spare Parts Web" />
-```
-New:
-```tsx
-{hasSparePartsWeb && <TreeItem icon={Globe} iconColor="text-cyan-600" label="Spare Parts Web" />}
-```
-with `const hasSparePartsWeb = useAppSelector((s) => selectHasBuFeature(s, BU_FEATURES.SPARE_PARTS_WEB));`
-
-- **Path:** `src/features/client/pages/client-masters-page.tsx` (`MastersContent`)
-- **Code:**
-
-Old:
-```tsx
-if (selected === "Spare Parts Web") return <SparePartWebSection />;
-```
-New:
-```tsx
-if (selected === "Spare Parts Web" && hasSparePartsWeb) return <SparePartWebSection />;
-```
-With the feature off, the selection falls through to the existing "Coming soon" panel.
-
-### Step 9 — Help articles follow the BU's features ✅
-
-Needs: Step 6
-
-- **Explanation:** an article can say which feature it belongs to. The Help panel and Ask AI both get the list filtered for the current BU, so neither shows nor quotes a feature the BU does not have.
-- **Path:** `src/components/shared/help/help-types.ts`
-- **Code:** add to `HelpArticle`:
-
-```ts
-/** Optional BU feature (constants/bu-features.ts) this article belongs to; hidden when the BU lacks it. */
-feature?: string;
-```
-
-- **Path:** `src/features/client/components/help/help-content.ts`
-    - Add `feature: BU_FEATURES.SPARE_PARTS_WEB` to the `spare-parts-web` article.
-    - Add a helper below the list:
-
-```ts
-export function visibleHelpArticles(features: string[] | undefined): HelpArticle[] {
-	return HELP_ARTICLES.filter((article) => !article.feature || (features ?? []).includes(article.feature));
-}
-```
-
-- **Path:** `src/features/client/components/layout/client-layout.tsx` (the `HelpPanel` `articles` prop) and `src/features/client/components/help/use-ask-help-ai.ts`. Both pass `visibleHelpArticles(billing?.features)`, memoised on the features list, in place of `HELP_ARTICLES`.
-
-### Step 10 — Public website: Spare Parts lists only enabled BUs ✅
+### Step 6 — Welcome email pointer (server) ✅
 
 Needs: Step 4
 
-- **Path:** `service-plus-web/lib/api.ts`: `CompanyApiResponse` and `Company` gain `parts_enabled` / `partsEnabled`.
-- **Path:** `service-plus-web/components/shared/company-select.tsx`: a new prop `onlyPartsEnabled`, which filters the list. `app/spare-parts/page.tsx` passes it. The job-status and open-jobs forms do not, so they keep every company.
-- When the filtered list is empty, the Spare Parts page shows "No parts catalogues are available right now."
+- **Path:** `service-plus-server/app/core/exceptions.py` (`EMAIL_SIGNUP_USER_LINK_BODY`)
+- **Code:** add before "Welcome aboard":
 
-### Step 11 — Help ✅
+```
+"After you sign in, open \"Getting started\" at the top of the screen. It walks you through "
+"your first job, from adding your brands to delivering the device.\n\n"
+```
 
-Needs: Steps 1–10
+- Update `tests/core/test_signup_account_email.py` to check the line is there.
 
-- **Staff help** (`help-content.ts`): one line at the top of the `spare-parts-web` article: "Spare Parts Web is an optional feature. It appears only when Service+ has switched it on for your business unit — contact us to have it enabled." Nothing else changes, because the article itself is hidden where the feature is off.
-- **Developer help** (`dev-help-content.ts`): one new article, "BU features (Super Admin)". It covers:
-    - the column and the two catalogues that must match;
-    - `setBuFeatures` (S only, audit `SET_BU_FEATURES`) and `GET_BU_FEATURES`;
-    - why `features` is in `BU_BILLING_COLUMNS`;
-    - the 60-second cache and `clear_bu_billing`;
-    - `require_bu_feature`, `FEATURE_TABLES` and the public `parts_enabled` flag;
-    - the help `feature` field and `visibleHelpArticles`;
-    - a checklist for adding the next feature: the server list, the client list, the menu item, the screen guard, the help article, and `FEATURE_TABLES` or route checks.
-- **Re-check stale developer articles:**
-    - `dev-spare-parts-web` gets a "Gated by the spare_parts_web BU feature" paragraph.
-    - The billing article's `BU_BILLING_COLUMNS` list and the `buBillingStatus` field list gain `features`.
-    - The public-website article's `/companies` row gains `parts_enabled`.
+### Step 7 — Developer help and verify ✅
 
-### As built — differences from the steps above
+Needs: Steps 1–6
 
-- **Reads work before Your Part A.** Every read of the new column goes through `to_jsonb(b) -> 'features'`: `GET_BU_BILLING_BY_CODE`, `GET_USER_BUS`, `GET_BU_FEATURES` and `LIST_ACTIVE_BUS`. A database without the column then reads as "no features" and doesn't fail. Without this, deploying the server before the script would have broken every login and every write. Only saving in the Features dialog needs the column.
-- **The website follows straight away.** `setBuFeatures` also rebuilds the server's public company directory (`public_directory.invalidate()`), so the website follows at once on that server process. Other processes catch up within the directory's 5-minute cache.
-- **The dialog doesn't wait for regenerated types.** It types its rows as `Pick<Bu, …> & { features: string[] }`, so it works before `gen-types-security` adds `features` to `Bu`.
-- **One hook feeds all help.** The Help panel and Ask AI share `useVisibleHelpArticles()` (`features/client/components/help/use-visible-help-articles.ts`). It re-filters only when the BU's features change.
-- **The website hides more than the plan said** (follow-up, 15 Oct 2026):
-    - Every spare-parts entry point is hidden while no company has the feature: the "Buy genuine parts" menu item (header and footer), the hero button, the hero text and the "Genuine parts" bullet.
-    - A direct visit to `/spare-parts` shows "Spare parts aren't available yet".
-    - A company counts only when `parts_enabled` is exactly `true`. A server without this feature therefore shows no spare parts at all.
-    - The code: `service-plus-web/lib/companies.ts` (`loadCompanies`, `usePartsAvailable`) and `nav-items.ts` (`needsParts`, `useNavItems`).
-    - Checked against the local server with Capital Electronics enabled, and against production, which has the old code and so shows none.
-- **The Features dialog was redesigned** (follow-up): large teal tick boxes on On/Off tiles, an "On for N of M" count, and an unsaved-change counter.
-- **Checked so far:**
-    - Server: 384 tests pass, including 17 new ones in `tests/core/test_bu_features.py`.
-    - Client: `tsc -b` and `pnpm build` pass.
-    - Website: `tsc` and `pnpm build` pass.
-    - The new reads were run on the live `service_plus_demo` database, where the column doesn't exist yet.
-    - The running server rejects `setBuFeatures` from a caller who isn't `S`.
-    - The browser checks in Step 12 still need Your Part A.
-
-### Step 12 — Verify
-
-Needs: Steps 1–11, Your Part A
-
-- Server: `pytest` for the new and changed tests. Client: `pnpm exec tsc -b --noEmit`, `pnpm format` on touched files. Website: `pnpm build`.
-- **With the feature off for a BU:**
-    - As a normal user and as an Admin, Masters → Product & Parts has no Spare Parts Web.
-    - A Help search finds no article, and Ask AI does not describe it.
-    - A `genericUpdate` on `spare_part_web` sent by hand is refused with `FEATURE_NOT_ENABLED`.
-    - The website's Spare Parts page does not list the BU, but its job-status form still does.
-- **Switch it on in the Features dialog:**
-    - The menu item, screen and article appear after switching the BU or refocusing the window, with no new login.
-    - Saving works, and the website lists the BU.
-- As a tenant Admin, a `genericUpdate` setting `bu.features` is refused.
+- **Developer help:** one new article in `dev-help-content.ts`, "Getting started checklist". It covers:
+    - the SQL id and its six flags, with opening jobs excluded;
+    - `GETTING_STARTED_STEPS` as the only list;
+    - menu labels used as `subItem` (constraint 5);
+    - the localStorage keys;
+    - who sees it.
+- **Checks:**
+    - `pnpm exec tsc -b --noEmit`, `pnpm format` on the touched files, and server `pytest`.
+    - On a fresh sign-up BU: sign in as its Manager. The panel opens by itself, showing 0/6, with "Add brands and products" highlighted.
+    - Do each step and come back: each one ticks without a reload.
+    - Every "Go there" opens the right screen, and every "Show me" the right article.
+    - After the first delivery: "You're all set", then the pill is gone.
+    - A Receptionist and the live demo never see it.
+    - "Close" leaves the pill in place, and the panel opens again at the next login.
 - Run `graphify update .` if a graph exists.
+
+## As built
+
+- **Group as well as screen.** Each step's target also carries `subGroup` (the menu group, e.g. "Product & Parts"). `client-layout.tsx` uses it to expand the collapsed group and set the title, so "Go there" shows the Brand item, which sits in a group that starts closed.
+- **Established BUs never see it.** A BU that is already all done before this browser ever saw the checklist never shows it. The "all set" message is only for someone who worked through the steps (`gs-seen` must be set). Capital Electronics and the demo read all done, so neither sees it.
+- **Checked:**
+    - The server read works on the live databases: `service_001` all false, `capitalelectronics` and `servicedemo` all true. It is not admin-only.
+    - The real pill and panel, on a temporary preview page with a fake Manager:
+        - it opens by itself at 2/6 with step 3 highlighted;
+        - a Receptionist sees no pill, and neither does a BU that is already all done;
+        - phone width and dark mode look right;
+        - the "You're all set" state shows.
+    - `tsc -b`, the client build and 398 server tests pass.
+    - Not yet done: clicking through on a real sign-up BU. That needs SP-BVK99BXL approved, which creates its Manager.
+
+- **Revised 16 Oct 2026, after trying it:**
+    - **No permanent hide.** "Hide checklist" read as "close", and it removed the pill for good. The footer is now **Close**, and the pill stays until the first delivery; an old `gs-hidden` key is ignored.
+    - **Opens at every login.** The panel opens by itself once per login (or page reload) per BU until all six steps are done, instead of once ever. This is tracked in memory on the session's user object.
 
 ## Later, if wanted
 
-- **Default features per plan.** Stamp a starting feature list when a plan is set, alongside the monthly limits.
-- **Client-wide default.** New BUs of a client inherit that client's features automatically.
-- **Show features to the tenant.** List the BU's features (read-only) on the tenant's own subscription page.
+- **Optional steps after the first delivery:** parts and opening stock, GST settings, WhatsApp, staff users.
+- **Server-side "hidden" flag** in `app_setting`, if hiding should follow the Manager across devices.
+- **Short screen videos** linked from each step's "Show me".
+
+---
+
+## Addition — A user with several business units (16 Oct 2026)
+
+Source: chat request, 16 Oct 2026. Plan only; nothing is built yet. Steps use the prefix S so they cannot be confused with Steps 1–7 above.
+
+### Goal
+
+A Manager or Admin who looks after several business units is guided through each one that still needs setting up, without the checklist getting in the way as they move between them.
+
+Decisions:
+- **Still one checklist per BU.** Every BU has its own brands, products, technicians and jobs, so a step done in one BU is not done in another.
+- **The panel says which BU it is about**, and lists the user's other BUs that still need setting up, each with a **Switch** button.
+- **It opens by itself once per login, not once per BU.** Moving between BUs does not pop it up again.
+- **The pill stays while any of the user's BUs is unfinished.** If the current BU is done but another is not, the pill shows a tick and the panel points to the others.
+- **Finished BUs are not listed.** Established BUs never appear, as before.
+
+### Present context (as built today)
+
+- **Already per BU.** `useGettingStarted` reads `GET_GETTING_STARTED_PROGRESS` for the current schema only, re-reading when the BU changes. Its flags are keyed `<db>:<schema>:<user>`.
+- **Pops up on every BU.** `openedInLogin` is keyed by BU, so a user who switches to three unfinished BUs gets the panel three times in one login.
+- **The panel never names the BU** it is about.
+- **Other BUs are invisible.** A user whose current BU is done never sees the pill, even if another of their BUs is untouched. A user on an unfinished BU doesn't learn about the others.
+- **Where the BU list comes from.** `availableBus` in Redux (`selectAvailableBus`) holds every BU the user can open: from login for business users, and from `GET_ALL_BUS_WITH_SCHEMA_STATUS` for Admins, with `schema_exists`. Switching BU is `handleBuChange(buId)` in `use-bu-branch-division-actions.ts`.
+- **The server already allows a multi-BU read.** `genericBatchQuery` checks each item's own `schema` with `require_bu_access` and its sqlId with `require_sql_id_access` (`shared/generic_query.py`). One batch can therefore read `GET_GETTING_STARTED_PROGRESS` for every BU the user may open, and a BU they may not open rejects the call.
+
+### New design brief
+
+- One batch read of the progress of every BU the user can open (S1).
+- Auto-open once per login instead of once per BU (S2).
+- The panel names the current BU and lists the other unfinished BUs with **Switch** (S3).
+- The pill's visibility and badge take all the user's BUs into account (S4).
+- Help and checks (S5).
+
+### Key constraints
+
+1. **Many BUs must not mean many requests.** Resolution: one `genericBatchQuery` with one item per BU (S1), capped at 25 BUs, which is more than any plan includes.
+2. **Only BUs the user can open.** A batch item for a BU outside the token's list fails the whole call. Resolution: the items come only from `availableBus`, skipping BUs without a schema (`schema_exists === false`) or inactive ones (S1).
+3. **Switching must keep the user's place.** Resolution: **Switch** calls the same `handleBuChange` the BU switcher uses, so branch and division are resolved exactly as when switching by hand. The panel then shows the new BU's steps (S3).
+4. **No server change.** Resolution: the read reuses `GET_GETTING_STARTED_PROGRESS` through the existing batch call.
+
+### Step S0 — Your Part
+
+None.
+
+### Step S1 — Progress of every BU in one read
+
+Needs: —
+
+- **Path:** `src/features/client/components/getting-started/use-getting-started.ts`
+- **Explanation:**
+    - Build one `genericBatchQuery` from `availableBus`: active BUs with a schema, at most 25. Each item is `graphQlUtils.buildGenericBatchItem({ schema: bu.code.toLowerCase(), sqlId: SQL_MAP.GET_GETTING_STARTED_PROGRESS })`.
+    - Read it with `apolloClient.query` (`fetchPolicy: "network-only"`), at the same moments as today: BU change, panel open and window focus.
+    - The hook returns the current BU's steps as now, plus `others: { buId, code, name, doneCount, allDone }[]` for every other BU that is not all done.
+    - If the batch fails, fall back to the current single read, so the current BU still works.
+
+### Step S2 — Auto-open once per login
+
+Needs: —
+
+- **Path:** `use-getting-started.ts`
+- **Code:** key `openedInLogin` by the user object alone, not by BU:
+
+Old:
+```ts
+const openedInLogin = new WeakMap<object, Set<string>>();
+// … openedInLogin.get(user)?.has(keyBase)
+```
+New:
+```ts
+// The panel opens by itself once per login (or reload), whichever BU the user is in.
+const openedInLogin = new WeakSet<object>();
+// … openedInLogin.has(user)
+```
+
+- `gs-seen` and `gs-done` stay per BU, so each BU still gets its own one-time "all set".
+
+### Step S3 — Panel: name the BU, list the others
+
+Needs: S1
+
+- **Path:** `src/features/client/components/getting-started/getting-started-pill.tsx`
+- **Explanation:**
+    - **Header:** the title becomes "Getting started · <BU name>" when the user has more than one BU.
+    - **Other BUs:** under the steps, a section **Other business units** lists each unfinished BU with its count (e.g. "Service 002 · 1/6") and a **Switch** button. **Switch** calls `handleBuChange(String(bu.buId))` and keeps the panel open, so the new BU's steps appear.
+    - **Current BU done:** when the current BU is finished but others are not, its "all set" message stays short and the others list sits right below it.
+- **Path:** `src/constants/messages.ts`: `GS_OTHER_BUS` ("Other business units still to set up").
+
+### Step S4 — Pill: count all the user's BUs
+
+Needs: S1
+
+- **Path:** `getting-started-pill.tsx`, `use-getting-started.ts`
+- **Explanation:**
+    - **When it shows:** while the current BU is unfinished, or any other BU is.
+    - **Badge:** the current BU's count ("2/6") while it is unfinished. Once it's done but another BU isn't, a tick plus the number of BUs left ("✓ · 2 BUs").
+    - **Pulsing dot:** shows while anything is left in any BU.
+    - **aria-label:** says both, e.g. "Getting started, this business unit 2 of 6 done, 2 other business units to set up".
+
+### Step S5 — Help, developer help and checks
+
+Needs: S1–S4
+
+- **Staff help** (`first-time-setup`): one FAQ, "I look after several business units". Each one has its own checklist, the panel lists the others with **Switch**, and it opens by itself once per sign-in.
+- **Developer help** (`dev-getting-started-checklist`):
+    - the batch read built from `availableBus` (cap 25; skips schema-less and inactive BUs);
+    - `openedInLogin` is now per user;
+    - the pill counts every BU;
+    - `require_bu_access` guards each batch item.
+- **Checks:**
+    - `pnpm exec tsc -b --noEmit` and `pnpm format`.
+    - A user with two new BUs: the panel opens once, names the BU, and lists the other one with **Switch**.
+    - **Switch** changes BU and shows its steps; moving back does not reopen the panel.
+    - Finish one BU: the pill shows a tick and "1 BU".
+    - An Admin of a client with established BUs plus one new BU sees only the new one.
+    - A business user is never sent a BU outside their own list.
