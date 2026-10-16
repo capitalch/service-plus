@@ -19,6 +19,8 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { AdminLayout } from "@/features/admin/components/admin-layout";
 import { ChangePlanDialog } from "@/features/admin/components/change-plan-dialog";
+import { filterSubscriptions, SubscriptionPlanCards } from "@/features/admin/components/subscription-plan-cards";
+import type { SubscriptionPlanFilterType } from "@/features/admin/components/subscription-plan-cards";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { useGenericQuery } from "@/features/client/components/reports/common/use-generic-query";
 import { useAppSelector } from "@/store/hooks";
@@ -32,8 +34,10 @@ export const SubscriptionsPage = () => {
 	const [historyBu, setHistoryBu] = useState<BuSubscriptionType | null>(null);
 	const [payBu, setPayBu] = useState<BuSubscriptionType | null>(null);
 	const [planBu, setPlanBu] = useState<BuSubscriptionType | null>(null);
+	const [planFilter, setPlanFilter] = useState<SubscriptionPlanFilterType>("all");
 
 	const query = useGenericQuery<BuSubscriptionType>({ schema: "security", sqlId: SQL_MAP.GET_BU_SUBSCRIPTIONS });
+	const rows = filterSubscriptions(query.data, planFilter);
 
 	async function recordPayment(payment: SubscriptionPaymentInputType): Promise<boolean> {
 		if (!dbName || !payBu) return false;
@@ -81,76 +85,82 @@ export const SubscriptionsPage = () => {
 				{query.error ? (
 					<p className="text-sm text-red-500">{MESSAGES.BILLING_LOAD_FAILED}</p>
 				) : (
-					<div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-						<div className="overflow-x-auto">
-							<Table>
-								<TableHeader>
-									<TableRow className="bg-slate-50 hover:bg-slate-50">
-										<TableHead className={thClass}>Business unit</TableHead>
-										<TableHead className={thClass}>Plan</TableHead>
-										<TableHead className={`${thClass} text-right`}>Monthly fee</TableHead>
-										<TableHead className={thClass}>Paid through</TableHead>
-										<TableHead className={thClass}>Status</TableHead>
-										<TableHead className={thClass}>Actions</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{query.data.map((bu) => (
-										<TableRow key={bu.id}>
-											<TableCell>
-												<p className="font-medium text-slate-800">{bu.name}</p>
-												<p className="font-mono text-[11px] text-slate-400">{bu.code}</p>
-											</TableCell>
-											<TableCell className="text-sm">
-												{bu.plan_code
-													? (PLAN_NAMES[bu.plan_code as EnquiryPlanCodeType] ?? bu.plan_code)
-													: "—"}
-											</TableCell>
-											<TableCell className="text-right text-sm">
-												{bu.billing_required ? inr(bu.monthly_fee_paise) : "—"}
-											</TableCell>
-											<TableCell className="text-sm">{displayDate(bu.paid_through)}</TableCell>
-											<TableCell>
-												<BillingStatusChip row={bu} />
-											</TableCell>
-											<TableCell>
-												<div className="flex flex-wrap gap-1.5">
-													<Button
-														className="h-7 bg-teal-600 px-2.5 text-xs text-white hover:bg-teal-700"
-														disabled={!bu.billing_required}
-														size="sm"
-														onClick={() => setPayBu(bu)}
-													>
-														<WalletIcon className="mr-1 h-3.5 w-3.5" />
-														Record payment
-													</Button>
-													<Button
-														className="h-7 px-2.5 text-xs"
-														size="sm"
-														variant="outline"
-														onClick={() => setHistoryBu(bu)}
-													>
-														<HistoryIcon className="mr-1 h-3.5 w-3.5 text-slate-500" />
-														History
-													</Button>
-													<Button
-														className="h-7 px-2.5 text-xs"
-														disabled={!bu.plan_code || !LT_PLANS.includes(bu.plan_code)}
-														size="sm"
-														variant="outline"
-														onClick={() => setPlanBu(bu)}
-													>
-														<RepeatIcon className="mr-1 h-3.5 w-3.5 text-indigo-600" />
-														Change plan
-													</Button>
-												</div>
-											</TableCell>
+					<>
+						<SubscriptionPlanCards rows={query.data} selected={planFilter} onSelect={setPlanFilter} />
+						<div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+							<div className="overflow-x-auto">
+								<Table>
+									<TableHeader>
+										<TableRow className="bg-slate-50 hover:bg-slate-50">
+											<TableHead className={thClass}>Business unit</TableHead>
+											<TableHead className={thClass}>Plan</TableHead>
+											<TableHead className={`${thClass} text-right`}>Monthly fee</TableHead>
+											<TableHead className={thClass}>Paid through</TableHead>
+											<TableHead className={thClass}>Status</TableHead>
+											<TableHead className={thClass}>Actions</TableHead>
 										</TableRow>
-									))}
-								</TableBody>
-							</Table>
+									</TableHeader>
+									<TableBody>
+										{rows.map((bu) => (
+											<TableRow key={bu.id}>
+												<TableCell>
+													<p className="font-medium text-slate-800">{bu.name}</p>
+													<p className="font-mono text-[11px] text-slate-400">{bu.code}</p>
+												</TableCell>
+												<TableCell className="text-sm">
+													{bu.plan_code
+														? (PLAN_NAMES[bu.plan_code as EnquiryPlanCodeType] ??
+															bu.plan_code)
+														: "—"}
+												</TableCell>
+												<TableCell className="text-right text-sm">
+													{bu.billing_required ? inr(bu.monthly_fee_paise) : "—"}
+												</TableCell>
+												<TableCell className="text-sm">
+													{displayDate(bu.paid_through)}
+												</TableCell>
+												<TableCell>
+													<BillingStatusChip row={bu} />
+												</TableCell>
+												<TableCell>
+													<div className="flex flex-wrap gap-1.5">
+														<Button
+															className="h-7 bg-teal-600 px-2.5 text-xs text-white hover:bg-teal-700"
+															disabled={!bu.billing_required}
+															size="sm"
+															onClick={() => setPayBu(bu)}
+														>
+															<WalletIcon className="mr-1 h-3.5 w-3.5" />
+															Record payment
+														</Button>
+														<Button
+															className="h-7 px-2.5 text-xs"
+															size="sm"
+															variant="outline"
+															onClick={() => setHistoryBu(bu)}
+														>
+															<HistoryIcon className="mr-1 h-3.5 w-3.5 text-slate-500" />
+															History
+														</Button>
+														<Button
+															className="h-7 px-2.5 text-xs"
+															disabled={!bu.plan_code || !LT_PLANS.includes(bu.plan_code)}
+															size="sm"
+															variant="outline"
+															onClick={() => setPlanBu(bu)}
+														>
+															<RepeatIcon className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+															Change plan
+														</Button>
+													</div>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
 						</div>
-					</div>
+					</>
 				)}
 			</motion.div>
 

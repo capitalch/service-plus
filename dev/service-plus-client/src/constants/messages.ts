@@ -635,6 +635,7 @@ export const MESSAGES = {
 	ERROR_REPORTS_CUSTOM_RANGE_INVALID: "From date must be on or before To date.",
 	ERROR_REPORTS_RANGE_REQUIRED: "Please select a date range.",
 	INFO_REPORTS_NO_DATA: "No data for the selected range.",
+	INFO_SUBSCRIPTIONS_PLAN_EMPTY: "No business unit is on this plan yet.",
 	INFO_REPORTS_PDF_PREPARING: "Preparing PDF…",
 	SUCCESS_REPORTS_EXPORTED: "Report exported successfully.",
 

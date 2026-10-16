@@ -6098,6 +6098,10 @@
 				"text": "Admin Mode → Subscriptions (shared customer database only) lists every business unit with its plan, monthly fee, paid-through date and status. 'Awaiting first payment' rows come first: those customers can only view until you record their first month."
 			},
 			{
+				"type": "para",
+				"text": "Four cards at the top — All, Lite, Basic and Standard — show how many business units are on each plan, their monthly fees and how many are view-only. Click a card to show only those business units in the list below; All is selected when the page opens, and the selected card is highlighted. A card with no business units just tells you so."
+			},
+			{
 				"type": "steps",
 				"items": [
 					"Record payment: choose Months or Years and a count (up to 60 months / 5 years). The amount is filled in as fee × months — no discount for paying ahead — and the line below shows the total and the new paid-through date. You may enter more (a note is then required) but never less.",

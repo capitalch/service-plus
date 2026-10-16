@@ -2,20 +2,20 @@
 									- Website parts
 										- Remove website parts for customers
 										- Configurable databases and BU' for which website parts are enabled
-- Situation
-	- One user is rejected, cannot re apply
-	- A use already created a bu, cannot create another bu even if does payment
-	- One user cannot own multiple bu's. Maybe manual creation.
+									- Situation
+										- One user is rejected, cannot re apply
+										- A use already created a bu, cannot create another bu even if does payment
+										- One user cannot own multiple bu's. Maybe manual creation.
 - Mock drill before launch
 - Domain booking
 	- implement domain myserviceplus.in
-- Guideline for getting started with 1st job
-	- Masters setup
-	- Receive
-	- Process
-	- Ready
-	- Final
-	- Delivery
+									- Guideline for getting started with 1st job
+										- Masters setup
+										- Receive
+										- Process
+										- Ready
+										- Final
+										- Delivery
 - Enhancements
 										- Set correctly, the app settings default values for seed data
 										- One internal remarks, not printable, for internal working

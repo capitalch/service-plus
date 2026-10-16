@@ -3,6 +3,16 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-17 00:49 (main)
+Subscriptions: add All / Lite / Basic / Standard plan cards
+
+- Admin → Subscriptions: clickable plan cards above the grid with BU count, monthly fees and view-only count; clicking filters the grid, All selected by default, selected card tinted
+- Plan cards: a zero-count card opens a "No business units" dialog and keeps the selection; no new query, built from GET_BU_SUBSCRIPTIONS rows
+- Help: staff and developer articles describe the cards; AI-help JSON re-exported
+- notes/todo.md: done items (multi-BU sign-up, getting-started guide) indented as completed
+Files: 8 changed (+100 / -81) — Base: 101369f
+Version: 0.24.11 → 0.24.12
+
 ## 2026-10-17 00:41 (main)
 Sign-up: email OTP, multi-BU logins, Lite upgrade, enquiry delete
 
