@@ -21,6 +21,13 @@ class AuthSettings(BaseSettings):
         default=7, description="Refresh token expiration time in days"
     )
 
+    # Hashes the one-time codes that prove a portal applicant owns their email
+    # (app/services/signup_otp.py). Its own secret, so rotating it touches nothing else;
+    # required, so the server never hashes codes with an empty key.
+    signup_otp_secret: str = Field(
+        min_length=16, repr=False, description="HMAC secret for hashing sign-up email codes"
+    )
+
     # super admin
     super_admin_username: str = Field(
         default="superadmin", description="Super admin UID"

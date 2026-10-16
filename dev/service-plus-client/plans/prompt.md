@@ -1,13 +1,5 @@
-# Marketting plans and suggestions required
-- I have now service-plus-client, service-plus-server and service-plus-portal up and running with subscription plans for lite, basic, standard and enterprise.
-- Software is already tested and is working fine in two internal production deployments
-- Now i want to fully go to the market and earn revenue out of it.
-- I want your suggestions on this.
-- I want you to read all the related files and suggest improvements.
-- Specially about the plans and its marketting strategy.
-- I want a plan for it.
-- Also read the Notes/marketting.md file for insight into domains available mostly domain are for .in. 
-- Suggest suitable domain from available domains
-- At present we use Service plus / Service+ as branding. What should we do now? Should there be code changes?
-- Give a complete plan with detailed steps
-- Tell also about how far it can be successfult and evaluate the price offers and your suggestions. Plan.
+# An issue with one user owning multiple bu's or doing multiple enquries through portal
+- One user is rejected, cannot re apply
+- A user has already got bu created as manager, cannot create another bu even if willing to do payment
+- One user cannot be manager for multiple bu's. Maybe manual creation required
+- 

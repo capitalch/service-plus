@@ -2203,7 +2203,7 @@
 					[
 						"Own Admin only",
 						"require_own_tenant + require_user_type(info, {'A'})",
-						"createBusinessUser, setUserBuRole; plus require_default_customer_db for recordSalesEnquiryPayment, markSalesEnquiryPaymentFailed, approveSalesEnquiry, rejectSalesEnquiry (Step 9), changeBuPlan and recordBuSubscriptionPayment (Steps 12–13)"
+						"createBusinessUser, setUserBuRole; plus require_default_customer_db for recordSalesEnquiryPayment, markSalesEnquiryPaymentFailed, approveSalesEnquiry, rejectSalesEnquiry (Step 9), deleteSalesEnquiry, changeBuPlan and recordBuSubscriptionPayment (Steps 12–13)"
 					],
 					[
 						"Anything taking a BU schema",
@@ -3739,7 +3739,7 @@
 			},
 			{
 				"q": "Is Business Unit deletion available from the UI?",
-				"a": "Yes, but only once Inactive — see delete-business-unit-dialog.tsx and the equivalent end-user article for the exact confirmation flow (typed-code confirmation required)."
+				"a": "Yes, but only once Inactive — see delete-business-unit-dialog.tsx and the equivalent end-user article for the exact confirmation flow (typed-code confirmation required). The dialog always calls deleteBuSchema with delete_bu_row true, schema or not — never a genericUpdate delete of the bu row, which fails on sales_enquiry_bu_id_fkey. resolve_delete_bu_schema_helper (provisioning.py) does, in order: GET_BU_DELETE_CHECK (BU_MUST_BE_INACTIVE when active; BU_HAS_PAYMENTS when bu_payment has rows — that FK has no ON DELETE on purpose, the ledger is kept); RELEASE_SALES_ENQUIRY_BU when security.sales_enquiry exists (bu_id cleared, and bu_schema_ready_at too on a still-pending request so a later approval rebuilds the schema); DELETE_BU_BY_CODE (bu_usage and user_bu_role cascade); then DROP SCHEMA IF EXISTS. Row first, so a refusal leaves the schema in place. SALES_ENQUIRY_DDL now declares sales_enquiry_bu_id_fkey ON DELETE SET NULL as well."
 			}
 		],
 		"id": "dev-bu-lifecycle",
@@ -4328,7 +4328,7 @@
 					"Every bu_ids entry must exist (GET_BU_CODES_BY_IDS) and be in the token's bu_codes, else reason bu_mismatch. The client sends only the current BU's id.",
 					"Each BU's plan comes from get_bu_billing(...).planCode and must be standard or enterprise; a BU with no plan counts as unlimited (same convention as use-has-enterprise-features.ts). Lite and Basic get STAFF_USER_PLAN_REQUIRED with reason plan_too_low. Plan changes apply at once (billing cache is 60 s).",
 					"Reads go through genericQuery: GET_STAFF_USERS (current_schema() = the caller's own BU, role in RECEPTIONIST/TECHNICIAN, no password hash) and GET_STAFF_ROLES. They, and the two CHECK_BUSINESS_USER_*_EXISTS ids the Add User dialog uses for live uniqueness, are in auth_guards.py NON_ADMIN_SECURITY_SQL_IDS and MANAGER_ONLY_SQL_IDS (role_code MANAGER, or Admin / Super Admin). Add any new Manager-facing security id to both sets.",
-					"Duplicate username, email and mobile are re-checked inside resolve_create_business_user_helper, so the dialog's live checks are courtesy only. The mobile check has no live equivalent.",
+					"Duplicate username and email (case-insensitive, backed by user_email_lower_key) are re-checked inside resolve_create_business_user_helper, so the dialog's live checks are courtesy only. Mobile is not checked: two users may share one (user_mobile_idx is a plain index since plans/plan.md Step 1).",
 					"Edit, deactivate, delete and credential resend stay Admin-only (Admin mode → Business Users).",
 					"Tests: tests/bu_admin/test_staff_users.py."
 				]
@@ -5988,7 +5988,7 @@
 					],
 					[
 						"lib/api.ts",
-						"submitSalesEnquiry (Enterprise) → POST /api/public/sales-enquiry; submitSignup (Lite/Basic/Standard) → POST /api/public/signup; fetchSignupStatus → POST /api/public/signup/status; fetchPlanPrices → GET /api/public/plan-prices. All send X-Website-Key; refusals arrive as ApiError with the server's code (detail {code, message})."
+						"submitSalesEnquiry (Enterprise) → POST /api/public/sales-enquiry; sendSignupOtp (Lite/Basic/Standard, step one) → POST /api/public/signup/otp; submitSignup(email, otp) → POST /api/public/signup, which SignupOtpStep (components/signup/signup-otp-step.tsx) calls from the code screen; fetchSignupStatus → POST /api/public/signup/status; fetchPlanPrices → GET /api/public/plan-prices. All send X-Website-Key; refusals arrive as ApiError with the server's code (detail {code, message})."
 					],
 					[
 						"lib/plan-prices.ts",
@@ -6073,7 +6073,7 @@
 			}
 		],
 		"id": "dev-public-portal-sales-enquiry",
-		"summary": "service-plus-portal is the static Next.js marketing site (home, pricing, contact). Enterprise enquiries post to POST /api/public/sales-enquiry (saved in service_plus_client.public.sales_enquiry, then emailed); Lite / Basic / Standard sign up through POST /api/public/signup — see 'Public Sign-up Endpoints & Emails'.",
+		"summary": "service-plus-portal is the static Next.js marketing site (home, pricing, contact). Enterprise enquiries post to POST /api/public/sales-enquiry (saved in service_plus_client.public.sales_enquiry, then emailed); Lite / Basic / Standard sign up in two calls, POST /api/public/signup/otp (emails a code) then POST /api/public/signup (the code; saves the request) — see 'Public Sign-up Endpoints & Emails'.",
 		"tags": [
 			"service-plus-portal",
 			"marketing site",
@@ -6091,7 +6091,7 @@
 		"content": [
 			{
 				"type": "para",
-				"text": "All four routes are in app/routers/public/website_router.py behind the router-wide require_website_key guard; the logic is app/services/signups.py and the emails app/services/signup_emails.py. Refusals raise SignupException (or ServicePlusException DEFAULT_DB_NOT_CONFIGURED) and are mapped by _signup_http_error to {detail: {code, message}}: DEFAULT_DB_NOT_CONFIGURED 503, SIGNUP_DUPLICATE 409, SIGNUP_WRONG_ENDPOINT and VALIDATION_ERROR 422, NOT_FOUND 404."
+				"text": "All seven routes (the two /upgrade ones are in 'Lite Plan Rules & Portal Upgrade') are in app/routers/public/website_router.py behind the router-wide require_website_key guard; the logic is app/services/signups.py (and app/services/signup_otp.py for the email code) and the emails app/services/signup_emails.py. Refusals raise SignupException (or ServicePlusException DEFAULT_DB_NOT_CONFIGURED) and are mapped by _signup_http_error to {detail: {code, message, …extensions}}: DEFAULT_DB_NOT_CONFIGURED 503, SIGNUP_DUPLICATE and SIGNUP_PENDING_EXISTS 409, SIGNUP_WRONG_ENDPOINT, VALIDATION_ERROR and OTP_INVALID (with tries_left) 422, OTP_EXPIRED 410, OTP_TOO_MANY 429, OTP_EMAIL_FAILED 502, NOT_FOUND 404. The email-code rules are in 'Sign-up Email Code & Multi-BU Logins'."
 			},
 			{
 				"type": "table",
@@ -6107,14 +6107,19 @@
 						"get_price_list() in whole rupees and get_plan_limits(): per plan setup_fee, monthly_fee, jobs_per_month and whatsapp_per_month (null = unlimited), plus enterprise_included_bus and extra_bu_monthly_fee. Cache-Control max-age=300."
 					],
 					[
-						"POST /api/public/signup",
+						"POST /api/public/signup/otp",
 						"5/min",
-						"Lite / Basic / Standard only (submit_lt_signup). Saved in security.sales_enquiry of the default customer database — never the control plane."
+						"Lite / Basic / Standard, step one: check_lt_signup, then signup_otp.send_code emails a 6-digit code and keeps the checked form in security.signup_otp. Replies {status: 'otp_sent'} for every email; nothing is saved as a request."
+					],
+					[
+						"POST /api/public/signup",
+						"10/min",
+						"Step two: {email, otp}. signup_otp.verify_code returns the kept form, then submit_lt_signup saves it in security.sales_enquiry of the default customer database — never the control plane. Returns {status, reference, existing_login, username}."
 					],
 					[
 						"POST /api/public/signup/status",
 						"10/min",
-						"{mobile, email} must match the same request (newest wins). Returns status and plan_code, plus rejection_reason when rejected, or login_email and client_name when approved. Otherwise 404 SIGNUP_NOT_FOUND."
+						"{mobile, email} must match the same request (newest wins — one email may now have several requests). Returns status and plan_code, plus rejection_reason when rejected, or login_email, client_name and existing_login (the BU went to a login the email already had) when approved. Otherwise 404 SIGNUP_NOT_FOUND."
 					],
 					[
 						"POST /api/public/sales-enquiry",
@@ -6125,7 +6130,7 @@
 			},
 			{
 				"type": "heading",
-				"text": "submit_lt_signup, in order"
+				"text": "check_lt_signup + submit_lt_signup, in order"
 			},
 			{
 				"type": "steps",
@@ -6133,11 +6138,12 @@
 					"Plan must be lite|basic|standard, else SIGNUP_WRONG_ENDPOINT.",
 					"get_default_customer_client(); if DEFAULT_CUSTOMER_DB_NAME is unset or matches no active client → DEFAULT_DB_NOT_CONFIGURED and nothing is written.",
 					"business_name must pass BU_NAME_PATTERN (the Step 3 rule); Lite, Basic and Standard must ask for exactly 1 branch (SIGNUP_BRANCHES_ONE).",
-					"CHECK_LT_SIGNUP_DUPLICATE: a pending/approved request with that mobile or email, or a security.user with that email or mobile (user_mobile_unique_idx would otherwise fail the Manager insert at approval) → one SIGNUP_DUPLICATE message whatever matched, so the endpoint cannot reveal which emails or mobiles have accounts. resolve_create_business_user_helper also pre-checks the mobile (CHECK_BUSINESS_USER_MOBILE_EXISTS → BUSINESS_USER_MOBILE_EXISTS), so approval shows a readable message instead of a raw database error. Emails are stored lower-case.",
+					"CHECK_LT_SIGNUP_PENDING: a pending request with this email (lower-case) → SIGNUP_PENDING_EXISTS. Approved and rejected requests never block, and mobile is never compared. Those four checks are check_lt_signup, run by /signup/otp before the code is sent and again by submit_lt_signup after it is verified. Emails are stored lower-case.",
+					"submit_lt_signup only: GET_LT_SIGNUP_EXISTING_USER (security.user by lower(email)). An is_admin user → SIGNUP_DUPLICATE (the neutral message). Then the plan rule (plan_rule_refusal — see 'Lite Plan Rules & Portal Upgrade'). Any other user makes this a returning applicant: existing_user_id is saved on the request and the reply carries existing_login and username — safe, because the code has just proved the inbox.",
 					"bu_name = business name, plus ' (city)' when CHECK_LT_BU_NAME_TAKEN finds a BU or open request with that name (kept only if it still passes the name rule).",
 					"bu_code via derive_bu_code(name, is_taken, city) — shared with Steps 9 and 10, which pass their own is_taken. bu_code_base: lower-case, other characters → '_', trailing company-form words dropped (LEGAL_SUFFIXES: pvt, ltd, llp, … — 'ABC Pvt Ltd' → abc; kept whole if that leaves under 3 characters), trimmed, cut to 26, short codes padded to bu_…, 'bu_' in front of 'pg_…' or a leading digit; then, if reserved or taken, <base>_<city> (city slug max 10 characters) and only then _2, _3 … on that — reserved (public, security, information_schema, demo1) or CHECK_LT_BU_CODE_TAKEN (BU, schema, open request).",
-					"INSERT_LT_ENQUIRY with a random reference (SP- + 8 of A–Z/2–9 without O/I/0/1), the plan's setup fee and payment_status 'not_required' when that fee is 0 (Lite), else 'pending'. A clash on the open email/mobile index → SIGNUP_DUPLICATE; on reference or bu_code → new values, up to 3 attempts.",
-					"Push GET_LT_PENDING_COUNT (salesEnquiryCount, kind LT, the default database's name); email the applicant's thank-you; email every GET_ACTIVE_ADMIN_EMAILS admin plus lite_basic_standard_enquiry_notify_email. Returns {status: 'pending', reference}."
+					"INSERT_LT_ENQUIRY with a random reference (SP- + 8 of A–Z/2–9 without O/I/0/1), the plan's setup fee and payment_status 'not_required' when that fee is 0 (Lite), else 'pending'. A clash on sales_enquiry_open_email_key (lower(email), pending only) → SIGNUP_PENDING_EXISTS; on reference or bu_code → new values, up to 3 attempts.",
+					"Push GET_LT_PENDING_COUNT (salesEnquiryCount, kind LT, the default database's name); email the applicant's thank-you (for a returning applicant thank_you_email adds SIGNUP_EMAIL_RETURNING_NOTE naming the login); email every GET_ACTIVE_ADMIN_EMAILS admin plus lite_basic_standard_enquiry_notify_email. Returns {status: 'pending', reference}, plus existing_login and username for a returning applicant."
 				]
 			},
 			{
@@ -6155,7 +6161,7 @@
 			},
 			{
 				"type": "note",
-				"text": "Tests: tests/core/test_signups.py stubs exec_sql, the default-client lookup, the count push and the mailer, so it needs no database. The SQL was checked against the live schemas read-only."
+				"text": "Tests: tests/core/test_signups.py stubs exec_sql, the default-client lookup, the count push and the mailer, so it needs no database; tests/core/test_signup_otp.py runs the email-code rules over an in-memory signup_otp. The SQL was checked against the live schemas read-only."
 			}
 		],
 		"faqs": [
@@ -6169,7 +6175,7 @@
 			}
 		],
 		"id": "dev-public-signup",
-		"summary": "plans/plan.md Step 7: the portal's price list, the Lite / Basic / Standard sign-up and its status lookup, the Enterprise enquiry, and every email they send.",
+		"summary": "plans/plan.md Step 7: the portal's price list, the Lite / Basic / Standard sign-up (code first, then save) and its status lookup, the Enterprise enquiry, and every email they send.",
 		"tags": [
 			"signup",
 			"sign-up",
@@ -6178,9 +6184,124 @@
 			"portal_url",
 			"bu_code",
 			"reference",
-			"SIGNUP_DUPLICATE"
+			"SIGNUP_DUPLICATE",
+			"SIGNUP_PENDING_EXISTS",
+			"signup/otp"
 		],
 		"title": "Public Sign-up Endpoints & Emails"
+	},
+	{
+		"category": "Integrations",
+		"content": [
+			{
+				"type": "para",
+				"text": "Identity rule, in every tenant database: security.user email is unique ignoring case (user_email_lower_key on lower(email), beside the old case-sensitive user_email_key), and mobile is only a contact field — user_mobile_unique_idx was replaced by the plain user_mobile_idx, CHECK_BUSINESS_USER_MOBILE_EXISTS and BUSINESS_USER_MOBILE_EXISTS are gone. scripts/run_user_identity_ddl.py applied it to every public.client database (it stops on case-only duplicate emails); new tenants get it from SECURITY_SCHEMA_DDL, regenerated from the edited schema dump. Nothing signs in or looks a user up by mobile — a future lookup by mobile can return several users."
+			},
+			{
+				"type": "heading",
+				"text": "The email code (app/services/signup_otp.py)"
+			},
+			{
+				"type": "bullets",
+				"items": [
+					"Table security.signup_otp in the default customer database (SALES_ENQUIRY_DDL): email (lower-case, the key), code_hash, payload jsonb (the checked form), expires_at, attempts, sent_count, first_sent_at, last_sent_at.",
+					"send_code: PURGE_SIGNUP_OTP (rows older than a day), then UPSERT_SIGNUP_OTP — the resend wait (RESEND_SECONDS 60) and the hourly cap (MAX_SENDS_PER_HOUR 5) are its WHERE, so two clicks at once cannot get round them; no row back → GET_SIGNUP_OTP says which (OTP_RESEND_WAIT or OTP_TOO_MANY_SENDS, both code OTP_TOO_MANY). A resend replaces the code and the form and resets the tries. A failed email → OTP_EMAIL_FAILED.",
+					"verify_code: expired or no row → OTP_EXPIRED; wrong → BUMP_SIGNUP_OTP_ATTEMPTS and OTP_INVALID with tries_left; after MAX_ATTEMPTS 5 → OTP_TOO_MANY. Right → DELETE_SIGNUP_OTP … RETURNING payload; only the request that deletes the row gets the form, so a code works once.",
+					"hash_code = HMAC-SHA256(signup_otp_secret, email + ':' + code), compared with hmac.compare_digest. signup_otp_secret (AuthSettings, env SIGNUP_OTP_SECRET) is required, min 16 characters: the server will not start without it — every deployed env file needs it. It is not the WhatsApp delivery secret.",
+					"TTL_MINUTES 10 and CODE_DIGITS 6. The portal's RESEND_SECONDS in components/signup/signup-otp-step.tsx mirrors the server's."
+				]
+			},
+			{
+				"type": "heading",
+				"text": "Why every applicant gets a code"
+			},
+			{
+				"type": "para",
+				"text": "/signup/otp answers {status: 'otp_sent'} for every email, so asking for a code never shows whether an email has a login. New vs returning is told only by /signup after the code is right, to someone who has just proved the inbox — the reply then carries existing_login and username, and the thank-you email names the login. SIGNUP_PENDING_EXISTS comes before any proof, so its text stays generic. An is_admin email gets the neutral SIGNUP_DUPLICATE."
+			},
+			{
+				"type": "heading",
+				"text": "Returning applicants"
+			},
+			{
+				"type": "bullets",
+				"items": [
+					"Only a pending request blocks a new one (CHECK_LT_SIGNUP_PENDING and sales_enquiry_open_email_key on lower(email) WHERE status = 'pending'). Approved and rejected requests never block, so one email can own several BUs and a rejected applicant can re-apply.",
+					"sales_enquiry.existing_user_id (FK to security.user, ON DELETE SET NULL) is set at sign-up and is display only: GET_SALES_ENQUIRIES joins it to existing_username for the grid's Returning chip and the approve dialog.",
+					"Approval looks the user up again by email (GET_LT_SIGNUP_EXISTING_USER) and adds one user_bu_role row with INSERT_LT_USER_BU_ROLE. Never use resolve_set_user_bu_role_helper (Associate BU / Role) for this: it deletes every row of the user and writes one role for all their BUs, so a Technician-here, Manager-there login would lose that split. Note that the Associate BU / Role dialog itself still has that behaviour.",
+					"approve-enquiry-dialog.tsx: when existing_username is set and user_id is empty, the form's returning flag skips the mobile/username rules (zod superRefine) and sends only {id, bu_name, bu_code}. Toasts ENQUIRY_APPROVED_RETURNING / _EMAIL_FAILED use result.username.",
+					"Status page: get_lt_signup_status returns existing_login when the approved request had existing_user_id; the rejected card links back to /pricing#enquire (Apply again)."
+				]
+			}
+		],
+		"faqs": [
+			{
+				"q": "Why not match on email + mobile instead of a code?",
+				"a": "Both can be known by someone else, and mobile is no longer unique. Only the code proves the applicant reads that inbox, which is what makes attaching a BU to an existing login safe."
+			},
+			{
+				"q": "A customer says the code never came.",
+				"a": "Check the mail log for 'Failed to send sign-up email'. They can press Resend code after 60 seconds, up to 5 codes an hour; OTP_EMAIL_FAILED means the mailer refused the address."
+			}
+		],
+		"id": "dev-signup-otp-multi-bu",
+		"summary": "plans/plan.md (Oct 2026): email is a login's only identity, every Lite / Basic / Standard applicant proves it with an emailed code, and a returning applicant's new BU is added to their existing login.",
+		"tags": [
+			"otp",
+			"signup_otp",
+			"signup_otp_secret",
+			"existing_user_id",
+			"returning",
+			"multi-BU",
+			"user_email_lower_key",
+			"user_mobile_idx",
+			"INSERT_LT_USER_BU_ROLE",
+			"SIGNUP_PENDING_EXISTS"
+		],
+		"title": "Sign-up Email Code & Multi-BU Logins"
+	},
+	{
+		"category": "Integrations",
+		"content": [
+			{
+				"type": "para",
+				"text": "Owner = a login with the MANAGER role on a BU (GET_LT_MANAGED_BUS, by lower(email)). signups.plan_rule_refusal(managed_bus, plan_code): any managed BU on 'lite' → SIGNUP_LITE_EXISTS (no new Lite, Basic or Standard until it is upgraded); asking for 'lite' while managing a basic/standard/enterprise BU → SIGNUP_LITE_NOT_FOR_PAID. It runs in submit_lt_signup only after the email code (so /signup/otp never shows what an email owns) and again at approval in the existing-login branch (the new BU itself excluded). Once the Lite BU is upgraded the owner may add BUs again, as any returning applicant."
+			},
+			{
+				"type": "heading",
+				"text": "Upgrade requests"
+			},
+			{
+				"type": "bullets",
+				"items": [
+					"security.sales_enquiry.kind is 'signup' (default) or 'upgrade'; upgrade_bu_id (FK bu, ON DELETE SET NULL) is the Lite BU. sales_enquiry_kind_check: a signup has no upgrade_bu_id, an upgrade's plan_code is basic or standard. sales_enquiry_open_bu_code_key now covers kind = 'signup' only, since an upgrade row carries its BU's existing code. All in SALES_ENQUIRY_DDL (run_signup_billing_ddl.py).",
+					"Portal: app/upgrade/page.tsx + components/signup/upgrade-form.tsx → POST /api/public/upgrade/otp {email, plan_code} (code stored with kind 'upgrade'; same reply for every email) → POST /api/public/upgrade {email, otp} → submit_lt_upgrade. The code's kind must match the route (a sign-up code on /upgrade, or the reverse, is OTP_EXPIRED). SignupOtpStep takes email/onResend/onVerify so both forms share it, and links SIGNUP_LITE_EXISTS to /upgrade.",
+					"submit_lt_upgrade: an active non-admin login managing exactly one Lite BU (else UPGRADE_NO_LITE 404 / UPGRADE_SEVERAL_LITE 409), no pending request for the email, then INSERT_LT_UPGRADE with the target plan's setup fee (payment_status pending), existing_user_id, the BU's name/code; upgrade_thank_you_email to the owner, approver_email's upgrade wording to the approvers, count pushed.",
+					"Approval: resolve_approve_sales_enquiry_helper → payment gate → _approve_upgrade: GET_BU_BY_ID (now with plan_code) — missing → UPGRADE_BU_MISSING, not lite and not already the target → UPGRADE_NOT_LITE — then resolve_change_bu_plan_helper (imported inside the function: billing.py imports signups.py), upgraded_email, SET_LT_USER, FINISH_LT_APPROVAL. A BU already on the target plan is not changed again, so a resumed click finishes. The BU becomes billed with paid_through empty (view-only until the first monthly payment on Subscriptions).",
+					"Client: GET_SALES_ENQUIRIES adds kind, upgrade_bu_id, upgrade_bu_plan_code; the grid shows an 'Upgrade from Lite' chip and the button 'Upgrade plan'; approve-enquiry-dialog.tsx in upgrade mode shows only the BU and the plan move and sends {id}. Record payment / Mark payment failed / Reject / Delete work unchanged."
+				]
+			}
+		],
+		"faqs": [
+			{
+				"q": "Why are the plan rules checked only after the code?",
+				"a": "Refusing at /signup/otp would tell anyone typing an email that it already owns a Lite or paid BU. After the code the person has proved the inbox, so the specific message (and the link to /upgrade) is safe."
+			}
+		],
+		"id": "dev-lite-plan-rules-upgrade",
+		"summary": "One Lite per owner until it is upgraded; no Lite for a paid owner; the portal's Lite → Basic / Standard upgrade request and its approval.",
+		"tags": [
+			"plan_rule_refusal",
+			"SIGNUP_LITE_EXISTS",
+			"SIGNUP_LITE_NOT_FOR_PAID",
+			"upgrade",
+			"kind",
+			"upgrade_bu_id",
+			"GET_LT_MANAGED_BUS",
+			"INSERT_LT_UPGRADE",
+			"submit_lt_upgrade"
+		],
+		"title": "Lite Plan Rules & Portal Upgrade"
 	},
 	{
 		"category": "Integrations",
@@ -6194,12 +6315,12 @@
 				],
 				"rows": [
 					[
-						"recordSalesEnquiryPayment, markSalesEnquiryPaymentFailed, approveSalesEnquiry, rejectSalesEnquiry",
+						"recordSalesEnquiryPayment, markSalesEnquiryPaymentFailed, approveSalesEnquiry, rejectSalesEnquiry, deleteSalesEnquiry",
 						"resolvers/bu_admin/signups.py",
 						"Guards: require_own_tenant + require_user_type {A} + require_default_customer_db. SQL in SignupServerSql (CLAIM_LT_ENQUIRY, SET_LT_BU, FINISH_LT_APPROVAL, …)."
 					],
 					[
-						"markEnterpriseEnquiryContacted, setEnterpriseEnquiryFee, recordEnterpriseEnquiryPayment, markEnterpriseEnquiryPaymentFailed, rejectEnterpriseEnquiry, provisionEnterpriseEnquiry",
+						"markEnterpriseEnquiryContacted, setEnterpriseEnquiryFee, recordEnterpriseEnquiryPayment, markEnterpriseEnquiryPaymentFailed, rejectEnterpriseEnquiry, deleteEnterpriseEnquiry, provisionEnterpriseEnquiry",
 						"resolvers/bu_admin/enterprise_enquiries.py",
 						"Guard: require_user_type {S}. Control plane (db_name=None)."
 					],
@@ -6233,9 +6354,18 @@
 					"Schema (if bu_schema_ready_at empty): build_bu_schema drops a same-named half-built schema (CASCADE), then runs the BU helper's repair path with the stored id; SET_LT_SCHEMA_READY.",
 					"Plan: set_bu_plan — branch_limit 1 for Lite/Basic/Standard, billing_required except Lite, monthly fee from the price list, paid_through NULL; clears the billing cache.",
 					"Head office: set_head_office_city_gstin splits the portal's \"City, State\" (split_city_state) and runs SET_HEAD_OFFICE_CITY_GSTIN (branch city + state_id; no GSTIN — branch.gstin was dropped, and writing it failed every Lite/Basic/Standard approval and Enterprise provisioning until 15 Oct 2026) and SET_MAIN_DIVISION_CITY_GSTIN (division city, state_id and GSTIN). The state is matched by name in the BU's state table; an unknown one keeps the seeded state (plans/plan2.md).",
-					"User (if user_id empty): mobile = payload.mobile or the enquiry's (MOBILE_PATTERN-checked; the approval dialog's Manager mobile field live-checks CHECK_BUSINESS_USER_MOBILE_EXISTS; the sales_enquiry row keeps the applicant's mobile, which the status page matches on), username = payload.username or default_username(name, email) (applicant's name as letters/digits without a leading title, max 20; under 5 characters it falls back to a non-generic email local part — GENERIC_EMAIL_NAMES such as admin/info/sales are skipped; approve-enquiry-dialog.tsx baseUsername must mirror it), then free_username (letters/digits, ≥5, numbered), MANAGER role, resolve_create_business_user_helper with signup_client_name → the EMAIL_SIGNUP_USER_LINK template, sent as HTML through signup_emails.build_html: Client / Login ID details table, a 'Set your password' button (reset link) and an 'Open Service+' button (login_link = the reset link's base + /login), and an Important note to pick the shared client's name in the login page's Client list, since the customer's own business name is not listed there; stores user_id and login_email_sent (tests/core/test_signup_account_email.py).",
+					"Existing login (if user_id empty): GET_LT_SIGNUP_EXISTING_USER by lower(email), looked up again here — existing_user_id saved at sign-up is display only. Admin → ENQUIRY_EXISTING_USER_ADMIN; inactive → ENQUIRY_EXISTING_USER_INACTIVE (claim released, BU and schema kept, the next click resumes). Otherwise INSERT_LT_USER_BU_ROLE adds one (user, new BU, MANAGER) row ON CONFLICT DO NOTHING — never resolve_set_user_bu_role_helper, which rewrites every BU of the user with one role — then bu_added_email (EMAIL_SIGNUP_BU_ADDED_*: sign in as usual, pick the BU) and SET_LT_USER. The result has existing_user true and username; no user is created.",
+					"New Manager (if user_id empty and no existing login): mobile = payload.mobile or the enquiry's (MOBILE_PATTERN-checked; it may be another user's too — mobile is not unique; the sales_enquiry row keeps the applicant's mobile, which the status page matches on), username = payload.username or default_username(name, email) (applicant's name as letters/digits without a leading title, max 20; under 5 characters it falls back to a non-generic email local part — GENERIC_EMAIL_NAMES such as admin/info/sales are skipped; approve-enquiry-dialog.tsx baseUsername must mirror it), then free_username (letters/digits, ≥5, numbered), MANAGER role, resolve_create_business_user_helper with signup_client_name → the EMAIL_SIGNUP_USER_LINK template, sent as HTML through signup_emails.build_html: Client / Login ID details table, a 'Set your password' button (reset link) and an 'Open Service+' button (login_link = the reset link's base + /login), and an Important note to pick the shared client's name in the login page's Client list, since the customer's own business name is not listed there; stores user_id and login_email_sent (tests/core/test_signup_account_email.py).",
 					"Finish: FINISH_LT_APPROVAL, audit APPROVE_SALES_ENQUIRY, publish the count. Any failure: RELEASE_LT_CLAIM and re-raise, keeping every stored id."
 				]
+			},
+			{
+				"type": "heading",
+				"text": "Deleting a rejected request"
+			},
+			{
+				"type": "para",
+				"text": "deleteSalesEnquiry (signups.py, same guards as reject) and deleteEnterpriseEnquiry (enterprise_enquiries.py, S only) take {id} and run DELETE_LT_ENQUIRY / DELETE_ENT_ENQUIRY, which match only status 'rejected' with no bu_id/user_id (lt) or no client_id (Enterprise) — anything else is ENQUIRY_DELETE_NOT_ALLOWED. Nothing is emailed; AuditAction.DELETE_SALES_ENQUIRY is logged (business name as detail). The pending count is not published, since a rejected row is never counted. Both are in test_view_only_guard.py ALLOWED (not BU data). UI: components/shared/enquiries/delete-enquiry-button.tsx — a red Delete on rejected rows of both Enquiries pages, through DeleteConfirmDialog with the reference as the typed key (business name when an old Enterprise row has none)."
 			},
 			{
 				"type": "heading",
@@ -6559,7 +6689,7 @@
 					[
 						"Enquiries",
 						"security.sales_enquiry (default db, lt); public.sales_enquiry (control plane, Enterprise)",
-						"Random reference; open-request unique indexes on email, mobile, bu_code; payment columns (setup_fee_paise, payment_status not_required|pending|received|failed, mode/reference/date) with CHECKs — 'received' needs every payment field and amount ≥ fee; approval needs received or not_required."
+						"Random reference; open-request unique indexes on lower(email) (pending only) and bu_code (pending + approved) — no mobile index; existing_user_id (the login a returning applicant's email already had); security.signup_otp beside it for the email codes; payment columns (setup_fee_paise, payment_status not_required|pending|received|failed, mode/reference/date) with CHECKs — 'received' needs every payment field and amount ≥ fee; approval needs received or not_required."
 					],
 					[
 						"Claim and resume",
@@ -7360,7 +7490,7 @@
 					"Re-read when the BU changes (useGenericQuery deps), when the panel opens and on window focus.",
 					"Each step: label, hint (MESSAGES.GS_HINT_*), done(progress), helpArticleId for 'Show me' (useHelp().openHelp) and target {route, subItem} for 'Go there'. subItem must equal the menu label exactly (client-layout reads navState.subItem) — renaming a menu item breaks it silently.",
 					"Who: userType A, or B with roleCode MANAGER; never a demo session (user.isDemo).",
-					"localStorage (per browser, try/catch; keys gs-<flag>:<db>:<schema>:<userId>): gs-seen (auto-opened once), gs-hidden ('Hide checklist'), gs-done ('all set' shown). A BU that is already all done before this browser saw the checklist never shows it, so established customers are not bothered.",
+					"Auto-open: once per login (or page reload) per BU until all done — openedInLogin, a WeakMap keyed on the session's user object (only setCredentials and a reload replace it; a token refresh does not). No permanent hide: the footer only closes; the pill goes away after the first delivery (an old gs-hidden key is ignored). localStorage (per browser, try/catch; keys gs-<flag>:<db>:<schema>:<userId>): gs-seen (opened at least once — gates the one-time 'all set' message) and gs-done ('all set' shown). A BU already all done before this browser saw the checklist never shows it, so established customers are not bothered.",
 					"The welcome email (EMAIL_SIGNUP_USER_LINK_BODY) points to the button."
 				]
 			},
@@ -7380,7 +7510,7 @@
 		"faqs": [
 			{
 				"q": "A Manager says the checklist never appeared.",
-				"a": "Check that the role is MANAGER (not a custom role), that the BU is not already all done, and that gs-hidden is not set in that browser. It also waits for the progress read, so a failing genericQuery hides it."
+				"a": "Check that the role is MANAGER (not a custom role) and that the BU is not already all done (GET_GETTING_STARTED_PROGRESS). It also waits for the progress read, so a failing genericQuery hides it."
 			}
 		],
 		"id": "dev-getting-started-checklist",

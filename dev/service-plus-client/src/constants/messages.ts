@@ -63,7 +63,6 @@ export const MESSAGES = {
 	ERROR_BUSINESS_USER_MAIL_CREDENTIALS_FAILED: "Failed to send the reset link. Please try again.",
 	ERROR_BUSINESS_USER_ROLE_REQUIRED: "Please select a role.",
 	ERROR_BUSINESS_USER_UPDATE_FAILED: "Failed to update business user. Please try again.",
-	ERROR_BUSINESS_USER_MOBILE_EXISTS: "This mobile number is already used by another user. Enter a different one.",
 	ERROR_BUSINESS_USER_USERNAME_EXISTS: "This username is already taken.",
 	ERROR_BUSINESS_USER_USERNAME_EXISTS_EDIT: "This username is already used by another user.",
 	SUCCESS_BUSINESS_USER_ACTIVATED: "Business user has been activated.",
@@ -706,8 +705,22 @@ export const MESSAGES = {
 	ENQUIRY_APPROVED_LITE: "Business unit and Manager created. The login email has been sent.",
 	ENQUIRY_APPROVED_LOGIN_EMAIL_FAILED:
 		"Business unit and Manager created, but the login email could not be sent. Resend it from Business Users.",
+	ENQUIRY_APPROVE_RETURNING_INTRO:
+		"This email already has a login. The new business unit is added to it as Manager, and the customer is emailed.",
+	ENQUIRY_APPROVED_RETURNING: "Business unit added to {username}'s login. The email has been sent.",
+	ENQUIRY_APPROVED_RETURNING_EMAIL_FAILED:
+		"Business unit added to {username}'s login, but the email could not be sent. Let the customer know.",
+	ENQUIRY_RETURNING_LOGIN: "Existing login: {username}",
 	ENQUIRY_APPROVED_PAID:
 		"Record the first monthly payment on the Subscriptions page. Until then this customer can only view.",
+	ENQUIRY_DELETE_FAILED: "Failed to delete the request. Please try again.",
+	ENQUIRY_DELETED: "Rejected request deleted.",
+	ENQUIRY_APPROVE_UPGRADE_INTRO:
+		"This moves the business unit from Lite to the requested plan, with the same login and data, and emails the owner. Then record the first monthly payment on Subscriptions.",
+	ENQUIRY_APPROVED_UPGRADE: "Plan upgraded. The owner has been emailed.",
+	ENQUIRY_APPROVED_UPGRADE_EMAIL_FAILED: "Plan upgraded, but the email to the owner could not be sent.",
+	ENQUIRY_UPGRADE_CHIP_TITLE: "A Lite business unit asking to move to a paid plan",
+	ENQUIRY_UPGRADE_TARGET: "Business unit {bu_name} ({bu_code}): Lite → {plan_name}",
 	ENQUIRY_LOAD_FAILED: "Failed to load enquiries. Please try again.",
 	ENQUIRY_LOGIN_EMAIL_NOT_SENT: "Login email not sent",
 	ENQUIRY_NOTE_REQUIRED: "Enter a note.",

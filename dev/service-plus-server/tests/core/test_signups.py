@@ -112,13 +112,17 @@ def test_rupees_uses_indian_grouping():
 
 # ── submit_lt_signup / submit_enterprise_enquiry with everything stubbed ──────
 
-def _stub(monkeypatch, duplicate=False, client=True):
+def _stub(monkeypatch, pending=False, client=True, existing=None, managed=()):
     calls = {"emails": [], "published": [], "sql": []}
 
     async def fake_exec_sql(db_name, schema, sql, sql_args=None):
         calls["sql"].append((sql, sql_args))
-        if sql == SignupServerSql.CHECK_LT_SIGNUP_DUPLICATE:
-            return [{"found": 1}] if duplicate else []
+        if sql == SignupServerSql.CHECK_LT_SIGNUP_PENDING:
+            return [{"found": 1}] if pending else []
+        if sql == SignupServerSql.GET_LT_SIGNUP_EXISTING_USER:
+            return [existing] if existing else []
+        if sql == SignupServerSql.GET_LT_MANAGED_BUS:
+            return list(managed)
         if sql in (SignupServerSql.CHECK_LT_BU_NAME_TAKEN, SignupServerSql.CHECK_LT_BU_CODE_TAKEN):
             return [{"taken": False}]
         if sql in (SignupServerSql.GET_LT_PENDING_COUNT, SignupServerSql.GET_ENT_NEW_COUNT):
@@ -177,8 +181,39 @@ def test_no_default_database_writes_nothing(monkeypatch):
     assert calls["sql"] == [] and calls["emails"] == []
 
 
-def test_duplicate_is_refused_with_one_message(monkeypatch):
-    calls = _stub(monkeypatch, duplicate=True)
+def test_pending_request_with_this_email_is_refused(monkeypatch):
+    calls = _stub(monkeypatch, pending=True)
+    with pytest.raises(SignupException) as exc:
+        asyncio.run(signups.submit_lt_signup(LITE, None))
+    assert exc.value.code == "SIGNUP_PENDING_EXISTS"
+    assert not _inserts(calls, SignupServerSql.INSERT_LT_ENQUIRY)
+
+
+def test_pending_check_is_by_email_only(monkeypatch):
+    calls = _stub(monkeypatch)
+    asyncio.run(signups.check_lt_signup(LITE))
+    assert _inserts(calls, SignupServerSql.CHECK_LT_SIGNUP_PENDING) == [{"email": "owner@example.com"}]
+    assert not _inserts(calls, SignupServerSql.INSERT_LT_ENQUIRY)
+
+
+def test_new_applicant_has_no_existing_login(monkeypatch):
+    calls = _stub(monkeypatch)
+    result = asyncio.run(signups.submit_lt_signup(LITE, None))
+    assert "existing_login" not in result
+    assert _inserts(calls, SignupServerSql.INSERT_LT_ENQUIRY)[0]["existing_user_id"] is None
+
+
+def test_returning_applicant_is_saved_against_their_login(monkeypatch):
+    user = {"id": 7, "is_active": True, "is_admin": False, "username": "asharoy"}
+    calls = _stub(monkeypatch, existing=user)
+    result = asyncio.run(signups.submit_lt_signup(LITE, None))
+    assert result["existing_login"] is True and result["username"] == "asharoy"
+    assert _inserts(calls, SignupServerSql.INSERT_LT_ENQUIRY)[0]["existing_user_id"] == 7
+
+
+def test_admin_email_is_refused_with_the_neutral_message(monkeypatch):
+    user = {"id": 1, "is_active": True, "is_admin": True, "username": "admin"}
+    calls = _stub(monkeypatch, existing=user)
     with pytest.raises(SignupException) as exc:
         asyncio.run(signups.submit_lt_signup(LITE, None))
     assert exc.value.message == AppMessages.SIGNUP_DUPLICATE
@@ -225,3 +260,67 @@ def test_enterprise_enquiry_lands_in_the_control_plane(monkeypatch):
     assert result == {"reference": row["reference"], "status": "ok"} and notified == [row["reference"]]
     assert not _inserts(calls, SignupServerSql.INSERT_LT_ENQUIRY)
     assert calls["published"][0][1] == "ENT"
+
+
+def test_returning_thank_you_names_the_existing_login(monkeypatch):
+    monkeypatch.setattr(signup_emails, "settings", SimpleNamespace(portal_url="http://localhost:3005"))
+    enquiry = {"business_name": "Nav", "name": "Asha", "plan_code": "lite", "reference": "SP-ABCDEFGH"}
+    _, new_text = signup_emails.thank_you_email(enquiry)
+    _, returning_text = signup_emails.thank_you_email({**enquiry, "existing_username": "asharoy"})
+    assert "asharoy" not in new_text
+    assert returning_text.startswith(new_text) and "(asharoy)" in returning_text
+
+
+# ── plan rules and upgrades ───────────────────────────────────────────────────
+
+USER = {"full_name": "Asha Roy", "id": 7, "is_active": True, "is_admin": False, "mobile": "9830012345", "username": "asharoy"}
+LITE_BU = {"code": "nav_technology", "id": 2, "name": "Nav Technology", "plan_code": "lite"}
+BASIC_BU = {"code": "nav_kolkata", "id": 3, "name": "Nav Kolkata", "plan_code": "basic"}
+
+
+@pytest.mark.parametrize("plan_code", ["lite", "basic", "standard"])
+def test_a_lite_owner_must_upgrade_before_any_new_signup(monkeypatch, plan_code):
+    calls = _stub(monkeypatch, existing=USER, managed=[LITE_BU])
+    with pytest.raises(SignupException) as exc:
+        asyncio.run(signups.submit_lt_signup({**LITE, "plan_code": plan_code}, None))
+    assert exc.value.code == "SIGNUP_LITE_EXISTS"
+    assert not _inserts(calls, SignupServerSql.INSERT_LT_ENQUIRY)
+
+
+def test_a_paid_owner_cannot_take_lite(monkeypatch):
+    _stub(monkeypatch, existing=USER, managed=[BASIC_BU])
+    with pytest.raises(SignupException) as exc:
+        asyncio.run(signups.submit_lt_signup(LITE, None))
+    assert exc.value.code == "SIGNUP_LITE_NOT_FOR_PAID"
+
+
+def test_a_paid_owner_can_add_a_paid_bu(monkeypatch):
+    calls = _stub(monkeypatch, existing=USER, managed=[BASIC_BU])
+    result = asyncio.run(signups.submit_lt_signup({**LITE, "plan_code": "standard"}, None))
+    assert result["existing_login"] is True and _inserts(calls, SignupServerSql.INSERT_LT_ENQUIRY)
+
+
+def test_upgrade_request_targets_the_single_lite_bu_with_the_setup_fee(monkeypatch):
+    calls = _stub(monkeypatch, existing=USER, managed=[LITE_BU, BASIC_BU])
+    result = asyncio.run(signups.submit_lt_upgrade({"email": "Owner@Example.com", "plan_code": "basic"}, None))
+    row = _inserts(calls, SignupServerSql.INSERT_LT_UPGRADE)[0]
+    assert result["bu_name"] == "Nav Technology" and result["status"] == "pending"
+    assert row["upgrade_bu_id"] == 2 and row["bu_code"] == "nav_technology" and row["existing_user_id"] == 7
+    assert row["setup_fee_paise"] > 0 and row["payment_status"] == "pending"
+
+
+@pytest.mark.parametrize(
+    "existing, managed, code",
+    [
+        (None, [], "UPGRADE_NO_LITE"),
+        (USER, [BASIC_BU], "UPGRADE_NO_LITE"),
+        ({**USER, "is_active": False}, [LITE_BU], "UPGRADE_NO_LITE"),
+        (USER, [LITE_BU, {**LITE_BU, "id": 4}], "UPGRADE_SEVERAL_LITE"),
+    ],
+)
+def test_upgrade_needs_one_lite_bu(monkeypatch, existing, managed, code):
+    calls = _stub(monkeypatch, existing=existing, managed=managed)
+    with pytest.raises(SignupException) as exc:
+        asyncio.run(signups.submit_lt_upgrade({"email": "owner@example.com", "plan_code": "standard"}, None))
+    assert exc.value.code == code
+    assert not _inserts(calls, SignupServerSql.INSERT_LT_UPGRADE)

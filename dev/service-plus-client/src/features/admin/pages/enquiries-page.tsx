@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { CheckCircle2Icon, MoreHorizontalIcon, RefreshCwIcon, WalletIcon, XCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -12,6 +13,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DeleteEnquiryButton } from "@/components/shared/enquiries/delete-enquiry-button";
 import { EnquiriesGrid } from "@/components/shared/enquiries/enquiries-grid";
 import { EnquiryNoteDialog } from "@/components/shared/enquiries/enquiry-note-dialog";
 import { enquiryErrorMessage, runEnquiryMutation } from "@/components/shared/enquiries/enquiry-mutation";
@@ -143,6 +145,10 @@ export const EnquiriesPage = () => {
 					{MESSAGES.ENQUIRY_LOGIN_EMAIL_NOT_SENT}
 				</span>
 			);
+		if (row.status === "rejected" && dbName)
+			return (
+				<DeleteEnquiryButton dbName={dbName} field="deleteSalesEnquiry" row={row} onDeleted={query.refetch} />
+			);
 		if (row.status !== "pending") return <span className="text-xs text-slate-400">—</span>;
 
 		const paid = isPaid(row);
@@ -157,7 +163,7 @@ export const EnquiriesPage = () => {
 					onClick={() => setApproveRow(row)}
 				>
 					<CheckCircle2Icon className="mr-1 h-3.5 w-3.5" />
-					{row.bu_id ? "Resume" : "Create BU & Manager"}
+					{row.kind === "upgrade" ? "Upgrade plan" : row.bu_id ? "Resume" : "Create BU & Manager"}
 				</Button>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
@@ -234,10 +240,33 @@ export const EnquiriesPage = () => {
 						loading={query.loading}
 						renderActions={renderActions}
 						renderBusinessExtra={(row) => (
-							<p className="mt-1 font-mono text-[11px] text-slate-400">
-								{row.bu_name} · {row.bu_code}
-								{row.username ? ` · ${row.username}` : ""}
-							</p>
+							<>
+								<p className="mt-1 font-mono text-[11px] text-slate-400">
+									{row.bu_name} · {row.bu_code}
+									{row.username ? ` · ${row.username}` : ""}
+								</p>
+								{row.kind === "upgrade" && (
+									<Badge
+										className="mt-1 mr-1 border-violet-200 bg-violet-50 text-[11px] text-violet-700"
+										title={MESSAGES.ENQUIRY_UPGRADE_CHIP_TITLE}
+										variant="outline"
+									>
+										Upgrade from Lite
+									</Badge>
+								)}
+								{row.existing_username && row.kind !== "upgrade" && (
+									<Badge
+										className="mt-1 border-indigo-200 bg-indigo-50 text-[11px] text-indigo-700"
+										title={MESSAGES.ENQUIRY_RETURNING_LOGIN.replace(
+											"{username}",
+											row.existing_username,
+										)}
+										variant="outline"
+									>
+										Returning
+									</Badge>
+								)}
+							</>
 						)}
 						rows={query.data}
 					/>

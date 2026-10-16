@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CombinedGraphQLErrors } from "@apollo/client/errors";
 import { toast } from "sonner";
 import { AlertTriangleIcon, Loader2Icon } from "lucide-react";
 
@@ -16,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { apolloClient } from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
+import { encodeObj } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import type { BusinessUnitType } from "@/features/admin/types/index";
@@ -53,35 +54,27 @@ export const DeleteBusinessUnitDialog = ({ bu, onOpenChange, onSuccess, open }: 
 		if (!bu || !dbName) return;
 		setSubmitting(true);
 		try {
-			if (bu.schema_exists) {
-				await apolloClient.mutate({
-					mutation: GRAPHQL_MAP.deleteBuSchema,
-					variables: {
-						db_name: dbName,
-						schema: "security",
-						value: encodeURIComponent(JSON.stringify({ code: buCode, delete_bu_row: true })),
-					},
-				});
-				toast.success(MESSAGES.SUCCESS_BU_SCHEMA_DELETED);
-			} else {
-				await apolloClient.mutate({
-					mutation: GRAPHQL_MAP.genericUpdate,
-					variables: {
-						db_name: dbName,
-						schema: "security",
-						value: graphQlUtils.buildGenericUpdateValue({
-							deletedIds: [bu.id],
-							tableName: "bu",
-							xData: {},
-						}),
-					},
-				});
-				toast.success(MESSAGES.SUCCESS_BU_DELETED);
-			}
+			// One server path whether or not the schema still exists: it releases a sign-up that
+			// points at the BU, deletes the row, then drops the schema if any. A plain row delete
+			// would fail on that sign-up's foreign key.
+			await apolloClient.mutate({
+				mutation: GRAPHQL_MAP.deleteBuSchema,
+				variables: {
+					db_name: dbName,
+					schema: "security",
+					value: encodeObj({ code: buCode, delete_bu_row: true }),
+				},
+			});
+			toast.success(bu.schema_exists ? MESSAGES.SUCCESS_BU_SCHEMA_DELETED : MESSAGES.SUCCESS_BU_DELETED);
 			onSuccess();
 			onOpenChange(false);
-		} catch {
-			toast.error(MESSAGES.ERROR_BU_SCHEMA_DELETE_FAILED);
+		} catch (error) {
+			// The server's reason (still active, has payments, …) when it refused.
+			toast.error(
+				CombinedGraphQLErrors.is(error) && error.errors[0]?.message
+					? error.errors[0].message
+					: MESSAGES.ERROR_BU_SCHEMA_DELETE_FAILED,
+			);
 		} finally {
 			setSubmitting(false);
 		}

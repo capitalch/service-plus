@@ -47,6 +47,8 @@ class AppMessages:
     BU_SEED_FEED_FAILED     = "Failed to seed business unit data"
     SECURITY_SEED_FEED_FAILED = "Failed to seed security data"
     BU_SCHEMA_DROP_FAILED   = "Failed to drop the business unit schema"
+    BU_HAS_PAYMENTS = "This business unit has payment records, so it cannot be deleted. Keep it inactive instead."
+    BU_MUST_BE_INACTIVE = "Deactivate the business unit before deleting it."
     BU_SCHEMA_NAME_MISMATCH = "Schema name does not match. Please type the exact name."
     CLIENT_CODE_EXISTS = "A client with this code already exists"
     CLIENT_MUST_BE_DISABLED = "Client must be disabled before deletion."
@@ -91,7 +93,12 @@ class AppMessages:
     )
     ENQUIRY_BUSY = "This request is already being processed. Try again in a few minutes."
     ENQUIRY_NOT_FOUND = "Request not found."
+    ENQUIRY_DELETE_NOT_ALLOWED = "Only a rejected request can be deleted."
     ENQUIRY_NOT_PENDING = "Only a pending request can be changed."
+    ENQUIRY_EXISTING_USER_ADMIN = "This email belongs to an admin login. Reject the request or ask for another email."
+    ENQUIRY_EXISTING_USER_INACTIVE = (
+        "This email belongs to an inactive login. Activate that user in Business users, then approve again."
+    )
     ENQUIRY_NOTE_REQUIRED = "Enter a note."
     ENQUIRY_PAYMENT_AMOUNT_LOW = "The amount is less than the setup fee."
     ENQUIRY_PAYMENT_DATE_FUTURE = "The payment date cannot be in the future."
@@ -153,11 +160,29 @@ class AppMessages:
         "Pay to continue adding and changing data."
     )
     SIGNUP_BRANCHES_ONE = "The Lite, Basic and Standard plans include one branch only."
-    SIGNUP_DUPLICATE = (
-        "A request with this mobile number or email already exists. "
-        "Check its progress on the sign-up status page."
+    SIGNUP_DUPLICATE = "This email cannot be used for a sign-up. Please use another email or contact us."
+    OTP_EMAIL_FAILED = "We could not send the code to this email. Check the address and try again."
+    OTP_EXPIRED = "The code has expired. Ask for a new one."
+    OTP_INVALID = "The code is wrong. Tries left: {tries_left}."
+    OTP_RESEND_WAIT = "Please wait a minute before asking for a new code."
+    OTP_TOO_MANY_SENDS = "Too many codes were sent to this email. Please try again in an hour."
+    OTP_TOO_MANY_TRIES = "Too many wrong tries. Ask for a new code."
+    SIGNUP_LITE_EXISTS = (
+        "This email already has a free Lite business unit. Upgrade it to Basic or Standard first — "
+        "after that you can add more business units."
+    )
+    SIGNUP_LITE_NOT_FOR_PAID = (
+        "This email already has a paid business unit, so the free Lite plan is not available. "
+        "Choose Basic or Standard."
     )
     SIGNUP_NOT_FOUND = "No request found for this mobile number and email."
+    UPGRADE_BU_MISSING = "The business unit of this upgrade no longer exists. Reject the request."
+    UPGRADE_NO_LITE = "No free Lite business unit was found for this email. Use the email you sign in with."
+    UPGRADE_NOT_LITE = "This business unit is no longer on the Lite plan. Reject the request."
+    UPGRADE_SEVERAL_LITE = "This email manages more than one Lite business unit. Please contact us to upgrade."
+    SIGNUP_PENDING_EXISTS = (
+        "A request with this email is already under review. Check it on the sign-up status page."
+    )
     SIGNUP_WRONG_ENDPOINT = "This plan is signed up through the sign-up form, not the enquiry form."
 
     # Sign-up emails (plans/plan.md Step 7). Plain-text templates; the HTML version is
@@ -209,6 +234,16 @@ class AppMessages:
         "If you think this is a mistake, or you would like to apply again, just reply to this email.\n\n"
         "View the status of your request: {status_url}"
     )
+    SIGNUP_EMAIL_RETURNING_NOTE = (
+        "This email already has a Service+ login ({username}). Once approved, the new business unit "
+        "is added to that login — you will not get a new username."
+    )
+    SIGNUP_EMAIL_OTP_SUBJECT = "Your Service+ verification code"
+    SIGNUP_EMAIL_OTP_TEXT = (
+        "Your Service+ verification code is {code}\n\n"
+        "Enter it on the sign-up page to confirm this email address. It is valid for {ttl_minutes} minutes.\n\n"
+        "If you did not ask for this code, you can ignore this email."
+    )
     SIGNUP_EMAIL_APPROVER_SUBJECT = "New Service+ {plan_name} sign-up {reference} — {business_name}"
     SIGNUP_EMAIL_APPROVER_TEXT = (
         "A new {plan_name} sign-up is waiting for your review.\n\n"
@@ -222,12 +257,46 @@ class AppMessages:
         "Approve or reject it on the Enquiries page: {enquiries_url}"
     )
 
+    SIGNUP_EMAIL_UPGRADE_APPROVER_SUBJECT = "Service+ upgrade to {plan_name} {reference} — {bu_name}"
+    SIGNUP_EMAIL_UPGRADE_APPROVER_TEXT = (
+        "A Lite business unit asks to move to {plan_name}.\n\n"
+        "Reference: {reference}\n"
+        "Business unit: {bu_name}\n"
+        "Code: {bu_code}\n"
+        "Owner: {name}\n"
+        "Email: {email}\n"
+        "Setup payment: {setup_status}\n\n"
+        "Record the setup payment, then approve it on the Enquiries page: {enquiries_url}"
+    )
+    SIGNUP_EMAIL_UPGRADE_SUBJECT = "We received your Service+ upgrade request {reference}"
+    SIGNUP_EMAIL_UPGRADE_TEXT = (
+        "Dear {name},\n\n"
+        "Thank you for choosing Service+ {plan_name}. We have received your request to upgrade "
+        "\"{bu_name}\" from the free Lite plan.\n\n"
+        "Reference: {reference}\n"
+        "Business unit: {bu_name}\n"
+        "New plan: {plan_name}\n"
+        "Setup fee: ₹{setup_fee} + GST\n"
+        "Monthly fee: ₹{monthly_fee} + GST\n"
+        "Status: Pending approval\n\n"
+        "What happens next: our team will contact you about the one-time setup fee. Once it is "
+        "received, your business unit moves to {plan_name}. You keep your login and all your data.\n\n"
+        "View the status of your request: {status_url}"
+    )
+    SIGNUP_EMAIL_UPGRADED_SUBJECT = "Your business unit {bu_name} is now on Service+ {plan_name}"
+    SIGNUP_EMAIL_UPGRADED_TEXT = (
+        "Hello {name},\n\n"
+        "Your upgrade {reference} is approved: \"{bu_name}\" is now on the {plan_name} plan.\n\n"
+        "Sign in as usual — your login and data are unchanged. Until the first monthly payment of "
+        "₹{monthly_fee} + GST is received, the business unit can be viewed but not changed.\n\n"
+        "Open Service+: {login_link}"
+    )
+
     # Error messages - Authorization / Authentication
     ADMIN_EMAIL_EXISTS = "This email is already registered for this client"
     ADMIN_USER_NOT_FOUND = "Admin user not found"
     BUSINESS_USER_EMAIL_EXISTS = "This email is already registered as a business user"
     INVALID_MOBILE = "Enter a valid 10-digit mobile number."
-    BUSINESS_USER_MOBILE_EXISTS = "This mobile number is already registered for another user"
     BUSINESS_USER_USERNAME_EXISTS = "This username is already taken by another business user"
     ADMIN_USER_UPDATE_FAILED = "Failed to update admin user"
     UNAUTHORIZED = "Unauthorized access"
@@ -331,6 +400,17 @@ class AppMessages:
     # "Label: value" block becomes a details table and each lone "Label: link" line a button.
     # The client name matters most: these BUs live inside a shared client, so the login page's
     # Client list shows that name, never the customer's own business name.
+    EMAIL_SIGNUP_BU_ADDED_SUBJECT = "Your new Service+ business unit {bu_name} is ready"
+    EMAIL_SIGNUP_BU_ADDED_TEXT = (
+        "Hello {full_name},\n\n"
+        "Good news — your Service+ sign-up {reference} is approved. The new business unit "
+        "\"{bu_name}\" has been added to your existing login.\n\n"
+        "Client: {client_name}\n"
+        "Login ID: {username}\n\n"
+        "Sign in with your usual password, then pick \"{bu_name}\" from the business unit list at "
+        "the top of the screen.\n\n"
+        "Open Service+: {login_link}"
+    )
     EMAIL_SIGNUP_USER_LINK_BODY = (
         "Hello {full_name},\n\n"
         "Good news — your Service+ sign-up is approved and your account is ready.\n\n"

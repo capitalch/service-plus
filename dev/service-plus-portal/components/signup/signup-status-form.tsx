@@ -1,7 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, CheckCircle2, Clock, Loader2, LogIn, Search, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Loader2, LogIn, RotateCw, Search, XCircle } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -52,6 +53,15 @@ const StatusResult = ({ result }: { result: SignupStatusType }) => {
 						<span className="font-medium text-foreground">{result.client_name}</span>
 					</p>
 				)}
+				{result.existing_login && <p className="text-muted-foreground">{MESSAGES.statusExistingLogin}</p>}
+				{result.plan_code === "lite" && (
+					<p className="text-muted-foreground">
+						{MESSAGES.statusUpgradeHint}{" "}
+						<Link className="font-medium text-primary underline underline-offset-4" href="/upgrade">
+							Upgrade
+						</Link>
+					</p>
+				)}
 				<Button asChild size="sm">
 					<a href={siteConfig.appUrl} rel="noopener" target="_blank">
 						<LogIn />
@@ -69,6 +79,13 @@ const StatusResult = ({ result }: { result: SignupStatusType }) => {
 					{planName} — {MESSAGES.statusRejected}
 				</p>
 				{result.rejection_reason && <p className="text-muted-foreground">{result.rejection_reason}</p>}
+				<p className="text-muted-foreground">{MESSAGES.statusApplyAgain}</p>
+				<Button asChild size="sm" variant="outline">
+					<Link href="/pricing#enquire">
+						<RotateCw />
+						Apply again
+					</Link>
+				</Button>
 			</div>
 		);
 

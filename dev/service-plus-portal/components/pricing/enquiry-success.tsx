@@ -8,6 +8,8 @@ import { formatInr, type PlanType } from "@/content/pricing";
 import { siteConfig } from "@/content/site-config";
 
 type EnquirySuccessPropsType = {
+	/** Set when the applicant's email already has a login; the new BU is added to it on approval. */
+	existingUsername?: string | null;
 	onReset: () => void;
 	plan: PlanType;
 	/** The server's random reference; empty only for the honeypot's fake success. */
@@ -29,8 +31,9 @@ function nextStep(plan: PlanType): string {
 	return plan.provisioning === "database" ? MESSAGES.successNextEnterprise : MESSAGES.successNextBu;
 }
 
-// The payment block is the one place to swap for a Razorpay checkout later.
-const PaymentDetails = ({ plan }: { plan: PlanType }) => {
+// The payment block is the one place to swap for a Razorpay checkout later. Also shown after a
+// Lite upgrade request (components/signup/upgrade-form.tsx).
+export const PaymentDetails = ({ plan }: { plan: PlanType }) => {
 	const { bank } = siteConfig;
 
 	return (
@@ -104,7 +107,7 @@ const CopyMobile = ({ mobile }: { mobile: string }) => {
 	);
 };
 
-export const EnquirySuccess = ({ onReset, plan, reference, values }: EnquirySuccessPropsType) => {
+export const EnquirySuccess = ({ existingUsername, onReset, plan, reference, values }: EnquirySuccessPropsType) => {
 	const isLite = plan.code === "lite";
 	const recap: { label: string; value: string }[] = [
 		{ label: "Name", value: values.name },
@@ -148,6 +151,12 @@ export const EnquirySuccess = ({ onReset, plan, reference, values }: EnquirySucc
 						</Link>
 					)}
 				</div>
+			)}
+
+			{existingUsername && (
+				<p className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+					{MESSAGES.successReturning.replace("{username}", existingUsername)}
+				</p>
 			)}
 
 			<div>

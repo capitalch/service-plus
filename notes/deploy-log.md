@@ -3,6 +3,17 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-17 00:41 (main)
+Sign-up: email OTP, multi-BU logins, Lite upgrade, enquiry delete
+
+- Portal + server: every Lite/Basic/Standard sign-up proves the email with a 6-digit code before it is saved; a returning email's new BU is added to its existing login at approval
+- Identity: email unique ignoring case and mobile no longer unique in every tenant (run_user_identity_ddl.py, regenerated tenant DDL); mobile checks removed
+- Lite rules: a Lite owner must upgrade before any new BU, a paid owner cannot take Lite; new portal /upgrade page and "Upgrade plan" approval with setup fee
+- Admin: Returning / Upgrade chips, delete rejected enquiries (both Enquiries pages), BU delete fixed (releases sign-up link, row before schema, refuses active or paid BU)
+- Help, tests and plans: both help files and AI-help JSON updated, server tests 437 passing; .env.example updated, contents not read
+Files: 44 changed (+2217 / -670) — Base: 7813f06
+Version: 0.24.10 → 0.24.11
+
 ## 2026-10-16 00:48 (main)
 Onboarding: Getting started checklist; fix sign-up approval
 

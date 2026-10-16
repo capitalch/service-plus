@@ -39,8 +39,26 @@ export type PlanPricesResponseType = {
 	}[];
 };
 
+/** A saved sign-up; a returning applicant (email already has a login) also gets that login's username. */
+export type SignupResultType = {
+	existing_login: boolean;
+	reference: string;
+	status: string;
+	username: string | null;
+};
+
+/** A saved upgrade request: the Lite business unit and the plan it moves to. */
+export type UpgradeResultType = {
+	bu_name: string;
+	plan_code: "basic" | "standard";
+	reference: string;
+	status: string;
+};
+
 export type SignupStatusType = {
 	client_name: string | null;
+	/** Approved and added to a login the email already had. */
+	existing_login: boolean;
 	login_email: string | null;
 	plan_code: PlanCodeType;
 	rejection_reason: string | null;
@@ -115,10 +133,25 @@ export async function submitSalesEnquiry(enquiry: SalesEnquiryType): Promise<str
 	return result.reference;
 }
 
-/** Lite / Basic / Standard sign-up. Returns the reference shown on the success screen. */
-export async function submitSignup(enquiry: SalesEnquiryType): Promise<string> {
-	const result = await publicPost<{ reference: string; status: string }>("/api/public/signup", enquiryBody(enquiry));
-	return result.reference;
+/** Lite / Basic / Standard sign-up, step one: the server checks the form and emails a 6-digit code.
+ * The reply is the same for every email; nothing is saved as a request yet. */
+export async function sendSignupOtp(enquiry: SalesEnquiryType): Promise<void> {
+	await publicPost<{ status: string }>("/api/public/signup/otp", enquiryBody(enquiry));
+}
+
+/** Step two: the email and its code. When the code is right the request is saved. */
+export function submitSignup(email: string, otp: string): Promise<SignupResultType> {
+	return publicPost<SignupResultType>("/api/public/signup", { email, otp });
+}
+
+/** Lite → Basic / Standard upgrade, step one: email a 6-digit code (same reply for every email). */
+export async function sendUpgradeOtp(email: string, planCode: "basic" | "standard"): Promise<void> {
+	await publicPost<{ status: string }>("/api/public/upgrade/otp", { email, plan_code: planCode });
+}
+
+/** Step two: the code. Saves an upgrade request for the Lite business unit this email manages. */
+export function submitUpgrade(email: string, otp: string): Promise<UpgradeResultType> {
+	return publicPost<UpgradeResultType>("/api/public/upgrade", { email, otp });
 }
 
 /** A sign-up's status; mobile and email must match the same request (404 otherwise). */

@@ -204,9 +204,11 @@ class BuAdminDdl:
 
         CREATE INDEX user_bu_role_user_id_idx ON security.user_bu_role USING btree (user_id) WITH (deduplicate_items='true');
 
+        CREATE UNIQUE INDEX user_email_lower_key ON security."user" USING btree (lower(email));
+
         CREATE INDEX user_full_name_idx ON security."user" USING btree (full_name) WITH (deduplicate_items='true');
 
-        CREATE UNIQUE INDEX user_mobile_unique_idx ON security."user" USING btree (mobile) WHERE (mobile IS NOT NULL);
+        CREATE INDEX user_mobile_idx ON security."user" USING btree (mobile) WHERE (mobile IS NOT NULL);
 
         ALTER TABLE ONLY security.bu_payment
             ADD CONSTRAINT bu_payment_bu_id_fkey FOREIGN KEY (bu_id) REFERENCES security.bu(id);

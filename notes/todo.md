@@ -7,7 +7,7 @@
 	- A use already created a bu, cannot create another bu even if does payment
 	- One user cannot own multiple bu's. Maybe manual creation.
 - Mock drill before launch
-- Domain book
+- Domain booking
 	- implement domain myserviceplus.in
 - Guideline for getting started with 1st job
 	- Masters setup

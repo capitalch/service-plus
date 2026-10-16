@@ -20,6 +20,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DeleteEnquiryButton } from "@/components/shared/enquiries/delete-enquiry-button";
 import { EnquiriesGrid } from "@/components/shared/enquiries/enquiries-grid";
 import { EnquiryNoteDialog } from "@/components/shared/enquiries/enquiry-note-dialog";
 import { enquiryErrorMessage, runEnquiryMutation } from "@/components/shared/enquiries/enquiry-mutation";
@@ -145,6 +146,10 @@ export const EnterpriseEnquiriesPage = () => {
 	}
 
 	function renderActions(row: EntEnquiryType) {
+		if (row.status === "rejected")
+			return (
+				<DeleteEnquiryButton dbName="" field="deleteEnterpriseEnquiry" row={row} onDeleted={query.refetch} />
+			);
 		if (!OPEN_STATUSES.includes(row.status)) return <span className="text-xs text-slate-400">—</span>;
 		const paid = row.payment_status === "received";
 		return (

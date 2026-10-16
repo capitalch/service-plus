@@ -23,9 +23,11 @@ from app.graphql.pubsub import publish_sales_enquiry_count
 from app.graphql.resolvers.bu_admin.provisioning import BU_NAME_PATTERN
 from app.logger import logger
 from app.services.default_customer import get_default_customer_client, get_enterprise_enquiry_notify_email
-from app.services.signup_emails import approver_email, send_text_email, thank_you_email
+from app.services.signup_emails import approver_email, send_text_email, thank_you_email, upgrade_thank_you_email
 
 LT_PLAN_CODES = ("lite", "basic", "standard")
+PAID_PLAN_CODES = ("basic", "enterprise", "standard")
+UPGRADE_PLAN_CODES = ("basic", "standard")
 ONE_BRANCH_PLAN_CODES = ("lite", "basic", "standard")
 
 # BU codes must match ^[a-z0-9_]{3,30}$; the base is cut to 26 so "_NN" still fits.
@@ -37,8 +39,8 @@ RESERVED_BU_CODES = frozenset({"demo1", "information_schema", "public", "securit
 _REFERENCE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 INSERT_ATTEMPTS = 3
 
-# Unique indexes of security.sales_enquiry whose clash means "this person already applied".
-_DUPLICATE_INDEXES = frozenset({"sales_enquiry_open_email_key", "sales_enquiry_open_mobile_key"})
+# Unique index of security.sales_enquiry whose clash means "this email already has a pending request".
+_PENDING_EMAIL_INDEX = "sales_enquiry_open_email_key"
 
 
 class SignupException(ServicePlusException):
@@ -139,9 +141,23 @@ async def _send_approver_emails(db_name: str, enquiry: dict) -> None:
         await send_text_email(to, subject, text, reply_to=enquiry["email"])
 
 
-async def submit_lt_signup(payload: dict, ip: str | None) -> dict:
-    """Save a Lite / Basic / Standard sign-up in the default customer database, publish
-    the pending count, email the applicant and the approvers. Returns status and reference."""
+def plan_rule_refusal(managed_bus: list[dict], plan_code: str) -> SignupException | None:
+    """The plan rule for a login asking for another BU, from the BUs it is Manager of: while one
+    of them is still Lite it must be upgraded first (no new Lite, Basic or Standard), and an
+    owner of a paid BU cannot take the free Lite plan. None when the request may go ahead.
+    Shared by sign-up (after the code) and approval (looked up again)."""
+    plans = {bu["plan_code"] for bu in managed_bus}
+    if "lite" in plans:
+        return SignupException(message=AppMessages.SIGNUP_LITE_EXISTS, code="SIGNUP_LITE_EXISTS")
+    if plan_code == "lite" and plans & set(PAID_PLAN_CODES):
+        return SignupException(message=AppMessages.SIGNUP_LITE_NOT_FOR_PAID, code="SIGNUP_LITE_NOT_FOR_PAID")
+    return None
+
+
+async def check_lt_signup(payload: dict) -> dict:
+    """The normalised form of a Lite / Basic / Standard sign-up once it passes every check
+    that does not need the email proven: plan, BU name rule, one branch, and no pending
+    request with this email. Run before the email code is sent and again before saving."""
     data = _normalise(payload)
     if data["plan_code"] not in LT_PLAN_CODES:
         raise SignupException(message=AppMessages.SIGNUP_WRONG_ENDPOINT, code="SIGNUP_WRONG_ENDPOINT")
@@ -154,12 +170,31 @@ async def submit_lt_signup(payload: dict, ip: str | None) -> dict:
     if data["plan_code"] in ONE_BRANCH_PLAN_CODES and data["branches"] != 1:
         raise SignupException(message=AppMessages.SIGNUP_BRANCHES_ONE, code="VALIDATION_ERROR")
 
-    duplicate = await exec_sql(
-        db_name, "security", SignupServerSql.CHECK_LT_SIGNUP_DUPLICATE,
-        {"email": data["email"], "mobile": data["mobile"]},
-    )
-    if duplicate:
+    pending = await exec_sql(db_name, "security", SignupServerSql.CHECK_LT_SIGNUP_PENDING, {"email": data["email"]})
+    if pending:
+        raise SignupException(message=AppMessages.SIGNUP_PENDING_EXISTS, code="SIGNUP_PENDING_EXISTS")
+    return data
+
+
+async def submit_lt_signup(payload: dict, ip: str | None) -> dict:
+    """Save a Lite / Basic / Standard sign-up whose email was just proven by its code
+    (app/services/signup_otp.py), publish the pending count, email the applicant and the
+    approvers. An email that already has a login makes this a returning applicant: the
+    request records that user, and approval adds the new BU to that login (Step 6).
+    Returns status and reference, plus existing_login and username for a returning applicant."""
+    data = await check_lt_signup(payload)
+    client = await get_default_customer_client()
+    db_name = client["db_name"]
+
+    users = await exec_sql(db_name, "security", SignupServerSql.GET_LT_SIGNUP_EXISTING_USER, {"email": data["email"]})
+    existing = users[0] if users else None
+    if existing and existing["is_admin"]:
         raise SignupException(message=AppMessages.SIGNUP_DUPLICATE, code="SIGNUP_DUPLICATE")
+    if existing:
+        managed = await exec_sql(db_name, "security", SignupServerSql.GET_LT_MANAGED_BUS, {"email": data["email"]})
+        refusal = plan_rule_refusal(managed, data["plan_code"])
+        if refusal:
+            raise refusal
 
     price = get_plan_price(data["plan_code"])
 
@@ -170,6 +205,8 @@ async def submit_lt_signup(payload: dict, ip: str | None) -> dict:
     enquiry = {
         **data,
         "bu_name": await _bu_name(db_name, data["business_name"], data["city"]),
+        "existing_user_id": existing["id"] if existing else None,
+        "existing_username": existing["username"] if existing else None,
         "ip": ip,
         "monthly_fee_paise": price.monthly_fee_paise,
         "payment_status": "pending" if price.setup_fee_paise else "not_required",
@@ -182,8 +219,8 @@ async def submit_lt_signup(payload: dict, ip: str | None) -> dict:
             await exec_sql(db_name, "security", SignupServerSql.INSERT_LT_ENQUIRY, enquiry)
             break
         except psycopg.errors.UniqueViolation as e:
-            if e.diag.constraint_name in _DUPLICATE_INDEXES:
-                raise SignupException(message=AppMessages.SIGNUP_DUPLICATE, code="SIGNUP_DUPLICATE") from e
+            if e.diag.constraint_name == _PENDING_EMAIL_INDEX:
+                raise SignupException(message=AppMessages.SIGNUP_PENDING_EXISTS, code="SIGNUP_PENDING_EXISTS") from e
             # A reference or BU code taken a moment ago by another sign-up: try new ones.
             logger.info("Sign-up insert clash on %s (attempt %s)", e.diag.constraint_name, attempt)
             if attempt == INSERT_ATTEMPTS:
@@ -196,7 +233,72 @@ async def submit_lt_signup(payload: dict, ip: str | None) -> dict:
     await send_text_email(enquiry["email"], subject, text)
     await _send_approver_emails(db_name, enquiry)
 
-    return {"reference": enquiry["reference"], "status": "pending"}
+    result = {"reference": enquiry["reference"], "status": "pending"}
+    if existing:
+        result.update(existing_login=True, username=existing["username"])
+    return result
+
+
+async def submit_lt_upgrade(payload: dict, ip: str | None) -> dict:
+    """Save a request to move this email's Lite BU to Basic or Standard; the email was just
+    proven by its code. The login must be Manager of exactly one Lite BU. The request carries
+    the target plan's setup fee; approval (after the payment) changes the plan. Returns status,
+    reference, plan_code and bu_name."""
+    email = (payload.get("email") or "").strip().lower()
+    plan_code = payload.get("plan_code")
+    if plan_code not in UPGRADE_PLAN_CODES:
+        raise SignupException(message=AppMessages.PLAN_CHANGE_INVALID, code="VALIDATION_ERROR")
+    client = await get_default_customer_client()
+    db_name = client["db_name"]
+
+    users = await exec_sql(db_name, "security", SignupServerSql.GET_LT_SIGNUP_EXISTING_USER, {"email": email})
+    user = users[0] if users else None
+    if not user or user["is_admin"] or not user["is_active"]:
+        raise SignupException(message=AppMessages.UPGRADE_NO_LITE, code="UPGRADE_NO_LITE")
+    managed = await exec_sql(db_name, "security", SignupServerSql.GET_LT_MANAGED_BUS, {"email": email})
+    lites = [bu for bu in managed if bu["plan_code"] == "lite"]
+    if not lites:
+        raise SignupException(message=AppMessages.UPGRADE_NO_LITE, code="UPGRADE_NO_LITE")
+    if len(lites) > 1:
+        raise SignupException(message=AppMessages.UPGRADE_SEVERAL_LITE, code="UPGRADE_SEVERAL_LITE")
+    bu = lites[0]
+    if await exec_sql(db_name, "security", SignupServerSql.CHECK_LT_SIGNUP_PENDING, {"email": email}):
+        raise SignupException(message=AppMessages.SIGNUP_PENDING_EXISTS, code="SIGNUP_PENDING_EXISTS")
+
+    price = get_plan_price(plan_code)
+    enquiry = {
+        "bu_code": bu["code"],
+        "bu_name": bu["name"],
+        "email": email,
+        "existing_user_id": user["id"],
+        "ip": ip,
+        "kind": "upgrade",
+        "mobile": user["mobile"] or "",
+        "monthly_fee_paise": price.monthly_fee_paise,
+        "name": user["full_name"],
+        "payment_status": "pending" if price.setup_fee_paise else "not_required",
+        "plan_code": plan_code,
+        "setup_fee_paise": price.setup_fee_paise,
+        "upgrade_bu_id": bu["id"],
+    }
+    for attempt in range(1, INSERT_ATTEMPTS + 1):
+        enquiry["reference"] = make_reference()
+        try:
+            await exec_sql(db_name, "security", SignupServerSql.INSERT_LT_UPGRADE, enquiry)
+            break
+        except psycopg.errors.UniqueViolation as e:
+            if e.diag.constraint_name == _PENDING_EMAIL_INDEX:
+                raise SignupException(message=AppMessages.SIGNUP_PENDING_EXISTS, code="SIGNUP_PENDING_EXISTS") from e
+            if attempt == INSERT_ATTEMPTS:
+                raise
+
+    pending = await exec_sql(db_name, "security", SignupServerSql.GET_LT_PENDING_COUNT)
+    await publish_sales_enquiry_count(db_name, "LT", pending[0]["pending"])
+
+    subject, text = upgrade_thank_you_email(enquiry)
+    await send_text_email(email, subject, text)
+    await _send_approver_emails(db_name, enquiry)
+    return {"bu_name": bu["name"], "plan_code": plan_code, "reference": enquiry["reference"], "status": "pending"}
 
 
 async def get_lt_signup_status(mobile: str, email: str) -> dict:
@@ -217,6 +319,7 @@ async def get_lt_signup_status(mobile: str, email: str) -> dict:
     if row["status"] == "approved":
         result["client_name"] = client["name"]
         result["login_email"] = row["email"]
+        result["existing_login"] = row["existing_user_id"] is not None
     return result
 
 

@@ -4,7 +4,7 @@ import asyncio
 import json
 from datetime import date, timedelta
 from types import SimpleNamespace
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import pytest
 
@@ -200,3 +200,201 @@ def test_an_unbilled_database_is_left_alone(monkeypatch):
         r["billing_required"] = False
     _stub_bus(monkeypatch, rows)
     assert asyncio.run(enterprise_billing.plan_new_bu_billing("service_plus_old", False)) is None
+
+
+# ── approval of a returning applicant (plans/plan.md Step 6) ──────────────────
+
+READY = {**ENQUIRY, "bu_id": 9, "bu_schema_ready_at": "2026-10-16", "payment_status": "received"}
+
+
+def _stub_returning(monkeypatch, user):
+    calls = {"created": [], "emails": [], "sql": []}
+
+    async def fake_exec_sql(db_name, schema, sql, sql_args=None):
+        calls["sql"].append((sql, sql_args))
+        if sql == SignupServerSql.CLAIM_LT_ENQUIRY:
+            return [READY]
+        if sql == SignupServerSql.GET_BU_BY_ID:
+            return [{"code": "acme_repairs", "id": 9, "name": "Acme Repairs"}]
+        if sql == SignupServerSql.GET_LT_SIGNUP_EXISTING_USER:
+            return [user] if user else []
+        if sql == SignupServerSql.GET_ROLE_ID_BY_CODE:
+            return [{"id": 3}]
+        if sql == SignupServerSql.GET_USERNAME:
+            return [{"username": "approver"}]
+        return []
+
+    async def fake_noop(*args, **kwargs):
+        return None
+
+    async def fake_create(db_name, schema, value, request=None):
+        calls["created"].append(value)
+        return {"email_sent": True, "id": 50}
+
+    async def fake_client():
+        return {"db_name": "db", "name": "Service Plus"}
+
+    async def fake_send(to, subject, text, reply_to=None):
+        calls["emails"].append((to, subject))
+        return True
+
+    async def fake_log(**kwargs):
+        return None
+
+    monkeypatch.setattr(approval, "exec_sql", fake_exec_sql)
+    monkeypatch.setattr(approval, "set_bu_plan", fake_noop)
+    monkeypatch.setattr(approval, "set_head_office_city_gstin", fake_noop)
+    monkeypatch.setattr(approval, "resolve_create_business_user_helper", fake_create)
+    monkeypatch.setattr(approval, "get_default_customer_client", fake_client)
+    monkeypatch.setattr(approval, "send_text_email", fake_send)
+    monkeypatch.setattr(approval, "_publish_pending_count", fake_noop)
+    monkeypatch.setattr(approval.audit_logger, "log", fake_log)
+    return calls
+
+
+def _sql_args(calls, sql):
+    return [args for s, args in calls["sql"] if s == sql]
+
+
+def test_returning_applicant_gets_the_bu_on_their_login(monkeypatch):
+    calls = _stub_returning(monkeypatch, {"id": 7, "is_active": True, "is_admin": False, "username": "asharoy"})
+    result = asyncio.run(approval.resolve_approve_sales_enquiry_helper(_info(), "db", _value({"id": 5})))
+    assert result["existing_user"] is True and result["user_id"] == 7 and result["username"] == "asharoy"
+    assert _sql_args(calls, SignupServerSql.INSERT_LT_USER_BU_ROLE) == [{"bu_id": 9, "role_id": 3, "user_id": 7}]
+    assert _sql_args(calls, SignupServerSql.SET_LT_USER) == [{"id": 5, "login_email_sent": True, "user_id": 7}]
+    assert calls["created"] == []
+    assert calls["emails"] == [("owner@example.com", "Your new Service+ business unit Acme Repairs is ready")]
+
+
+def test_new_applicant_still_gets_a_new_manager(monkeypatch):
+    calls = _stub_returning(monkeypatch, None)
+    result = asyncio.run(approval.resolve_approve_sales_enquiry_helper(_info(), "db", _value({"id": 5})))
+    assert result["existing_user"] is False and result["user_id"] == 50
+    assert len(calls["created"]) == 1 and not _sql_args(calls, SignupServerSql.INSERT_LT_USER_BU_ROLE)
+
+
+@pytest.mark.parametrize(
+    "user, message",
+    [
+        ({"id": 7, "is_active": False, "is_admin": False, "username": "asharoy"}, AppMessages.ENQUIRY_EXISTING_USER_INACTIVE),
+        ({"id": 1, "is_active": True, "is_admin": True, "username": "admin"}, AppMessages.ENQUIRY_EXISTING_USER_ADMIN),
+    ],
+)
+def test_inactive_or_admin_login_is_refused_and_released(monkeypatch, user, message):
+    calls = _stub_returning(monkeypatch, user)
+    with pytest.raises(ValidationException) as exc:
+        asyncio.run(approval.resolve_approve_sales_enquiry_helper(_info(), "db", _value({"id": 5})))
+    assert exc.value.message == message
+    assert not _sql_args(calls, SignupServerSql.INSERT_LT_USER_BU_ROLE)
+    assert _sql_args(calls, SignupServerSql.RELEASE_LT_CLAIM)
+
+
+# ── deleting a rejected request ───────────────────────────────────────────────
+
+def test_rejected_request_is_deleted_and_audited(monkeypatch):
+    sqls, logged = [], []
+
+    async def fake_exec_sql(db_name, schema, sql, sql_args=None):
+        sqls.append((sql, sql_args))
+        if sql == SignupServerSql.DELETE_LT_ENQUIRY:
+            return [{"business_name": "Acme", "id": 5, "reference": "SP-ABCDEFGH"}]
+        if sql == SignupServerSql.GET_USERNAME:
+            return [{"username": "approver"}]
+        return []
+
+    async def fake_log(**kwargs):
+        logged.append(kwargs["action"])
+
+    monkeypatch.setattr(approval, "exec_sql", fake_exec_sql)
+    monkeypatch.setattr(approval.audit_logger, "log", fake_log)
+    result = asyncio.run(approval.resolve_delete_sales_enquiry_helper(_info(), "db", _value({"id": 5})))
+    assert result == {"id": 5, "status": "deleted"}
+    assert sqls[0] == (SignupServerSql.DELETE_LT_ENQUIRY, {"id": 5})
+    assert logged == ["DELETE_SALES_ENQUIRY"]
+
+
+def test_only_a_rejected_request_can_be_deleted(monkeypatch):
+    _stub_db(monkeypatch, ENQUIRY)  # DELETE_LT_ENQUIRY matches no row: not rejected
+    with pytest.raises(ValidationException) as exc:
+        asyncio.run(approval.resolve_delete_sales_enquiry_helper(_info(), "db", _value({"id": 5})))
+    assert exc.value.message == AppMessages.ENQUIRY_DELETE_NOT_ALLOWED
+
+
+
+# ── plan rule at approval, and upgrades ───────────────────────────────────────
+
+def test_approval_refuses_a_new_bu_for_a_lite_owner(monkeypatch):
+    calls = _stub_returning(monkeypatch, {"id": 7, "is_active": True, "is_admin": False, "username": "asharoy"})
+    original = approval.exec_sql
+
+    async def with_lite(db_name, schema, sql, sql_args=None):
+        if sql == SignupServerSql.GET_LT_MANAGED_BUS:
+            return [{"code": "old", "id": 2, "name": "Old", "plan_code": "lite"}]
+        return await original(db_name, schema, sql, sql_args)
+
+    monkeypatch.setattr(approval, "exec_sql", with_lite)
+    with pytest.raises(ValidationException) as exc:
+        asyncio.run(approval.resolve_approve_sales_enquiry_helper(_info(), "db", _value({"id": 5})))
+    assert exc.value.message == AppMessages.SIGNUP_LITE_EXISTS
+    assert not _sql_args(calls, SignupServerSql.INSERT_LT_USER_BU_ROLE)
+
+
+UPGRADE = {**READY, "bu_id": None, "existing_user_id": 7, "kind": "upgrade", "plan_code": "standard", "upgrade_bu_id": 2}
+
+
+def _stub_upgrade(monkeypatch, bu_plan):
+    calls = {"changed": [], "emails": [], "sql": []}
+
+    async def fake_exec_sql(db_name, schema, sql, sql_args=None):
+        calls["sql"].append((sql, sql_args))
+        if sql == SignupServerSql.CLAIM_LT_ENQUIRY:
+            return [UPGRADE]
+        if sql == SignupServerSql.GET_BU_BY_ID:
+            return [{"code": "nav", "id": 2, "name": "Nav", "plan_code": bu_plan}] if bu_plan else []
+        if sql == SignupServerSql.GET_USERNAME:
+            return [{"username": "approver"}]
+        return []
+
+    async def fake_change(info, db_name, value):
+        calls["changed"].append(json.loads(unquote(value)))
+        return {}
+
+    async def fake_send(to, subject, text, reply_to=None):
+        calls["emails"].append(subject)
+        return True
+
+    async def fake_noop(*args, **kwargs):
+        return None
+
+    from app.graphql.resolvers.bu_admin import billing
+
+    monkeypatch.setattr(approval, "exec_sql", fake_exec_sql)
+    monkeypatch.setattr(billing, "resolve_change_bu_plan_helper", fake_change)
+    monkeypatch.setattr(approval, "send_text_email", fake_send)
+    monkeypatch.setattr(approval, "_publish_pending_count", fake_noop)
+    monkeypatch.setattr(approval.audit_logger, "log", fake_noop)
+    return calls
+
+
+def test_upgrade_approval_changes_the_plan_and_finishes(monkeypatch):
+    calls = _stub_upgrade(monkeypatch, "lite")
+    result = asyncio.run(approval.resolve_approve_sales_enquiry_helper(_info(), "db", _value({"id": 5})))
+    assert result["kind"] == "upgrade" and result["plan_code"] == "standard"
+    assert calls["changed"] == [{"bu_id": 2, "plan_code": "standard"}]
+    assert calls["emails"] == ["Your business unit Acme Repairs is now on Service+ Standard"]
+    assert _sql_args(calls, SignupServerSql.FINISH_LT_APPROVAL)
+
+
+def test_resumed_upgrade_does_not_change_the_plan_twice(monkeypatch):
+    calls = _stub_upgrade(monkeypatch, "standard")
+    asyncio.run(approval.resolve_approve_sales_enquiry_helper(_info(), "db", _value({"id": 5})))
+    assert calls["changed"] == [] and _sql_args(calls, SignupServerSql.FINISH_LT_APPROVAL)
+
+
+@pytest.mark.parametrize("bu_plan, message", [("basic", AppMessages.UPGRADE_NOT_LITE), (None, AppMessages.UPGRADE_BU_MISSING)])
+def test_upgrade_of_a_bu_no_longer_lite_is_refused(monkeypatch, bu_plan, message):
+    calls = _stub_upgrade(monkeypatch, bu_plan)
+    with pytest.raises(ValidationException) as exc:
+        asyncio.run(approval.resolve_approve_sales_enquiry_helper(_info(), "db", _value({"id": 5})))
+    assert exc.value.message == message and calls["changed"] == []
+    assert _sql_args(calls, SignupServerSql.RELEASE_LT_CLAIM)

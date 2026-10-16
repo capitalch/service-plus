@@ -16,8 +16,12 @@ Endpoints:
     GET /api/public/plan-prices    - service-plus-portal price list (whole rupees) and monthly allowances
     POST /api/public/sales-enquiry - service-plus-portal Enterprise enquiry (DB row in
                                     service_plus_client.public.sales_enquiry, then email)
-    POST /api/public/signup        - Lite / Basic / Standard sign-up (DB row in the default
-                                    customer database's security.sales_enquiry, then email)
+    POST /api/public/signup/otp    - Lite / Basic / Standard sign-up, step one: check the form
+                                    and email a 6-digit code (no request saved yet)
+    POST /api/public/signup        - step two: the email and its code; saves the request in the
+                                    default customer database's security.sales_enquiry, then email
+    POST /api/public/upgrade/otp   - Lite → Basic / Standard upgrade, step one: email a code
+    POST /api/public/upgrade       - step two: the code; saves an upgrade request for the email's Lite BU
     POST /api/public/signup/status - a sign-up's status, by mobile and email
 
 Every route here is guarded by require_website_key (X-Website-Key header) and
@@ -49,7 +53,15 @@ from app.logger import logger
 from app.services.bu_billing import get_bu_billing
 from app.services.public_directory import public_directory
 from app.services.signup_emails import PLAN_NAMES
-from app.services.signups import get_lt_signup_status, submit_enterprise_enquiry, submit_lt_signup
+from app.services.signup_otp import send_code, verify_code
+from app.services.signups import (
+    SignupException,
+    check_lt_signup,
+    get_lt_signup_status,
+    submit_enterprise_enquiry,
+    submit_lt_signup,
+    submit_lt_upgrade,
+)
 
 router = APIRouter(
     prefix="/api/public",
@@ -778,16 +790,26 @@ PRICE_CACHE_SECONDS = 300
 _SIGNUP_HTTP_STATUS = {
     "DEFAULT_DB_NOT_CONFIGURED": status.HTTP_503_SERVICE_UNAVAILABLE,
     "NOT_FOUND": status.HTTP_404_NOT_FOUND,
+    "OTP_EMAIL_FAILED": status.HTTP_502_BAD_GATEWAY,
+    "OTP_EXPIRED": status.HTTP_410_GONE,
+    "OTP_INVALID": status.HTTP_422_UNPROCESSABLE_CONTENT,
+    "OTP_TOO_MANY": status.HTTP_429_TOO_MANY_REQUESTS,
     "SIGNUP_DUPLICATE": status.HTTP_409_CONFLICT,
+    "SIGNUP_LITE_EXISTS": status.HTTP_409_CONFLICT,
+    "SIGNUP_LITE_NOT_FOR_PAID": status.HTTP_409_CONFLICT,
+    "SIGNUP_PENDING_EXISTS": status.HTTP_409_CONFLICT,
+    "UPGRADE_NO_LITE": status.HTTP_404_NOT_FOUND,
+    "UPGRADE_SEVERAL_LITE": status.HTTP_409_CONFLICT,
     "SIGNUP_WRONG_ENDPOINT": status.HTTP_422_UNPROCESSABLE_CONTENT,
     "VALIDATION_ERROR": status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 
 
 def _signup_http_error(e: ServicePlusException) -> HTTPException:
-    """The applicant-facing HTTP error for a refused sign-up; unknown codes are a 500."""
+    """The applicant-facing HTTP error for a refused sign-up; unknown codes are a 500. The
+    refusal's extensions (e.g. tries_left of a wrong code) go along in the detail."""
     code = _SIGNUP_HTTP_STATUS.get(e.code, status.HTTP_500_INTERNAL_SERVER_ERROR)
-    return HTTPException(status_code=code, detail={"code": e.code, "message": e.message})
+    return HTTPException(status_code=code, detail={**(e.extensions or {}), "code": e.code, "message": e.message})
 
 
 class PlanPriceOut(BaseModel):
@@ -824,6 +846,34 @@ class SalesEnquiryOut(BaseModel):
     status: str
 
 
+class SignupOtpOut(BaseModel):
+    status: str
+
+
+class SignupOut(BaseModel):
+    existing_login: bool = False
+    reference: str
+    status: str
+    username: str | None = None
+
+
+class SignupVerifyIn(BaseModel):
+    email: str = Field(min_length=3, max_length=200, pattern=r"^.+@.+\..+$")
+    otp: str = Field(pattern=r"^\d{6}$")
+
+
+class UpgradeOtpIn(BaseModel):
+    email: str = Field(min_length=3, max_length=200, pattern=r"^.+@.+\..+$")
+    plan_code: str = Field(pattern=r"^(basic|standard)$")
+
+
+class UpgradeOut(BaseModel):
+    bu_name: str
+    plan_code: str
+    reference: str
+    status: str
+
+
 class SignupStatusIn(BaseModel):
     email: str = Field(min_length=3, max_length=200, pattern=r"^.+@.+\..+$")
     mobile: str = Field(pattern=r"^[6-9]\d{9}$")
@@ -831,6 +881,7 @@ class SignupStatusIn(BaseModel):
 
 class SignupStatusOut(BaseModel):
     client_name: str | None = None
+    existing_login: bool = False
     login_email: str | None = None
     plan_code: str
     rejection_reason: str | None = None
@@ -989,21 +1040,82 @@ async def submit_sales_enquiry(payload: SalesEnquiryIn, request: Request) -> Sal
 
 
 @router.post(
-    "/signup",
-    response_model=SalesEnquiryOut,
-    dependencies=[Depends(rate_limit("signup", limit=5, window_seconds=60))],
+    "/signup/otp",
+    response_model=SignupOtpOut,
+    dependencies=[Depends(rate_limit("signup-otp", limit=5, window_seconds=60))],
 )
-async def submit_signup(payload: SalesEnquiryIn, request: Request) -> SalesEnquiryOut:
+async def send_signup_otp(payload: SalesEnquiryIn) -> SignupOtpOut:
     """
-    Lite / Basic / Standard sign-up, saved in security.sales_enquiry of the default
-    customer database (never the control plane). Duplicates get one SIGNUP_DUPLICATE
-    message whatever matched, so the endpoint cannot reveal which emails have accounts.
+    Step one of a Lite / Basic / Standard sign-up: check the form (plan, BU name rule, one
+    branch, no pending request with this email), keep it, and email a 6-digit code to the
+    address. The reply is the same for every email, so it never shows which emails have a
+    login (plans/plan.md Step 4). Nothing is saved as a request yet.
     """
     try:
-        result = await submit_lt_signup(payload.model_dump(), request.client.host if request.client else None)
+        data = await check_lt_signup(payload.model_dump())
+        await send_code(data["email"], {**data, "kind": "signup"})
     except ServicePlusException as e:
         raise _signup_http_error(e) from e
-    return SalesEnquiryOut(**result)
+    return SignupOtpOut(status="otp_sent")
+
+
+@router.post(
+    "/signup",
+    response_model=SignupOut,
+    dependencies=[Depends(rate_limit("signup", limit=10, window_seconds=60))],
+)
+async def submit_signup(payload: SignupVerifyIn, request: Request) -> SignupOut:
+    """
+    Step two: the email's code. When it is right, the form kept by /signup/otp is saved in
+    security.sales_enquiry of the default customer database (never the control plane). The
+    email is now proven, so a returning applicant is told the login the new BU will join.
+    """
+    try:
+        form = await verify_code(payload.email.strip().lower(), payload.otp)
+        if form.get("kind", "signup") != "signup":  # a code sent for an upgrade
+            raise SignupException(message=AppMessages.OTP_EXPIRED, code="OTP_EXPIRED")
+        result = await submit_lt_signup(form, request.client.host if request.client else None)
+    except ServicePlusException as e:
+        raise _signup_http_error(e) from e
+    return SignupOut(**result)
+
+
+@router.post(
+    "/upgrade/otp",
+    response_model=SignupOtpOut,
+    dependencies=[Depends(rate_limit("upgrade-otp", limit=5, window_seconds=60))],
+)
+async def send_upgrade_otp(payload: UpgradeOtpIn) -> SignupOtpOut:
+    """
+    Step one of a Lite → Basic / Standard upgrade: email a 6-digit code to the address. The reply
+    is the same for every email; whether it owns a Lite BU is checked only after the code.
+    """
+    email = payload.email.strip().lower()
+    try:
+        await send_code(email, {"email": email, "kind": "upgrade", "plan_code": payload.plan_code})
+    except ServicePlusException as e:
+        raise _signup_http_error(e) from e
+    return SignupOtpOut(status="otp_sent")
+
+
+@router.post(
+    "/upgrade",
+    response_model=UpgradeOut,
+    dependencies=[Depends(rate_limit("upgrade", limit=10, window_seconds=60))],
+)
+async def submit_upgrade(payload: SignupVerifyIn, request: Request) -> UpgradeOut:
+    """
+    Step two: the email's code. When it is right and the email's login is Manager of one Lite BU,
+    an upgrade request is saved for Admin → Enquiries (setup payment, then approval).
+    """
+    try:
+        form = await verify_code(payload.email.strip().lower(), payload.otp)
+        if form.get("kind") != "upgrade":  # a code sent for a sign-up
+            raise SignupException(message=AppMessages.OTP_EXPIRED, code="OTP_EXPIRED")
+        result = await submit_lt_upgrade(form, request.client.host if request.client else None)
+    except ServicePlusException as e:
+        raise _signup_http_error(e) from e
+    return UpgradeOut(**result)
 
 
 @router.post(

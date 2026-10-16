@@ -31,11 +31,13 @@ type Mutation {
     markSalesEnquiryPaymentFailed(db_name: String!, schema: String, value: String!): Generic
     approveSalesEnquiry(db_name: String!, schema: String, value: String!): Generic
     rejectSalesEnquiry(db_name: String!, schema: String, value: String!): Generic
+    deleteSalesEnquiry(db_name: String!, schema: String, value: String!): Generic
     markEnterpriseEnquiryContacted(db_name: String!, schema: String, value: String!): Generic
     setEnterpriseEnquiryFee(db_name: String!, schema: String, value: String!): Generic
     recordEnterpriseEnquiryPayment(db_name: String!, schema: String, value: String!): Generic
     markEnterpriseEnquiryPaymentFailed(db_name: String!, schema: String, value: String!): Generic
     rejectEnterpriseEnquiry(db_name: String!, schema: String, value: String!): Generic
+    deleteEnterpriseEnquiry(db_name: String!, schema: String, value: String!): Generic
     provisionEnterpriseEnquiry(db_name: String!, schema: String, value: String!): Generic
     changeBuPlan(db_name: String!, schema: String, value: String!): Generic
     recordBuSubscriptionPayment(db_name: String!, schema: String, value: String!): Generic

@@ -3332,7 +3332,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			},
 			{
 				type: "note",
-				text: "Username and email must not be used by anyone else in your company, and the form tells you straight away if they are. A mobile number must also be unused. The new user can open only this business unit. Changing or removing a user is done by your Admin.",
+				text: "Username and email must not be used by anyone else in your company (an email counts as used whatever its capital letters), and the form tells you straight away if they are. A mobile number may be shared: two users can have the same one. The new user can open only this business unit. Changing or removing a user is done by your Admin.",
 			},
 		],
 		faqs: [
@@ -4117,7 +4117,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				type: "steps",
 				items: [
 					"Admin → Business Users → Add Business User.",
-					"Enter Email (must be unique across the platform), Username (unique), Full Name, and Mobile.",
+					"Enter Email (must be unique, ignoring capital letters — it is how a login is recognised), Username (unique), Full Name, and Mobile (two users may share a mobile).",
 					"Pick the Business Unit(s) and Role. The Role starts as Manager; change it if the user needs something else.",
 					"Save. The user has no access yet at this point — see 'Granting Access: Associate BU / Role' in the Access Management category for the next step.",
 				],
@@ -4446,7 +4446,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{ type: "heading", text: "4. Delete" },
 			{
 				type: "para",
-				text: "Delete only appears once a Business Unit is Inactive — deactivate it first. The confirmation dialog requires typing the Business Unit's exact Code before the Delete button is enabled, since this removes the company record. There is no separate step shown here for dropping its database schema from this dialog.",
+				text: "Delete only appears once a Business Unit is Inactive — deactivate it first. The confirmation dialog requires typing the Business Unit's exact Code before the Delete button is enabled, since this removes the company record and its database schema (if it still has one). Users keep their logins but lose access to this Business Unit. A sign-up request that created the Business Unit stays in Enquiries; only its link to the Business Unit is cleared. A Business Unit with recorded payments cannot be deleted — the dialog says so; keep it Inactive instead.",
 			},
 			{ type: "heading", text: "Orphaned Schemas (maintenance)" },
 			{
@@ -4462,6 +4462,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "Why don't I see a Delete option?",
 				a: "Delete only appears once a Business Unit is Inactive. Deactivate it first, then Delete appears in the row menu.",
+			},
+			{
+				q: "Delete says the Business Unit has payment records.",
+				a: "Monthly or setup payments were recorded for it, and that payment history is kept. Leave the Business Unit Inactive instead.",
 			},
 			{
 				q: "What does 'Schema: Missing' mean, and can I still use the Business Unit?",
@@ -4646,7 +4650,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
 		category: "Admin & Users",
 		title: "Sign-up Enquiries (Platform Admin)",
 		summary:
-			"Approve Lite, Basic and Standard sign-ups from the portal: setup payment, Create BU & Manager, Reject.",
+			"Approve Lite, Basic and Standard sign-ups from the portal: setup payment, Create BU & Manager, add a BU to a returning customer's login, Reject, delete rejected requests.",
 		tags: [
 			"enquiries",
 			"sign-up",
@@ -4658,6 +4662,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			"Basic",
 			"Standard",
 			"reject",
+			"returning",
+			"existing login",
+			"second business unit",
+			"verification code",
+			"upgrade",
+			"upgrade from Lite",
 		],
 		content: [
 			{
@@ -4665,11 +4675,18 @@ export const HELP_ARTICLES: HelpArticle[] = [
 				text: "Admin Mode → Enquiries appears only for the admin of the shared customer database. Every Lite, Basic and Standard sign-up made on the portal lands here, and the bell in the Admin header counts the pending ones. Enterprise enquiries go to the Super Admin instead.",
 			},
 			{
+				type: "para",
+				text: "A sign-up reaches this list only after the applicant has typed the 6-digit code emailed to them, so every email here is real. One email can have only one pending request at a time; an earlier approved or rejected request does not stop a new one, so a rejected applicant can simply apply again.",
+			},
+			{
 				type: "steps",
 				items: [
-					"Lite: click Create BU & Manager. Check the business unit name, its code, the Manager's mobile and the Manager's username (all pre-filled and checked as you type), then confirm. If the applicant's mobile already belongs to another user it is flagged here: type a different mobile for the Manager (the request keeps the applicant's original number). The username is suggested from the applicant's name (for example Asha Roy becomes asharoy), so change it now if you want something else: it cannot be changed once the Manager is created. The business unit, its Head Office and Main division, and the Manager user are created, and the Manager is emailed a set-password link naming the client to pick at login.",
+					"Lite: click Create BU & Manager. Check the business unit name, its code, the Manager's mobile and the Manager's username (all pre-filled; the name, code and username are checked as you type), then confirm. A mobile already used by another user is fine — two users may share one. The username is suggested from the applicant's name (for example Asha Roy becomes asharoy), so change it now if you want something else: it cannot be changed once the Manager is created. The business unit, its Head Office and Main division, and the Manager user are created, and the Manager is emailed a set-password link naming the client to pick at login.",
 					"Basic / Standard: first record the one-time setup payment from the ⋯ menu (amount, mode, reference, date). Until it is recorded, Create BU & Manager stays disabled with 'Setup payment not received'. If a payment bounced, use Mark payment failed with a note — the request stays pending.",
 					"After approving a Basic or Standard request, record the first monthly payment on the Subscriptions page. Until then that customer can only view.",
+					"Returning customer: a request whose email already has a login shows a Returning chip under the business name. Its button reads Add BU: confirm the business unit name and code only — there is no username or mobile to enter. The new business unit is added to that existing login as Manager, and the customer is emailed to sign in as usual and pick it from the business unit list. Their roles in other business units are not changed.",
+					"Upgrade from Lite: an owner of a free Lite business unit can ask on the portal (Upgrade page) to move it to Basic or Standard. The request shows an 'Upgrade from Lite' chip. Record the setup payment from the ⋯ menu, then click Upgrade plan: the business unit moves to the new plan with the same login and data, and the owner is emailed. Record the first monthly payment on Subscriptions — until then it is view-only.",
+					"Delete: a rejected request shows a red Delete instead of the action buttons. Type its reference to confirm. It is removed for good and nothing is emailed; only rejected requests can be deleted.",
 					"Reject (⋯ menu) needs a reason, which is emailed to the applicant. It is possible only before the business unit exists. If a payment was received, the dialog reminds you to refund it outside the system.",
 				],
 			},
@@ -4682,6 +4699,14 @@ export const HELP_ARTICLES: HelpArticle[] = [
 			{
 				q: "Two of us clicked Create at the same time — will there be two business units?",
 				a: "No. The first click claims the request; the second gets 'already being processed'.",
+			},
+			{
+				q: "Add BU says the existing login is inactive.",
+				a: "The customer's login was deactivated. Activate it in Business Users, then click Add BU again — it continues where it stopped. If it says the email belongs to an admin login, reject the request and ask the customer for another email.",
+			},
+			{
+				q: "Can one person own several business units?",
+				a: "Yes, with two limits. While they have a business unit on the free Lite plan they cannot sign up for another one at all — they must upgrade that Lite business unit to Basic or Standard first. And someone with a paid business unit cannot take a free Lite one. Otherwise they sign up again on the portal with the same email, prove it with the emailed code, and you approve with Add BU. Each business unit keeps its own plan, setup payment and monthly payment.",
 			},
 			{
 				q: "What does 'view-only' mean for a customer?",

@@ -387,6 +387,16 @@ export const GRAPHQL_MAP = {
 			approveSalesEnquiry(db_name: $db_name, schema: $schema, value: $value)
 		}
 	`,
+	deleteEnterpriseEnquiry: gql`
+		mutation DeleteEnterpriseEnquiry($db_name: String!, $schema: String, $value: String!) {
+			deleteEnterpriseEnquiry(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
+	deleteSalesEnquiry: gql`
+		mutation DeleteSalesEnquiry($db_name: String!, $schema: String, $value: String!) {
+			deleteSalesEnquiry(db_name: $db_name, schema: $schema, value: $value)
+		}
+	`,
 	markEnterpriseEnquiryContacted: gql`
 		mutation MarkEnterpriseEnquiryContacted($db_name: String!, $schema: String, $value: String!) {
 			markEnterpriseEnquiryContacted(db_name: $db_name, schema: $schema, value: $value)

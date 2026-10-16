@@ -158,7 +158,16 @@ async def send_text_email(
 
 def thank_you_email(enquiry: dict) -> tuple[str, str]:
     """(subject, text) of the applicant's thank-you for any plan. `enquiry` holds
-    plan_code, name, business_name, reference, setup_fee_paise and monthly_fee_paise."""
+    plan_code, name, business_name, reference, setup_fee_paise and monthly_fee_paise, and
+    existing_username for a returning applicant, whose email then says which login the new
+    BU will join (the email was proven by its code, so naming the login is safe)."""
+    subject, text = _thank_you_email(enquiry)
+    if enquiry.get("existing_username"):
+        text = f"{text}\n\n{AppMessages.SIGNUP_EMAIL_RETURNING_NOTE.format(username=enquiry['existing_username'])}"
+    return subject, text
+
+
+def _thank_you_email(enquiry: dict) -> tuple[str, str]:
     plan_code = enquiry["plan_code"]
     fields = {
         "business_name": enquiry["business_name"],
@@ -186,6 +195,64 @@ def thank_you_email(enquiry: dict) -> tuple[str, str]:
     )
 
 
+def otp_email(code: str, ttl_minutes: int) -> tuple[str, str]:
+    """(subject, text) of the sign-up code email (plans/plan.md Step 3)."""
+    return (
+        AppMessages.SIGNUP_EMAIL_OTP_SUBJECT,
+        AppMessages.SIGNUP_EMAIL_OTP_TEXT.format(code=code, ttl_minutes=ttl_minutes),
+    )
+
+
+def bu_added_email(enquiry: dict, username: str, bu_name: str, client_name: str) -> tuple[str, str]:
+    """(subject, text) sent when a returning applicant's request is approved: the new BU was
+    added to their existing login, so there is no password link (plans/plan.md Step 9)."""
+    return (
+        AppMessages.EMAIL_SIGNUP_BU_ADDED_SUBJECT.format(bu_name=bu_name),
+        AppMessages.EMAIL_SIGNUP_BU_ADDED_TEXT.format(
+            bu_name=bu_name,
+            client_name=client_name,
+            full_name=enquiry["name"],
+            login_link=f"{settings.frontend_url.rstrip('/')}/login",
+            reference=enquiry["reference"],
+            username=username,
+        ),
+    )
+
+
+def upgrade_thank_you_email(enquiry: dict) -> tuple[str, str]:
+    """(subject, text) the owner gets for a Lite → Basic / Standard upgrade request."""
+    fields = {
+        "bu_name": enquiry["bu_name"],
+        "name": enquiry["name"],
+        "plan_name": PLAN_NAMES[enquiry["plan_code"]],
+        "reference": enquiry["reference"],
+    }
+    return (
+        AppMessages.SIGNUP_EMAIL_UPGRADE_SUBJECT.format(**fields),
+        AppMessages.SIGNUP_EMAIL_UPGRADE_TEXT.format(
+            **fields,
+            monthly_fee=rupees(enquiry["monthly_fee_paise"]),
+            setup_fee=rupees(enquiry["setup_fee_paise"]),
+            status_url=signup_status_url(),
+        ),
+    )
+
+
+def upgraded_email(enquiry: dict, monthly_fee_paise: int) -> tuple[str, str]:
+    """(subject, text) sent when an upgrade request is approved and the plan has changed."""
+    fields = {"bu_name": enquiry["bu_name"], "plan_name": PLAN_NAMES[enquiry["plan_code"]]}
+    return (
+        AppMessages.SIGNUP_EMAIL_UPGRADED_SUBJECT.format(**fields),
+        AppMessages.SIGNUP_EMAIL_UPGRADED_TEXT.format(
+            **fields,
+            login_link=f"{settings.frontend_url.rstrip('/')}/login",
+            monthly_fee=rupees(monthly_fee_paise),
+            name=enquiry["name"],
+            reference=enquiry["reference"],
+        ),
+    )
+
+
 def rejection_email(enquiry: dict, reason: str) -> tuple[str, str]:
     """(subject, text) of the applicant's rejection email (sent by Step 9)."""
     return (
@@ -201,13 +268,27 @@ def rejection_email(enquiry: dict, reason: str) -> tuple[str, str]:
 
 
 def approver_email(enquiry: dict) -> tuple[str, str]:
-    """(subject, text) of the email to the default database's approvers."""
+    """(subject, text) of the email to the default database's approvers; an upgrade request
+    (kind 'upgrade') gets its own wording."""
     setup_status = (
         "not required"
         if enquiry["payment_status"] == "not_required"
         else f"₹{rupees(enquiry['setup_fee_paise'])} pending"
     )
     plan_name = PLAN_NAMES[enquiry["plan_code"]]
+    if enquiry.get("kind") == "upgrade":
+        fields = {"bu_name": enquiry["bu_name"], "plan_name": plan_name, "reference": enquiry["reference"]}
+        return (
+            AppMessages.SIGNUP_EMAIL_UPGRADE_APPROVER_SUBJECT.format(**fields),
+            AppMessages.SIGNUP_EMAIL_UPGRADE_APPROVER_TEXT.format(
+                **fields,
+                bu_code=enquiry["bu_code"],
+                email=enquiry["email"],
+                enquiries_url=enquiries_url(),
+                name=enquiry["name"],
+                setup_status=setup_status,
+            ),
+        )
     return (
         AppMessages.SIGNUP_EMAIL_APPROVER_SUBJECT.format(
             business_name=enquiry["business_name"], plan_name=plan_name, reference=enquiry["reference"]

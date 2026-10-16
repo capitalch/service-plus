@@ -89,6 +89,12 @@ export const PricingSection = () => {
 				<div className="relative mt-8 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-8">
 					<SalesEnquiryForm selectedPlan={selectedPlan ?? "standard"} />
 				</div>
+				<p className="mt-4 text-center text-sm text-muted-foreground">
+					{MESSAGES.statusUpgradeHint}{" "}
+					<Link className="font-medium text-primary underline underline-offset-4" href="/upgrade">
+						Upgrade
+					</Link>
+				</p>
 			</div>
 		</>
 	);

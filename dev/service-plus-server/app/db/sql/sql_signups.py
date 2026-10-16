@@ -94,9 +94,12 @@ class SignupSql:
                e.setup_fee_paise, e.payment_status, e.payment_amount_paise, e.payment_mode,
                e.payment_reference, e.payment_received_on, e.payment_recorded_by, e.payment_note,
                e.bu_id, e.user_id, e.login_email_sent, e.processing_started_at, e.reviewed_by,
-               e.reviewed_at, e.rejection_reason, u.username
+               e.reviewed_at, e.rejection_reason, u.username, x.username AS existing_username,
+               e.kind, e.upgrade_bu_id, ub.plan_code AS upgrade_bu_plan_code
         FROM security.sales_enquiry e
         LEFT JOIN security."user" u ON u.id = e.user_id
+        LEFT JOIN security."user" x ON x.id = e.existing_user_id
+        LEFT JOIN security.bu ub ON ub.id = e.upgrade_bu_id
         WHERE ((table "p_status") IS NULL OR e.status = (table "p_status"))
           AND ((table "p_plan_code") IS NULL OR e.plan_code = (table "p_plan_code"))
           AND ((table "p_payment_status") IS NULL OR e.payment_status = (table "p_payment_status"))
@@ -147,18 +150,44 @@ class SignupServerSql:
 
     # ── Public sign-up (Step 7). lt: default customer database, security schema. ──
 
-    # One row when a pending or approved request has this mobile or email, or the email
-    # already belongs to a user of the default database. Emails are stored lower-case.
-    CHECK_LT_SIGNUP_DUPLICATE = """
-        SELECT 1 AS found
-        WHERE EXISTS (
-            SELECT 1 FROM security.sales_enquiry
-            WHERE status IN ('pending', 'approved')
-              AND (mobile = %(mobile)s OR email = %(email)s)
-        ) OR EXISTS (
-            SELECT 1 FROM security."user"
-            WHERE LOWER(email) = %(email)s OR mobile = %(mobile)s
-        )
+    # One row when a pending request already has this email (stored lower-case). Approved
+    # and rejected requests never block a new one, and mobile is not compared (Step 4).
+    CHECK_LT_SIGNUP_PENDING = """
+        SELECT 1 AS found FROM security.sales_enquiry
+        WHERE status = 'pending' AND lower(email) = %(email)s
+        LIMIT 1
+    """
+
+    # The login that already owns this email, if any. Email is a login's only identity;
+    # mobile may be shared by several users. Shared by sign-up (Step 4) and approval (Step 6).
+    GET_LT_SIGNUP_EXISTING_USER = """
+        SELECT id, username, full_name, mobile, is_active, is_admin FROM security."user"
+        WHERE lower(email) = %(email)s
+    """
+
+    # The BUs this email's login is Manager of, with their plans: the plan rules of a sign-up
+    # (a Lite owner must upgrade first; a paid owner gets no Lite) and the BU an upgrade targets.
+    GET_LT_MANAGED_BUS = """
+        SELECT b.id, b.code, b.name, b.plan_code
+        FROM security."user" u
+        JOIN security.user_bu_role r ON r.user_id = u.id
+        JOIN security.role ro ON ro.id = r.role_id AND ro.code = 'MANAGER'
+        JOIN security.bu b ON b.id = r.bu_id
+        WHERE lower(u.email) = %(email)s
+        ORDER BY b.id
+    """
+
+    # A Lite BU's request to move to Basic / Standard (Step: upgrades). It carries the BU's code
+    # and name and the login it belongs to; approval changes the plan of upgrade_bu_id.
+    INSERT_LT_UPGRADE = """
+        INSERT INTO security.sales_enquiry
+            (reference, plan_code, name, business_name, mobile, email, city, branches, ip, bu_name,
+             bu_code, setup_fee_paise, payment_status, existing_user_id, kind, upgrade_bu_id)
+        VALUES
+            (%(reference)s, %(plan_code)s, %(name)s, %(bu_name)s, %(mobile)s, %(email)s, '', 1, %(ip)s,
+             %(bu_name)s, %(bu_code)s, %(setup_fee_paise)s, %(payment_status)s, %(existing_user_id)s,
+             'upgrade', %(upgrade_bu_id)s)
+        RETURNING id
     """
 
     # True when a BU or a pending / approved request already uses this BU name.
@@ -186,11 +215,11 @@ class SignupServerSql:
     INSERT_LT_ENQUIRY = """
         INSERT INTO security.sales_enquiry
             (reference, plan_code, name, business_name, mobile, email, city, gstin, branches,
-             message, ip, bu_name, bu_code, setup_fee_paise, payment_status)
+             message, ip, bu_name, bu_code, setup_fee_paise, payment_status, existing_user_id)
         VALUES
             (%(reference)s, %(plan_code)s, %(name)s, %(business_name)s, %(mobile)s, %(email)s,
              %(city)s, %(gstin)s, %(branches)s, %(message)s, %(ip)s, %(bu_name)s, %(bu_code)s,
-             %(setup_fee_paise)s, %(payment_status)s)
+             %(setup_fee_paise)s, %(payment_status)s, %(existing_user_id)s)
         RETURNING id
     """
 
@@ -207,11 +236,84 @@ class SignupServerSql:
 
     # Status page: mobile AND email must match the same request; the newest one wins.
     GET_LT_SIGNUP_STATUS = """
-        SELECT status, plan_code, rejection_reason, email
+        SELECT status, plan_code, rejection_reason, email, existing_user_id
         FROM security.sales_enquiry
         WHERE mobile = %(mobile)s AND email = %(email)s
         ORDER BY created_at DESC
         LIMIT 1
+    """
+
+    # ── Sign-up email codes (plans/plan.md Step 3). Default customer database, security schema. ──
+
+    # A new code for this email. A resend resets the tries and replaces the stored form. No row
+    # comes back while the last code is under resend_seconds old, or when max_sends codes went
+    # out within the past hour: the caller then reads the row to say which.
+    UPSERT_SIGNUP_OTP = """
+        INSERT INTO security.signup_otp AS o (email, code_hash, payload, expires_at)
+        VALUES (%(email)s, %(code_hash)s, %(payload)s::jsonb, now() + %(ttl_minutes)s * interval '1 minute')
+        ON CONFLICT (email) DO UPDATE
+        SET code_hash = EXCLUDED.code_hash,
+            payload = EXCLUDED.payload,
+            expires_at = EXCLUDED.expires_at,
+            attempts = 0,
+            sent_count = CASE WHEN o.first_sent_at < now() - interval '1 hour' THEN 1 ELSE o.sent_count + 1 END,
+            first_sent_at = CASE WHEN o.first_sent_at < now() - interval '1 hour' THEN now() ELSE o.first_sent_at END,
+            last_sent_at = now()
+        WHERE o.last_sent_at < now() - %(resend_seconds)s * interval '1 second'
+          AND (o.first_sent_at < now() - interval '1 hour' OR o.sent_count < %(max_sends)s)
+        RETURNING email
+    """
+
+    GET_SIGNUP_OTP = """
+        SELECT email, code_hash, attempts, expires_at < now() AS expired,
+               last_sent_at > now() - %(resend_seconds)s * interval '1 second' AS too_soon
+        FROM security.signup_otp
+        WHERE email = %(email)s
+    """
+
+    # One wrong try; no row once the tries are used up.
+    BUMP_SIGNUP_OTP_ATTEMPTS = """
+        UPDATE security.signup_otp SET attempts = attempts + 1
+        WHERE email = %(email)s AND attempts < %(max_attempts)s
+        RETURNING attempts
+    """
+
+    # Uses the code up: only the request that deletes the row gets the form back, so a code
+    # cannot be replayed or used twice by two clicks.
+    DELETE_SIGNUP_OTP = """
+        DELETE FROM security.signup_otp
+        WHERE email = %(email)s AND code_hash = %(code_hash)s AND expires_at >= now()
+        RETURNING payload
+    """
+
+    PURGE_SIGNUP_OTP = """
+        DELETE FROM security.signup_otp WHERE last_sent_at < now() - interval '1 day'
+    """
+
+    # ── Deleting a BU (provisioning.py resolve_delete_bu_schema_helper). Any database. ──
+
+    # What decides whether a BU row may be deleted: it must be inactive, and a BU with payment
+    # records is never deleted (bu_payment is the ledger and keeps no ON DELETE rule on purpose).
+    GET_BU_DELETE_CHECK = """
+        SELECT b.is_active,
+               (SELECT count(*) FROM security.bu_payment p WHERE p.bu_id = b.id)::int AS payments
+        FROM security.bu b
+        WHERE LOWER(b.code) = %(code)s
+    """
+
+    # True when this database has the sign-up table (only the default customer database does).
+    HAS_SALES_ENQUIRY_TABLE = """
+        SELECT to_regclass('security.sales_enquiry') IS NOT NULL AS present
+    """
+
+    # A sign-up keeps its row when the BU it created is deleted, like the user link (ON DELETE
+    # SET NULL). A still-pending request also forgets its finished schema, so a later approval
+    # builds a fresh BU and schema instead of skipping the schema step.
+    RELEASE_SALES_ENQUIRY_BU = """
+        UPDATE security.sales_enquiry
+        SET bu_id = NULL,
+            bu_schema_ready_at = CASE WHEN status = 'pending' THEN NULL ELSE bu_schema_ready_at END
+        WHERE bu_id IN (SELECT id FROM security.bu WHERE LOWER(code) = %(code)s)
     """
 
     # ── Enterprise: service_plus_client DB, public schema (db_name=None). ──
@@ -291,6 +393,14 @@ class SignupServerSql:
         UPDATE security.sales_enquiry SET bu_schema_ready_at = now() WHERE id = %(id)s
     """
 
+    # Approval of a returning applicant (Step 6): the new BU joins their existing login as
+    # Manager. One row for this BU only; the user's roles in other BUs are left as they are.
+    INSERT_LT_USER_BU_ROLE = """
+        INSERT INTO security.user_bu_role (user_id, bu_id, role_id)
+        VALUES (%(user_id)s, %(bu_id)s, %(role_id)s)
+        ON CONFLICT DO NOTHING
+    """
+
     SET_LT_USER = """
         UPDATE security.sales_enquiry
         SET user_id = %(user_id)s, login_email_sent = %(login_email_sent)s
@@ -315,6 +425,13 @@ class SignupServerSql:
         RETURNING *
     """
 
+    # Admin → Enquiries → Delete: only a rejected request, which never has a BU or user.
+    DELETE_LT_ENQUIRY = """
+        DELETE FROM security.sales_enquiry
+        WHERE id = %(id)s AND status = 'rejected' AND bu_id IS NULL AND user_id IS NULL
+        RETURNING id, reference, business_name
+    """
+
     # The plan fields on the new BU (security schema of the BU's database).
     SET_BU_PLAN = """
         UPDATE security.bu
@@ -326,7 +443,7 @@ class SignupServerSql:
     """
 
     GET_BU_BY_ID = """
-        SELECT id, code, name FROM security.bu WHERE id = %(id)s
+        SELECT id, code, name, plan_code FROM security.bu WHERE id = %(id)s
     """
 
     # Run in the new BU schema: the applicant's city (and GSTIN, if given) on the head office
@@ -446,6 +563,13 @@ class SignupServerSql:
         RETURNING id
     """
 
+    # Super Admin → Enquiries → Delete: only a rejected enquiry, which never has a client.
+    DELETE_ENT_ENQUIRY = """
+        DELETE FROM public.sales_enquiry
+        WHERE id = %(id)s AND plan_code = 'enterprise' AND status = 'rejected' AND client_id IS NULL
+        RETURNING id, reference, business_name
+    """
+
     REJECT_ENT_ENQUIRY = """
         UPDATE public.sales_enquiry
         SET status = 'rejected', rejection_reason = %(reason)s, reviewed_by = %(by)s,
@@ -507,8 +631,9 @@ class SignupServerSql:
             CHECK (status <> 'approved' OR payment_status IN ('received', 'not_required'));
 
         ALTER TABLE security.sales_enquiry DROP CONSTRAINT IF EXISTS sales_enquiry_bu_id_fkey;
+        -- Deleting a BU keeps the request and only clears its link (as for user_id below).
         ALTER TABLE security.sales_enquiry ADD CONSTRAINT sales_enquiry_bu_id_fkey
-            FOREIGN KEY (bu_id) REFERENCES security.bu (id);
+            FOREIGN KEY (bu_id) REFERENCES security.bu (id) ON DELETE SET NULL;
 
         ALTER TABLE security.sales_enquiry DROP CONSTRAINT IF EXISTS sales_enquiry_user_id_fkey;
         -- Deleting the login user an approved sign-up created keeps the request (reference,
@@ -520,12 +645,50 @@ class SignupServerSql:
         + """
         CREATE UNIQUE INDEX IF NOT EXISTS sales_enquiry_reference_key
             ON security.sales_enquiry (reference);
-        CREATE UNIQUE INDEX IF NOT EXISTS sales_enquiry_open_email_key
-            ON security.sales_enquiry (email) WHERE status IN ('pending', 'approved');
-        CREATE UNIQUE INDEX IF NOT EXISTS sales_enquiry_open_mobile_key
-            ON security.sales_enquiry (mobile) WHERE status IN ('pending', 'approved');
-        CREATE UNIQUE INDEX IF NOT EXISTS sales_enquiry_open_bu_code_key
-            ON security.sales_enquiry (bu_code) WHERE status IN ('pending', 'approved');
+        -- A request is a new BU ('signup') or a Lite BU's move to Basic / Standard ('upgrade',
+        -- of upgrade_bu_id). An upgrade row carries that BU's code and name.
+        ALTER TABLE security.sales_enquiry
+            ADD COLUMN IF NOT EXISTS kind text DEFAULT 'signup' NOT NULL,
+            ADD COLUMN IF NOT EXISTS upgrade_bu_id bigint;
+        ALTER TABLE security.sales_enquiry DROP CONSTRAINT IF EXISTS sales_enquiry_kind_check;
+        ALTER TABLE security.sales_enquiry ADD CONSTRAINT sales_enquiry_kind_check
+            CHECK ((kind = 'signup' AND upgrade_bu_id IS NULL) OR (kind = 'upgrade' AND plan_code IN ('basic', 'standard')));
+        ALTER TABLE security.sales_enquiry DROP CONSTRAINT IF EXISTS sales_enquiry_upgrade_bu_id_fkey;
+        ALTER TABLE security.sales_enquiry ADD CONSTRAINT sales_enquiry_upgrade_bu_id_fkey
+            FOREIGN KEY (upgrade_bu_id) REFERENCES security.bu (id) ON DELETE SET NULL;
+
+        -- One pending request per email; approved or rejected ones never block a new one, and
+        -- mobile is only a contact field (plans/plan.md Step 2). Dropped and recreated so an
+        -- older definition is replaced. An upgrade reuses its BU's code, so only sign-ups
+        -- reserve a BU code.
+        DROP INDEX IF EXISTS security.sales_enquiry_open_mobile_key;
+        DROP INDEX IF EXISTS security.sales_enquiry_open_email_key;
+        CREATE UNIQUE INDEX sales_enquiry_open_email_key
+            ON security.sales_enquiry (lower(email)) WHERE status = 'pending';
+        DROP INDEX IF EXISTS security.sales_enquiry_open_bu_code_key;
+        CREATE UNIQUE INDEX sales_enquiry_open_bu_code_key
+            ON security.sales_enquiry (bu_code) WHERE status IN ('pending', 'approved') AND kind = 'signup';
+
+        -- The existing login whose email the applicant proved by OTP; display only, approval
+        -- looks the user up again by email.
+        ALTER TABLE security.sales_enquiry ADD COLUMN IF NOT EXISTS existing_user_id bigint;
+        ALTER TABLE security.sales_enquiry DROP CONSTRAINT IF EXISTS sales_enquiry_existing_user_id_fkey;
+        ALTER TABLE security.sales_enquiry ADD CONSTRAINT sales_enquiry_existing_user_id_fkey
+            FOREIGN KEY (existing_user_id) REFERENCES security."user" (id) ON DELETE SET NULL;
+
+        -- One row per email waiting for its sign-up code: the checked form, the code's HMAC
+        -- hash (never the code), and the counters behind the expiry, try and resend limits.
+        CREATE TABLE IF NOT EXISTS security.signup_otp (
+            email text PRIMARY KEY CHECK (email = lower(email)),
+            code_hash text NOT NULL,
+            payload jsonb NOT NULL,
+            expires_at timestamp with time zone NOT NULL,
+            attempts integer DEFAULT 0 NOT NULL CHECK (attempts >= 0),
+            sent_count integer DEFAULT 1 NOT NULL CHECK (sent_count >= 1),
+            first_sent_at timestamp with time zone DEFAULT now() NOT NULL,
+            last_sent_at timestamp with time zone DEFAULT now() NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS signup_otp_last_sent_at_idx ON security.signup_otp (last_sent_at);
         """
     )
 

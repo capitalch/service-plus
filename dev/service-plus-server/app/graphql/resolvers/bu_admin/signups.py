@@ -35,8 +35,8 @@ from app.graphql.resolvers.shared.generic_query import _decode_value
 from app.logger import logger
 from app.services.bu_billing import clear_bu_billing
 from app.services.default_customer import get_default_customer_client
-from app.services.signup_emails import rejection_email, send_text_email
-from app.services.signups import RESERVED_BU_CODES
+from app.services.signup_emails import bu_added_email, rejection_email, send_text_email, upgraded_email
+from app.services.signups import RESERVED_BU_CODES, plan_rule_refusal
 
 BU_CODE_PATTERN = re.compile(r"^[a-z0-9_]{3,30}$")
 PAYMENT_MODES = frozenset({"bank_transfer", "cash", "other", "upi"})
@@ -327,6 +327,10 @@ async def resolve_approve_sales_enquiry_helper(info, db_name: str, value: str) -
         if enquiry["payment_status"] not in ("received", "not_required"):
             raise CodedValidationException(message=AppMessages.PAYMENT_NOT_RECEIVED, code="PAYMENT_NOT_RECEIVED")
 
+        # An upgrade changes the plan of an existing Lite BU instead of creating one.
+        if enquiry.get("kind") == "upgrade":
+            return await _approve_upgrade(info, db_name, enquiry)
+
         # 3. BU row.
         bu_id = enquiry["bu_id"]
         if not bu_id:
@@ -345,10 +349,50 @@ async def resolve_approve_sales_enquiry_helper(info, db_name: str, value: str) -
         await set_bu_plan(db_name, bu_id, enquiry["plan_code"])
         await set_head_office_city_gstin(db_name, bu["code"], enquiry["city"], enquiry["gstin"])
 
-        # 7. Manager user, with the sign-up login email.
+        # 7. Manager user, with the sign-up login email. An email that already has a login
+        # (looked up again here, not trusted from sign-up) gets the BU added to that login.
         user_id = enquiry["user_id"]
         login_email_sent = enquiry["login_email_sent"]
+        existing = None
         if not user_id:
+            users = await exec_sql(
+                db_name, "security", SignupServerSql.GET_LT_SIGNUP_EXISTING_USER, {"email": enquiry["email"].lower()}
+            )
+            existing = users[0] if users else None
+        if existing:
+            if existing["is_admin"]:
+                raise _invalid(AppMessages.ENQUIRY_EXISTING_USER_ADMIN)
+            if not existing["is_active"]:
+                raise _invalid(AppMessages.ENQUIRY_EXISTING_USER_INACTIVE)
+            # The plan rule again, against the BUs the login manages now (the new BU is not
+            # linked yet): a Lite owner must upgrade first; a paid owner gets no Lite.
+            managed = await exec_sql(
+                db_name, "security", SignupServerSql.GET_LT_MANAGED_BUS, {"email": enquiry["email"].lower()}
+            )
+            managed = [m for m in managed if m["id"] != bu_id]
+            refusal = plan_rule_refusal(managed, enquiry["plan_code"])
+            if refusal:
+                raise _invalid(refusal.message)
+            role = await exec_sql(db_name, "security", SignupServerSql.GET_ROLE_ID_BY_CODE, {"code": MANAGER_ROLE_CODE})
+            if not role:
+                raise _invalid(AppMessages.RESOURCE_NOT_FOUND, detail="MANAGER role")
+            await exec_sql(
+                db_name,
+                "security",
+                SignupServerSql.INSERT_LT_USER_BU_ROLE,
+                {"bu_id": bu_id, "role_id": role[0]["id"], "user_id": existing["id"]},
+            )
+            user_id = existing["id"]
+            client = await get_default_customer_client()
+            subject, text = bu_added_email(enquiry, existing["username"], bu["name"], client["name"])
+            login_email_sent = await send_text_email(enquiry["email"], subject, text)
+            await exec_sql(
+                db_name,
+                "security",
+                SignupServerSql.SET_LT_USER,
+                {"id": enquiry_id, "login_email_sent": login_email_sent, "user_id": user_id},
+            )
+        elif not user_id:
             wanted = (payload.get("username") or default_username(enquiry["name"], enquiry["email"])).strip()
             username = await free_username(db_name, wanted)
             # The approver may give the Manager a different mobile than the applicant's (e.g. when
@@ -406,11 +450,65 @@ async def resolve_approve_sales_enquiry_helper(info, db_name: str, value: str) -
     return {
         "bu_code": bu["code"],
         "bu_id": bu_id,
+        "existing_user": existing is not None,
         "id": enquiry_id,
         "login_email_sent": login_email_sent,
         "plan_code": enquiry["plan_code"],
         "status": "approved",
         "user_id": user_id,
+        "username": existing["username"] if existing else None,
+    }
+
+
+async def _approve_upgrade(info, db_name: str, enquiry: dict) -> dict:
+    """Approve an upgrade request (kind 'upgrade'): move its Lite BU to the requested plan with
+    the Subscriptions page's Change plan logic, email the owner, finish. Resumable: a BU already
+    on the requested plan (a run that stopped after the change) is not changed again."""
+    # Imported here: billing.py imports this module.
+    from app.graphql.resolvers.bu_admin.billing import resolve_change_bu_plan_helper  # pylint: disable=import-outside-toplevel
+
+    rows = await exec_sql(db_name, "security", SignupServerSql.GET_BU_BY_ID, {"id": enquiry["upgrade_bu_id"]})
+    if not enquiry["upgrade_bu_id"] or not rows:
+        raise _invalid(AppMessages.UPGRADE_BU_MISSING)
+    bu = rows[0]
+    if bu["plan_code"] != enquiry["plan_code"]:
+        if bu["plan_code"] != "lite":
+            raise _invalid(AppMessages.UPGRADE_NOT_LITE)
+        await resolve_change_bu_plan_helper(
+            info, db_name, _encode({"bu_id": bu["id"], "plan_code": enquiry["plan_code"]})
+        )
+
+    subject, text = upgraded_email(enquiry, get_plan_price(enquiry["plan_code"]).monthly_fee_paise)
+    email_sent = await send_text_email(enquiry["email"], subject, text)
+    await exec_sql(
+        db_name,
+        "security",
+        SignupServerSql.SET_LT_USER,
+        {"id": enquiry["id"], "login_email_sent": email_sent, "user_id": enquiry["existing_user_id"]},
+    )
+    by = await actor_username(info, db_name)
+    await exec_sql(db_name, "security", SignupServerSql.FINISH_LT_APPROVAL, {"by": by, "id": enquiry["id"]})
+    await audit_logger.log(
+        action=AuditAction.APPROVE_SALES_ENQUIRY,
+        actor_type="admin",
+        actor_username=by,
+        detail=f"upgrade bu={bu['code']} lite → {enquiry['plan_code']}",
+        resource_id=str(enquiry["id"]),
+        resource_name=enquiry["reference"],
+        resource_type="sales_enquiry",
+    )
+    await _publish_pending_count(db_name)
+    return {
+        "bu_code": bu["code"],
+        "bu_id": bu["id"],
+        "existing_user": True,
+        "id": enquiry["id"],
+        "kind": "upgrade",
+        "login_email_sent": email_sent,
+        "plan_code": enquiry["plan_code"],
+        "status": "approved",
+        "user_id": enquiry["existing_user_id"],
+        "username": None,
     }
 
 
@@ -445,3 +543,27 @@ async def resolve_reject_sales_enquiry_helper(info, db_name: str, value: str) ->
     await _publish_pending_count(db_name)
     return {"id": enquiry["id"], "status": "rejected"}
 
+
+
+# ── Deletion ──────────────────────────────────────────────────────────────────
+
+
+async def resolve_delete_sales_enquiry_helper(info, db_name: str, value: str) -> dict:
+    """Permanently delete a rejected request (it never has a BU or user). Nothing is emailed.
+    Value: { id }"""
+    payload = _decode_value(value, "deleteSalesEnquiry")
+    rows = await exec_sql(db_name, "security", SignupServerSql.DELETE_LT_ENQUIRY, {"id": payload.get("id")})
+    if not rows:
+        raise _invalid(AppMessages.ENQUIRY_DELETE_NOT_ALLOWED)
+    enquiry = rows[0]
+    by = await actor_username(info, db_name)
+    await audit_logger.log(
+        action=AuditAction.DELETE_SALES_ENQUIRY,
+        actor_type="admin",
+        actor_username=by,
+        detail=enquiry["business_name"],
+        resource_id=str(enquiry["id"]),
+        resource_name=enquiry["reference"],
+        resource_type="sales_enquiry",
+    )
+    return {"id": enquiry["id"], "status": "deleted"}

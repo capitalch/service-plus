@@ -52,6 +52,7 @@ from app.graphql.resolvers.bu_admin.billing import (
 )
 from app.graphql.resolvers.bu_admin.bu_features import resolve_set_bu_features_helper
 from app.graphql.resolvers.bu_admin.enterprise_enquiries import (
+    resolve_delete_enterprise_enquiry_helper,
     resolve_mark_enterprise_enquiry_contacted_helper,
     resolve_mark_enterprise_enquiry_payment_failed_helper,
     resolve_provision_enterprise_enquiry_helper,
@@ -61,6 +62,7 @@ from app.graphql.resolvers.bu_admin.enterprise_enquiries import (
 )
 from app.graphql.resolvers.bu_admin.signups import (
     resolve_approve_sales_enquiry_helper,
+    resolve_delete_sales_enquiry_helper,
     resolve_mark_sales_enquiry_payment_failed_helper,
     resolve_record_sales_enquiry_payment_helper,
     resolve_reject_sales_enquiry_helper,
@@ -427,6 +429,17 @@ async def resolve_reject_sales_enquiry(_, info, db_name="", schema="", value="")
     return await resolve_reject_sales_enquiry_helper(info, db_name, value)
 
 
+@mutation.field("deleteSalesEnquiry")
+@handle_graphql_errors("Error deleting the sign-up")
+async def resolve_delete_sales_enquiry(_, info, db_name="", schema="", value="") -> Any:
+    """Permanently delete a rejected sign-up."""
+    # pylint: disable=unused-argument
+    require_own_tenant(info, db_name)
+    require_user_type(info, {"A"})
+    require_default_customer_db(info, db_name)
+    return await resolve_delete_sales_enquiry_helper(info, db_name, value)
+
+
 @mutation.field("markEnterpriseEnquiryContacted")
 @handle_graphql_errors("Error in markEnterpriseEnquiryContacted")
 async def resolve_mark_enterprise_enquiry_contacted(_, info, db_name="", schema="", value="") -> Any:
@@ -470,6 +483,15 @@ async def resolve_reject_enterprise_enquiry(_, info, db_name="", schema="", valu
     # pylint: disable=unused-argument
     require_user_type(info, {"S"})
     return await resolve_reject_enterprise_enquiry_helper(value)
+
+
+@mutation.field("deleteEnterpriseEnquiry")
+@handle_graphql_errors("Error in deleteEnterpriseEnquiry")
+async def resolve_delete_enterprise_enquiry(_, info, db_name="", schema="", value="") -> Any:
+    """Permanently delete a rejected Enterprise enquiry. Super Admin only."""
+    # pylint: disable=unused-argument
+    require_user_type(info, {"S"})
+    return await resolve_delete_enterprise_enquiry_helper(value)
 
 
 @mutation.field("provisionEnterpriseEnquiry")

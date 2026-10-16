@@ -3565,6 +3565,13 @@ CREATE INDEX user_bu_role_user_id_idx ON security.user_bu_role USING btree (user
 
 
 --
+-- Name: user_email_lower_key; Type: INDEX; Schema: security; Owner: webadmin
+--
+
+CREATE UNIQUE INDEX user_email_lower_key ON security."user" USING btree (lower(email));
+
+
+--
 -- Name: user_full_name_idx; Type: INDEX; Schema: security; Owner: webadmin
 --
 
@@ -3572,10 +3579,10 @@ CREATE INDEX user_full_name_idx ON security."user" USING btree (full_name) WITH 
 
 
 --
--- Name: user_mobile_unique_idx; Type: INDEX; Schema: security; Owner: webadmin
+-- Name: user_mobile_idx; Type: INDEX; Schema: security; Owner: webadmin
 --
 
-CREATE UNIQUE INDEX user_mobile_unique_idx ON security."user" USING btree (mobile) WHERE (mobile IS NOT NULL);
+CREATE INDEX user_mobile_idx ON security."user" USING btree (mobile) WHERE (mobile IS NOT NULL);
 
 
 --

@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { EnquirySuccess } from "@/components/pricing/enquiry-success";
 import { LiteConfirmDialog } from "@/components/pricing/lite-confirm-dialog";
+import { SignupOtpStep } from "@/components/signup/signup-otp-step";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { MESSAGES } from "@/constants/messages";
 import { findPlan, formatInr, planCodes, type PlanCodeType } from "@/content/pricing";
-import { ApiError, submitSalesEnquiry, submitSignup } from "@/lib/api";
+import { ApiError, sendSignupOtp, submitSalesEnquiry, submitSignup, type SignupResultType } from "@/lib/api";
 import { findLivePlan, usePlanPrices } from "@/lib/plan-prices";
 import { cn } from "@/lib/utils";
 import { indianStates } from "@/content/indian-states";
@@ -143,11 +144,18 @@ const ErrorSummary = ({ errors, ref, serverMessage }: ErrorSummaryPropsType) => 
 	</div>
 );
 
-type SubmittedType = { reference: string; values: EnquiryFormType };
+type SubmittedType = {
+	/** The login a returning applicant's email already has; the new BU is added to it. */
+	existingUsername: string | null;
+	reference: string;
+	values: EnquiryFormType;
+};
 
 export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) => {
 	const [confirmValues, setConfirmValues] = useState<EnquiryFormType | null>(null);
 	const [confirming, setConfirming] = useState(false);
+	/** The form a sign-up code was emailed for; while set, the code step replaces the form. */
+	const [otpFor, setOtpFor] = useState<EnquiryFormType | null>(null);
 	const [serverError, setServerError] = useState<string | null>(null);
 	const [submitted, setSubmitted] = useState<SubmittedType | null>(null);
 	const summaryRef = useRef<HTMLDivElement>(null);
@@ -208,14 +216,18 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 	const isLite = plan?.code === "lite";
 	const messageLength = watch("message")?.length ?? 0;
 
-	// Enterprise is an enquiry for the sales team; Lite, Basic and Standard are sign-ups that land
-	// in the approvers' queue. Both answer with a reference for the success screen.
+	// Enterprise is an enquiry for the sales team and is saved at once. Lite, Basic and Standard are
+	// sign-ups: the server first emails a code to prove the email, and the request reaches the
+	// approvers' queue once the code is entered (SignupOtpStep).
 	async function send(values: EnquiryFormType) {
 		setServerError(null);
 		try {
-			const reference =
-				values.plan === "enterprise" ? await submitSalesEnquiry(values) : await submitSignup(values);
-			setSubmitted({ reference, values });
+			if (values.plan === "enterprise")
+				setSubmitted({ existingUsername: null, reference: await submitSalesEnquiry(values), values });
+			else {
+				await sendSignupOtp(values);
+				setOtpFor(values);
+			}
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 429) toast.error(MESSAGES.enquiryRateLimited);
 			// A refusal the visitor can act on (duplicate request, sign-ups not configured, …).
@@ -227,7 +239,7 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 	async function onSubmit(values: EnquiryFormType) {
 		// A bot filled the honeypot: pretend it worked, send nothing.
 		if (values.website) {
-			setSubmitted({ reference: "", values });
+			setSubmitted({ existingUsername: null, reference: "", values });
 			return;
 		}
 		if (values.plan === "lite") {
@@ -257,18 +269,40 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 			name: "",
 			state: "" as EnquiryFormType["state"],
 		});
+		setOtpFor(null);
 		setServerError(null);
 		setSubmitted(null);
+	}
+
+	function handleVerified(result: SignupResultType) {
+		if (!otpFor) return;
+		setSubmitted({
+			existingUsername: result.existing_login ? result.username : null,
+			reference: result.reference,
+			values: otpFor,
+		});
+		setOtpFor(null);
 	}
 
 	const submittedPlan = findLivePlan(plans, submitted?.values.plan);
 	if (submittedPlan && submitted)
 		return (
 			<EnquirySuccess
+				existingUsername={submitted.existingUsername}
 				onReset={handleReset}
 				plan={submittedPlan}
 				reference={submitted.reference}
 				values={submitted.values}
+			/>
+		);
+
+	if (otpFor)
+		return (
+			<SignupOtpStep
+				email={otpFor.email}
+				onBack={() => setOtpFor(null)}
+				onResend={() => sendSignupOtp(otpFor)}
+				onVerify={async (otp) => handleVerified(await submitSignup(otpFor.email.trim().toLowerCase(), otp))}
 			/>
 		);
 
@@ -432,7 +466,13 @@ export const SalesEnquiryForm = ({ selectedPlan }: SalesEnquiryFormPropsType) =>
 					)}
 					<Button disabled={isSubmitting || !isValid} size="lg" type="submit">
 						{isSubmitting ? <Loader2 className="animate-spin" /> : <Send />}
-						{isSubmitting ? "Sending…" : isLite ? "Confirm Lite signup" : "Send enquiry"}
+						{isSubmitting
+							? "Sending…"
+							: plan?.code === "enterprise"
+								? "Send enquiry"
+								: isLite
+									? "Confirm Lite signup"
+									: "Send code"}
 					</Button>
 				</div>
 				<p className="flex items-start gap-1.5 text-xs text-muted-foreground">

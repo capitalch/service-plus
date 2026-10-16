@@ -156,6 +156,18 @@ async def resolve_reject_enterprise_enquiry_helper(value: str) -> dict:
     return {"id": enquiry["id"], "status": "rejected"}
 
 
+async def resolve_delete_enterprise_enquiry_helper(value: str) -> dict:
+    """Permanently delete a rejected enquiry (it never has a client). Nothing is emailed.
+    Value: { id }"""
+    payload = _decode_value(value, "deleteEnterpriseEnquiry")
+    rows = await exec_sql(None, "public", SignupServerSql.DELETE_ENT_ENQUIRY, {"id": payload.get("id")})
+    if not rows:
+        raise _invalid(AppMessages.ENQUIRY_DELETE_NOT_ALLOWED)
+    enquiry = rows[0]
+    await _audit(AuditAction.DELETE_SALES_ENQUIRY, enquiry, enquiry["business_name"])
+    return {"id": enquiry["id"], "status": "deleted"}
+
+
 # ── Provisioning ──────────────────────────────────────────────────────────────
 
 

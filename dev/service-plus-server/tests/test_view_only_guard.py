@@ -67,6 +67,8 @@ ALLOWED = {
     "demoTopUp",  # Super Admin only; writes the demo BU through the helpers, not the resolvers
     "extendClientPaidThrough",
     "deleteBuSchema",
+    "deleteEnterpriseEnquiry",
+    "deleteSalesEnquiry",
     "deleteClient",
     "dropDatabase",
     "feedBuSeedData",

@@ -454,7 +454,11 @@ async def resolve_delete_bu_schema_helper(
 
     Value payload (URL-encoded JSON): { code, delete_bu_row: bool }
     - code: schema name (lowercase, 3–30 chars, alphanumeric + underscore)
-    - delete_bu_row: if true, also DELETE FROM security.bu WHERE LOWER(code) = code
+    - delete_bu_row: if true, also DELETE FROM security.bu WHERE LOWER(code) = code — first,
+      before the schema: refused with BU_MUST_BE_INACTIVE for an active BU and BU_HAS_PAYMENTS
+      when the BU has payment records, and
+      any sign-up pointing at the BU is released (bu_id cleared). Works when the schema is
+      already gone, so it is the one delete path for a BU.
     """
     # pylint: disable=unused-argument
     payload = _decode_value(value, "deleteBuSchema")
@@ -477,7 +481,40 @@ async def resolve_delete_bu_schema_helper(
             },
         )
 
-    # Drop schema CASCADE (autocommit DDL)
+    # The BU row goes first, so a refusal (payments) or a failure leaves the schema in place
+    # instead of a BU row without its schema. Rows that point at the BU are released first:
+    # a sign-up keeps its row and only loses the link; bu_usage and user_bu_role cascade.
+    if delete_bu_row:
+        check = await exec_sql(
+            db_name=db_name,
+            schema="security",
+            sql=SignupServerSql.GET_BU_DELETE_CHECK,
+            sql_args={"code": code},
+        )
+        if check and check[0]["is_active"]:
+            raise ValidationException(message=AppMessages.BU_MUST_BE_INACTIVE)
+        if check and check[0]["payments"]:
+            raise ValidationException(message=AppMessages.BU_HAS_PAYMENTS)
+        has_signups = await exec_sql(
+            db_name=db_name, schema="security", sql=SignupServerSql.HAS_SALES_ENQUIRY_TABLE
+        )
+        if has_signups and has_signups[0]["present"]:
+            await exec_sql(
+                db_name=db_name,
+                schema="security",
+                sql=SignupServerSql.RELEASE_SALES_ENQUIRY_BU,
+                sql_args={"code": code},
+            )
+        logger.info("Deleting security.bu row for code='%s'", code)
+        await exec_sql(
+            db_name=db_name,
+            schema="security",
+            sql=SqlStore.DELETE_BU_BY_CODE,
+            sql_args={"code": code},
+        )
+
+    # Drop schema CASCADE (autocommit DDL); IF EXISTS, so a BU whose schema is already gone
+    # is deleted the same way.
     logger.info("Dropping schema '%s' in db '%s'", code, db_name)
     await exec_sql_dml(
         db_name=db_name,
@@ -486,16 +523,6 @@ async def resolve_delete_bu_schema_helper(
             pgsql.Identifier(code)
         ),
     )
-
-    # Optionally delete the bu row
-    if delete_bu_row:
-        logger.info("Deleting security.bu row for code='%s'", code)
-        await exec_sql(
-            db_name=db_name,
-            schema="security",
-            sql=SqlStore.DELETE_BU_BY_CODE,
-            sql_args={"code": code},
-        )
 
     await audit_logger.log(
         action=AuditAction.DROP_DATABASE,

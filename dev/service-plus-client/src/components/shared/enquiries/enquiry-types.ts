@@ -39,7 +39,14 @@ export type LtEnquiryType = EnquiryRowType & {
 	bu_code: string;
 	bu_id: number | null;
 	bu_name: string;
+	/** The login this email already belongs to (proved by the sign-up code); approval adds the BU to it. */
+	existing_username: string | null;
+	/** "upgrade": a Lite BU (upgrade_bu_id) asking to move to plan_code; "signup": a new BU. */
+	kind: "signup" | "upgrade";
 	login_email_sent: boolean;
+	upgrade_bu_id: number | null;
+	/** The upgrade's BU plan now: "lite" until approved. */
+	upgrade_bu_plan_code: string | null;
 	user_id: number | null;
 	username: string | null;
 };
