@@ -73,6 +73,8 @@ export const MESSAGES = {
 	recommenderIntro:
 		"Answer a few quick questions about your workshop and we will point you at the plan that fits — you can still change it later.",
 	recommenderTitle: "Which plan is right for you?",
+	serviceCentreExperience:
+		"Service+ is built on more than 20 years of hands-on experience in electronics repair and service. It is designed around a service centre's own interests and addresses the everyday concerns that other software overlooks.",
 	serviceCentreHighlightBody:
 		"Running an OEM-authorised centre, or a group of them? We customise workflows, branding and reporting across multiple centres on one account.",
 	serviceCentreHighlightTitle: "The must-go solution for authorised service centres",

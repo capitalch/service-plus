@@ -16,6 +16,7 @@ export const ServiceCentreHighlight = () => {
 					<div className="flex-1">
 						<h2 className="text-lg font-bold sm:text-xl">{MESSAGES.serviceCentreHighlightTitle}</h2>
 						<p className="mt-1 text-sm text-muted-foreground">{MESSAGES.serviceCentreHighlightBody}</p>
+						<p className="mt-2 text-sm font-medium text-foreground">{MESSAGES.serviceCentreExperience}</p>
 					</div>
 					<Button asChild variant="outline">
 						<Link href="/contact">

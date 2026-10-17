@@ -35,12 +35,13 @@ export const features: FeatureType[] = [
 	{
 		description:
 			"Single and batch job intake, technician assignment, a live job pipeline, staff-only notes, finalisation and delivery with printed job sheets.",
-		detail: "Every repair starts as a job card: device details, reported problem, estimate and technician, all captured in one intake screen. A live pipeline shows where each job stands, from received to delivered, and a printed job sheet goes out at intake and at delivery. Staff can keep internal notes on any job — escalations, promises, customer behaviour — that never appear on a printout or a WhatsApp message.",
+		detail: "Every repair starts as a job card: device details, reported problem, estimate and technician, all captured in one intake screen. A live pipeline shows where each job stands, from received to delivered, and a printed job sheet goes out at intake and at delivery. Staff can keep internal notes on any job — escalations, promises, customer behaviour — that never appear on a printout or a WhatsApp message. Photos of the device and PDFs such as the purchase invoice or warranty card can be attached to the job, several at a time, each with a short note, and opened from the job whenever you need them.",
 		highlights: [
 			"Single and batch (bulk) job intake",
 			"Live job pipeline with status at a glance",
 			"Technician assignment and reassignment",
 			"Internal notes the customer never sees",
+			"Attach photos and PDFs to a job and view them any time",
 			"Printed job sheets at intake and delivery",
 		],
 		icon: Wrench,

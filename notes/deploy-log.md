@@ -3,6 +3,14 @@
 Entries are written by `/git-deploy`, newest first. Each entry describes one commit;
 `Base:` is the commit it was built on, so `git diff <base>..` shows exactly that upload.
 
+## 2026-10-17 10:11 (main)
+Portal: add job attachments feature and 20+ years experience line
+
+- Features → Job management: new highlight and description sentence for attaching photos and PDFs to a job and viewing them any time
+- Home → service-centre highlight: new line on 20+ years of electronics repair experience and addressing service-centre concerns other software overlooks
+Files: 3 changed (+5 / -1) — Base: 29dba21
+Version: 0.24.12 → 0.24.13
+
 ## 2026-10-17 00:49 (main)
 Subscriptions: add All / Lite / Basic / Standard plan cards
 
